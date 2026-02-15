@@ -375,9 +375,13 @@ def _cmd_resume() -> int:
 
 
 @app.command("uninstall")
-def _cmd_uninstall() -> int:
+def _cmd_uninstall(
+    yes: Annotated[bool, typer.Option(
+        "--yes", "-y", help="Skip confirmation prompts (for non-interactive use)",
+    )] = False,
+) -> int:
     """Remove all TRCC config, udev rules, and autostart files."""
-    return SystemCommands.uninstall()
+    return SystemCommands.uninstall(yes=yes)
 
 
 @app.command("hid-debug")
@@ -418,6 +422,23 @@ def _cmd_doctor() -> int:
     """Check dependencies, libraries, and permissions."""
     from trcc.adapters.infra.doctor import run_doctor
     return run_doctor()
+
+
+@app.command("setup")
+def _cmd_setup(
+    yes: Annotated[bool, typer.Option(
+        "--yes", "-y", help="Accept all defaults (non-interactive)",
+    )] = False,
+) -> int:
+    """Interactive setup wizard — check deps, install packages, configure system."""
+    return SystemCommands.run_setup(auto_yes=yes)
+
+
+@app.command("setup-gui")
+def _cmd_setup_gui() -> None:
+    """Launch the setup wizard GUI."""
+    from trcc.install.gui import main
+    raise SystemExit(main())
 
 
 @app.command("download")
@@ -2151,7 +2172,7 @@ StartupWMClass=trcc-linux
         return 0
 
     @staticmethod
-    def uninstall():
+    def uninstall(*, yes: bool = False):
         """Remove all TRCC config, udev rules, autostart, and desktop files."""
         import shutil
         from pathlib import Path
@@ -2218,10 +2239,10 @@ StartupWMClass=trcc-linux
 
         # Uninstall the pip package itself
         print("\nUninstalling trcc-linux pip package...")
-        subprocess.run(
-            [sys.executable, "-m", "pip", "uninstall", "trcc-linux"],
-            check=False,
-        )
+        pip_cmd = [sys.executable, "-m", "pip", "uninstall", "trcc-linux"]
+        if yes:
+            pip_cmd.append("--yes")
+        subprocess.run(pip_cmd, check=False)
 
         return 0
 
@@ -2262,6 +2283,140 @@ StartupWMClass=trcc-linux
             traceback.print_exc()
             return 1
 
+    @staticmethod
+    def _confirm(prompt: str, auto_yes: bool) -> bool:
+        """Ask [Y/n] question. Returns True on yes/enter, False on n."""
+        if auto_yes:
+            print(f"  {prompt} [Y/n]: y (auto)")
+            return True
+        try:
+            answer = input(f"  {prompt} [Y/n]: ").strip().lower()
+            return answer in ('', 'y', 'yes')
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return False
+
+    @staticmethod
+    def run_setup(auto_yes: bool = False) -> int:
+        """Interactive setup wizard — check deps, install missing, configure system."""
+        from trcc.adapters.infra.doctor import (
+            check_desktop_entry,
+            check_gpu,
+            check_system_deps,
+            check_udev,
+            get_setup_info,
+        )
+
+        info = get_setup_info()
+        print(f"\n  TRCC Setup — {info.distro}\n")
+
+        actions: list[str] = []
+
+        # ── Step 1/4: System dependencies ────────────────────────────
+        print("  Step 1/4: System dependencies")
+        deps = check_system_deps(info.pkg_manager)
+        missing_required: list[str] = []
+        missing_optional: list[str] = []
+
+        for dep in deps:
+            if dep.ok:
+                ver = f" {dep.version}" if dep.version else ""
+                print(f"    [OK]  {dep.name}{ver}")
+            elif dep.required:
+                note = f" ({dep.note})" if dep.note else ""
+                print(f"    [!!]  {dep.name} — MISSING{note}")
+                missing_required.append(dep.install_cmd)
+            else:
+                note = f" ({dep.note})" if dep.note else ""
+                print(f"    [--]  {dep.name} — not installed{note}")
+                missing_optional.append(dep.install_cmd)
+
+        # Offer to install missing required deps
+        for cmd in missing_required:
+            if SystemCommands._confirm(f"Install? -> {cmd}", auto_yes):
+                print(f"    -> {cmd}")
+                result = subprocess.run(cmd.split())
+                if result.returncode == 0:
+                    actions.append(f"Installed: {cmd}")
+                else:
+                    print(f"    [!!] Command failed (exit {result.returncode})")
+
+        # Offer to install missing optional deps
+        for cmd in missing_optional:
+            if SystemCommands._confirm(f"Install? -> {cmd}", auto_yes):
+                print(f"    -> {cmd}")
+                result = subprocess.run(cmd.split())
+                if result.returncode == 0:
+                    actions.append(f"Installed: {cmd}")
+
+        print()
+
+        # ── Step 2/4: GPU detection ──────────────────────────────────
+        print("  Step 2/4: GPU detection")
+        gpus = check_gpu()
+        if not gpus:
+            print("    [--]  No discrete GPU detected")
+        for gpu in gpus:
+            if gpu.package_installed:
+                print(f"    [OK]  {gpu.label}")
+            else:
+                print(f"    [--]  {gpu.label} — {gpu.install_cmd}")
+                if SystemCommands._confirm(
+                    f"Install? -> {gpu.install_cmd}", auto_yes,
+                ):
+                    print(f"    -> {gpu.install_cmd}")
+                    result = subprocess.run(
+                        [sys.executable, "-m", "pip", "install"]
+                        + gpu.install_cmd.split()[-1:],
+                    )
+                    if result.returncode == 0:
+                        actions.append(f"Installed: {gpu.install_cmd}")
+                    else:
+                        print(f"    [!!] pip failed (exit {result.returncode})")
+        print()
+
+        # ── Step 3/4: USB device permissions ─────────────────────────
+        print("  Step 3/4: USB device permissions")
+        udev = check_udev()
+        if udev.ok:
+            print(f"    [OK]  {udev.message}")
+        else:
+            print(f"    [!!]  {udev.message}")
+            if SystemCommands._confirm(
+                "Install udev rules? (requires sudo)", auto_yes,
+            ):
+                rc = SystemCommands.setup_udev()
+                if rc == 0:
+                    actions.append("Installed udev rules")
+                else:
+                    print("    [!!] udev setup failed")
+        print()
+
+        # ── Step 4/4: Desktop integration ────────────────────────────
+        print("  Step 4/4: Desktop integration")
+        if check_desktop_entry():
+            print("    [OK]  Application menu entry installed")
+        else:
+            print("    [--]  No application menu entry")
+            if SystemCommands._confirm(
+                "Install application menu entry?", auto_yes,
+            ):
+                rc = SystemCommands.install_desktop()
+                if rc == 0:
+                    actions.append("Installed desktop entry")
+        print()
+
+        # ── Summary ──────────────────────────────────────────────────
+        print("  Summary")
+        if actions:
+            for a in actions:
+                print(f"    + {a}")
+        else:
+            print("    Nothing to do — system is ready.")
+
+        print("\n  Run 'trcc gui' to launch, or find TRCC in your app menu.\n")
+        return 0
+
 
 # =========================================================================
 # Backward-compat aliases (pyproject.toml entry points + tests)
@@ -2292,6 +2447,7 @@ install_desktop = SystemCommands.install_desktop
 uninstall = SystemCommands.uninstall
 report = SystemCommands.report
 download_themes = SystemCommands.download_themes
+run_setup = SystemCommands.run_setup
 _hex_dump = DiagCommands._hex_dump
 _hid_debug_lcd = DiagCommands._hid_debug_lcd
 _hid_debug_led = DiagCommands._hid_debug_led

@@ -94,6 +94,7 @@ trcc_setup.h
 /src/core.py
 /*.sh
 !install.sh
+!setup.sh
 
 # Dev tooling
 setup_tools/
