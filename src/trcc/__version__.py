@@ -1,6 +1,6 @@
 """TRCC Linux version information."""
 
-__version__ = "3.0.10"
+__version__ = "4.0.0"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Version history:
@@ -113,3 +113,12 @@ __version_info__ = tuple(int(x) for x in __version__.split("."))
 #          Rectangle(x,y,w,h) coordinates, 460×460 widget. Unified device
 #          sidebar buttons: remove DeviceButton class, all buttons use
 #          create_image_button with setChecked() toggle. 2288 tests.
+# 4.0.0  - Hexagonal adapters/ restructure: move 24 flat files into
+#          adapters/device/ (10 files), adapters/system/ (3 files),
+#          adapters/infra/ (11 files). Domain data consolidation: all static
+#          mappings centralized in core/models.py (LED styles, button images,
+#          protocol names, category data). Assets centralization: eliminate
+#          19 duplicate .png calls via Assets class. Language state unified:
+#          settings.lang singleton replaces 5 widget self._lang copies.
+#          Clean hexagonal boundary: core/ + services/ (pure Python) →
+#          adapters/ (device/system/infra I/O). 2290 tests.
