@@ -158,7 +158,7 @@ rpm-ostree install sg3_utils && echo "Reboot now, then run the next block" && sy
 ```
 After reboot:
 ```bash
-python3 -m venv ~/trcc-env && source ~/trcc-env/bin/activate && pip install trcc-linux && sudo trcc setup-udev && trcc install-desktop
+python3 -m venv ~/trcc-env && source ~/trcc-env/bin/activate && pip install trcc-linux && sudo trcc setup-udev && trcc setup-selinux && trcc install-desktop
 ```
 Launch: `source ~/trcc-env/bin/activate && trcc gui`
 
@@ -215,6 +215,7 @@ trcc led-mode breathing   # Set LED effect mode
 trcc serve                # Start REST API server
 trcc setup                # Interactive setup wizard (CLI)
 trcc setup-gui            # Setup wizard (GUI)
+trcc setup-selinux        # Install SELinux USB policy (Bazzite/Silverblue)
 trcc doctor               # Check system dependencies
 trcc report               # Generate diagnostic report
 trcc setup-udev           # Install udev rules
@@ -222,7 +223,7 @@ trcc install-desktop      # Install app menu entry and icon
 trcc uninstall            # Remove TRCC completely
 ```
 
-See the **[CLI Reference](doc/CLI_REFERENCE.md)** for all 38 commands, options, and troubleshooting.
+See the **[CLI Reference](doc/CLI_REFERENCE.md)** for all 39 commands, options, and troubleshooting.
 
 ## Documentation
 

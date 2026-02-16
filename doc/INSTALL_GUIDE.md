@@ -738,10 +738,17 @@ source ~/trcc-env/bin/activate
 trcc setup-udev
 ```
 
-Or if installed via pip:
+**SELinux policy (required for bulk USB devices on Bazzite):**
+
+Bazzite runs SELinux in enforcing mode, which blocks raw USB device access. Install the SELinux policy module:
 
 ```bash
-trcc setup-udev
+trcc setup-selinux    # auto-elevates with sudo
+```
+
+If `checkmodule` is not found, install it first:
+```bash
+sudo dnf install checkpolicy
 ```
 
 Then **unplug and replug the USB cable** (or reboot if it's not easily accessible).
@@ -1123,7 +1130,7 @@ Quick fixes for the most common issues:
 | `trcc: command not found` | Open a new terminal, or add `~/.local/bin` to PATH |
 | No device detected | `trcc setup-udev` then unplug/replug USB |
 | Permission denied | `pip install --upgrade trcc-linux` then `trcc setup-udev` |
-| Permission denied on SELinux (Bazzite, Silverblue) | Upgrade to v1.2.16+ which uses `MODE="0666"` |
+| Permission denied on SELinux (Bazzite, Silverblue) | `trcc setup-selinux` (v4.2.0+), or upgrade to v1.2.16+ for udev `MODE="0666"` |
 | PyQt6 not available | Install system package: `sudo dnf install python3-pyqt6` |
 | Qt_6_PRIVATE_API not found | Use system PyQt6 instead of pip version |
 | HID handshake None | Upgrade to v1.2.9+, power-cycle USB, run `trcc hid-debug` |

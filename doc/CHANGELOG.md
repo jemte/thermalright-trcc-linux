@@ -1,5 +1,16 @@
 # Changelog
 
+## v4.2.0
+
+### SELinux Support
+- **New**: `trcc setup-selinux` command — installs SELinux policy module (`trcc_usb`) that allows USB device access on SELinux-enforcing systems (Bazzite, Silverblue, Fedora Atomic)
+- **New**: SELinux check integrated into setup wizard (CLI `trcc setup` + GUI `trcc setup-gui`)
+- **New**: Distro-specific install hints for `checkmodule`/`semodule_package` across all package managers
+- **Fixed**: Bulk devices (87AD:70DB) failing with EBUSY on SELinux — detect silent `detach_kernel_driver()` blocking, skip `set_configuration()` if device already configured, clear error message pointing to `trcc setup-selinux`
+- **Fixed**: CI workflows now trigger on `stable` branch (was `main/master`)
+- Confirmed working: Wonder Vision Pro 360 on Bazzite (SELinux enforcing) — PM=64 → 1600x720
+- 2300 tests across 35 files
+
 ## v4.1.0
 
 ### Setup Wizard

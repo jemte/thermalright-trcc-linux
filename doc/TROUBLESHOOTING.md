@@ -99,6 +99,28 @@ ls -la /dev/sg*
 # Should show: crw-rw-rw- (world-readable/writable)
 ```
 
+### Bulk Device EBUSY on SELinux
+
+**Affects:** Bulk USB devices (87AD:70DB — GrandVision 360, Mjolnir Vision, Wonder Vision Pro 360) on SELinux-enforcing distros (Bazzite, Silverblue, Fedora Atomic).
+
+**Symptoms:**
+- `[Errno 16] Resource busy` in handshake/frame send
+- `detach_kernel_driver()` silently blocked by SELinux
+- Device works on non-SELinux distros but fails on Bazzite
+
+**Fix (v4.2.0+):**
+```bash
+pip install --upgrade trcc-linux
+trcc setup-selinux    # installs SELinux policy module (auto-elevates with sudo)
+# Unplug/replug USB cable
+trcc report           # verify handshake succeeds
+```
+
+If `checkmodule` is not found:
+```bash
+sudo dnf install checkpolicy    # Fedora/Bazzite
+```
+
 ---
 
 ## PyQt6 Issues

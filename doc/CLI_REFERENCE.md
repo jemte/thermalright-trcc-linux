@@ -347,6 +347,38 @@ If trcc-linux is not installed, shows a dialog offering to install it via pip. A
 
 ---
 
+### `trcc setup-selinux`
+
+Install a SELinux policy module that allows USB device access on SELinux-enforcing systems (Bazzite, Silverblue, Fedora Atomic).
+
+```bash
+trcc setup-selinux
+```
+
+**What this does:**
+
+1. Checks if SELinux is enforcing (`getenforce`)
+2. Compiles and installs the `trcc_usb` policy module that allows `unconfined_t` to access USB device files
+3. Auto-elevates with sudo if not root
+
+After running, **unplug and replug the USB cable**.
+
+**Prerequisites:** `checkmodule` and `semodule_package` must be installed:
+```bash
+# Fedora / Bazzite
+sudo dnf install checkpolicy
+
+# Debian / Ubuntu
+sudo apt install checkpolicy semodule-utils
+
+# Arch
+sudo pacman -S checkpolicy semodule-utils
+```
+
+> **When is this needed?** Only on SELinux-enforcing systems. Run `getenforce` — if it says "Enforcing" and bulk devices fail with EBUSY, you need this. Non-SELinux distros can skip it entirely.
+
+---
+
 ### `trcc doctor`
 
 Check dependencies, libraries, and permissions. Useful for diagnosing installation issues.

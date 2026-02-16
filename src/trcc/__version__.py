@@ -137,4 +137,4 @@ __version_info__ = tuple(int(x) for x in __version__.split("."))
 #          detect silent detach_kernel_driver() blocking, skip set_configuration()
 #          if device already configured, clear error message. Distro-specific
 #          install hints for checkmodule/semodule_package. Fix CI workflows
-#          triggering on stable branch. 2290 tests.
+#          triggering on stable branch. 2300 tests.
