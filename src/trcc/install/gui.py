@@ -206,7 +206,9 @@ class SetupWizard(QWidget):
         self._rows.clear()
         while self._checks_lay.count():
             item = self._checks_lay.takeAt(0)
-            w = item.widget() if item else None
+            if item is None:
+                continue
+            w = item.widget()
             if w is not None:
                 w.deleteLater()
 

@@ -99,6 +99,9 @@ trcc_setup.h
 # Dev tooling
 setup_tools/
 tools/
+node_modules/
+package-lock.json
+package.json
 
 # Old udev/systemd files (replaced by trcc setup-udev)
 99-trcc.rules
