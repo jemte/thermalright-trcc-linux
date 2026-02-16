@@ -252,6 +252,7 @@ def find_lcd_devices() -> List[Dict]:
 
             model = dev.model
             button_image = dev.button_image
+            led_style_id = None
 
             # All LED devices share PID 0x8001 — probe via HID handshake
             # to discover the real model (AX120, PA120, LC1, etc.).
@@ -262,6 +263,7 @@ def find_lcd_devices() -> List[Dict]:
                                            usb_path=dev.usb_path)
                     if info and info.model_name:
                         model = info.model_name
+                        led_style_id = info.style.style_id if info.style else None
                         btn = PmRegistry.get_button_image(info.pm, info.sub_type)
                         if btn:
                             button_image = btn
@@ -275,6 +277,7 @@ def find_lcd_devices() -> List[Dict]:
                 'vendor': dev.vendor_name,
                 'product': dev.product_name,
                 'model': model,
+                'led_style_id': led_style_id,
                 'button_image': button_image,
                 'vid': dev.vid,
                 'pid': dev.pid,

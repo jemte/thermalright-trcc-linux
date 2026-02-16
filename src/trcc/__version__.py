@@ -1,6 +1,6 @@
 """TRCC Linux version information."""
 
-__version__ = "4.2.4"
+__version__ = "4.2.5"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Version history:
@@ -155,3 +155,7 @@ __version_info__ = tuple(int(x) for x in __version__.split("."))
 #          resolution via handshake. Fixes HID devices like Assassin Spirit
 #          120 Vision ARGB (PM=36, 240x240) getting wrong-sized frames.
 #          CLI commands also handshake before sending. 2308 tests.
+# 4.2.5  - Fix LED style mismatch for PM=49 (LF10 product, LF8 layout):
+#          resolve_style_id() name lookup matched style 7 (116 LEDs) instead
+#          of style 5 (93 LEDs). Now stores style_id from probe directly on
+#          DeviceInfo — no reverse name lookup. 2308 tests.

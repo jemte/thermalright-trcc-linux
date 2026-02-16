@@ -1021,6 +1021,7 @@ class TRCCMainWindowMVC(QMainWindow):
             protocol=device_info.get('protocol', 'scsi'),
             device_type=device_info.get('device_type', 1),
             implementation=implementation,
+            led_style_id=device_info.get('led_style_id'),
         )
 
         if implementation == 'hid_led':
@@ -1725,7 +1726,9 @@ class TRCCMainWindowMVC(QMainWindow):
 
         from ..services.led import LEDService
         model = device.model or ''
-        led_style = LEDService.resolve_style_id(model)
+        # Use probe-resolved style_id directly (avoids name collision:
+        # PM=49 "LF10" shares style 5 with "LF8", but name lookup hits style 7)
+        led_style = device.led_style_id or LEDService.resolve_style_id(model)
 
         # Initialize controller for this device
         self._led_controller.initialize(device, led_style)
@@ -2072,6 +2075,7 @@ class TRCCMainWindowMVC(QMainWindow):
                     protocol=d.get('protocol', 'scsi'),
                     device_type=d.get('device_type', 1),
                     implementation=implementation,
+                    led_style_id=d.get('led_style_id'),
                 )
                 if implementation == 'hid_led':
                     self._show_led_view(device)
