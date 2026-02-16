@@ -1,6 +1,6 @@
 """TRCC Linux version information."""
 
-__version__ = "4.2.6"
+__version__ = "4.2.7"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Version history:
@@ -164,3 +164,7 @@ __version_info__ = tuple(int(x) for x in __version__.split("."))
 #          (pm_to_fbl, fbl_to_resolution), extract _render_and_send/_scan_lsscsi
 #          helpers, remove duplicate overlay.configure(), dead code cleanup.
 #          SCSI handshake fix (was returning None since v4.2.4). 2311 tests.
+# 4.2.7  - Fix frame transfer: send entire buffer in single USB transfer
+#          instead of chunking (HID Type 2 + Bulk), matching Windows USBLCDNEW.
+#          Expand debug report raw handshake output from 16 to 64 bytes.
+#          2311 tests.

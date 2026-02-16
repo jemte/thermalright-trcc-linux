@@ -285,7 +285,7 @@ class DebugReport:
             if info.serial:
                 sec.lines.append(f"    serial={info.serial}")
             if info.raw_response:
-                sec.lines.append(f"    raw[0:16]={info.raw_response[:16].hex()}")
+                sec.lines.append(f"    raw[0:64]={info.raw_response[:64].hex()}")
         finally:
             protocol.close()
 
@@ -312,7 +312,7 @@ class DebugReport:
                 f"model={info.model_name}, {known}{style_info}"
             )
             if info.raw_response:
-                sec.lines.append(f"    raw[0:16]={info.raw_response[:16].hex()}")
+                sec.lines.append(f"    raw[0:64]={info.raw_response[:64].hex()}")
         finally:
             protocol.close()
 
@@ -331,6 +331,6 @@ class DebugReport:
                 f"serial={result.serial}"
             )
             if result.raw_response:
-                sec.lines.append(f"    raw[0:16]={result.raw_response[:16].hex()}")
+                sec.lines.append(f"    raw[0:64]={result.raw_response[:64].hex()}")
         finally:
             protocol.close()

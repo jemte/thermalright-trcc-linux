@@ -309,18 +309,14 @@ class BulkDevice:
         struct.pack_into("<I", header, 60, data_size)    # payload length
 
         try:
-            # Send header
-            self._ep_out.write(bytes(header), timeout=_WRITE_TIMEOUT_MS)  # type: ignore[union-attr]
+            # C# USBLCDNEW ThreadSendDeviceData: single SubmitAsyncTransfer
+            # of header + payload as one contiguous buffer.
+            frame = bytes(header) + image_data
+            self._ep_out.write(frame, timeout=_WRITE_TIMEOUT_MS)  # type: ignore[union-attr]
 
-            # Send payload in chunks
-            offset = 0
-            while offset < data_size:
-                chunk = image_data[offset:offset + _WRITE_CHUNK_SIZE]
-                self._ep_out.write(chunk, timeout=_WRITE_TIMEOUT_MS)  # type: ignore[union-attr]
-                offset += len(chunk)
-
-            # ZLP frame delimiter
-            self._ep_out.write(b"", timeout=_WRITE_TIMEOUT_MS)  # type: ignore[union-attr]
+            # C#: ZLP when total is 512-aligned (num2 % 512 == 0)
+            if len(frame) % 512 == 0:
+                self._ep_out.write(b"", timeout=_WRITE_TIMEOUT_MS)  # type: ignore[union-attr]
 
             log.debug("Bulk frame sent: %dx%d, cmd=%d, %d bytes",
                       self.width, self.height, cmd, data_size)

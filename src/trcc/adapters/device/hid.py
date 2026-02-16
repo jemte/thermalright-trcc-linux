@@ -372,9 +372,9 @@ class HidDeviceType2(HidDevice):
     def send_frame(self, image_data: bytes) -> bool:
         """Send one image frame to the device.
 
-        TRCC (UCDevice.cs ThreadSendDeviceData2) sends frames in 512-byte
-        chunks via UsbHidDevice.SendMessage().  We mirror that: build the
-        padded packet, then write it in 512-byte pieces.
+        USBLCDNEW.exe ThreadSendDeviceDataH sends the entire 512-aligned
+        buffer in a single Transfer() call.  pyusb splits into USB packets
+        internally — the device sees one logical transfer.
 
         Args:
             image_data: Raw image bytes (JPEG or other format the
@@ -391,11 +391,8 @@ class HidDeviceType2(HidDevice):
 
         packet = self.build_frame_packet(image_data)
 
-        # C# UCDevice.cs ThreadSendDeviceData2: sends 512-byte chunks
-        total = 0
-        for offset in range(0, len(packet), USB_BULK_ALIGNMENT):
-            chunk = packet[offset:offset + USB_BULK_ALIGNMENT]
-            total += self.transport.write(EP_WRITE_02, chunk, DEFAULT_TIMEOUT_MS)
+        # C# USBLCDNEW ThreadSendDeviceDataH: single Transfer() call
+        total = self.transport.write(EP_WRITE_02, packet, DEFAULT_TIMEOUT_MS)
 
         # C#: Thread.Sleep(1) after frame transfer
         time.sleep(DELAY_FRAME_TYPE2_S)
