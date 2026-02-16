@@ -117,14 +117,18 @@ class ImageService:
         pixel = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
         return struct.pack(f'{byte_order}H', pixel)
 
+    # SCSI resolutions that use big-endian RGB565 (SPIMode=2).
+    # FBL 100/101/102 → 320x320, FBL 50 → 240x320, FBL 51 → 320x240.
+    # C#: myDeviceSPIMode=2 forces big-endian for these FBL values.
+    _SCSI_BIG_ENDIAN = {(320, 320), (240, 320), (320, 240)}
+
     @staticmethod
     def byte_order_for(protocol: str, resolution: tuple[int, int]) -> str:
         """Determine RGB565 byte order for a device.
 
-        Big-endian for SCSI 320x320 and SCSI 240x320 (FBL=51/53,
-        SPIMode=2), little-endian for other SCSI resolutions.
-        HID/Bulk always big-endian.
+        Big-endian for SCSI 320x320/240x320/320x240 (SPIMode=2)
+        and all HID/Bulk. Little-endian for other SCSI resolutions.
         """
-        if protocol == 'scsi' and resolution not in ((320, 320), (240, 320)):
+        if protocol == 'scsi' and resolution not in ImageService._SCSI_BIG_ENDIAN:
             return '<'
         return '>'

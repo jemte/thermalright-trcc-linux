@@ -1,6 +1,6 @@
 """TRCC Linux version information."""
 
-__version__ = "4.2.8"
+__version__ = "5.0.0"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Version history:
@@ -174,3 +174,13 @@ __version_info__ = tuple(int(x) for x in __version__.split("."))
 #          Fix LED device handshake warning on boot: route LED devices
 #          directly to LED panel in auto-select, skipping LCD handshake.
 #          2311 tests.
+# 5.0.0  - Complete Windows C# feature parity: full gap audit (35 items
+#          resolved). HIGH: fix wire remap tables for LED styles 1-12,
+#          PA120 GPU digit shift, LC2 date/colon, LF11 disk metrics,
+#          LC1 MHz 4-digit. MEDIUM: zone carousel, LED test mode, DDR
+#          multiplier, disk selector, per-zone on/off, split mode (Dynamic
+#          Island), preview drag, slideshow carousel. LOW: video fit-mode
+#          during playback (width/height letterbox), expanded DRAM info
+#          (15 dmidecode fields), disk SMART health, SPI byte order fix.
+#          VideoDecoder fit-mode via ffprobe + proportional scaling.
+#          2315 tests.

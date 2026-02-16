@@ -15,6 +15,7 @@ import struct
 import subprocess
 import tempfile
 import time
+import zlib
 from typing import Dict, List, Set
 
 from trcc.adapters.infra.data_repository import SysUtils
@@ -32,6 +33,19 @@ _POST_INIT_DELAY = 0.1
 # Base command for frame data chunks; chunk index goes in bits [27:24]
 _FRAME_CMD_BASE = 0x101F5
 _CHUNK_SIZE = 0x10000  # 64 KiB per chunk (except possibly the last)
+
+# Boot animation SCSI commands (from USBLCD.exe reverse engineering)
+_ANIM_FIRST_FRAME = 0x000201F5   # Compressed first frame (CDB[8]=frame_count)
+_ANIM_CAROUSEL = 0x000301F5      # Compressed carousel frame (CDB[3]=delay, CDB[8]=frame_index)
+_ANIM_COMPRESS_LEVEL = 3         # zlib compression level (fast, matches USBLCD.exe)
+_ANIM_FIRST_DELAY_S = 0.5       # 500ms sleep after first frame
+_ANIM_FRAME_DELAY_S = 0.01      # 10ms sleep between carousel frames
+_ANIM_MAX_FRAMES = 249           # C# rejects >= 250
+
+# Boot animation supported resolutions (C# returns immediately for others)
+_BOOT_ANIM_RESOLUTIONS = {
+    (240, 240), (240, 320), (320, 240), (320, 320),
+}
 
 
 # =========================================================================
@@ -162,6 +176,75 @@ class ScsiDevice:
             ScsiDevice._scsi_write(dev, header, rgb565_data[offset:offset + size])
             offset += size
 
+    @staticmethod
+    def _build_anim_header(cmd: int, word2: int, compressed_size: int) -> bytes:
+        """Build 20-byte CDB for compressed animation commands (no CRC).
+
+        Layout: [cmd:4][0:4][word2:4][compressed_size:4][0:4]
+        Used for 0x201F5 (first frame) and 0x301F5 (carousel frames).
+        """
+        return struct.pack('<IIIII', cmd, 0, word2, compressed_size, 0)
+
+    @staticmethod
+    def _send_boot_animation(
+        dev: str,
+        frames: list[bytes],
+        delays: list[int],
+        width: int,
+        height: int,
+    ) -> bool:
+        """Send multi-frame boot animation to device flash via SCSI.
+
+        Matches USBLCD.exe compressed animation upload protocol:
+        1. Compress first frame with zlib, send with 0x201F5 (frame_count in CDB[8])
+        2. For each subsequent frame, compress and send with 0x301F5
+           (delay in CDB[3], frame_index in CDB[8])
+
+        Args:
+            dev: SCSI device path (/dev/sgX).
+            frames: List of RGB565 byte arrays (one per animation frame).
+            delays: Per-frame delays in centiseconds (from GIF metadata).
+            width: Frame width in pixels.
+            height: Frame height in pixels.
+
+        Returns:
+            True if all frames sent successfully.
+        """
+        if (width, height) not in _BOOT_ANIM_RESOLUTIONS:
+            log.warning("Boot animation not supported for %dx%d", width, height)
+            return False
+
+        n = len(frames)
+        if n == 0 or n >= _ANIM_MAX_FRAMES:
+            log.warning("Boot animation frame count %d out of range (1-%d)", n, _ANIM_MAX_FRAMES - 1)
+            return False
+
+        # Phase 1: Compress and send first frame
+        compressed = zlib.compress(frames[0], _ANIM_COMPRESS_LEVEL)
+        header = ScsiDevice._build_anim_header(_ANIM_FIRST_FRAME, n, len(compressed))
+        if not ScsiDevice._scsi_write(dev, header, compressed):
+            log.error("Boot animation: failed to send first frame")
+            return False
+        log.info("Boot animation: sent first frame (%d bytes compressed, %d frames total)",
+                 len(compressed), n)
+        time.sleep(_ANIM_FIRST_DELAY_S)
+
+        # Phase 2: Send each carousel frame
+        for i in range(n):
+            compressed = zlib.compress(frames[i], _ANIM_COMPRESS_LEVEL)
+            # Delay: centiseconds * 10 → milliseconds, capped at 250
+            delay_raw = delays[i] if i < len(delays) else 10
+            delay_byte = min(delay_raw * 10, 250) & 0xFF
+            cmd = _ANIM_CAROUSEL | (delay_byte << 24)
+            header = ScsiDevice._build_anim_header(cmd, i, len(compressed))
+            if not ScsiDevice._scsi_write(dev, header, compressed):
+                log.error("Boot animation: failed to send frame %d", i)
+                return False
+            time.sleep(_ANIM_FRAME_DELAY_S)
+
+        log.info("Boot animation: all %d frames sent successfully", n)
+        return True
+
     # --- Instance methods ---
 
     def handshake(self) -> HandshakeResult:
@@ -182,6 +265,21 @@ class ScsiDevice:
             self.handshake()
         ScsiDevice._send_frame(self.device_path, rgb565_data, self.width, self.height)
         return True
+
+    def send_boot_animation(
+        self, frames: list[bytes], delays: list[int],
+    ) -> bool:
+        """Send boot animation to device flash.
+
+        Args:
+            frames: List of RGB565 byte arrays (one per frame).
+            delays: Per-frame delays in centiseconds (from GIF metadata).
+        """
+        if not self._initialized:
+            self.handshake()
+        return ScsiDevice._send_boot_animation(
+            self.device_path, frames, delays, self.width, self.height,
+        )
 
     def close(self) -> None:
         """Mark as uninitialized (no persistent resources to release)."""

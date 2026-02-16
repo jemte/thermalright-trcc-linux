@@ -41,7 +41,7 @@ from ..conf import Settings, settings
 
 # Import MVC core
 from ..core.controllers import LEDDeviceController, create_controller
-from ..core.models import DeviceInfo, PlaybackState, ThemeInfo
+from ..core.models import SPLIT_MODE_RESOLUTIONS, DeviceInfo, PlaybackState, ThemeInfo
 
 # Import view components
 from .assets import Assets
@@ -118,6 +118,7 @@ class LEDHandler:
                 model=model,
             )
         self._panel.set_sensor_source(self._controller.led.state.temp_source)
+        self._panel.set_memory_ratio(self._controller.led.state.memory_ratio)
 
         seg_unit = "F" if settings.temp_unit == 1 else "C"
         self._controller.led.set_seg_temp_unit(seg_unit)
@@ -170,7 +171,14 @@ class LEDHandler:
             lambda idx: ctrl.led.toggle_segment(idx, not ctrl.led.state.segment_on[idx]))
 
         panel.zone_selected.connect(self._on_zone_selected)
-        panel.sync_all_changed.connect(lambda _sync: None)
+        panel.zone_toggled.connect(
+            lambda zi, on: ctrl.led.toggle_zone(zi, on))
+        panel.carousel_changed.connect(
+            lambda on: ctrl.led.set_zone_carousel(on))
+        panel.carousel_zone_changed.connect(
+            lambda zi, sel: ctrl.led.set_zone_carousel_zone(zi, sel))
+        panel.carousel_interval_changed.connect(
+            lambda secs: ctrl.led.set_zone_carousel_interval(secs))
 
         panel.clock_format_changed.connect(
             lambda is_24h: ctrl.led.set_clock_format(is_24h))
@@ -182,6 +190,12 @@ class LEDHandler:
 
         panel.display_metric_changed.connect(self._on_hr10_metric_changed)
         panel.temp_unit_changed.connect(self._on_temp_unit_changed)
+        panel.disk_index_changed.connect(
+            lambda idx: ctrl.led.set_disk_index(idx))
+        panel.memory_ratio_changed.connect(
+            lambda ratio: ctrl.led.set_memory_ratio(ratio))
+        panel.test_mode_changed.connect(
+            lambda on: ctrl.led.set_test_mode(on))
 
         ctrl.led.on_preview_update = self._on_colors_update
         ctrl.on_status_update = lambda text: panel.set_status(text)
@@ -192,12 +206,8 @@ class LEDHandler:
         ctrl = self._controller
         if not ctrl:
             return
-        panel = self._panel
-        if panel.sync_all and ctrl.led.state.zones:
-            for i in range(len(ctrl.led.state.zones)):
-                ctrl.led.set_zone_mode(i, mode)
-        elif ctrl.led.state.zones:
-            ctrl.led.set_zone_mode(panel.selected_zone, mode)
+        if ctrl.led.state.zones:
+            ctrl.led.set_zone_mode(self._panel.selected_zone, mode)
         else:
             ctrl.led.set_mode(mode)
 
@@ -205,12 +215,8 @@ class LEDHandler:
         ctrl = self._controller
         if not ctrl:
             return
-        panel = self._panel
-        if panel.sync_all and ctrl.led.state.zones:
-            for i in range(len(ctrl.led.state.zones)):
-                ctrl.led.set_zone_color(i, r, g, b)
-        elif ctrl.led.state.zones:
-            ctrl.led.set_zone_color(panel.selected_zone, r, g, b)
+        if ctrl.led.state.zones:
+            ctrl.led.set_zone_color(self._panel.selected_zone, r, g, b)
         else:
             ctrl.led.set_color(r, g, b)
 
@@ -218,12 +224,8 @@ class LEDHandler:
         ctrl = self._controller
         if not ctrl:
             return
-        panel = self._panel
-        if panel.sync_all and ctrl.led.state.zones:
-            for i in range(len(ctrl.led.state.zones)):
-                ctrl.led.set_zone_brightness(i, val)
-        elif ctrl.led.state.zones:
-            ctrl.led.set_zone_brightness(panel.selected_zone, val)
+        if ctrl.led.state.zones:
+            ctrl.led.set_zone_brightness(self._panel.selected_zone, val)
         else:
             ctrl.led.set_brightness(val)
 
@@ -235,7 +237,7 @@ class LEDHandler:
         if 0 <= zone_index < len(zones):
             z = zones[zone_index]
             self._panel.load_zone_state(
-                zone_index, z.mode.value, z.color, z.brightness)
+                zone_index, z.mode.value, z.color, z.brightness, z.on)
 
     # ── Animation tick + sensor polling ──────────────────────────────
 
@@ -541,6 +543,9 @@ class TRCCMainWindowMVC(QMainWindow):
         # System tray icon
         self._setup_systray()
 
+        # Suspend/resume handler (C# OnPowerModeChanged → ResetAllDevice)
+        self._setup_sleep_monitor()
+
         # Detect devices immediately, then poll every 5s
         self._on_device_poll()
         self._device_timer.start(5000)
@@ -585,6 +590,38 @@ class TRCCMainWindowMVC(QMainWindow):
 
         self._tray.activated.connect(self._on_tray_activated)
         self._tray.show()
+
+    def _setup_sleep_monitor(self):
+        """Listen for system suspend/resume via dbus (C# OnPowerModeChanged)."""
+        try:
+            import dbus  # pyright: ignore[reportMissingImports]
+            from dbus.mainloop.glib import DBusGMainLoop  # pyright: ignore[reportMissingImports]
+            DBusGMainLoop(set_as_default=True)
+            bus = dbus.SystemBus()
+            bus.add_signal_receiver(
+                self._on_sleep_signal,
+                signal_name='PrepareForSleep',
+                dbus_interface='org.freedesktop.login1.Manager',
+                bus_name='org.freedesktop.login1',
+            )
+            log.info("Sleep monitor: dbus PrepareForSleep listener active")
+        except Exception:
+            log.debug("Sleep monitor: dbus not available, skipping")
+
+    def _on_sleep_signal(self, sleeping: bool):
+        """Handle suspend (sleeping=True) / resume (sleeping=False)."""
+        if sleeping:
+            log.info("System suspending — stopping timers")
+            self._device_timer.stop()
+            self._animation_timer.stop()
+            self._metrics_timer.stop()
+            self._screencast.stop()
+        else:
+            log.info("System resuming — invalidating USB handles")
+            from ..adapters.device.factory import DeviceProtocolFactory
+            DeviceProtocolFactory.close_all()
+            self._device_timer.start(5000)
+            self._on_device_poll()
 
     def _on_tray_activated(self, reason):
         """Handle tray icon click — left-click toggles visibility."""
@@ -850,6 +887,11 @@ class TRCCMainWindowMVC(QMainWindow):
         settings.set_temp_unit(temp_int)
         self.uc_preview.set_status(f"Temperature: °{unit}")
 
+    def _on_hdd_toggle_changed(self, on: bool):
+        """Handle HDD info toggle from Control Center — persist and gate disk reads."""
+        settings.set_hdd_enabled(on)
+        self.uc_preview.set_status(f"HDD info: {'Enabled' if on else 'Disabled'}")
+
     def _on_refresh_changed(self, interval: int):
         """Handle data refresh interval change from Control Center.
 
@@ -894,6 +936,9 @@ class TRCCMainWindowMVC(QMainWindow):
             self.uc_theme_mask.set_mask_directory(settings.masks_dir)
         self.uc_theme_mask.set_resolution(f'{width}x{height}')
 
+        # Configure buttonLDD as split mode or brightness
+        self._configure_ldd_for_resolution(width, height)
+
         self.uc_preview.set_status(f"Resolution: {width}×{height}")
 
     def _create_bottom_controls(self):
@@ -921,19 +966,23 @@ class TRCCMainWindowMVC(QMainWindow):
         self.rotation_combo.setToolTip("LCD rotation")
         self.rotation_combo.currentIndexChanged.connect(self._on_rotation_change)
 
-        # === Brightness button (buttonLDD) — cycles PL1→PL2→PL3→PL1 ===
-        self._brightness_level = 2  # Default L2 (75%), Windows starts at L2
-        self._brightness_pixmaps = {}
+        # === buttonLDD — dual purpose based on device resolution ===
+        # Widescreen 1600x720: split mode button (C# buttonLDD cycles myLddVal 1→2→3)
+        # Other resolutions: brightness button (our UX addition, not in C#)
+        self._brightness_level = 2  # Default L2 (50%)
+        self._split_mode = 0  # myLddVal: 0=off, 1-3 for widescreen split
+        self._ldd_is_split = False  # True when button acts as split mode
+        self._ldd_pixmaps: dict = {}
         for level in range(4):
             pix = Assets.load_pixmap(f'PL{level}.png')
             if not pix.isNull():
-                self._brightness_pixmaps[level] = pix
+                self._ldd_pixmaps[level] = pix
 
-        self.brightness_btn = QPushButton(self.form_container)
-        self.brightness_btn.setGeometry(*Layout.BRIGHTNESS_BTN)
-        self.brightness_btn.setToolTip("Cycle brightness (Low / Medium / High)")
-        self._update_brightness_icon()
-        self.brightness_btn.clicked.connect(self._on_brightness_cycle)
+        self.ldd_btn = QPushButton(self.form_container)
+        self.ldd_btn.setGeometry(*Layout.BRIGHTNESS_BTN)
+        self.ldd_btn.setToolTip("Cycle brightness (Low / Medium / High)")
+        self._update_ldd_icon()
+        self.ldd_btn.clicked.connect(self._on_ldd_click)
 
         # === Theme name input (textBoxCMM) ===
         self.theme_name_input = QLineEdit(self.form_container)
@@ -1177,13 +1226,12 @@ class TRCCMainWindowMVC(QMainWindow):
         if (w, h) != (self.controller.lcd_width, self.controller.lcd_height):
             self._on_resolution_changed(w, h)
 
-        # Restore per-device brightness and rotation
+        # Restore per-device brightness, rotation, and split mode
         cfg = Settings.get_device_config(self._active_device_key)
         brightness_level = cfg.get('brightness_level', 2)
         rotation_index = cfg.get('rotation', 0) // 90
 
         self._brightness_level = brightness_level
-        self._update_brightness_icon()
         brightness_values = {1: 25, 2: 50, 3: 100}
         self.controller.set_brightness(brightness_values.get(brightness_level, 50))
 
@@ -1191,6 +1239,10 @@ class TRCCMainWindowMVC(QMainWindow):
         self.rotation_combo.setCurrentIndex(rotation_index)
         self.rotation_combo.blockSignals(False)
         self.controller.set_rotation(rotation_index * 90)
+
+        # Restore split mode for widescreen devices
+        self._split_mode = cfg.get('split_mode', 2)  # Default style B
+        self._configure_ldd_for_resolution(w, h)
 
         # Restore per-device theme (or auto-load first available)
         saved_theme = cfg.get('theme_path')
@@ -1331,6 +1383,16 @@ class TRCCMainWindowMVC(QMainWindow):
         self.uc_theme_setting.overlay_grid.element_selected.connect(
             self._on_element_flash)
 
+        # Preview drag → overlay element position (C# UCScreenImage.SetTextPos)
+        self.uc_preview.element_drag_start.connect(self._on_drag_start)
+        self.uc_preview.element_drag_move.connect(self._on_drag_move)
+        self.uc_preview.element_drag_end.connect(self._on_drag_end)
+        self.uc_preview.element_nudge.connect(self._on_nudge)
+        self._drag_origin_x = 0
+        self._drag_origin_y = 0
+        self._drag_elem_x = 0
+        self._drag_elem_y = 0
+
         # Screen capture and eyedropper
         self.uc_theme_setting.capture_requested.connect(self._on_capture_requested)
         self.uc_theme_setting.eyedropper_requested.connect(self._on_eyedropper_requested)
@@ -1349,9 +1411,7 @@ class TRCCMainWindowMVC(QMainWindow):
         self.uc_about.close_requested.connect(self._show_form)
         self.uc_about.language_changed.connect(self.set_language)
         self.uc_about.temp_unit_changed.connect(self._on_temp_unit_changed)
-        self.uc_about.hdd_toggle_changed.connect(
-            lambda on: self.uc_preview.set_status(
-                f"HDD info: {'Enabled' if on else 'Disabled'}"))
+        self.uc_about.hdd_toggle_changed.connect(self._on_hdd_toggle_changed)
         self.uc_about.refresh_changed.connect(self._on_refresh_changed)
 
     def _on_device_widget_clicked(self, device_info: dict):
@@ -1554,6 +1614,10 @@ class TRCCMainWindowMVC(QMainWindow):
             self.controller.play_pause()
         elif cmd == UCPreview.CMD_VIDEO_SEEK:
             self.controller.seek_video(info)
+        elif cmd == UCPreview.CMD_VIDEO_FIT_WIDTH:
+            self.controller.set_video_fit_mode('width')
+        elif cmd == UCPreview.CMD_VIDEO_FIT_HEIGHT:
+            self.controller.set_video_fit_mode('height')
 
     def _on_load_video_clicked(self):
         """Handle load video → open file dialog → show video cutter."""
@@ -1737,6 +1801,44 @@ class TRCCMainWindowMVC(QMainWindow):
         self.controller.overlay.flash_skip_index = -1  # type: ignore[attr-defined]
         self.controller.render_overlay_and_preview()
 
+    # ── Preview drag → overlay element position (C# UCScreenImage.SetTextPos) ──
+
+    def _on_drag_start(self, lcd_x: int, lcd_y: int):
+        """Record drag origin and current element position."""
+        cfg = self.uc_theme_setting.overlay_grid.get_selected_config()
+        if cfg is None:
+            return
+        self._drag_origin_x = lcd_x
+        self._drag_origin_y = lcd_y
+        self._drag_elem_x = cfg.x
+        self._drag_elem_y = cfg.y
+
+    def _on_drag_move(self, lcd_x: int, lcd_y: int):
+        """Move selected element by drag delta (C# SetTextPos delta logic)."""
+        cfg = self.uc_theme_setting.overlay_grid.get_selected_config()
+        if cfg is None:
+            return
+        dx = lcd_x - self._drag_origin_x
+        dy = lcd_y - self._drag_origin_y
+        new_x = max(0, min(self._drag_elem_x + dx, self.controller.lcd_width))
+        new_y = max(0, min(self._drag_elem_y + dy, self.controller.lcd_height))
+        self.uc_theme_setting.color_panel.set_position(new_x, new_y)
+        self.uc_theme_setting._on_position_changed(new_x, new_y)
+
+    def _on_drag_end(self):
+        """Drag complete — position already saved via _on_position_changed."""
+        pass
+
+    def _on_nudge(self, dx: int, dy: int):
+        """WASD/arrow key nudge: move selected element by delta."""
+        cfg = self.uc_theme_setting.overlay_grid.get_selected_config()
+        if cfg is None:
+            return
+        new_x = max(0, min(cfg.x + dx, self.controller.lcd_width))
+        new_y = max(0, min(cfg.y + dy, self.controller.lcd_height))
+        self.uc_theme_setting.color_panel.set_position(new_x, new_y)
+        self.uc_theme_setting._on_position_changed(new_x, new_y)
+
     # =========================================================================
     # Delete Theme (Windows cmd=32)
     # =========================================================================
@@ -1832,7 +1934,7 @@ class TRCCMainWindowMVC(QMainWindow):
             interval_seconds=self.uc_theme_local.get_slideshow_interval(),
             count=len([i for i in theme_indices if i >= 0]),
             theme_indices=theme_indices[:6],
-            lcd_rotation=self.rotation_combo.currentIndex() + 1,  # 1-4
+            lcd_rotation=self._split_mode if self._ldd_is_split else 1,  # myLddVal
         )
 
         # Write to Theme.dc
@@ -1875,9 +1977,12 @@ class TRCCMainWindowMVC(QMainWindow):
         # Start timer if enabled
         self._update_slideshow_state()
 
-        # Restore LCD rotation (1-4 to 0-3 index)
-        if 1 <= config.lcd_rotation <= 4:
-            self.rotation_combo.setCurrentIndex(config.lcd_rotation - 1)
+        # Restore split mode from Theme.dc (myLddVal stored in lcd_rotation field)
+        if 1 <= config.lcd_rotation <= 3:
+            self._split_mode = config.lcd_rotation
+            if self._ldd_is_split:
+                self.controller.set_split_mode(self._split_mode)
+                self._update_ldd_icon()
 
     def _on_slideshow_tick(self):
         """Auto-rotate to next theme in slideshow (Windows Timer_event lunbo)."""
@@ -1959,6 +2064,9 @@ class TRCCMainWindowMVC(QMainWindow):
                 from ..adapters.infra.dc_config import DcConfig
                 dc = DcConfig(dc_path)
                 overlay_config = dc.to_overlay_config()
+                # Apply screen capture region from DC (JpX/JpY/JpW/JpH)
+                self._screencast.set_params(
+                    dc.overlay_x, dc.overlay_y, dc.overlay_w, dc.overlay_h)
             except Exception:
                 return
 
@@ -2015,31 +2123,55 @@ class TRCCMainWindowMVC(QMainWindow):
             Settings.save_device_setting(self._active_device_key, 'rotation', rotation)
         self.uc_preview.set_status(f"Rotation: {rotation}°")
 
-    def _on_brightness_cycle(self):
-        """Cycle brightness level (Windows buttonLDD_Click).
-
-        Windows cycles 1→2→3→1 (skips L0). We match that behavior.
-        """
-        self._brightness_level = (self._brightness_level % 3) + 1  # 1→2→3→1
-        self._update_brightness_icon()
-        brightness_values = {1: 25, 2: 50, 3: 100}
-        brightness = brightness_values[self._brightness_level]
-        self.controller.set_brightness(brightness)
-        if self._active_device_key:
-            Settings.save_device_setting(self._active_device_key, 'brightness_level',
-                                self._brightness_level)
-        self.uc_preview.set_status(f"Brightness: L{self._brightness_level} ({brightness}%)")
-
-    def _update_brightness_icon(self):
-        """Update brightness button icon for current level."""
-        pix = self._brightness_pixmaps.get(self._brightness_level)
-        if pix and not pix.isNull():
-            self.brightness_btn.setIcon(QIcon(pix))
-            self.brightness_btn.setIconSize(QSize(52, 24))
-            self.brightness_btn.setStyleSheet(Styles.ICON_BUTTON_HOVER)
+    def _on_ldd_click(self):
+        """Handle buttonLDD click — split mode for widescreen, brightness for others."""
+        if self._ldd_is_split:
+            self._split_mode = (self._split_mode % 3) + 1  # 1→2→3→1
+            self.controller.set_split_mode(self._split_mode)
+            self._update_ldd_icon()
+            if self._active_device_key:
+                Settings.save_device_setting(
+                    self._active_device_key, 'split_mode', self._split_mode)
+            self.uc_preview.set_status(f"Split mode: {self._split_mode}")
         else:
-            self.brightness_btn.setText(f"L{self._brightness_level}")
-            self.brightness_btn.setStyleSheet(Styles.TEXT_BUTTON)
+            self._brightness_level = (self._brightness_level % 3) + 1  # 1→2→3→1
+            self._update_ldd_icon()
+            brightness_values = {1: 25, 2: 50, 3: 100}
+            brightness = brightness_values[self._brightness_level]
+            self.controller.set_brightness(brightness)
+            if self._active_device_key:
+                Settings.save_device_setting(
+                    self._active_device_key, 'brightness_level',
+                    self._brightness_level)
+            self.uc_preview.set_status(
+                f"Brightness: L{self._brightness_level} ({brightness}%)")
+
+    def _update_ldd_icon(self):
+        """Update buttonLDD icon for current mode."""
+        level = self._split_mode if self._ldd_is_split else self._brightness_level
+        pix = self._ldd_pixmaps.get(level)
+        if pix and not pix.isNull():
+            self.ldd_btn.setIcon(QIcon(pix))
+            self.ldd_btn.setIconSize(QSize(52, 24))
+            self.ldd_btn.setStyleSheet(Styles.ICON_BUTTON_HOVER)
+        else:
+            label = f"S{level}" if self._ldd_is_split else f"L{level}"
+            self.ldd_btn.setText(label)
+            self.ldd_btn.setStyleSheet(Styles.TEXT_BUTTON)
+
+    def _configure_ldd_for_resolution(self, width: int, height: int):
+        """Configure buttonLDD as split mode or brightness based on resolution."""
+        is_split = (width, height) in SPLIT_MODE_RESOLUTIONS
+        self._ldd_is_split = is_split
+        if is_split:
+            self.ldd_btn.setToolTip("Split overlay style (Dynamic Island)")
+            if not self._split_mode:
+                self._split_mode = 2  # C# default: style B
+            self.controller.set_split_mode(self._split_mode)
+        else:
+            self.ldd_btn.setToolTip("Cycle brightness (Low / Medium / High)")
+            self.controller.set_split_mode(0)  # Disable split for non-widescreen
+        self._update_ldd_icon()
 
     def _on_metrics_tick(self):
         """Collect system metrics and re-render overlay, send to LCD.

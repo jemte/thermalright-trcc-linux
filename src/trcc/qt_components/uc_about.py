@@ -170,7 +170,8 @@ class UCAbout(BasePanel):
         self._lang_buttons: dict[str, QPushButton] = {}
         self._temp_mode = 'C'
         self._autostart = _is_autostart_enabled()
-        self._read_hdd = True
+        from ..conf import settings
+        self._read_hdd = settings.hdd_enabled
         self._refresh_interval = 1
 
         # Load checkbox pixmaps
@@ -209,7 +210,7 @@ class UCAbout(BasePanel):
         self.fahrenheit_btn.clicked.connect(lambda: self._set_temp('F'))
 
         # === HDD info checkbox (buttonYP) ===
-        self.hdd_btn = self._make_checkbox(*Layout.ABOUT_HDD, checked=True)
+        self.hdd_btn = self._make_checkbox(*Layout.ABOUT_HDD, checked=self._read_hdd)
         self.hdd_btn.clicked.connect(self._on_hdd_clicked)
 
         # === Data refresh interval input (textBoxTimer) ===

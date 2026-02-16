@@ -84,19 +84,27 @@ class ImageLabel(QLabel):
     QLabel optimized for fast image updates.
 
     Matches Tkinter Canvas image pattern but faster.
+    Supports mouse drag for overlay element repositioning.
     """
 
     clicked = Signal()
+    drag_started = Signal(int, int)    # (x, y) in widget coords
+    drag_moved = Signal(int, int)      # (x, y) in widget coords
+    drag_ended = Signal()
+    nudge = Signal(int, int)           # (dx, dy) in pixels (1 or 10)
 
     def __init__(self, width=320, height=320, parent=None):
         super().__init__(parent)
 
         self._width = width
         self._height = height
+        self._dragging = False
 
         self.setFixedSize(width, height)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setStyleSheet("background-color: black;")
+        self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
+        self.setCursor(Qt.CursorShape.OpenHandCursor)
 
     def set_pil_image(self, pil_image, fast: bool = False):
         """Set image from PIL Image.
@@ -118,9 +126,44 @@ class ImageLabel(QLabel):
         self.setPixmap(pil_to_pixmap(pil_image))
 
     def mousePressEvent(self, event):
-        """Handle mouse click."""
+        """Handle mouse click — start drag."""
         self.clicked.emit()
+        if event.button() == Qt.MouseButton.LeftButton:
+            pos = event.position().toPoint()
+            self._dragging = True
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
+            self.drag_started.emit(pos.x(), pos.y())
         super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        """Handle mouse drag."""
+        if self._dragging:
+            pos = event.position().toPoint()
+            self.drag_moved.emit(pos.x(), pos.y())
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        """Handle drag end."""
+        if self._dragging:
+            self._dragging = False
+            self.setCursor(Qt.CursorShape.OpenHandCursor)
+            self.drag_ended.emit()
+        super().mouseReleaseEvent(event)
+
+    def keyPressEvent(self, event):
+        """WASD/arrow nudge: 1px normal, 10px with Shift (C# UCScreenImage)."""
+        step = 10 if event.modifiers() & Qt.KeyboardModifier.ShiftModifier else 1
+        key = event.key()
+        if key in (Qt.Key.Key_W, Qt.Key.Key_Up):
+            self.nudge.emit(0, -step)
+        elif key in (Qt.Key.Key_S, Qt.Key.Key_Down):
+            self.nudge.emit(0, step)
+        elif key in (Qt.Key.Key_A, Qt.Key.Key_Left):
+            self.nudge.emit(-step, 0)
+        elif key in (Qt.Key.Key_D, Qt.Key.Key_Right):
+            self.nudge.emit(step, 0)
+        else:
+            super().keyPressEvent(event)
 
 
 class ClickableFrame(QFrame):

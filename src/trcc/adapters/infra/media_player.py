@@ -38,7 +38,8 @@ FFMPEG_AVAILABLE = _check_ffmpeg()
 class VideoDecoder:
     """Decode video frames via FFmpeg pipe. No playback state."""
 
-    def __init__(self, video_path: str, target_size: tuple[int, int] = (320, 320)) -> None:
+    def __init__(self, video_path: str, target_size: tuple[int, int] = (320, 320),
+                 fit_mode: str = 'fill') -> None:
         if not FFMPEG_AVAILABLE:
             raise RuntimeError(
                 "FFmpeg not available. Install: sudo dnf install ffmpeg"
@@ -46,15 +47,36 @@ class VideoDecoder:
         self.frames: list[Image.Image] = []
         self.fps: int = 16  # Windows: originalImageHz = 16
 
-        self._decode(video_path, target_size)
+        self._decode(video_path, target_size, fit_mode)
 
-    def _decode(self, video_path: str, target_size: tuple[int, int]) -> None:
-        """Decode all frames through FFmpeg pipe."""
+    def _decode(self, video_path: str, target_size: tuple[int, int],
+                fit_mode: str = 'fill') -> None:
+        """Decode all frames through FFmpeg pipe.
+
+        fit_mode:
+            'fill'   — stretch to fill LCD (current default)
+            'width'  — scale width to LCD, letterbox/crop height (C# buttonTPJCW)
+            'height' — scale height to LCD, letterbox/crop width (C# buttonTPJCH)
+        """
         w, h = target_size
+
+        if fit_mode in ('width', 'height'):
+            video_dims = self._probe_dimensions(video_path)
+            if video_dims:
+                vw, vh = video_dims
+                if fit_mode == 'width':
+                    scale_w, scale_h = w, max(2, int(vh * w / vw) & ~1)
+                else:
+                    scale_w, scale_h = max(2, int(vw * h / vh) & ~1), h
+            else:
+                scale_w, scale_h = w, h
+        else:
+            scale_w, scale_h = w, h
+
         result = subprocess.run([
             'ffmpeg', '-i', video_path,
             '-r', str(self.fps),
-            '-vf', f'scale={w}:{h}',
+            '-vf', f'scale={scale_w}:{scale_h}',
             '-f', 'rawvideo', '-pix_fmt', 'rgb24',
             '-loglevel', 'error', 'pipe:1',
         ], capture_output=True, timeout=300)
@@ -63,12 +85,51 @@ class VideoDecoder:
             raise RuntimeError(f"FFmpeg failed: {result.stderr.decode()[:200]}")
 
         raw = result.stdout
-        frame_size = w * h * 3
+        frame_size = scale_w * scale_h * 3
+        need_composite = fit_mode in ('width', 'height') and (scale_w != w or scale_h != h)
+
         for i in range(0, len(raw), frame_size):
             chunk = raw[i:i + frame_size]
             if len(chunk) < frame_size:
                 break
-            self.frames.append(Image.frombytes('RGB', (w, h), chunk))
+            frame = Image.frombytes('RGB', (scale_w, scale_h), chunk)
+
+            if need_composite:
+                # Composite onto black canvas — letterbox or center-crop
+                canvas = Image.new('RGB', (w, h), (0, 0, 0))
+                px = (w - scale_w) // 2
+                py = (h - scale_h) // 2
+                if scale_w > w or scale_h > h:
+                    # Center-crop: frame overflows canvas
+                    left = max(0, (scale_w - w) // 2)
+                    top = max(0, (scale_h - h) // 2)
+                    frame = frame.crop((left, top, left + w, top + h))
+                    canvas.paste(frame, (max(0, px), max(0, py)))
+                else:
+                    # Letterbox: frame fits inside canvas
+                    canvas.paste(frame, (px, py))
+                self.frames.append(canvas)
+            else:
+                self.frames.append(frame)
+
+    @staticmethod
+    def _probe_dimensions(video_path: str) -> tuple[int, int] | None:
+        """Get original video dimensions via ffprobe."""
+        try:
+            result = subprocess.run([
+                'ffprobe', '-v', 'error',
+                '-select_streams', 'v:0',
+                '-show_entries', 'stream=width,height',
+                '-of', 'csv=p=0',
+                video_path,
+            ], capture_output=True, timeout=10, text=True)
+            if result.returncode == 0 and result.stdout.strip():
+                parts = result.stdout.strip().split(',')
+                if len(parts) >= 2:
+                    return int(parts[0]), int(parts[1])
+        except Exception:
+            pass
+        return None
 
     @property
     def frame_count(self) -> int:

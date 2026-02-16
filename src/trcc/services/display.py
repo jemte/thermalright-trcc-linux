@@ -13,8 +13,9 @@ import tempfile
 from pathlib import Path
 from typing import Any, Tuple
 
-from ..adapters.infra.data_repository import DataManager, ThemeDir
+from ..adapters.infra.data_repository import RESOURCES_DIR, DataManager, ThemeDir
 from ..conf import settings
+from ..core.models import SPLIT_MODE_RESOLUTIONS, SPLIT_OVERLAY_MAP
 from .device import DeviceService
 from .image import ImageService
 from .media import MediaService
@@ -48,7 +49,9 @@ class DisplayService:
         self.current_theme_path: Path | None = None
         self.auto_send = True
         self.rotation = 0         # directionB: 0, 90, 180, 270
-        self.brightness = 50      # myLddVal mapped: L1=25, L2=50, L3=100
+        self.brightness = 50      # percent (0-100)
+        self.split_mode = 0       # myLddVal: 0=off, 1-3=Dynamic Island style
+        self._split_overlay_cache: dict[tuple[int, int], Any] = {}  # (style,rot)→PIL
 
         # Theme directories
         self._local_dir: Path | None = None
@@ -124,6 +127,19 @@ class DisplayService:
         """Set display brightness. Returns rendered image or None."""
         self.brightness = max(0, min(100, percent))
         return self._render_and_process()
+
+    def set_split_mode(self, mode: int) -> Any | None:
+        """Set split mode (C# myLddVal: 0=off, 1-3=Dynamic Island style).
+
+        Only affects 1600x720 widescreen devices. Returns rendered image.
+        """
+        self.split_mode = mode if mode in (0, 1, 2, 3) else 0
+        return self._render_and_process()
+
+    @property
+    def is_widescreen_split(self) -> bool:
+        """True if current resolution supports split mode (灵动岛)."""
+        return self.lcd_size in SPLIT_MODE_RESOLUTIONS
 
     # ── Theme loading ─────────────────────────────────────────────────
 
@@ -382,10 +398,75 @@ class DisplayService:
         return self._apply_adjustments(image)
 
     def _apply_adjustments(self, image: Any) -> Any:
-        """Apply brightness and rotation to image."""
+        """Apply brightness, rotation, and split overlay to image."""
         image = ImageService.apply_brightness(image, self.brightness)
         image = ImageService.apply_rotation(image, self.rotation)
+        image = self._apply_split_overlay(image)
         return image
+
+    def _apply_split_overlay(self, image: Any) -> Any:
+        """Composite Dynamic Island (灵动岛) overlay for widescreen split mode.
+
+        C# UCScreenImage.cs: overlay selected by (myLddVal, directionB),
+        alpha-composited on top of the rotated frame.
+        """
+        if not self.split_mode or not self.is_widescreen_split:
+            return image
+
+        key = (self.split_mode, self.rotation)
+        asset_name = SPLIT_OVERLAY_MAP.get(key)
+        if not asset_name:
+            return image
+
+        overlay = self._split_overlay_cache.get(key)
+        if overlay is None:
+            overlay = self._load_split_overlay(asset_name)
+            self._split_overlay_cache[key] = overlay
+
+        if overlay is None:
+            return image
+
+        try:
+            from PIL import Image as PILImage
+            if image.mode != 'RGBA':
+                image = image.convert('RGBA')
+            # Resize overlay if it doesn't match (shouldn't happen, but safe)
+            if overlay.size != image.size:
+                overlay = overlay.resize(image.size, PILImage.Resampling.LANCZOS)
+            image = PILImage.alpha_composite(image, overlay)
+            return image.convert('RGB')
+        except Exception as e:
+            log.error("Split overlay composite failed: %s", e)
+            return image
+
+    @staticmethod
+    def _load_split_overlay(asset_name: str) -> Any | None:
+        """Load a split overlay PNG from assets/gui/ as PIL RGBA Image."""
+        import os
+        try:
+            from PIL import Image as PILImage
+            path = os.path.join(RESOURCES_DIR, asset_name)
+            if os.path.exists(path):
+                img = PILImage.open(path).convert('RGBA')
+                return img
+            log.warning("Split overlay not found: %s", path)
+        except Exception as e:
+            log.error("Failed to load split overlay %s: %s", asset_name, e)
+        return None
+
+    def set_video_fit_mode(self, mode: str) -> Any | None:
+        """Set video fit mode (C# UCBoFangQiKongZhi: buttonTPJCW/buttonTPJCH).
+
+        mode: 'fill' (stretch), 'width' (letterbox width), 'height' (letterbox height).
+        Re-decodes video frames with adjusted scaling. Returns preview image.
+        """
+        if self.media.set_fit_mode(mode):
+            # Get current frame for preview
+            frame = self.media.get_frame()
+            if frame:
+                self.current_image = frame
+                return self._render_and_process()
+        return self._render_and_process()
 
     # ── Video playback ────────────────────────────────────────────────
 

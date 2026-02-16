@@ -16,11 +16,13 @@ FormLED.cs which is one form for all LED device types.
 from typing import Dict, List, Tuple
 
 from PySide6.QtCore import QRect, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QPainter, QPalette, QPixmap
+from PySide6.QtGui import QColor, QFont, QIntValidator, QPainter, QPalette, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QFrame,
     QLabel,
+    QLineEdit,
     QPushButton,
     QSlider,
     QSpinBox,
@@ -274,7 +276,10 @@ class UCLedControl(QWidget):
     circulate_toggled = Signal(bool)
     # Zone signals
     zone_selected = Signal(int)              # zone index (0-based)
-    sync_all_changed = Signal(bool)          # sync mode toggled
+    zone_toggled = Signal(int, bool)         # zone index, on/off
+    carousel_changed = Signal(bool)          # carousel mode toggled
+    carousel_zone_changed = Signal(int, bool)  # zone index, in carousel
+    carousel_interval_changed = Signal(int)  # interval in seconds
     # LC2 clock signals (style 9)
     clock_format_changed = Signal(bool)      # True = 24h
     week_start_changed = Signal(bool)        # True = Sunday
@@ -282,6 +287,12 @@ class UCLedControl(QWidget):
     temp_unit_changed = Signal(str)          # "C" or "F"
     # Sensor source signal (for temp/load linked modes)
     sensor_source_changed = Signal(str)      # "cpu" or "gpu"
+    # Disk selector (LF11 style 10)
+    disk_index_changed = Signal(int)         # disk index (0-based)
+    # DDR multiplier (LC1 style 4)
+    memory_ratio_changed = Signal(int)       # 1, 2, or 4
+    # Test mode
+    test_mode_changed = Signal(bool)         # test mode toggled
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -294,7 +305,7 @@ class UCLedControl(QWidget):
 
         # Zone state
         self._selected_zone = 0
-        self._sync_all = False
+        self._carousel_mode = False
 
         # HR10 state
         self._current_metric = "temp"
@@ -544,6 +555,22 @@ class UCLedControl(QWidget):
         self._onoff_btn.setToolTip("Turn LED on / off")
         self._onoff_btn.clicked.connect(self._on_toggle_clicked)
 
+        # -- Test mode checkbox (C# checkBox1) --
+        self._test_cb = QCheckBox("Test", self)
+        self._test_cb.setGeometry(ONOFF_X + ONOFF_W + 10, ONOFF_Y + 5, 60, 20)
+        self._test_cb.setStyleSheet(
+            "QCheckBox { color: #aaa; font-size: 11px; }"
+            "QCheckBox::indicator { width: 14px; height: 14px; }"
+            "QCheckBox::indicator:unchecked { border: 1px solid #666; "
+            "background: #333; }"
+            "QCheckBox::indicator:checked { border: 1px solid #FF9800; "
+            "background: #FF9800; }"
+        )
+        self._test_cb.setToolTip("LED test mode — cycles white/red/green/blue")
+        self._test_cb.toggled.connect(
+            lambda on: self.test_mode_changed.emit(on))
+        self._test_cb.setVisible(False)  # C# checkBox1.Visible = false
+
         # -- Zone buttons (hidden by default, shown for multi-zone devices) --
         self._zone_buttons: List[QPushButton] = []
         for i in range(4):
@@ -564,23 +591,40 @@ class UCLedControl(QWidget):
             btn.setVisible(False)
             self._zone_buttons.append(btn)
 
-        # Sync All checkbox (Windows "buttonLB" = LunBo mode)
-        self._sync_cb = QCheckBox("Sync All", self)
-        self._sync_cb.setGeometry(
-            ZONE_X_START + 4 * (ZONE_W + ZONE_SPACING), ZONE_Y + 5,
-            100, 30
-        )
-        self._sync_cb.setToolTip("Apply same color to all zones")
-        self._sync_cb.setStyleSheet(
-            "QCheckBox { color: #aaa; font-size: 12px; }"
-            "QCheckBox::indicator { width: 14px; height: 14px; }"
-            "QCheckBox::indicator:unchecked { border: 1px solid #666; "
-            "background: #333; }"
-            "QCheckBox::indicator:checked { border: 1px solid #4CAF50; "
-            "background: #4CAF50; }"
-        )
-        self._sync_cb.toggled.connect(self._on_sync_toggled)
-        self._sync_cb.setVisible(False)
+        # Carousel toggle button (C# buttonLB at (739, 680), 14x14)
+        # Background PNG has "Circulate" label baked in — this is just the checkbox image
+        self._carousel_btn = QPushButton(self)
+        self._carousel_btn.setGeometry(739, 680, 14, 14)
+        self._carousel_btn.setCheckable(True)
+        self._carousel_btn.setFlat(True)
+        _cb_normal = Assets.get('P点选框')
+        _cb_active = Assets.get('P点选框A')
+        if _cb_normal and _cb_active:
+            self._carousel_btn.setStyleSheet(
+                f"QPushButton {{ border: none; "
+                f"background-image: url({_cb_normal}); "
+                f"background-repeat: no-repeat; }}"
+                f"QPushButton:checked {{ "
+                f"background-image: url({_cb_active}); }}"
+            )
+        self._carousel_btn.setToolTip("Cycle through selected zones")
+        self._carousel_btn.toggled.connect(self._on_sync_toggled)
+        self._carousel_btn.setVisible(False)
+
+        # Carousel interval input (C# textBoxTimer at (843, 678), 36x16)
+        # Background PNG has "⏱ ___ S" baked in — just the number input
+        self._carousel_interval = QLineEdit(self)
+        self._carousel_interval.setGeometry(843, 678, 36, 16)
+        self._carousel_interval.setText("6")
+        self._carousel_interval.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._carousel_interval.setValidator(QIntValidator(1, 60, self))
+        self._carousel_interval.setStyleSheet(
+            "QLineEdit { background: rgb(67, 67, 67); color: white; "
+            "border: none; font-size: 11px; }")
+        self._carousel_interval.setToolTip("Carousel rotation interval (seconds)")
+        self._carousel_interval.editingFinished.connect(
+            self._on_carousel_interval_changed)
+        self._carousel_interval.setVisible(False)
 
         # ============================================================
         # HR10-specific widgets (hidden by default)
@@ -785,10 +829,42 @@ class UCLedControl(QWidget):
         ]
         self._mem_bg, self._mem_labels, self._mem_name_labels = (
             self._create_info_panel(
-                (30, 640, 500, 80), mem_defs,
-                lambda i, _: (45, 648 + i * 24, 150, 648 + i * 24),
+                (30, 630, 500, 90), mem_defs,
+                lambda i, _: (45, 656 + i * 24, 150, 656 + i * 24),
             )
         )
+        # Identity label (populated once at init)
+        self._mem_identity = QLabel("", self)
+        self._mem_identity.setGeometry(45, 630, 340, 30)
+        self._mem_identity.setStyleSheet(
+            "QLabel { color: #AAA; font-size: 9px; background: transparent; }")
+        self._mem_identity.setWordWrap(True)
+        self._mem_identity.setVisible(False)
+        self._mem_slots: list[dict] = []
+
+        # DDR multiplier combo (C# ucComboBoxB / memoryRatio)
+        self._ddr_label = QLabel("DDR:", self)
+        self._ddr_label.setGeometry(395, 636, 35, 18)
+        self._ddr_label.setStyleSheet(
+            "QLabel { color: #888; font-size: 11px; }")
+        self._ddr_label.setVisible(False)
+
+        self._ddr_combo = QComboBox(self)
+        self._ddr_combo.setGeometry(430, 634, 58, 22)
+        self._ddr_combo.addItem("\u00d71", 1)
+        self._ddr_combo.addItem("\u00d72", 2)
+        self._ddr_combo.addItem("\u00d74", 4)
+        self._ddr_combo.setCurrentIndex(1)  # Default: ×2 (DDR)
+        self._ddr_combo.setStyleSheet(
+            "QComboBox { background: #333; color: white; "
+            "border: 1px solid #555; font-size: 11px; }"
+            "QComboBox::drop-down { border: none; }"
+            "QComboBox QAbstractItemView { background: #333; "
+            "color: white; selection-background-color: #555; }")
+        self._ddr_combo.setToolTip("DDR memory speed multiplier")
+        self._ddr_combo.currentIndexChanged.connect(self._on_ddr_changed)
+        self._ddr_combo.setVisible(False)
+        self._memory_ratio = 2  # Track current ratio for display
 
         # ============================================================
         # LF11 disk info panel (style 10 — hidden by default)
@@ -802,13 +878,38 @@ class UCLedControl(QWidget):
         ]
         self._disk_bg, self._disk_labels, self._disk_name_labels = (
             self._create_info_panel(
-                (30, 640, 500, 80), disk_defs,
+                (30, 630, 500, 90), disk_defs,
                 lambda i, _: (
-                    45 + (i // 2) * 250, 652 + (i % 2) * 28,
-                    45 + (i // 2) * 250 + 105, 652 + (i % 2) * 28,
+                    45 + (i // 2) * 250, 656 + (i % 2) * 28,
+                    45 + (i // 2) * 250 + 105, 656 + (i % 2) * 28,
                 ),
             )
         )
+        # Identity label (populated once at init)
+        self._disk_identity = QLabel("", self)
+        self._disk_identity.setGeometry(45, 636, 340, 18)
+        self._disk_identity.setStyleSheet(_STYLE_INFO_NAME)
+        self._disk_identity.setVisible(False)
+
+        # Disk selector combo box (C# ucComboBoxC / hardDiskCount)
+        self._disk_selector_label = QLabel("Disk:", self)
+        self._disk_selector_label.setGeometry(395, 636, 35, 18)
+        self._disk_selector_label.setStyleSheet(
+            "QLabel { color: #888; font-size: 11px; }")
+        self._disk_selector_label.setVisible(False)
+
+        self._disk_selector = QComboBox(self)
+        self._disk_selector.setGeometry(430, 634, 90, 22)
+        self._disk_selector.setStyleSheet(
+            "QComboBox { background: #333; color: white; "
+            "border: 1px solid #555; font-size: 11px; }"
+            "QComboBox::drop-down { border: none; }"
+            "QComboBox QAbstractItemView { background: #333; "
+            "color: white; selection-background-color: #555; }")
+        self._disk_selector.setToolTip("Select which disk to monitor")
+        self._disk_selector.currentIndexChanged.connect(self._on_disk_selected)
+        self._disk_slots: list[dict] = []
+        self._disk_selector.setVisible(False)
 
         # -- Status label --
         self._status = QLabel("", self)
@@ -873,13 +974,14 @@ class UCLedControl(QWidget):
         # Show/hide HR10-specific controls
         self._set_hr10_visibility(self._is_hr10)
 
-        # Show/hide zone buttons + sync checkbox
+        # Show/hide zone buttons + carousel controls
         for i, btn in enumerate(self._zone_buttons):
             btn.setVisible(i < zone_count and zone_count > 1)
-        self._sync_cb.setVisible(zone_count > 1)
+        self._carousel_btn.setVisible(zone_count > 1)
+        self._carousel_interval.setVisible(False)
         self._selected_zone = 0
-        self._sync_all = False
-        self._sync_cb.setChecked(False)
+        self._carousel_mode = False
+        self._carousel_btn.setChecked(False)
         if zone_count > 1 and self._zone_buttons:
             self._zone_buttons[0].setChecked(True)
 
@@ -893,6 +995,12 @@ class UCLedControl(QWidget):
         self._set_sensor_visibility(show_sensors)
         self._set_mem_visibility(is_lc1)
         self._set_disk_visibility(is_lf11)
+
+        # Populate static hardware identity info (once per device switch)
+        if is_lc1:
+            self._populate_memory_identity()
+        elif is_lf11:
+            self._populate_disk_identity()
 
         # Initialize HR10 display
         if self._is_hr10:
@@ -1233,28 +1341,42 @@ class UCLedControl(QWidget):
     # -- Zone selection --
 
     def _on_zone_clicked(self, zone_index: int):
-        """Handle zone button click."""
-        if self._sync_all:
-            return
-        self._selected_zone = zone_index
-        for i, btn in enumerate(self._zone_buttons):
-            btn.setChecked(i == zone_index)
-        self.zone_selected.emit(zone_index)
+        """Handle zone button click.
 
-    def _on_sync_toggled(self, sync: bool):
-        """Handle sync all checkbox toggle."""
-        self._sync_all = sync
-        if sync:
-            for i in range(self._zone_count):
-                if i < len(self._zone_buttons):
-                    self._zone_buttons[i].setChecked(True)
+        Carousel OFF: radio-select (one zone at a time).
+        Carousel ON: multi-select (toggle zone in/out of rotation).
+        """
+        if self._carousel_mode:
+            # Multi-select: toggle this zone's carousel participation
+            btn = self._zone_buttons[zone_index]
+            selected = btn.isChecked()
+            self.carousel_zone_changed.emit(zone_index, selected)
         else:
+            # Radio-select: one zone at a time
+            self._selected_zone = zone_index
+            for i, btn in enumerate(self._zone_buttons):
+                btn.setChecked(i == zone_index)
+            self.zone_selected.emit(zone_index)
+
+    def _on_sync_toggled(self, carousel: bool):
+        """Handle carousel checkbox toggle (C# buttonLB_Click)."""
+        self._carousel_mode = carousel
+        self._carousel_interval.setVisible(carousel and self._zone_count > 1)
+        if not carousel:
+            # Revert to radio-select: only selected zone checked
             for i, btn in enumerate(self._zone_buttons):
                 btn.setChecked(i == self._selected_zone)
-        self.sync_all_changed.emit(sync)
+        self.carousel_changed.emit(carousel)
+
+    def _on_carousel_interval_changed(self):
+        """Handle carousel interval input change."""
+        text = self._carousel_interval.text()
+        if text.isdigit() and int(text) > 0:
+            self.carousel_interval_changed.emit(int(text))
 
     def load_zone_state(self, zone_index: int, mode: int,
-                        color: tuple, brightness: int):
+                        color: tuple, brightness: int,
+                        on: bool = True):
         """Load a zone's state into the UI controls."""
         for slider in self._rgb_sliders:
             slider.blockSignals(True)
@@ -1289,8 +1411,8 @@ class UCLedControl(QWidget):
         return self._selected_zone
 
     @property
-    def sync_all(self) -> bool:
-        return self._sync_all
+    def carousel_mode(self) -> bool:
+        return self._carousel_mode
 
     # -- LC2 clock handlers --
 
@@ -1394,12 +1516,18 @@ class UCLedControl(QWidget):
         """Show/hide LC1 memory info labels."""
         self._set_info_panel_visibility(
             self._mem_bg, self._mem_labels, self._mem_name_labels, visible)
+        self._mem_identity.setVisible(visible)
+        self._ddr_label.setVisible(visible)
+        self._ddr_combo.setVisible(visible)
 
     def _set_disk_visibility(self, visible: bool):
         """Show/hide LF11 disk info labels."""
         self._set_info_panel_visibility(
             self._disk_bg, self._disk_labels, self._disk_name_labels,
             visible)
+        self._disk_identity.setVisible(visible)
+        self._disk_selector_label.setVisible(visible)
+        self._disk_selector.setVisible(visible)
 
     # -- Sensor/memory/disk update methods --
 
@@ -1426,8 +1554,84 @@ class UCLedControl(QWidget):
     def update_memory_metrics(self, metrics: HardwareMetrics) -> None:
         """Update memory info labels (LC1 style 4)."""
         self._mem_labels['mem_temp'].setText(f"{metrics.mem_temp:.0f} \u00b0C")
-        self._mem_labels['mem_clock'].setText(f"{metrics.mem_clock:.0f} MHz")
+        effective_clock = metrics.mem_clock * self._memory_ratio
+        self._mem_labels['mem_clock'].setText(f"{effective_clock:.0f} MT/s")
         self._mem_labels['mem_used'].setText(f"{metrics.mem_percent:.1f}%")
+
+    def _populate_memory_identity(self) -> None:
+        """Fetch and display DRAM identity info (C# UCLEDMemoryInfo)."""
+        try:
+            from ..services.system import SystemService
+            self._mem_slots = SystemService.get_memory_info()
+            if self._mem_slots:
+                self._show_memory_slot(self._mem_slots[0])
+        except Exception:
+            self._mem_slots = []
+
+    def _show_memory_slot(self, s: dict) -> None:
+        """Format and display a single DIMM slot's info."""
+        line1 = [s.get('manufacturer', ''), s.get('part_number', '')]
+        line2 = [s.get('type', ''), s.get('size', ''),
+                 s.get('speed', ''), s.get('form_factor', '')]
+        # Add rank and voltage if available
+        if s.get('rank') and s['rank'] != 'Unknown':
+            line2.append(f"Rank {s['rank']}")
+        if s.get('configured_voltage') and s['configured_voltage'] != 'Unknown':
+            line2.append(s['configured_voltage'])
+        top = ' '.join(p for p in line1 if p and p != 'Unknown')
+        bot = ' | '.join(p for p in line2 if p and p != 'Unknown')
+        self._mem_identity.setText(f"{top}\n{bot}" if top else bot)
+
+    def _on_ddr_changed(self, index: int) -> None:
+        """Handle DDR multiplier combo selection."""
+        ratio = self._ddr_combo.itemData(index)
+        if ratio and isinstance(ratio, int):
+            self._memory_ratio = ratio
+            self.memory_ratio_changed.emit(ratio)
+
+    def set_memory_ratio(self, ratio: int) -> None:
+        """Set DDR combo from saved state (without emitting signal)."""
+        self._memory_ratio = ratio
+        idx = {1: 0, 2: 1, 4: 2}.get(ratio, 1)
+        self._ddr_combo.blockSignals(True)
+        self._ddr_combo.setCurrentIndex(idx)
+        self._ddr_combo.blockSignals(False)
+
+    def _populate_disk_identity(self) -> None:
+        """Fetch and display disk identity info (C# UCLEDHarddiskInfo).
+
+        Also populates the disk selector dropdown.
+        """
+        try:
+            from ..services.system import SystemService
+            self._disk_slots = SystemService.get_disk_info()
+
+            # Populate selector dropdown
+            self._disk_selector.blockSignals(True)
+            self._disk_selector.clear()
+            for d in self._disk_slots:
+                label = d.get('name', d.get('model', '?'))
+                self._disk_selector.addItem(label)
+            self._disk_selector.blockSignals(False)
+
+            if self._disk_slots:
+                self._show_disk_slot(self._disk_slots[0])
+        except Exception:
+            self._disk_slots = []
+
+    def _on_disk_selected(self, idx: int) -> None:
+        """Handle disk selector change — update identity label and emit signal."""
+        if 0 <= idx < len(self._disk_slots):
+            self._show_disk_slot(self._disk_slots[idx])
+        self.disk_index_changed.emit(idx)
+
+    def _show_disk_slot(self, d: dict) -> None:
+        """Format and display a single disk's info."""
+        parts = [d.get('model', ''), d.get('size', ''), d.get('type', '')]
+        health = d.get('health')
+        if health:
+            parts.append(f"SMART: {health}")
+        self._disk_identity.setText(' | '.join(p for p in parts if p))
 
     def update_lf11_disk_metrics(self, metrics: HardwareMetrics) -> None:
         """Update disk info labels (LF11 style 10)."""

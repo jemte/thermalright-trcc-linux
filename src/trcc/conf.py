@@ -143,6 +143,18 @@ class Settings:
         config['temp_unit'] = unit
         save_config(config)
 
+    @staticmethod
+    def _get_saved_hdd_enabled() -> bool:
+        """Get saved HDD info toggle. Defaults to True."""
+        return load_config().get('hdd_enabled', True)
+
+    @staticmethod
+    def _save_hdd_enabled(enabled: bool):
+        """Persist HDD info toggle to config."""
+        config = load_config()
+        config['hdd_enabled'] = enabled
+        save_config(config)
+
     # --- Public static methods (device config, format prefs, etc.) ---
 
     @staticmethod
@@ -232,6 +244,7 @@ class Settings:
 
         # User preferences
         self.temp_unit: int = Settings._get_saved_temp_unit()
+        self.hdd_enabled: bool = Settings._get_saved_hdd_enabled()
         self._lang: str = self._get_saved_lang()
 
         # Static paths
@@ -269,6 +282,11 @@ class Settings:
         """Set temperature unit (0=Celsius, 1=Fahrenheit) and persist."""
         self.temp_unit = unit
         Settings._save_temp_unit(unit)
+
+    def set_hdd_enabled(self, enabled: bool) -> None:
+        """Set HDD info toggle and persist."""
+        self.hdd_enabled = enabled
+        Settings._save_hdd_enabled(enabled)
 
     @property
     def lang(self) -> str:

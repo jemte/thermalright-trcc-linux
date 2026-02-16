@@ -66,9 +66,15 @@ class UCPreview(BasePanel):
     CMD_SEND_TO_LCD = 3
     CMD_VIDEO_PLAY_PAUSE = 10
     CMD_VIDEO_SEEK = 11
+    CMD_VIDEO_FIT_WIDTH = 12
+    CMD_VIDEO_FIT_HEIGHT = 13
 
     # Signals
     image_clicked = Signal(int, int)
+    element_drag_start = Signal(int, int)  # LCD-scaled (x, y)
+    element_drag_move = Signal(int, int)   # LCD-scaled (x, y)
+    element_drag_end = Signal()
+    element_nudge = Signal(int, int)       # LCD-scaled (dx, dy)
 
     def __init__(self, width=320, height=320, parent=None):
         super().__init__(parent, width=Sizes.PREVIEW_FRAME, height=Sizes.PREVIEW_PANEL_H)
@@ -101,6 +107,10 @@ class UCPreview(BasePanel):
         self.preview_label.setParent(self.frame_container)
         self.preview_label.move(left, top)
         self.preview_label.clicked.connect(self._on_preview_clicked)
+        self.preview_label.drag_started.connect(self._on_drag_started)
+        self.preview_label.drag_moved.connect(self._on_drag_moved)
+        self.preview_label.drag_ended.connect(self.element_drag_end.emit)
+        self.preview_label.nudge.connect(self._on_nudge)
 
         layout.addWidget(self.frame_container, alignment=Qt.AlignmentFlag.AlignCenter)
 
@@ -135,6 +145,36 @@ class UCPreview(BasePanel):
         self.play_btn.setToolTip("Play / Pause")
         self.play_btn.clicked.connect(self._on_play_pause)
 
+        # Height-fit button (C# buttonTPJCH — P高度适应)
+        self.height_fit_btn = QPushButton(self.progress_container)
+        self.height_fit_btn.setGeometry(*Layout.HEIGHT_FIT_BTN)
+        hf_pix = Assets.load_pixmap('P高度适应', Layout.HEIGHT_FIT_BTN[2], Layout.HEIGHT_FIT_BTN[3])
+        if not hf_pix.isNull():
+            self.height_fit_btn.setIcon(QIcon(hf_pix))
+            self.height_fit_btn.setIconSize(self.height_fit_btn.size())
+        else:
+            self.height_fit_btn.setText("H")
+        self.height_fit_btn.setFlat(True)
+        self.height_fit_btn.setStyleSheet(Styles.FLAT_BUTTON)
+        self.height_fit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.height_fit_btn.setToolTip("Height fit (letterbox/crop)")
+        self.height_fit_btn.clicked.connect(self._on_height_fit)
+
+        # Width-fit button (C# buttonTPJCW — P宽度适应)
+        self.width_fit_btn = QPushButton(self.progress_container)
+        self.width_fit_btn.setGeometry(*Layout.WIDTH_FIT_BTN)
+        wf_pix = Assets.load_pixmap('P宽度适应', Layout.WIDTH_FIT_BTN[2], Layout.WIDTH_FIT_BTN[3])
+        if not wf_pix.isNull():
+            self.width_fit_btn.setIcon(QIcon(wf_pix))
+            self.width_fit_btn.setIconSize(self.width_fit_btn.size())
+        else:
+            self.width_fit_btn.setText("W")
+        self.width_fit_btn.setFlat(True)
+        self.width_fit_btn.setStyleSheet(Styles.FLAT_BUTTON)
+        self.width_fit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.width_fit_btn.setToolTip("Width fit (letterbox/crop)")
+        self.width_fit_btn.clicked.connect(self._on_width_fit)
+
         # Time label
         self.time_label = QLabel("00:00 / 00:00", self.progress_container)
         self.time_label.setGeometry(*Layout.TIME_LABEL)
@@ -151,11 +191,48 @@ class UCPreview(BasePanel):
 
         layout.addWidget(self.progress_container)
 
+    def _widget_to_lcd(self, wx: int, wy: int) -> tuple[int, int]:
+        """Translate preview widget coordinates to LCD coordinates."""
+        _, _, pw, ph, _ = self._offset_info
+        if pw <= 0 or ph <= 0:
+            return (0, 0)
+        lx = int(wx * self._lcd_width / pw)
+        ly = int(wy * self._lcd_height / ph)
+        return (max(0, min(lx, self._lcd_width)), max(0, min(ly, self._lcd_height)))
+
+    def _on_drag_started(self, wx: int, wy: int):
+        lx, ly = self._widget_to_lcd(wx, wy)
+        self.element_drag_start.emit(lx, ly)
+
+    def _on_drag_moved(self, wx: int, wy: int):
+        lx, ly = self._widget_to_lcd(wx, wy)
+        self.element_drag_move.emit(lx, ly)
+
+    def _on_nudge(self, dx: int, dy: int):
+        """Forward keyboard nudge as LCD-scaled delta."""
+        _, _, pw, ph, _ = self._offset_info
+        if pw <= 0 or ph <= 0:
+            return
+        lcd_dx = int(dx * self._lcd_width / pw) if dx else 0
+        lcd_dy = int(dy * self._lcd_height / ph) if dy else 0
+        # Ensure at least 1px nudge in LCD coords
+        if dx and not lcd_dx:
+            lcd_dx = 1 if dx > 0 else -1
+        if dy and not lcd_dy:
+            lcd_dy = 1 if dy > 0 else -1
+        self.element_nudge.emit(lcd_dx, lcd_dy)
+
     def _on_preview_clicked(self):
         self.image_clicked.emit(0, 0)
 
     def _on_play_pause(self):
         self.invoke_delegate(self.CMD_VIDEO_PLAY_PAUSE)
+
+    def _on_height_fit(self):
+        self.invoke_delegate(self.CMD_VIDEO_FIT_HEIGHT)
+
+    def _on_width_fit(self):
+        self.invoke_delegate(self.CMD_VIDEO_FIT_WIDTH)
 
     def _on_seek(self, value):
         self.invoke_delegate(self.CMD_VIDEO_SEEK, value)

@@ -403,6 +403,9 @@ class LEDState:
 
     # Animation counters (transient, not persisted)
     rgb_timer: int = 0          # rgbTimer for breathing/gradient/rainbow
+    test_mode: bool = False     # C# checkBox1 — diagnostic color cycle
+    test_timer: int = 0         # testTimer — tick counter for test mode
+    test_color: int = 0         # testCount — 0=white, 1=red, 2=green, 3=blue
 
     # Sensor linkage (for TEMP_LINKED and LOAD_LINKED modes)
     temp_source: str = "cpu"    # "cpu" or "gpu"
@@ -411,6 +414,19 @@ class LEDState:
     # LC1 (style 4) sub-style: 0=memory, 1=hard disk
     sub_style: int = 0              # nowLedStyleSub
     memory_ratio: int = 2           # DDR multiplier (1, 2, or 4) — C# default: 2
+
+    # LF11 (style 10) disk selector (C# hardDiskCount, 0-based)
+    disk_index: int = 0
+
+    # Segment carousel interval (ticks per phase, ~30ms per tick → 100 = ~3s)
+    carousel_interval: int = 100
+
+    # Zone carousel (LunBo) — C# isLunBo + LunBo1-4 + nowLunbo
+    zone_carousel: bool = False          # isLunBo: rotate between zones
+    zone_carousel_zones: List[bool] = field(default_factory=list)  # LunBo1-4
+    zone_carousel_current: int = 0       # nowLunbo: current active zone
+    zone_carousel_ticks: int = 0         # ValCount: tick counter
+    zone_carousel_interval: int = 36     # 6 * textBoxTimer (default 6s)
 
     # LC2 clock settings (style 9)
     is_timer_24h: bool = True
@@ -421,6 +437,8 @@ class LEDState:
             self.segment_on = [True] * self.segment_count
         if not self.zones and self.zone_count > 1:
             self.zones = [LEDZoneState() for _ in range(self.zone_count)]
+        if not self.zone_carousel_zones and self.zone_count > 1:
+            self.zone_carousel_zones = [True] + [False] * (self.zone_count - 1)
 
 
 # =============================================================================
@@ -776,6 +794,23 @@ LED_REMAP_TABLES: dict[int, tuple[int, ...]] = {
 }
 
 
+# Default-off LED indices per style (from C# isOnN arrays in UCScreenLED.cs).
+# Styles not listed here default to all-on.
+LED_DEFAULT_OFF: dict[int, frozenset[int]] = {
+    1: frozenset({4, 5, 7, 8}),            # HR10 preview: only index 6 on of 6-8
+    2: frozenset({5, 8}),                   # PA120
+    3: frozenset({3, 5}),                   # AK120
+    4: frozenset({1, 2, 25, 26, 30}),       # LC1
+    5: frozenset({1, 3}),                   # LF8
+    6: frozenset({1, 3}),                   # LF12
+    7: frozenset({2, 5}),                   # LF10
+    8: frozenset({1, 2, 3}),                # CZ1
+    10: frozenset({1, 2, 32, 33, 37}),      # LF11
+    11: frozenset({1, 3}),                  # LF15
+    13: frozenset({1, 2, 25, 26, 30}),      # HR10 shares LC1 layout
+}
+
+
 def remap_led_colors(
     colors: List[Tuple[int, int, int]],
     style_id: int,
@@ -1037,7 +1072,7 @@ class CarouselConfig:
     interval_seconds: int = 3          # myLunBoTimer (minimum 3)
     count: int = 0                     # lunBoCount
     theme_indices: List[int] = field(default_factory=lambda: [-1, -1, -1, -1, -1, -1])
-    lcd_rotation: int = 1              # myLddVal (1-4)
+    lcd_rotation: int = 1              # myLddVal (1-3): split mode style, NOT rotation
 
 
 # =============================================================================
@@ -1175,6 +1210,32 @@ def pm_to_fbl(pm: int, sub: int = 0) -> int:
     return _PM_TO_FBL_OVERRIDES.get(pm, pm)
 
 
+# Split mode overlay (灵动岛 / Dynamic Island) for 1600x720 widescreen devices.
+# C# UCScreenImage.cs: buttonLDD cycles myLddVal 1→2→3→1, overlay selected by
+# (style, directionB). Key: (myLddVal, rotation_degrees) → asset filename.
+SPLIT_OVERLAY_MAP: dict[tuple[int, int], str] = {
+    # Style A (myLddVal=1)
+    (1, 0):   'P灵动岛.png',
+    (1, 90):  'P灵动岛90.png',
+    (1, 180): 'P灵动岛180.png',
+    (1, 270): 'P灵动岛270.png',
+    # Style B (myLddVal=2, default)
+    (2, 0):   'P灵动岛a.png',
+    (2, 90):  'P灵动岛a90.png',
+    (2, 180): 'P灵动岛a180.png',
+    (2, 270): 'P灵动岛a270.png',
+    # Style C (myLddVal=3)
+    (3, 0):   'P灵动岛b.png',
+    (3, 90):  'P灵动岛b90.png',
+    (3, 180): 'P灵动岛b180.png',
+    (3, 270): 'P灵动岛b270.png',
+}
+
+# Widescreen resolutions that support split mode (灵动岛).
+# C#: myDeviceMode==2 && (pm==64 || (pm==1 && pmSub==48))
+SPLIT_MODE_RESOLUTIONS: set[tuple[int, int]] = {(1600, 720)}
+
+
 # =============================================================================
 # Device Button Image Map (from UCDevice.cs ADDUserButton)
 # =============================================================================
@@ -1189,7 +1250,7 @@ DEVICE_BUTTON_IMAGE: dict[int, dict[Optional[int], str]] = {
     3:   {None: 'A1CORE VISION'},
     4:   {1: 'A1HYPER VISION', 2: 'A1RP130 VISION', 3: 'A1LM16SE'},
     5:   {None: 'A1Mjolnir VISION'},
-    6:   {1: 'FROZEN WARFRAME Ultra', 2: 'A1FROZEN VISION V2'},
+    6:   {1: 'FROZEN_WARFRAME_Ultra', 2: 'A1FROZEN VISION V2'},
     7:   {1: 'A1Stream Vision', 2: 'A1Mjolnir VISION PRO'},
     9:   {None: 'A1LC2JD'},
     10:  {5: 'A1LF16', 6: 'A1LF18', None: 'A1LC3'},

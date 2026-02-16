@@ -42,7 +42,7 @@ class LEDService:
         self._segment_mask: Optional[List[bool]] = None
         self._seg_phase = 0          # Current rotation phase
         self._seg_tick_count = 0     # Ticks since last phase change
-        self._seg_phase_ticks = 100  # Ticks per phase (~3s at 30ms tick interval)
+        self._seg_phase_ticks = self.state.carousel_interval
         self._seg_temp_unit = "C"    # "C" or "F"
         self._seg_display: Any = None  # SegmentDisplay instance
 
@@ -95,6 +95,51 @@ class LEDService:
         if 0 <= index < len(self.state.segment_on):
             self.state.segment_on[index] = on
 
+    def toggle_zone(self, zone: int, on: bool) -> None:
+        """Toggle a specific zone on/off (C# myOnOff1-4)."""
+        if 0 <= zone < len(self.state.zones):
+            self.state.zones[zone].on = on
+
+    def set_test_mode(self, enabled: bool) -> None:
+        """Toggle LED test mode (C# checkBox1).
+
+        Cycles white/red/green/blue at brightness=1 every 10 ticks.
+        """
+        self.state.test_mode = enabled
+        self.state.test_timer = 0
+        self.state.test_color = 0
+
+    def set_zone_carousel(self, enabled: bool) -> None:
+        """Enable/disable zone carousel (C# isLunBo)."""
+        self.state.zone_carousel = enabled
+        if enabled:
+            self.state.zone_carousel_ticks = 0
+            self.state.zone_carousel_current = self._next_carousel_zone(-1)
+
+    def set_zone_carousel_zone(self, zone: int, selected: bool) -> None:
+        """Toggle a zone's participation in carousel (C# LunBo1-4)."""
+        if 0 <= zone < len(self.state.zone_carousel_zones):
+            # Ensure at least one zone remains selected
+            if not selected:
+                active = sum(self.state.zone_carousel_zones)
+                if active <= 1:
+                    return
+            self.state.zone_carousel_zones[zone] = selected
+
+    def set_zone_carousel_interval(self, seconds: int) -> None:
+        """Set carousel interval in seconds (C# textBoxTimer)."""
+        self.state.zone_carousel_interval = max(1, seconds) * 6
+
+    def _next_carousel_zone(self, current: int) -> int:
+        """Find next enabled zone in carousel, wrapping around."""
+        zones = self.state.zone_carousel_zones
+        n = len(zones)
+        for offset in range(1, n + 1):
+            candidate = (current + offset) % n
+            if zones[candidate]:
+                return candidate
+        return 0
+
     def set_zone_mode(self, zone: int, mode: LEDMode) -> None:
         """Set mode for a specific zone."""
         if 0 <= zone < len(self.state.zones):
@@ -109,6 +154,14 @@ class LEDService:
         """Set brightness for a specific zone."""
         if 0 <= zone < len(self.state.zones):
             self.state.zones[zone].brightness = max(0, min(100, brightness))
+
+    def set_disk_index(self, index: int) -> None:
+        """Set which disk to monitor (C# hardDiskCount, 0-based)."""
+        self.state.disk_index = max(0, index)
+
+    def set_memory_ratio(self, ratio: int) -> None:
+        """Set DDR memory multiplier (C# memoryRatio: 1, 2, or 4)."""
+        self.state.memory_ratio = ratio if ratio in (1, 2, 4) else 2
 
     def set_sensor_source(self, source: str) -> None:
         """Set CPU/GPU source for temp/load linked modes and segment cycling."""
@@ -178,6 +231,10 @@ class LEDService:
         divides segments among zones and computes independently.
         For segment display styles, also advances the rotation phase.
         """
+        # Test mode: cycle white/red/green/blue at brightness=1
+        if self.state.test_mode:
+            return self._tick_test_mode()
+
         # Advance segment display rotation (all digit-display styles)
         if self._segment_mode and self._seg_display:
             self._seg_tick_count += 1
@@ -208,17 +265,43 @@ class LEDService:
             return self._tick_load_linked_for(seg_count)
         return [(0, 0, 0)] * seg_count
 
+    _TEST_COLORS = [(1, 1, 1), (1, 0, 0), (0, 1, 0), (0, 0, 1)]
+
+    def _tick_test_mode(self) -> List[Tuple[int, int, int]]:
+        """C# checkBox1 test mode: cycle 4 colors every 10 ticks at min brightness."""
+        self.state.test_timer += 1
+        if self.state.test_timer >= 10:
+            self.state.test_timer = 0
+            self.state.test_color = (self.state.test_color + 1) % 4
+        color = self._TEST_COLORS[self.state.test_color]
+        return [color] * self.state.led_count
+
     def _tick_multi_zone(self) -> List[Tuple[int, int, int]]:
-        """Compute per-zone colors for multi-zone devices."""
+        """Compute per-zone colors for multi-zone devices.
+
+        When carousel (LunBo) is enabled, only the currently active zone
+        lights up and the device cycles through selected zones on a timer.
+        """
         total = self.state.segment_count
         zone_count = len(self.state.zones)
         colors: List[Tuple[int, int, int]] = []
+
+        # Advance carousel timer
+        if self.state.zone_carousel:
+            self.state.zone_carousel_ticks += 1
+            if self.state.zone_carousel_ticks >= self.state.zone_carousel_interval:
+                self.state.zone_carousel_ticks = 0
+                self.state.zone_carousel_current = self._next_carousel_zone(
+                    self.state.zone_carousel_current)
+
+        active_zone = self.state.zone_carousel_current if self.state.zone_carousel else None
 
         for zi, zone in enumerate(self.state.zones):
             base = total // zone_count
             n_segs = base + (1 if zi < total % zone_count else 0)
 
-            if not zone.on:
+            # Zone off, or carousel active and not this zone's turn
+            if not zone.on or (active_zone is not None and zi != active_zone):
                 colors.extend([(0, 0, 0)] * n_segs)
             else:
                 zone_colors = self._tick_single_mode(zone.mode, zone.color, n_segs)
@@ -473,6 +556,8 @@ class LEDService:
                 'load_source': self.state.load_source,
                 'is_timer_24h': self.state.is_timer_24h,
                 'is_week_sunday': self.state.is_week_sunday,
+                'disk_index': self.state.disk_index,
+                'memory_ratio': self.state.memory_ratio,
             }
             if self.state.zones:
                 config['zones'] = [
@@ -484,6 +569,10 @@ class LEDService:
                     }
                     for z in self.state.zones
                 ]
+            if self.state.zone_carousel_zones:
+                config['zone_carousel'] = self.state.zone_carousel
+                config['zone_carousel_zones'] = self.state.zone_carousel_zones
+                config['zone_carousel_interval'] = self.state.zone_carousel_interval
             Settings.save_device_setting(self._device_key, 'led_config', config)
         except Exception as e:
             log.error("Failed to save LED config: %s", e)
@@ -521,10 +610,22 @@ class LEDService:
                         self.state.zones[i].color = tuple(z_config.get('color', (255, 0, 0)))
                         self.state.zones[i].brightness = z_config.get('brightness', 100)
                         self.state.zones[i].on = z_config.get('on', True)
+            if 'zone_carousel' in led_config:
+                self.state.zone_carousel = led_config['zone_carousel']
+            if 'zone_carousel_zones' in led_config:
+                saved = led_config['zone_carousel_zones']
+                for i in range(min(len(saved), len(self.state.zone_carousel_zones))):
+                    self.state.zone_carousel_zones[i] = saved[i]
+            if 'zone_carousel_interval' in led_config:
+                self.state.zone_carousel_interval = led_config['zone_carousel_interval']
             if 'is_timer_24h' in led_config:
                 self.state.is_timer_24h = led_config['is_timer_24h']
             if 'is_week_sunday' in led_config:
                 self.state.is_week_sunday = led_config['is_week_sunday']
+            if 'disk_index' in led_config:
+                self.state.disk_index = led_config['disk_index']
+            if 'memory_ratio' in led_config:
+                self.state.memory_ratio = led_config['memory_ratio']
         except Exception as e:
             log.error("Failed to load LED config: %s", e)
 

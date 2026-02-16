@@ -26,6 +26,7 @@ class MediaService:
         self._delays: list[int] = []  # Per-frame delays (ms), for .zt files
         self._source_path: Path | None = None
         self._target_size: tuple[int, int] = (320, 320)
+        self._fit_mode: str = 'fill'  # 'fill', 'width', 'height'
         self._decoder: Any = None
         self._frame_counter = 0
         self._progress_counter = 0
@@ -34,6 +35,32 @@ class MediaService:
 
     def set_target_size(self, width: int, height: int) -> None:
         self._target_size = (width, height)
+
+    def set_fit_mode(self, mode: str) -> bool:
+        """Set video fit mode and re-decode if a video is loaded.
+
+        C# UCBoFangQiKongZhi: buttonTPJCW (width-fit) / buttonTPJCH (height-fit).
+        Returns True if frames were reloaded.
+        """
+        if mode not in ('fill', 'width', 'height'):
+            mode = 'fill'
+        self._fit_mode = mode
+        # Re-decode if a video source exists (.zt is pre-rendered, skip)
+        if (self._source_path and self._source_path.exists()
+                and self._source_path.suffix.lower() != '.zt'):
+            current_frame = self._state.current_frame
+            was_playing = self.is_playing
+            if self.load(self._source_path):
+                self._state.current_frame = min(
+                    current_frame, max(0, self._state.total_frames - 1))
+                if was_playing:
+                    self.play()
+                return True
+        return False
+
+    @property
+    def fit_mode(self) -> str:
+        return self._fit_mode
 
     # ── Load ─────────────────────────────────────────────────────────
 
@@ -55,7 +82,8 @@ class MediaService:
                 self._decoder = ThemeZtDecoder(str(path), self._target_size)
                 self._delays = list(self._decoder.delays)
             else:
-                self._decoder = VideoDecoder(str(path), self._target_size)
+                self._decoder = VideoDecoder(
+                    str(path), self._target_size, fit_mode=self._fit_mode)
 
             self._state.total_frames = self._decoder.frame_count
             self._state.fps = self._decoder.fps if self._decoder.fps > 0 else 16

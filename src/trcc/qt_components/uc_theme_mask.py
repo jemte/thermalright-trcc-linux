@@ -35,7 +35,7 @@ class UCThemeMask(DownloadableThemeBrowser):
     Cloud masks browser panel.
 
     Windows size: 732x652
-    Background image provides header. No visible buttons.
+    Background image provides header with 7 category filter buttons.
     Grid: 5 columns, starts at (30, 60).
     """
 
@@ -59,7 +59,31 @@ class UCThemeMask(DownloadableThemeBrowser):
         self.mask_directory = None
         self._resolution = "320x320"
         self._local_masks = set()
+        self._category = 'all'
         super().__init__(parent)
+
+    def _create_filter_buttons(self):
+        """Seven category buttons matching Windows UCThemeMask layout."""
+        from .constants import Layout
+        btn_normal, btn_active = self._load_filter_assets()
+        self.cat_buttons = {}
+        self._btn_refs = [btn_normal, btn_active]
+
+        for cat_id, x, y, w, h in Layout.WEB_CATEGORIES:
+            btn = self._make_filter_button(x, y, w, h, btn_normal, btn_active,
+                lambda checked, c=cat_id: self._set_category(c))
+            self.cat_buttons[cat_id] = btn
+
+        self.cat_buttons['all'].setChecked(True)
+
+    def _set_category(self, category: str):
+        """Filter masks by category suffix (a-e, y) or show all."""
+        if self._downloading:
+            return
+        self._category = category
+        for cat_id, btn in self.cat_buttons.items():
+            btn.setChecked(cat_id == category)
+        self.refresh_masks()
 
     def _create_thumbnail(self, item_info: MaskItem) -> MaskThumbnail:
         return MaskThumbnail(item_info)
@@ -112,9 +136,13 @@ class UCThemeMask(DownloadableThemeBrowser):
                     is_local=False,
                 ))
 
-        log.debug("refresh_masks: %d local, %d cloud, dir=%s",
+        # Filter by category (last char of mask name matches suffix)
+        if self._category != 'all':
+            masks = [m for m in masks if m.name and m.name[-1:] == self._category]
+
+        log.debug("refresh_masks: %d local, %d cloud, cat=%s, dir=%s",
                    len(self._local_masks), len(masks) - len(self._local_masks),
-                   self.mask_directory)
+                   self._category, self.mask_directory)
         self._populate_grid(masks)
 
     def _on_item_clicked(self, item_info: MaskItem):

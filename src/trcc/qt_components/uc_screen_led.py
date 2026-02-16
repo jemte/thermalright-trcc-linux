@@ -465,7 +465,9 @@ class UCScreenLED(QWidget):
         self._positions = STYLE_POSITIONS.get(style_id, _POS_1)
         self._led_count = len(self._positions)
         self._colors = [(0, 0, 0)] * self._led_count
-        self._is_on = [True] * self._led_count
+        from ..core.models import LED_DEFAULT_OFF
+        off = LED_DEFAULT_OFF.get(style_id, frozenset())
+        self._is_on = [i not in off for i in range(self._led_count)]
         self._load_decorations(style_id)
         self.update()
 
@@ -542,9 +544,11 @@ class UCScreenLED(QWidget):
                 if pm:
                     painter.drawPixmap(x, y, pm)
         else:
-            # Other modes: fill decoration areas with LED color[0]
-            if self._colors:
-                r, g, b = self._colors[0]
+            # Other modes: fill decoration areas with LED decoration color.
+            # Style 7 uses ZhuangShi21 (index 104); style 6 uses ZhuangShi1 (index 93).
+            deco_idx = {7: 104, 6: 93}.get(self._style_id, 0)
+            if self._colors and deco_idx < len(self._colors):
+                r, g, b = self._colors[deco_idx]
                 brush = QBrush(QColor(r, g, b))
                 painter.setPen(Qt.PenStyle.NoPen)
                 painter.setBrush(brush)

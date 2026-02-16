@@ -451,6 +451,14 @@ class LCDDeviceController:
             if self.auto_send:
                 self._send_frame_to_lcd(image)
 
+    def set_split_mode(self, mode: int):
+        """Set split mode (C# myLddVal: 0=off, 1-3=Dynamic Island style)."""
+        image = self._display.set_split_mode(mode)
+        if image:
+            self._fire_preview(image)
+            if self.auto_send:
+                self._send_frame_to_lcd(image)
+
     # ── Theme Operations ──────────────────────────────────────────────
 
     def load_local_theme(self, theme: ThemeInfo):
@@ -499,6 +507,14 @@ class LCDDeviceController:
         return self._display.import_config(import_path, data_dir)
 
     # ── Video Operations ──────────────────────────────────────────────
+
+    def set_video_fit_mode(self, mode: str):
+        """Set video fit mode (C# buttonTPJCW/buttonTPJCH)."""
+        image = self._display.set_video_fit_mode(mode)
+        if image:
+            self._fire_preview(image)
+            if self.auto_send:
+                self._send_frame_to_lcd(image)
 
     def play_pause(self):
         self.video.toggle_play_pause()
@@ -656,6 +672,28 @@ class LEDController:
     def set_zone_brightness(self, zone: int, brightness: int) -> None:
         self._svc.set_zone_brightness(zone, brightness)
         self._fire_state_changed()
+
+    def toggle_zone(self, zone: int, on: bool) -> None:
+        self._svc.toggle_zone(zone, on)
+        self._fire_state_changed()
+
+    def set_zone_carousel(self, enabled: bool) -> None:
+        self._svc.set_zone_carousel(enabled)
+
+    def set_zone_carousel_zone(self, zone: int, selected: bool) -> None:
+        self._svc.set_zone_carousel_zone(zone, selected)
+
+    def set_zone_carousel_interval(self, seconds: int) -> None:
+        self._svc.set_zone_carousel_interval(seconds)
+
+    def set_disk_index(self, index: int) -> None:
+        self._svc.set_disk_index(index)
+
+    def set_memory_ratio(self, ratio: int) -> None:
+        self._svc.set_memory_ratio(ratio)
+
+    def set_test_mode(self, enabled: bool) -> None:
+        self._svc.set_test_mode(enabled)
 
     def set_sensor_source(self, source: str) -> None:
         self._svc.set_sensor_source(source)
