@@ -203,10 +203,14 @@ class TestPmMapping:
         assert PmRegistry.PM_TO_STYLE[16] == 2   # PA120_DIGITAL → style 2
         assert PmRegistry.PM_TO_STYLE[32] == 3   # AK120_DIGITAL → style 3
         assert PmRegistry.PM_TO_STYLE[48] == 5   # LF8 → style 5
+        assert PmRegistry.PM_TO_STYLE[49] == 5   # LF10 (product) → style 5 (LF8 layout)
         assert PmRegistry.PM_TO_STYLE[80] == 6   # LF12 → style 6
         assert PmRegistry.PM_TO_STYLE[96] == 7   # LF10 → style 7
         assert PmRegistry.PM_TO_STYLE[112] == 9  # LC2 → style 9
         assert PmRegistry.PM_TO_STYLE[128] == 4  # LC1 → style 4
+        assert PmRegistry.PM_TO_STYLE[129] == 10 # LF11 → style 10
+        assert PmRegistry.PM_TO_STYLE[144] == 11 # LF15 → style 11
+        assert PmRegistry.PM_TO_STYLE[160] == 12 # LF13 → style 12
         assert PmRegistry.PM_TO_STYLE[208] == 8  # CZ1 → style 8
 
     def test_pm_to_style_pa120_variants(self):
@@ -290,6 +294,39 @@ class TestPmMapping:
         assert PmRegistry.get_style(128).style_id == 4
         # With sub_type=129, PM=128 → style 13 (HR10)
         assert PmRegistry.get_style(128, 129).style_id == 13
+
+    def test_pm49_resolves_to_style_5_not_7(self):
+        """PM=49 is product 'LF10' but uses style 5 (LF8 layout, 93 LEDs).
+
+        Regression: resolve_style_id("LF10") matched style 7 (116 LEDs)
+        by model_name. The correct path is PM→style_id directly.
+        """
+        style = PmRegistry.get_style(49)
+        assert style.style_id == 5
+        assert style.led_count == 93
+        # Product name is "LF10" but style model_name is "LF8"
+        assert PmRegistry.get_model_name(49) == "LF10"
+        assert style.model_name == "LF8"
+
+    def test_pm49_and_pm96_share_name_different_styles(self):
+        """PM=49 and PM=96 both produce model 'LF10' but map to different styles.
+
+        This is the name collision that broke resolve_style_id().
+        """
+        assert PmRegistry.get_model_name(49) == "LF10"
+        assert PmRegistry.get_model_name(96) == "LF10"
+        assert PmRegistry.get_style(49).style_id == 5   # 93 LEDs
+        assert PmRegistry.get_style(96).style_id == 7   # 116 LEDs
+
+    def test_pm23_resolves_to_style_2(self):
+        """PM=23 (RK120_DIGITAL) uses style 2, not default 1.
+
+        Regression: resolve_style_id("RK120_DIGITAL") found no match
+        in LED_STYLES and fell back to style 1.
+        """
+        style = PmRegistry.get_style(23)
+        assert style.style_id == 2
+        assert style.led_count == 84
 
 
 # =========================================================================
