@@ -32,6 +32,21 @@ from trcc.core.models import (
 
 log = logging.getLogger(__name__)
 
+# Errno 16 = EBUSY — device interface claimed by another process (e.g. GUI).
+_ERRNO_EBUSY = 16
+
+
+def _is_ebusy(exc: Exception) -> bool:
+    """Check if exception is a USB EBUSY (device in use by another process)."""
+    # Walk the exception chain — EBUSY may be wrapped in RuntimeError
+    cur: Optional[BaseException] = exc
+    while cur is not None:
+        if getattr(cur, "errno", None) == _ERRNO_EBUSY:
+            return True
+        cur = cur.__cause__
+    return False
+
+
 # =========================================================================
 # DeviceProtocol ABC — the contract both SCSI and HID implement
 # =========================================================================
@@ -53,6 +68,9 @@ class DeviceProtocol(ABC):
         self.on_send_complete: Optional[Callable[[bool], None]] = None
         self.on_error: Optional[Callable[[str], None]] = None
         self.on_state_changed: Optional[Callable[[str, object], None]] = None
+        # Handshake state — common to all protocols
+        self._handshake_result: Optional[HandshakeResult] = None
+        self._last_error: Optional[Exception] = None
 
     @abstractmethod
     def send_image(self, image_data: bytes, width: int, height: int) -> bool:
@@ -99,13 +117,59 @@ class DeviceProtocol(ABC):
         """
         return False
 
-    @abstractmethod
     def handshake(self) -> Optional[HandshakeResult]:
-        """Perform device handshake and return capabilities.
+        """Template Method: perform handshake, cache result, handle errors.
 
-        Returns HandshakeResult with resolution, model_id, etc.
-        Returns None if handshake fails or device is unresponsive.
+        Subclasses implement _do_handshake() with protocol-specific logic.
         """
+        try:
+            result = self._do_handshake()
+            self._handshake_result = result
+            if result:
+                self._cache_handshake(result)
+            return result
+        except Exception as e:
+            if _is_ebusy(e):
+                log.warning("%s in use by another process",
+                            self._handshake_label)
+            else:
+                log.exception("%s handshake failed", self._handshake_label)
+            self._last_error = e
+            self._notify_error(f"{self._handshake_label} handshake failed: {e}")
+            return None
+
+    @abstractmethod
+    def _do_handshake(self) -> Optional[HandshakeResult]:
+        """Protocol-specific handshake logic. Called by handshake()."""
+
+    @property
+    def _handshake_label(self) -> str:
+        """Human-readable label for error messages (e.g. 'HID 0416:5302')."""
+        return self.protocol_name
+
+    @property
+    def handshake_info(self) -> Optional[HandshakeResult]:
+        """Cached handshake result (None if not yet handshaked)."""
+        return self._handshake_result
+
+    @property
+    def last_error(self) -> Optional[Exception]:
+        """Last exception from handshake."""
+        return self._last_error
+
+    def _cache_handshake(self, result: HandshakeResult) -> None:
+        """Save handshake result so `trcc report` can read it while GUI runs."""
+        try:
+            from trcc.conf import save_last_handshake
+            save_last_handshake({
+                "protocol": self.protocol_name,
+                "model_id": result.model_id,
+                "resolution": list(result.resolution) if result.resolution else None,
+                "serial": result.serial,
+                "raw": result.raw_response.hex() if result.raw_response else "",
+            })
+        except Exception:
+            log.debug("Failed to cache handshake result", exc_info=True)
 
     @property
     def is_led(self) -> bool:
@@ -142,7 +206,7 @@ class ScsiProtocol(DeviceProtocol):
         super().__init__()
         self._path = device_path
 
-    def handshake(self) -> Optional[HandshakeResult]:
+    def _do_handshake(self) -> Optional[HandshakeResult]:
         """Poll SCSI device to discover FBL → resolution."""
         from .scsi import ScsiDevice
         dev = ScsiDevice(self._path)
@@ -205,51 +269,36 @@ class HidProtocol(DeviceProtocol):
         self._pid = pid
         self._device_type = device_type
         self._transport = None
-        self._handshake_info = None
-        self._last_error: Optional[Exception] = None
 
-    def handshake(self) -> Optional[HandshakeResult]:
-        """Perform HID LCD handshake and return HidHandshakeInfo.
+    def _do_handshake(self) -> Optional[HandshakeResult]:
+        """Open HID transport and perform type-specific handshake."""
+        if self._transport is None:
+            log.debug("Opening HID transport: %04X:%04X (type %d)", self._vid, self._pid, self._device_type)
+            self._transport = self._create_transport()
+            self._transport.open()
+            self._notify_state_changed("transport_open", True)
 
-        Opens transport if needed.  Returns hid_device.HidHandshakeInfo with
-        PM, SUB, FBL, resolution, and raw_response for debugging.
-        """
-        try:
-            if self._transport is None:
-                log.debug("Opening HID transport: %04X:%04X (type %d)", self._vid, self._pid, self._device_type)
-                self._transport = self._create_transport()
-                self._transport.open()
-                self._notify_state_changed("transport_open", True)
-
-            from .hid import HidDeviceType2, HidDeviceType3
-            if self._device_type == 2:
-                handler = HidDeviceType2(self._transport)
-            elif self._device_type == 3:
-                handler = HidDeviceType3(self._transport)
-            else:
-                log.warning("Unknown HID device type: %d", self._device_type)
-                return None
-
-            self._handshake_info = handler.handshake()
-            if self._handshake_info:
-                log.info("HID handshake OK: PM=%s, FBL=%s, resolution=%s",
-                         self._handshake_info.mode_byte_1, self._handshake_info.fbl,
-                         self._handshake_info.resolution)
-            else:
-                log.warning("HID handshake returned None")
-            self._notify_state_changed("handshake_complete", True)
-            return self._handshake_info
-        except Exception as e:
-            log.exception("HID handshake failed for %04X:%04X type %d",
-                          self._vid, self._pid, self._device_type)
-            self._last_error = e
-            self._notify_error(f"HID handshake failed: {e}")
+        from .hid import HidDeviceType2, HidDeviceType3
+        if self._device_type == 2:
+            handler = HidDeviceType2(self._transport)
+        elif self._device_type == 3:
+            handler = HidDeviceType3(self._transport)
+        else:
+            log.warning("Unknown HID device type: %d", self._device_type)
             return None
 
+        result = handler.handshake()
+        if result:
+            log.info("HID handshake OK: PM=%s, FBL=%s, resolution=%s",
+                     result.mode_byte_1, result.fbl, result.resolution)
+        else:
+            log.warning("HID handshake returned None")
+        self._notify_state_changed("handshake_complete", True)
+        return result
+
     @property
-    def last_error(self) -> Optional[Exception]:
-        """Last exception from handshake (None if no error or not yet attempted)."""
-        return self._last_error
+    def _handshake_label(self) -> str:
+        return f"HID {self._vid:04X}:{self._pid:04X} type {self._device_type}"
 
     def send_image(self, image_data: bytes, width: int, height: int) -> bool:
         try:
@@ -336,8 +385,6 @@ class LedProtocol(DeviceProtocol):
         self._pid = pid
         self._transport = None
         self._sender = None
-        self._handshake_info = None
-        self._last_error: Optional[Exception] = None
 
     def send_image(self, image_data: bytes, width: int, height: int) -> bool:
         """No-op — LED devices don't display images."""
@@ -374,9 +421,9 @@ class LedProtocol(DeviceProtocol):
             from .led import LedPacketBuilder, remap_led_colors
 
             # Remap logical LED order → physical wire order (per-style).
-            if self._handshake_info and self._handshake_info.style:
+            if self._handshake_result and hasattr(self._handshake_result, 'style') and self._handshake_result.style:
                 led_colors = remap_led_colors(
-                    led_colors, self._handshake_info.style.style_id,
+                    led_colors, self._handshake_result.style.style_id,
                 )
 
             packet = LedPacketBuilder.build_led_packet(
@@ -390,43 +437,27 @@ class LedProtocol(DeviceProtocol):
             self._notify_send_complete(False)
             return False
 
-    def handshake(self) -> Optional[HandshakeResult]:
-        """Perform LED device handshake and return device info.
+    def _do_handshake(self) -> Optional[HandshakeResult]:
+        """LED handshake — cached after first call (firmware ignores re-handshakes)."""
+        if self._handshake_result is not None:
+            return self._handshake_result
 
-        The firmware only responds to the handshake once after power-on.
-        Subsequent calls return the cached result.
+        if self._transport is None:
+            self._transport = self._create_transport()
+            self._transport.open()
+            self._notify_state_changed("transport_open", True)
 
-        Returns:
-            LedHandshakeInfo with pm byte and resolved device style.
-        """
-        # Return cached result — device firmware ignores re-handshakes
-        if self._handshake_info is not None:
-            return self._handshake_info
+        if self._sender is None:
+            from .led import LedHidSender
+            self._sender = LedHidSender(self._transport)
 
-        try:
-            if self._transport is None:
-                self._transport = self._create_transport()
-                self._transport.open()
-                self._notify_state_changed("transport_open", True)
-
-            if self._sender is None:
-                from .led import LedHidSender
-                self._sender = LedHidSender(self._transport)
-
-            self._handshake_info = self._sender.handshake()
-            self._notify_state_changed("handshake_complete", True)
-            return self._handshake_info
-        except Exception as e:
-            log.exception("LED handshake failed for %04X:%04X",
-                          self._vid, self._pid)
-            self._last_error = e
-            self._notify_error(f"LED handshake failed: {e}")
-            return None
+        result = self._sender.handshake()
+        self._notify_state_changed("handshake_complete", True)
+        return result
 
     @property
-    def last_error(self) -> Optional[Exception]:
-        """Last exception from handshake (None if no error or not yet attempted)."""
-        return self._last_error
+    def _handshake_label(self) -> str:
+        return f"LED {self._vid:04X}:{self._pid:04X}"
 
     def close(self) -> None:
         if self._transport is not None:
@@ -475,11 +506,6 @@ class LedProtocol(DeviceProtocol):
     def is_led(self) -> bool:
         return True
 
-    @property
-    def handshake_info(self):
-        """Cached handshake info (None if not yet handshaked)."""
-        return self._handshake_info
-
     def __repr__(self) -> str:
         return f"LedProtocol(vid=0x{self._vid:04x}, pid=0x{self._pid:04x})"
 
@@ -500,8 +526,6 @@ class BulkProtocol(DeviceProtocol):
         self._vid = vid
         self._pid = pid
         self._device: Optional[Any] = None  # BulkDevice (lazy import)
-        self._handshake_result: Optional[HandshakeResult] = None
-        self._last_error: Optional[Exception] = None
 
     def _ensure_device(self):
         """Lazily create and handshake the bulk device."""
@@ -517,22 +541,14 @@ class BulkProtocol(DeviceProtocol):
             else:
                 log.warning("Bulk handshake: no resolution detected")
 
-    def handshake(self) -> Optional[HandshakeResult]:
-        """Perform bulk device handshake."""
-        try:
-            self._ensure_device()
-            return self._handshake_result
-        except Exception as e:
-            log.exception("Bulk handshake failed for %04X:%04X",
-                          self._vid, self._pid)
-            self._last_error = e
-            self._notify_error(f"Bulk handshake failed: {e}")
-            return None
+    def _do_handshake(self) -> Optional[HandshakeResult]:
+        """Create bulk device and perform handshake."""
+        self._ensure_device()
+        return self._handshake_result
 
     @property
-    def last_error(self) -> Optional[Exception]:
-        """Last exception from handshake."""
-        return self._last_error
+    def _handshake_label(self) -> str:
+        return f"Bulk {self._vid:04X}:{self._pid:04X}"
 
     def send_image(self, image_data: bytes, width: int, height: int) -> bool:
         try:

@@ -79,6 +79,29 @@ def save_config(config: dict):
         json.dump(config, f, indent=2)
 
 
+# =========================================================================
+# Last handshake cache — written by GUI, read by `trcc report`
+# =========================================================================
+
+_HANDSHAKE_CACHE_PATH = os.path.join(CONFIG_DIR, 'last_handshake.json')
+
+
+def save_last_handshake(data: dict) -> None:
+    """Cache the last successful handshake result for `trcc report`."""
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    with open(_HANDSHAKE_CACHE_PATH, 'w') as f:
+        json.dump(data, f, indent=2)
+
+
+def load_last_handshake() -> dict:
+    """Load cached handshake result. Returns empty dict if missing."""
+    try:
+        with open(_HANDSHAKE_CACHE_PATH, 'r') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return {}
+
+
 def _migrate_config() -> None:
     """Clear stale device-derived state when app version changes.
 

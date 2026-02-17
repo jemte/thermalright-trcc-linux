@@ -262,8 +262,27 @@ class DebugReport:
     # Handshake helpers
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _ebusy_fallback(sec: _Section) -> None:
+        """Show cached handshake data when device is in use by the GUI."""
+        from trcc.conf import load_last_handshake
+
+        cached = load_last_handshake()
+        if cached and cached.get("resolution"):
+            res = cached["resolution"]
+            pm = cached.get("model_id", "?")
+            raw = cached.get("raw", "")
+            sec.lines.append(
+                f"    PM={pm}, resolution=({res[0]}, {res[1]}), "
+                f"serial={cached.get('serial', '')}")
+            if raw:
+                sec.lines.append(f"    raw[0:64]={raw[:128]}")
+            sec.lines.append("    (from cache — device in use by trcc gui)")
+        else:
+            sec.lines.append("    (device in use by trcc gui)")
+
     def _handshake_hid_lcd(self, dev, sec: _Section) -> None:
-        from trcc.adapters.device.factory import HidProtocol
+        from trcc.adapters.device.factory import HidProtocol, _is_ebusy
         from trcc.adapters.device.hid import HidHandshakeInfo
         from trcc.core.models import fbl_to_resolution, pm_to_fbl
 
@@ -272,7 +291,11 @@ class DebugReport:
             info = protocol.handshake()
             if info is None:
                 error = protocol.last_error
-                sec.lines.append(f"    Result: None ({error or 'no response'})")
+                if error and _is_ebusy(error):
+                    self._ebusy_fallback(sec)
+                else:
+                    sec.lines.append(
+                        f"    Result: None ({error or 'no response'})")
                 return
 
             assert isinstance(info, HidHandshakeInfo)
@@ -290,7 +313,7 @@ class DebugReport:
             protocol.close()
 
     def _handshake_led(self, dev, sec: _Section) -> None:
-        from trcc.adapters.device.factory import LedProtocol
+        from trcc.adapters.device.factory import LedProtocol, _is_ebusy
         from trcc.adapters.device.led import LedHandshakeInfo, PmRegistry
 
         protocol = LedProtocol(vid=dev.vid, pid=dev.pid)
@@ -298,7 +321,11 @@ class DebugReport:
             info = protocol.handshake()
             if info is None:
                 error = protocol.last_error
-                sec.lines.append(f"    Result: None ({error or 'no response'})")
+                if error and _is_ebusy(error):
+                    self._ebusy_fallback(sec)
+                else:
+                    sec.lines.append(
+                        f"    Result: None ({error or 'no response'})")
                 return
 
             assert isinstance(info, LedHandshakeInfo)
@@ -317,14 +344,18 @@ class DebugReport:
             protocol.close()
 
     def _handshake_bulk(self, dev, sec: _Section) -> None:
-        from trcc.adapters.device.factory import BulkProtocol
+        from trcc.adapters.device.factory import BulkProtocol, _is_ebusy
 
         protocol = BulkProtocol(vid=dev.vid, pid=dev.pid)
         try:
             result = protocol.handshake()
             if result is None:
                 error = protocol.last_error
-                sec.lines.append(f"    Result: None ({error or 'no response'})")
+                if error and _is_ebusy(error):
+                    self._ebusy_fallback(sec)
+                else:
+                    sec.lines.append(
+                        f"    Result: None ({error or 'no response'})")
                 return
             sec.lines.append(
                 f"    PM={result.model_id}, resolution={result.resolution}, "
