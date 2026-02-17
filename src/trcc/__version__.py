@@ -1,6 +1,6 @@
 """TRCC Linux version information."""
 
-__version__ = "5.0.0"
+__version__ = "5.0.1"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Version history:
@@ -184,3 +184,7 @@ __version_info__ = tuple(int(x) for x in __version__.split("."))
 #          (15 dmidecode fields), disk SMART health, SPI byte order fix.
 #          VideoDecoder fit-mode via ffprobe + proportional scaling.
 #          2315 tests.
+# 5.0.1  - Fix SELinux detection without root: semodule -l requires root
+#          and always reported [!!] in setup-gui for non-root users.
+#          Fall back to sesearch --allow which queries the loaded kernel
+#          policy without elevated privileges. 2316 tests.
