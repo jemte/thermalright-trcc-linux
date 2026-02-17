@@ -270,8 +270,8 @@ class TestCheckSelinux(unittest.TestCase):
             if cmd[0] == 'getenforce':
                 return Mock(stdout='Enforcing\n')
             if cmd[0] == 'semodule':
-                return Mock(stdout='trcc_usb\nother_mod\n')
-            return Mock(stdout='')
+                return Mock(stdout='trcc_usb\nother_mod\n', returncode=0)
+            return Mock(stdout='', returncode=0)
         mock_run.side_effect = side_effect
         r = check_selinux()
         self.assertTrue(r.ok)
@@ -279,13 +279,36 @@ class TestCheckSelinux(unittest.TestCase):
         self.assertTrue(r.module_loaded)
 
     @patch('subprocess.run')
-    def test_enforcing_module_missing(self, mock_run):
+    def test_enforcing_sesearch_fallback(self, mock_run):
+        """semodule -l fails (non-root) but sesearch finds permissions."""
         def side_effect(cmd, **_kw):
             if cmd[0] == 'getenforce':
                 return Mock(stdout='Enforcing\n')
             if cmd[0] == 'semodule':
-                return Mock(stdout='other_mod\n')
-            return Mock(stdout='')
+                return Mock(stdout='', returncode=1)  # permission denied
+            if cmd[0] == 'sesearch':
+                return Mock(
+                    stdout='allow unconfined_t usb_device_t:chr_file '
+                           '{ ioctl open read write };',
+                    returncode=0,
+                )
+            return Mock(stdout='', returncode=1)
+        mock_run.side_effect = side_effect
+        r = check_selinux()
+        self.assertTrue(r.ok)
+        self.assertTrue(r.enforcing)
+
+    @patch('subprocess.run')
+    def test_enforcing_module_missing(self, mock_run):
+        """semodule says no module, sesearch finds no permissions."""
+        def side_effect(cmd, **_kw):
+            if cmd[0] == 'getenforce':
+                return Mock(stdout='Enforcing\n')
+            if cmd[0] == 'semodule':
+                return Mock(stdout='other_mod\n', returncode=0)
+            if cmd[0] == 'sesearch':
+                return Mock(stdout='', returncode=1)
+            return Mock(stdout='', returncode=1)
         mock_run.side_effect = side_effect
         r = check_selinux()
         self.assertFalse(r.ok)
@@ -295,10 +318,8 @@ class TestCheckSelinux(unittest.TestCase):
 
     @patch('subprocess.run')
     def test_enforcing_semodule_not_found(self, mock_run):
-        calls = []
-
+        """Neither semodule nor sesearch available."""
         def side_effect(cmd, **_kw):
-            calls.append(cmd[0])
             if cmd[0] == 'getenforce':
                 return Mock(stdout='Enforcing\n')
             raise FileNotFoundError

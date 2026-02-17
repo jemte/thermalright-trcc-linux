@@ -561,10 +561,15 @@ class SelinuxResult:
 
 
 def check_selinux() -> SelinuxResult:
-    """Check if SELinux is enforcing and if trcc_usb policy module is loaded.
+    """Check if SELinux is enforcing and if USB device access is allowed.
 
     Returns ok=True when no action is needed: SELinux absent, permissive,
-    disabled, or enforcing with the trcc_usb module already loaded.
+    disabled, or enforcing with USB access already permitted (via trcc_usb
+    module or base policy).
+
+    Detection order:
+    1. ``semodule -l`` — checks module list (requires root)
+    2. ``sesearch`` — queries loaded kernel policy (works without root)
     """
     import subprocess
 
@@ -583,23 +588,59 @@ def check_selinux() -> SelinuxResult:
         return SelinuxResult(ok=True, message=f'SELinux {status} (no policy needed)')
 
     # SELinux is enforcing — check if trcc_usb module is loaded
+    # semodule -l requires root; try it first, fall back to sesearch
     try:
         r = subprocess.run(
             ['semodule', '-l'], capture_output=True, text=True, timeout=10,
         )
-        loaded = 'trcc_usb' in r.stdout
+        if r.returncode == 0 and 'trcc_usb' in r.stdout:
+            return SelinuxResult(
+                ok=True, message='SELinux enforcing — trcc_usb module loaded',
+                enforcing=True, module_loaded=True,
+            )
     except (FileNotFoundError, Exception):
-        loaded = False
+        pass
 
-    if loaded:
+    # semodule failed (non-root) or module not listed — check if the
+    # needed USB permissions exist in the loaded policy via sesearch
+    if _selinux_usb_access_allowed():
         return SelinuxResult(
-            ok=True, message='SELinux enforcing — trcc_usb module loaded',
+            ok=True,
+            message='SELinux enforcing — USB access permitted by policy',
             enforcing=True, module_loaded=True,
         )
+
     return SelinuxResult(
         ok=False, message='SELinux enforcing — USB policy not installed',
         enforcing=True, module_loaded=False,
     )
+
+
+def _selinux_usb_access_allowed() -> bool:
+    """Check if the loaded SELinux policy allows USB device access.
+
+    Uses ``sesearch`` to query the kernel policy — works without root.
+    Our trcc_usb module grants:
+        allow unconfined_t usb_device_t:chr_file { ioctl open read write }
+    The base policy may already cover this via attribute rules.
+    """
+    import subprocess
+
+    try:
+        r = subprocess.run(
+            ['sesearch', '--allow', '-s', 'unconfined_t',
+             '-t', 'usb_device_t', '-c', 'chr_file'],
+            capture_output=True, text=True, timeout=10,
+        )
+        if r.returncode != 0:
+            return False
+        # Check that all required permissions are present
+        for perm in ('ioctl', 'open', 'read', 'write'):
+            if perm not in r.stdout:
+                return False
+        return True
+    except (FileNotFoundError, Exception):
+        return False
 
 
 def check_desktop_entry() -> bool:
