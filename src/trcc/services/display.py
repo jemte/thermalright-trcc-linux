@@ -399,6 +399,8 @@ class DisplayService:
 
     def _apply_adjustments(self, image: Any) -> Any:
         """Apply brightness, rotation, and split overlay to image."""
+        if self.brightness >= 100 and self.rotation == 0 and not self.split_mode:
+            return image
         image = ImageService.apply_brightness(image, self.brightness)
         image = ImageService.apply_rotation(image, self.rotation)
         image = self._apply_split_overlay(image)

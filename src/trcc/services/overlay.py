@@ -365,16 +365,19 @@ class OverlayService:
         return self._composite_onto_background(r)
 
     def _composite_onto_background(self, r: Renderer) -> Any:
-        """Composite cached overlay layer onto current background."""
+        """Composite cached overlay layer onto current background.
+
+        Overlay cache is RGBA; background is RGB.  PIL paste() with alpha
+        mask works directly on RGB — no RGBA round-trip needed.
+        """
         if self.background is None:
             base = r.create_surface(self.width, self.height)
-        else:
-            base = r.convert_to_rgba(r.copy_surface(
-                r.from_pil(self.background)))
+            r.composite(base, self._overlay_cache, (0, 0))
+            return r.to_pil(r.convert_to_rgb(base))
 
-        base = r.composite(base, self._overlay_cache, (0, 0))
-
-        return r.to_pil(r.convert_to_rgb(base))
+        base = r.copy_surface(r.from_pil(self.background))
+        r.composite(base, self._overlay_cache, (0, 0))
+        return r.to_pil(base)
 
     def _render_overlay_layer(self, metrics: HardwareMetrics,
                               r: Renderer) -> Any:
