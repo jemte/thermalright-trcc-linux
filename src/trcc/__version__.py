@@ -1,6 +1,6 @@
 """TRCC Linux version information."""
 
-__version__ = "5.0.1"
+__version__ = "5.0.2"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Version history:
@@ -188,3 +188,10 @@ __version_info__ = tuple(int(x) for x in __version__.split("."))
 #          and always reported [!!] in setup-gui for non-root users.
 #          Fall back to sesearch --allow which queries the loaded kernel
 #          policy without elevated privileges. 2316 tests.
+# 5.0.2  - Fix LED auto-detection: probe PM byte during device enumeration
+#          so all 0416:8001 devices get correct style (was falling back to
+#          AX120_DIGITAL for all). Config version tracking: auto-clear stale
+#          device state and LED probe cache on upgrade. LED timer optimization:
+#          30ms→150ms matching C# 10-tick counter, remove redundant 30ms USB
+#          cooldown sleep, skip USB sends when colors unchanged (static mode).
+#          Sensor poll interval 0.9s→2.0s. 2319 tests.

@@ -32,7 +32,6 @@ from trcc.adapters.device.led import (
     LED_STYLES,
     LED_VID,
     PRESET_COLORS,
-    SEND_COOLDOWN_S,
     ColorEngine,
     LedDeviceStyle,
     LedHandshakeInfo,
@@ -1087,14 +1086,14 @@ class TestLedHidSenderSendLedData:
         for c in transport.write.call_args_list:
             assert c[0][2] == DEFAULT_TIMEOUT_MS
 
-    def test_send_cooldown(self):
-        """Should sleep SEND_COOLDOWN_S after successful send."""
+    def test_send_no_cooldown(self):
+        """Should NOT sleep after send (cooldown removed for 150ms timer)."""
         transport = _make_mock_transport()
         sender = LedHidSender(transport)
 
         with patch("trcc.adapters.device.led.time.sleep") as mock_sleep:
             sender.send_led_data(b'\xAA' * 20)
-            mock_sleep.assert_called_once_with(SEND_COOLDOWN_S)
+            mock_sleep.assert_not_called()
 
     def test_concurrent_send_guard(self):
         """Second send while first is in progress should return False."""
@@ -1305,9 +1304,6 @@ class TestLedConstants:
 
     def test_color_scale(self):
         assert LED_COLOR_SCALE == 0.4
-
-    def test_send_cooldown(self):
-        assert SEND_COOLDOWN_S == 0.030
 
     def test_led_init_size(self):
         assert LED_INIT_SIZE == 64

@@ -191,6 +191,90 @@ class TestTempUnitConfig(unittest.TestCase):
         self.assertEqual(Settings._get_saved_temp_unit(), 1)
 
 
+class TestConfigMigration(unittest.TestCase):
+    """Test _migrate_config version-aware state clearing."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.config_path = os.path.join(self.tmp, 'config.json')
+        self.patches = [
+            patch('trcc.conf.CONFIG_PATH', self.config_path),
+            patch('trcc.conf.CONFIG_DIR', self.tmp),
+        ]
+        for p in self.patches:
+            p.start()
+
+    def tearDown(self):
+        for p in self.patches:
+            p.stop()
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_fresh_install_stamps_version(self):
+        """First run: no config → stamps current version."""
+        from trcc.conf import _migrate_config
+        _migrate_config()
+        cfg = load_config()
+        from trcc.__version__ import __version__
+        self.assertEqual(cfg['config_version'], __version__)
+
+    def test_same_version_no_change(self):
+        """Same version: config untouched."""
+        from trcc.__version__ import __version__
+        save_config({
+            'config_version': __version__,
+            'devices': {'0:0416_8001': {'theme': 'dark'}},
+            'resolution': [480, 480],
+            'temp_unit': 1,
+        })
+        from trcc.conf import _migrate_config
+        _migrate_config()
+        cfg = load_config()
+        self.assertIn('devices', cfg)
+        self.assertEqual(cfg['resolution'], [480, 480])
+        self.assertEqual(cfg['temp_unit'], 1)
+
+    def test_version_mismatch_clears_device_state(self):
+        """Upgrade: clears devices, resolution, selected_device; preserves user prefs."""
+        save_config({
+            'config_version': '0.0.1',
+            'devices': {'0:0416_8001': {'theme': 'dark'}},
+            'resolution': [480, 480],
+            'selected_device': '/dev/sg0',
+            'installed_resolutions': ['320x320'],
+            'temp_unit': 1,
+            'lang': 'en',
+            'format_prefs': {'time_format': 1},
+            'hdd_enabled': False,
+        })
+        from trcc.conf import _migrate_config
+        _migrate_config()
+        cfg = load_config()
+        # Device-derived state cleared
+        self.assertNotIn('devices', cfg)
+        self.assertNotIn('resolution', cfg)
+        self.assertNotIn('selected_device', cfg)
+        self.assertNotIn('installed_resolutions', cfg)
+        # User prefs preserved
+        self.assertEqual(cfg['temp_unit'], 1)
+        self.assertEqual(cfg['lang'], 'en')
+        self.assertEqual(cfg['format_prefs'], {'time_format': 1})
+        self.assertFalse(cfg['hdd_enabled'])
+        # Version stamped
+        from trcc.__version__ import __version__
+        self.assertEqual(cfg['config_version'], __version__)
+
+    def test_version_mismatch_deletes_probe_cache(self):
+        """Upgrade: deletes LED probe cache file."""
+        probe_cache = os.path.join(self.tmp, 'led_probe_cache.json')
+        with open(probe_cache, 'w') as f:
+            json.dump({'cache': True}, f)
+        save_config({'config_version': '0.0.1'})
+        from trcc.conf import _migrate_config
+        _migrate_config()
+        self.assertFalse(os.path.exists(probe_cache))
+
+
 class TestResolutionInstalled(unittest.TestCase):
     """Test one-time resolution install tracking."""
 

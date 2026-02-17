@@ -51,6 +51,11 @@ class DeviceService:
         except ImportError:
             self._devices = []
 
+        # Enrich LED devices with probe data (PM → style, model name).
+        for d, raw_d in zip(self._devices, raw):
+            if d.implementation == 'hid_led':
+                self._enrich_led_device(d, raw_d.usb_path)
+
         log.info("DeviceService: found %d device(s)", len(self._devices))
         for d in self._devices:
             log.debug("  %s [%04X:%04X] %s res=%s",
@@ -61,6 +66,25 @@ class DeviceService:
             self._selected = self._devices[0]
 
         return self._devices
+
+    @staticmethod
+    def _enrich_led_device(device: DeviceInfo, usb_path: str) -> None:
+        """Probe LED device to resolve PM → style and model name.
+
+        Without this, all 0416:8001 devices start as generic "LED_DIGITAL"
+        which falls back to style 1 (AX120_DIGITAL, 30 LEDs) — wrong for
+        multi-segment devices like PA120 (84), LF8 (93), etc.
+        """
+        try:
+            from ..adapters.device.led import probe_led_model
+            info = probe_led_model(device.vid, device.pid, usb_path=usb_path)
+            if info and info.style:
+                device.led_style_id = info.style.style_id
+                device.model = info.style.model_name
+                log.debug("LED probe: PM=%d → style=%d model=%s",
+                          info.pm, info.style.style_id, info.style.model_name)
+        except Exception as e:
+            log.debug("LED probe failed: %s", e)
 
     # ── Selection ────────────────────────────────────────────────────
 

@@ -177,7 +177,7 @@ class SensorEnumerator:
                     self._cached_readings = readings
             except Exception:
                 log.debug("Sensor poll error", exc_info=True)
-            self._poll_stop.wait(0.9)  # ~900ms between reads
+            self._poll_stop.wait(2.0)  # ~2s between reads (C# polls ~1s)
 
     def _read_all_sync(self) -> dict[str, float]:
         """Read current values for ALL discovered sensors (blocking)."""

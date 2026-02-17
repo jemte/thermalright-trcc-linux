@@ -66,7 +66,6 @@ HID_REPORT_SIZE = 64
 LED_COLOR_SCALE = 0.4
 
 # Timing (UCDevice.cs: Thread.Sleep(30) after ThreadSendDeviceData1 completes)
-SEND_COOLDOWN_S = 0.030
 
 # Handshake init packet size (device1 uses 64-byte reports, not 512)
 LED_INIT_SIZE = 64
@@ -426,8 +425,6 @@ class LedHidSender:
                 remaining -= chunk_size
                 offset += chunk_size
 
-            # Cooldown after send (UCDevice.cs Thread.Sleep(30))
-            time.sleep(SEND_COOLDOWN_S)
             return True
 
         except Exception:

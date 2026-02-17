@@ -627,6 +627,7 @@ class LEDController:
     def __init__(self, svc: Any = None):
         from ..services.led import LEDService
         self._svc: LEDService = svc or LEDService()
+        self._last_colors: tuple = ()
 
         # View callbacks
         self.on_state_changed: Optional[Callable] = None
@@ -725,6 +726,10 @@ class LEDController:
         if self.on_preview_update:
             self.on_preview_update(colors)
         if self._svc.has_protocol:
+            key = tuple(colors)
+            if key == self._last_colors:
+                return
+            self._last_colors = key
             success = self._svc.send_colors(colors)
             if self.on_send_complete:
                 self.on_send_complete(success)

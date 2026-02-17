@@ -32,6 +32,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
+from .__version__ import __version__
 from .adapters.infra.data_repository import (
     USER_DATA_DIR,
     DataManager,
@@ -76,6 +77,41 @@ def save_config(config: dict):
     os.makedirs(CONFIG_DIR, exist_ok=True)
     with open(CONFIG_PATH, 'w') as f:
         json.dump(config, f, indent=2)
+
+
+def _migrate_config() -> None:
+    """Clear stale device-derived state when app version changes.
+
+    Preserves user prefs (temp_unit, lang, format_prefs, hdd_enabled).
+    Clears device-derived keys (devices, resolution, selected_device,
+    installed_resolutions) and LED probe cache so new detection logic
+    takes effect after upgrade.
+    """
+    config = load_config()
+    saved_version = config.get('config_version')
+
+    if saved_version == __version__:
+        return
+
+    if saved_version is not None:
+        # Version mismatch — clear device-derived state
+        log.info("Config version %s → %s: clearing device state",
+                 saved_version, __version__)
+        for key in ('devices', 'resolution', 'selected_device',
+                    'installed_resolutions'):
+            config.pop(key, None)
+
+        # Delete LED probe cache (stale PM → style mappings)
+        probe_cache = os.path.join(CONFIG_DIR, 'led_probe_cache.json')
+        if os.path.exists(probe_cache):
+            try:
+                os.remove(probe_cache)
+                log.info("Deleted stale LED probe cache")
+            except OSError as e:
+                log.warning("Failed to delete LED probe cache: %s", e)
+
+    config['config_version'] = __version__
+    save_config(config)
 
 
 # =========================================================================
@@ -233,6 +269,7 @@ class Settings:
     # --- Instance methods and properties ---
 
     def __init__(self) -> None:
+        _migrate_config()
         w, h = Settings._get_saved_resolution()
         self._width = w
         self._height = h

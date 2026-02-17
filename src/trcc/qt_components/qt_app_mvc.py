@@ -124,7 +124,7 @@ class LEDHandler:
         self._controller.led.set_seg_temp_unit(seg_unit)
 
         self._active = True
-        self._timer.start(30)
+        self._timer.start(150)
 
     def stop(self):
         """Stop LED mode — save config, stop timers, release protocol."""
@@ -247,7 +247,7 @@ class LEDHandler:
         self._controller.led.tick()
 
         self._sensor_counter += 1
-        if self._sensor_counter >= 33:
+        if self._sensor_counter >= 7:
             self._sensor_counter = 0
             self._poll_sensors()
 
