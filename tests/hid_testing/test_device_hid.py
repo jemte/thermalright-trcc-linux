@@ -344,11 +344,27 @@ class TestType2FrameSend:
         transport.write.return_value = 512
         return dev, transport
 
+    def test_frame_packet_magic(self):
+        """Verify DA DB DC DD magic in frame header (C# FormCZTV mode 3)."""
+        pkt = HidDeviceType2.build_frame_packet(b'\xFF' * 100)
+        assert pkt[0:4] == b'\xDA\xDB\xDC\xDD'
+
     def test_frame_packet_header(self):
-        """Verify 20-byte header has correct size field."""
+        """Verify 20-byte header matches C# FormCZTV.ImageTo565() mode 3."""
         data = b'\xFF' * 1000
         pkt = HidDeviceType2.build_frame_packet(data)
-        # bytes[16:20] = LE uint32 of data length
+        # [0:4] = DA DB DC DD magic
+        assert pkt[0:4] == b'\xDA\xDB\xDC\xDD'
+        # [4] = 0x02 (SSCRM_CMD_TYPE_PICTURE)
+        assert pkt[4] == 0x02
+        # [6] = 0x01 (mode flag)
+        assert pkt[6] == 0x01
+        # [8:12] = hardcoded 240, 320 (LE16)
+        assert pkt[8:10] == b'\xF0\x00'   # 240
+        assert pkt[10:12] == b'\x40\x01'  # 320
+        # [12] = 0x02 (sub-flag)
+        assert pkt[12] == 0x02
+        # [16:20] = LE uint32 of data length
         size_field = struct.unpack('<I', pkt[16:20])[0]
         assert size_field == 1000
 

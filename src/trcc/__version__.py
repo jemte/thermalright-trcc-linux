@@ -1,6 +1,6 @@
 """TRCC Linux version information."""
 
-__version__ = "5.0.3"
+__version__ = "5.0.4"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Version history:
@@ -202,3 +202,8 @@ __version_info__ = tuple(int(x) for x in __version__.split("."))
 #          Fix SCSI byte order: remove 240x320 from big-endian set (C# FBL 50
 #          uses little-endian, not SPIMode=2). Add SCSI handshake to trcc report
 #          (FBL byte + resolution) for resolution diagnostics (#17). 2352 tests.
+# 5.0.4  - Fix HID Type 2 frame header: was sending all-zero 16-byte prefix,
+#          device firmware expects DA DB DC DD magic + command type (0x02) +
+#          mode flags matching C# FormCZTV.ImageTo565() mode 3. Without the
+#          magic, firmware rejects frames — causing USB disconnect (#16) or
+#          stuck-on-logo (#28). 2353 tests.

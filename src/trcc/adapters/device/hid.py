@@ -352,21 +352,34 @@ class HidDeviceType2(HidDevice):
     def build_frame_packet(image_data: bytes) -> bytes:
         """Build a frame packet from raw image data.
 
-        The 20-byte header is structured so that bytes[16:20] contain
-        the image data length as a little-endian uint32.  The rest of
-        the header is zeros (populated by the TRCC GUI in Windows via
-        shared memory; we only need the size field for the device to
-        parse it).
+        C# FormCZTV.ImageTo565() mode 3 builds a 20-byte header::
+
+            DA DB DC DD 02 00 01 00 F0 00 40 01 02 00 00 00 [len_LE32]
+
+        - [0:4]   DA DB DC DD — protocol magic (same as handshake)
+        - [4]     02 — SSCRM_CMD_TYPE_PICTURE
+        - [6]     01 — mode flag
+        - [8:10]  F0 00 — 240 (LE16, hardcoded in C#)
+        - [10:12] 40 01 — 320 (LE16, hardcoded in C#)
+        - [12]    02 — sub-flag
+        - [16:20] image data length (LE uint32)
 
         The total transfer length is rounded up to the next 512-byte
         boundary (C#: ``num2 / 512 * 512 + (num2 % 512 != 0 ? 512 : 0)``).
 
         Returns the padded packet ready for USB bulk write.
         """
-        data_len = len(image_data)
-        # 20-byte header: 16 zero bytes + LE uint32 image size
-        header = b'\x00' * 16 + struct.pack('<I', data_len)
-        raw = header + image_data
+        # Match C# FormCZTV.ImageTo565() mode 3 header exactly
+        header = bytearray([
+            0xDA, 0xDB, 0xDC, 0xDD,  # magic
+            0x02, 0x00,               # cmd_type = PICTURE
+            0x01, 0x00,               # mode flag
+            0xF0, 0x00,               # 240 (LE16, hardcoded)
+            0x40, 0x01,               # 320 (LE16, hardcoded)
+            0x02, 0x00, 0x00, 0x00,   # sub-flag
+        ])
+        header.extend(struct.pack('<I', len(image_data)))
+        raw = bytes(header) + image_data
         padded_len = _ceil_to_512(len(raw))
         return raw.ljust(padded_len, b'\x00')
 
