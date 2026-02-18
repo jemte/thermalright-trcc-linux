@@ -1,6 +1,6 @@
 """TRCC Linux version information."""
 
-__version__ = "5.2.0"
+__version__ = "5.2.1"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Version history:
@@ -277,3 +277,7 @@ __version_info__ = tuple(int(x) for x in __version__.split("."))
 #          ImageTo565() (mode 3) for these FBLs — header byte[6]=0x00 with
 #          actual width/height instead of hardcoded 240x320. Auto-detects
 #          JPEG by FF D8 magic bytes. Addresses #34/#35. 2286 tests.
+# 5.2.1  - Fix LED zone_count for 3 styles: AX120 Digital (1→4), LC1 (1→3),
+#          LF11 (1→4) matching C# FormLED button visibility. Enables zone
+#          carousel (circulate) feature for these devices — zone buttons and
+#          interval input were already wired but hidden by wrong count. 2286 tests.

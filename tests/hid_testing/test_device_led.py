@@ -141,10 +141,14 @@ class TestLedDeviceStyle:
 
     def test_known_zone_counts(self):
         """Verify specific zone counts from FormLED.cs."""
-        assert LED_STYLES[1].zone_count == 1   # single zone
-        assert LED_STYLES[2].zone_count == 4   # PA120 has 4 zones
-        assert LED_STYLES[3].zone_count == 2   # AK120 has 2 zones
-        assert LED_STYLES[8].zone_count == 4   # CZ1 has 4 zones
+        assert LED_STYLES[1].zone_count == 4   # AX120 Digital: 4 zones (buttons 1-4)
+        assert LED_STYLES[2].zone_count == 4   # PA120: 4 zones
+        assert LED_STYLES[3].zone_count == 2   # AK120: 2 zones
+        assert LED_STYLES[4].zone_count == 3   # LC1: 3 zones (buttonN1-N3)
+        assert LED_STYLES[8].zone_count == 4   # CZ1: 4 zones
+        assert LED_STYLES[9].zone_count == 1   # LC2: clock-only, no carousel
+        assert LED_STYLES[10].zone_count == 4  # LF11: 4 zones (buttonN1-N4)
+        assert LED_STYLES[12].zone_count == 1  # LF13: RGB-only, no carousel
 
     def test_dataclass_default_zone_count(self):
         """LedDeviceStyle defaults zone_count to 1."""

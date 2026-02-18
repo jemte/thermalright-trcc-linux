@@ -469,16 +469,16 @@ class LedDeviceStyle:
 
 # All LED styles from FormLED.cs FormLEDInit and UCScreenLED.cs constants
 LED_STYLES: dict[int, LedDeviceStyle] = {
-    1: LedDeviceStyle(1, 30, 10, 1, "AX120_DIGITAL", "DAX120_DIGITAL", "D0数码屏"),
+    1: LedDeviceStyle(1, 30, 10, 4, "AX120_DIGITAL", "DAX120_DIGITAL", "D0数码屏"),
     2: LedDeviceStyle(2, 84, 18, 4, "PA120_DIGITAL", "DPA120_DIGITAL", "D0数码屏4区域"),
     3: LedDeviceStyle(3, 64, 10, 2, "AK120_DIGITAL", "DAK120_DIGITAL", "D0数码屏"),
-    4: LedDeviceStyle(4, 31, 14, 1, "LC1", "DLC1", "D0LC1"),
+    4: LedDeviceStyle(4, 31, 14, 3, "LC1", "DLC1", "D0LC1"),
     5: LedDeviceStyle(5, 93, 23, 2, "LF8", "DLF8", "D0LF8"),
     6: LedDeviceStyle(6, 124, 72, 2, "LF12", "DLF12", "D0LF12"),
     7: LedDeviceStyle(7, 116, 12, 3, "LF10", "DLF10", "D0LF10"),
     8: LedDeviceStyle(8, 18, 13, 4, "CZ1", "DCZ1", "D0CZ1"),
     9: LedDeviceStyle(9, 61, 31, 1, "LC2", "DLC2", "D0LC2"),
-    10: LedDeviceStyle(10, 38, 17, 1, "LF11", "DLF11", "D0LF11"),
+    10: LedDeviceStyle(10, 38, 17, 4, "LF11", "DLF11", "D0LF11"),
     11: LedDeviceStyle(11, 93, 72, 2, "LF15", "DLF15", "D0LF15"),
     12: LedDeviceStyle(12, 62, 62, 1, "LF13", "DLF13", "D0LF13"),
 }
