@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [ stable ]
+    tags-ignore: [ "**" ]
   pull_request:
     branches: [ stable ]
   workflow_dispatch: {}
