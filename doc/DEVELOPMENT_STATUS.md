@@ -2,9 +2,9 @@
 
 TRCC Linux is **feature-complete** — all 45 features from the Windows TRCC 2.0.3 have been ported, with full CLI/GUI/API parity via hexagonal architecture.
 
-**Current version:** 4.2.0
+**Current version:** 5.0.8
 **Branch:** `stable`
-**Tests:** 2300 across 35 files
+**Tests:** 2359 across 35 files
 **PyPI:** [trcc-linux](https://pypi.org/project/trcc-linux/)
 
 ## What's Stable
@@ -23,7 +23,7 @@ All features are tested and working on the `stable` branch:
 - **REST API** — optional FastAPI adapter for headless/remote control (`trcc serve`)
 - **Services layer** — 8 pure-Python service classes shared by GUI, CLI, and API
 - **Cross-distro compatibility** — tested on Fedora, Debian/Ubuntu, Arch, openSUSE, Void, Alpine, Gentoo, NixOS, SteamOS, Bazzite
-- **96% test coverage** — 2300 tests across 35 test files
+- **96% test coverage** — 2359 tests across 35 test files
 
 ### Supported Devices
 
@@ -38,14 +38,14 @@ All features are tested and working on the `stable` branch:
 **HID LCD devices** — auto-detected:
 | USB ID | Devices |
 |--------|---------|
-| `0416:5302` | AS120 VISION, BA120 VISION, FROZEN WARFRAME PRO, ELITE VISION, LC5 |
+| `0416:5302` | Trofeo Vision LCD, Assassin Spirit 120 Vision ARGB, AS120 VISION, BA120 VISION, FROZEN WARFRAME, FROZEN WARFRAME 360, FROZEN WARFRAME SE, FROZEN WARFRAME PRO, ELITE VISION, LC5 |
 | `0418:5303` | TARAN ARMS |
 | `0418:5304` | TARAN ARMS |
 
 **HID LED devices** — RGB LED control:
 | USB ID | Devices |
 |--------|---------|
-| `0416:8001` | AX120 DIGITAL, PA120 DIGITAL, Peerless Assassin 120 DIGITAL, HR10 2280 PRO DIGITAL |
+| `0416:8001` | AX120 DIGITAL, PA120 DIGITAL, Peerless Assassin 120 DIGITAL, Phantom Spirit 120 Digital EVO, Assassin X 120R Digital ARGB, HR10 2280 PRO DIGITAL |
 
 **Bulk USB devices** — raw USB protocol:
 | USB ID | Devices |
@@ -57,7 +57,7 @@ All features are tested and working on the `stable` branch:
 | # | Item | Status |
 |---|------|--------|
 | 1 | Full GUI port of Windows TRCC 2.0.3 | Done |
-| 2 | Test coverage 96%+ | Done (2148 tests) |
+| 2 | Test coverage 96%+ | Done (2359 tests) |
 | 3 | CI/CD (GitHub Actions) | Done |
 | 4 | Type checking (pyright basic) | Done |
 | 5 | Cross-distro compatibility | Done |
@@ -70,13 +70,14 @@ All features are tested and working on the `stable` branch:
 | 12 | On-demand download | Done — 15 resolutions + 33 web archives |
 | 13 | Diagnostic report (`trcc report`) | Done |
 | 14 | Hexagonal architecture (services layer) | Done — 8 services |
-| 15 | CLI Typer refactor | Done — 36 commands |
+| 15 | CLI Typer refactor | Done — 39 commands |
 | 16 | REST API adapter | Done — FastAPI (`trcc serve`) |
 | 17 | Unified segment display renderer | Done — 11 styles, OOP class hierarchy |
 | 18 | Hexagonal adapters/ restructure | Done — adapters/device, system, infra |
 | 19 | Setup wizard (CLI + GUI) | Done — `trcc setup` + `trcc setup-gui` + `setup.sh` |
 | 20 | SELinux support | Done — `trcc setup-selinux` + policy module + wizard integration |
-| 21 | Type annotation hardening (pyright strict) | Planned |
+| 21 | Windows C# feature parity audit | Done — 45/49 ported, 4 hidden/unreleased |
+| 22 | Type annotation hardening (pyright strict) | Planned |
 
 ## Reporting Issues
 

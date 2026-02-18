@@ -8,7 +8,7 @@ A beginner-friendly guide to getting Thermalright LCD Control Center running on 
 
 1. [What is TRCC?](#what-is-trcc)
 2. [Compatible Coolers](#compatible-coolers)
-3. [HID Device Support (Testing Branch)](#hid-device-support-testing-branch)
+3. [HID Device Support](#hid-device-support)
 4. [Prerequisites](#prerequisites)
 5. [Step 1 - Install System Dependencies](#step-1---install-system-dependencies)
    - [Fedora / RHEL / CentOS Stream / Rocky / Alma](#fedora--rhel--centos-stream--rocky--alma)
@@ -78,11 +78,9 @@ Theme data for any resolution is automatically downloaded on first use if not bu
 
 ---
 
-## HID Device Support (Experimental)
+## HID Device Support
 
-> **WE NEED TESTERS!** HID device support is implemented with 563 automated tests but **not validated with real hardware**. If you have an HID device, please test and report results at https://github.com/Lexonight1/thermalright-trcc-linux/issues
-
-HID devices are auto-detected — no special flags needed. Just install TRCC normally and run:
+HID devices are fully supported and auto-detected. Multiple devices have been validated by testers on real hardware. Just install TRCC normally and run:
 
 ```bash
 trcc detect       # Check if your device is found
@@ -152,7 +150,7 @@ If you prefer manual steps, continue below.
 Before starting, make sure you have:
 
 - A Linux distribution (see supported list below)
-- Python 3.9 or newer (check with `python3 --version`)
+- Python 3.10 or newer (check with `python3 --version`)
 - A Thermalright cooler with LCD, connected via the included USB cable
 - Internet connection (for downloading dependencies)
 
@@ -164,7 +162,7 @@ Open a terminal and type:
 python3 --version
 ```
 
-You should see something like `Python 3.11.6` or higher. If you get "command not found" or a version below 3.9, you'll need to install or update Python first:
+You should see something like `Python 3.11.6` or higher. If you get "command not found" or a version below 3.10, you'll need to install or update Python first:
 
 ```bash
 # Fedora / RHEL
@@ -192,7 +190,7 @@ sudo apk add python3
 
 These are system-level packages that TRCC needs. Find your distro below and run the commands.
 
-> **Important: Use system PyQt6 when possible.** Installing PyQt6 from your distro's package manager avoids Qt6 version mismatches that cause `Qt_6_PRIVATE_API` errors. Only fall back to `pip install PyQt6` if your distro doesn't package it.
+> **Important: Use system PySide6 when possible.** Installing PySide6 from your distro's package manager avoids Qt6 version mismatches. Only fall back to `pip install PySide6` if your distro doesn't package it.
 
 ---
 
@@ -202,18 +200,18 @@ Covers: Fedora 39-43, RHEL 9+, CentOS Stream 9+, Rocky Linux 9+, AlmaLinux 9+
 
 ```bash
 # Required
-sudo dnf install python3-pip sg3_utils python3-pyqt6 ffmpeg
+sudo dnf install python3-pip sg3_utils python3-pyside6 ffmpeg
 
 # Optional (hardware sensors, screen capture on Wayland, NVIDIA GPU sensors)
 sudo dnf install lm_sensors grim python3-gobject python3-dbus pipewire-devel
 ```
 
-> **RHEL/Rocky/Alma note:** You may need to enable EPEL and CRB repositories for `ffmpeg` and `python3-pyqt6`:
+> **RHEL/Rocky/Alma note:** You may need to enable EPEL and CRB repositories for `ffmpeg` and `python3-pyside6`:
 > ```bash
 > sudo dnf install epel-release
 > sudo dnf config-manager --set-enabled crb
 > ```
-> If `python3-pyqt6` isn't available, use `pip install PyQt6` instead.
+> If `python3-pyside6` isn't available, use `pip install PySide6` instead.
 
 ---
 
@@ -223,13 +221,13 @@ Covers: Ubuntu 22.04+, Debian 12+, Linux Mint 21+, Pop!_OS 22.04+, Zorin OS 17+,
 
 ```bash
 # Required
-sudo apt install python3-pip python3-venv sg3-utils python3-pyqt6 ffmpeg
+sudo apt install python3-pip python3-venv sg3-utils python3-pyside6 ffmpeg
 
 # Optional (hardware sensors, screen capture on Wayland, system tray)
 sudo apt install lm-sensors grim python3-gi python3-dbus python3-gst-1.0
 ```
 
-> **Debian 12 (Bookworm) note:** `python3-pyqt6` is available in the repo. On older Debian/Ubuntu releases where it's missing, use `pip install PyQt6`.
+> **Debian 12 (Bookworm) note:** `python3-pyside6` is available in the repo. On older Debian/Ubuntu releases where it's missing, use `pip install PySide6`.
 
 > **Ubuntu 23.04+ / Debian 12+ note:** pip may show "externally-managed-environment" errors. See [Step 3](#step-3---install-python-dependencies) for the fix.
 
@@ -241,7 +239,7 @@ Covers: Arch Linux, Manjaro, EndeavourOS, CachyOS, Garuda Linux, Artix Linux, Ar
 
 ```bash
 # Required
-sudo pacman -S python-pip sg3_utils python-pyqt6 ffmpeg
+sudo pacman -S python-pip sg3_utils python-pyside6 ffmpeg
 
 # Optional (hardware sensors, screen capture on Wayland, NVIDIA GPU sensors)
 sudo pacman -S lm_sensors grim python-gobject python-dbus python-gst
@@ -259,17 +257,17 @@ Covers: openSUSE Tumbleweed, openSUSE Leap 15.5+, openSUSE MicroOS
 
 ```bash
 # Required
-sudo zypper install python3-pip sg3_utils python3-qt6 ffmpeg
+sudo zypper install python3-pip sg3_utils python3-pyside6 ffmpeg
 
 # Optional (hardware sensors, screen capture on Wayland)
 sudo zypper install sensors grim python3-gobject python3-dbus-python python3-gstreamer
 ```
 
-> **Leap note:** Leap's repos may have older PyQt6 versions. If you get import errors, use `pip install PyQt6` instead.
+> **Leap note:** Leap's repos may have older PySide6 versions. If you get import errors, use `pip install PySide6` instead.
 
 > **MicroOS note:** openSUSE MicroOS is immutable. Use `transactional-update` instead of `zypper`:
 > ```bash
-> sudo transactional-update pkg install sg3_utils python3-pip python3-qt6 ffmpeg
+> sudo transactional-update pkg install sg3_utils python3-pip python3-pyside6 ffmpeg
 > sudo reboot
 > ```
 
@@ -283,7 +281,7 @@ Nobara uses the same package manager as Fedora, with extra multimedia repos pre-
 
 ```bash
 # Required (ffmpeg is usually pre-installed on Nobara)
-sudo dnf install python3-pip sg3_utils python3-pyqt6 ffmpeg
+sudo dnf install python3-pip sg3_utils python3-pyside6 ffmpeg
 
 # Optional (hardware sensors, screen capture on Wayland)
 sudo dnf install lm_sensors grim python3-gobject python3-dbus pipewire-devel
@@ -307,7 +305,7 @@ Edit `/etc/nixos/configuration.nix`:
   environment.systemPackages = with pkgs; [
     python3
     python3Packages.pip
-    python3Packages.pyqt6
+    python3Packages.pyside6
     python3Packages.pillow
     python3Packages.psutil
     sg3_utils
@@ -341,7 +339,7 @@ sudo nixos-rebuild switch
 **Option B: Use nix-shell** (temporary, for testing)
 
 ```bash
-nix-shell -p python3 python3Packages.pip python3Packages.pyqt6 python3Packages.pillow python3Packages.psutil sg3_utils ffmpeg
+nix-shell -p python3 python3Packages.pip python3Packages.pyside6 python3Packages.pillow python3Packages.psutil sg3_utils ffmpeg
 ```
 
 Then follow [Step 2](#step-2---download-trcc) and [Step 3](#step-3---install-python-dependencies) from inside the shell.
@@ -356,7 +354,7 @@ Covers: Void Linux (glibc and musl)
 
 ```bash
 # Required
-sudo xbps-install sg3_utils python3-pip python3-PyQt6 ffmpeg
+sudo xbps-install sg3_utils python3-pip python3-pyside6 ffmpeg
 
 # Optional (hardware sensors, screen capture on Wayland)
 sudo xbps-install lm_sensors grim python3-gobject python3-dbus python3-gst
@@ -367,10 +365,10 @@ sudo xbps-install lm_sensors grim python3-gobject python3-dbus python3-gst
 > sudo xbps-install python3-devel gcc
 > ```
 
-> **Void note:** If `python3-PyQt6` is not in the repo, install via pip:
+> **Void note:** If `python3-pyside6` is not in the repo, install via pip:
 > ```bash
 > sudo xbps-install python3-pip qt6-base
-> pip install PyQt6
+> pip install PySide6
 > ```
 
 ---
@@ -381,20 +379,20 @@ Covers: Gentoo Linux, Funtoo, Calculate Linux
 
 ```bash
 # Required
-sudo emerge --ask sg3_utils dev-python/pip dev-python/PyQt6 media-video/ffmpeg
+sudo emerge --ask sg3_utils dev-python/pip dev-python/pyside6 media-video/ffmpeg
 
 # Optional (hardware sensors, screen capture on Wayland)
 sudo emerge --ask sys-apps/lm-sensors gui-apps/grim dev-python/pygobject dev-python/dbus-python
 ```
 
-> **USE flags:** Make sure your PyQt6 package has the `widgets` and `gui` USE flags enabled:
+> **USE flags:** Make sure your PySide6 package has the `widgets` and `gui` USE flags enabled:
 > ```bash
-> echo "dev-python/PyQt6 widgets gui" | sudo tee -a /etc/portage/package.use/trcc
+> echo "dev-python/pyside6 widgets gui" | sudo tee -a /etc/portage/package.use/trcc
 > ```
 
-> **Gentoo note:** If `dev-python/PyQt6` is masked, you may need to unmask it:
+> **Gentoo note:** If `dev-python/pyside6` is masked, you may need to unmask it:
 > ```bash
-> echo "dev-python/PyQt6 ~amd64" | sudo tee -a /etc/portage/package.accept_keywords/trcc
+> echo "dev-python/pyside6 ~amd64" | sudo tee -a /etc/portage/package.accept_keywords/trcc
 > ```
 
 ---
@@ -405,16 +403,16 @@ Covers: Alpine Linux 3.18+, postmarketOS
 
 ```bash
 # Required
-sudo apk add python3 py3-pip sg3_utils py3-pyqt6 ffmpeg
+sudo apk add python3 py3-pip sg3_utils py3-pyside6 ffmpeg
 
 # Optional (hardware sensors, screen capture on Wayland)
 sudo apk add lm-sensors grim py3-gobject3 py3-dbus
 ```
 
-> **Alpine note:** Alpine uses musl libc. If `py3-pyqt6` isn't available in your release, you'll need to install from pip with build dependencies:
+> **Alpine note:** Alpine uses musl libc. If `py3-pyside6` isn't available in your release, you'll need to install from pip with build dependencies:
 > ```bash
 > sudo apk add python3-dev gcc musl-dev qt6-qtbase-dev
-> pip install PyQt6
+> pip install PySide6
 > ```
 
 ---
@@ -427,8 +425,8 @@ Covers: Solus 4.x (Budgie, GNOME, MATE, Plasma editions)
 # Required
 sudo eopkg install sg3_utils python3-pip ffmpeg
 
-# PyQt6 (may need pip)
-pip install PyQt6
+# PySide6 (may need pip)
+pip install PySide6
 
 # Optional (hardware sensors, screen capture on Wayland)
 sudo eopkg install lm-sensors grim python3-gobject python3-dbus
@@ -444,8 +442,8 @@ Covers: Clear Linux OS (Intel)
 # Required
 sudo swupd bundle-add python3-basic devpkg-sg3_utils ffmpeg
 
-# PyQt6 via pip (not bundled in Clear Linux)
-pip install PyQt6
+# PySide6 via pip (not bundled in Clear Linux)
+pip install PySide6
 
 # Optional (hardware sensors, screen capture on Wayland)
 sudo swupd bundle-add sysadmin-basic devpkg-pipewire
@@ -462,13 +460,13 @@ sudo swupd bundle-add sysadmin-basic devpkg-pipewire
 | `python3-pip` | Installs Python packages (like TRCC itself) |
 | `sg3_utils` | Sends data to the LCD over USB (SCSI commands) — **required for SCSI devices** |
 | `lm-sensors` / `lm_sensors` | Hardware sensor readings (CPU/GPU temps, fan speeds) — improves sensor accuracy |
-| `PyQt6` / `python3-pyqt6` | The graphical user interface (GUI) toolkit |
+| `PySide6` / `python3-pyside6` | The graphical user interface (GUI) toolkit |
 | `ffmpeg` | Video and GIF playback on the LCD |
 | `p7zip` / `7zip` | Extracts bundled theme `.7z` archives (required) |
 | `grim` | Screen capture on Wayland desktops (optional) |
 | `python3-gobject` / `python3-dbus` | PipeWire screen capture for GNOME/KDE Wayland (optional) |
-| `pyusb` + `libusb` | USB communication for HID LCD devices (optional, testing branch only) |
-| `hidapi` + `libhidapi` | Fallback USB backend for HID LCD devices (optional, testing branch only) |
+| `pyusb` + `libusb` | USB communication for HID LCD/LED devices |
+| `hidapi` + `libhidapi` | Fallback USB backend for HID LCD/LED devices |
 
 ---
 
@@ -799,7 +797,7 @@ distrobox create --name trcc --image fedora:latest
 distrobox enter trcc
 
 # Inside the container — normal Fedora commands work
-sudo dnf install python3-pip sg3_utils python3-pyqt6 ffmpeg
+sudo dnf install python3-pip sg3_utils python3-pyside6 ffmpeg
 pip install trcc-linux
 
 # Set up device permissions (must run on the host)
@@ -855,7 +853,7 @@ sudo steamos-readonly disable
 passwd
 
 # Install system deps
-sudo pacman -S --needed sg3_utils python-pip python-pyqt6 ffmpeg
+sudo pacman -S --needed sg3_utils python-pip python-pyside6 ffmpeg
 
 # Install TRCC
 pip install --break-system-packages trcc-linux
@@ -881,7 +879,7 @@ distrobox create --name trcc --image archlinux:latest
 distrobox enter trcc
 
 # Inside the container
-sudo pacman -S python-pip sg3_utils python-pyqt6 ffmpeg
+sudo pacman -S python-pip sg3_utils python-pyside6 ffmpeg
 pip install trcc-linux
 exit
 
@@ -908,7 +906,7 @@ Vanilla OS uses `apx` (based on Distrobox) for package management:
 apx subsystems create --name trcc-system --stack fedora
 
 # Install dependencies inside the subsystem
-apx trcc-system install python3-pip sg3_utils python3-pyqt6 ffmpeg
+apx trcc-system install python3-pip sg3_utils python3-pyside6 ffmpeg
 
 # Enter the subsystem and install
 apx trcc-system enter
@@ -936,7 +934,7 @@ Covers: ChromeOS with Linux development environment enabled (Crostini / Debian c
 
 ```bash
 sudo apt update
-sudo apt install python3-pip python3-venv sg3-utils python3-pyqt6 ffmpeg
+sudo apt install python3-pip python3-venv sg3-utils python3-pyside6 ffmpeg
 pip install --break-system-packages trcc-linux
 ```
 
@@ -960,7 +958,7 @@ Covers: Fedora Asahi Remix on Apple M1/M2/M3/M4 Macs
 Asahi Linux uses the Fedora Asahi Remix. Follow the standard [Fedora instructions](#fedora--rhel--centos-stream--rocky--alma):
 
 ```bash
-sudo dnf install python3-pip sg3_utils python3-pyqt6 ffmpeg
+sudo dnf install python3-pip sg3_utils python3-pyside6 ffmpeg
 pip install trcc-linux
 sudo trcc setup-udev
 ```
@@ -977,12 +975,12 @@ TRCC works on ARM64 (aarch64) systems. The SCSI protocol and LCD communication a
 
 ```bash
 # Raspberry Pi OS / Armbian (Debian-based)
-sudo apt install python3-pip python3-venv sg3-utils python3-pyqt6 ffmpeg
+sudo apt install python3-pip python3-venv sg3-utils python3-pyside6 ffmpeg
 pip install --break-system-packages trcc-linux
 sudo trcc setup-udev
 ```
 
-> **ARM note:** PyQt6 wheels may not be available for ARM. If `pip install PyQt6` fails, use the system package (`python3-pyqt6`) or build from source. The CLI commands (`trcc send`, `trcc test`, `trcc color`) work without PyQt6 — only the GUI requires it.
+> **ARM note:** PySide6 wheels may not be available for ARM. If `pip install PySide6` fails, use the system package (`python3-pyside6`) or build from source. The CLI commands (`trcc send`, `trcc test`, `trcc color`) work without PySide6 — only the GUI requires it.
 
 > **Headless usage:** If you're running on a Pi without a display, you can still use the CLI to send images to the LCD:
 > ```bash
@@ -1131,8 +1129,8 @@ Quick fixes for the most common issues:
 | No device detected | `trcc setup-udev` then unplug/replug USB |
 | Permission denied | `pip install --upgrade trcc-linux` then `trcc setup-udev` |
 | Permission denied on SELinux (Bazzite, Silverblue) | `trcc setup-selinux` (v4.2.0+), or upgrade to v1.2.16+ for udev `MODE="0666"` |
-| PyQt6 not available | Install system package: `sudo dnf install python3-pyqt6` |
-| Qt_6_PRIVATE_API not found | Use system PyQt6 instead of pip version |
+| PySide6 not available | Install system package: `sudo dnf install python3-pyside6` |
+| Qt_6_PRIVATE_API not found | Use system PySide6 instead of pip version |
 | HID handshake None | Upgrade to v1.2.9+, power-cycle USB, run `trcc hid-debug` |
 | externally-managed-environment | Use `--break-system-packages` or a venv |
 | NixOS: setup-udev fails | Add udev rules to `configuration.nix` (see [NixOS section](#nixos)) |

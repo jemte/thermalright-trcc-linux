@@ -134,4 +134,4 @@ The GUI auto-routes LED devices to `UCLedControl` (LED panel) instead of the LCD
 
 ### Theme Archives
 
-Starter themes and mask overlays ship as `.7z` archives, extracted on first use to `~/.local/share/trcc/`. This keeps the git repo and package size small.
+Starter themes and mask overlays ship as `.7z` archives, extracted on first use to `~/.trcc/data/`. This keeps the git repo and package size small.

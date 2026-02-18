@@ -1,5 +1,35 @@
 # Changelog
 
+## v5.0.8
+
+### HID Type 2 Color & Rotation Fix
+- **Fixed**: RGB565 byte order wrong for HID Type 2 devices at 320x240 — was sending big-endian, device expects little-endian. C# only uses big-endian for `is320x320` (FBL 100-102), not for HID at other resolutions
+- **Fixed**: Non-square displays (320x240, etc.) missing 90° CW pre-rotation — LCD panels are physically portrait-mounted, C# `ImageTo565` rotates before encoding. Added `apply_device_rotation()` to both `DisplayService` and `DeviceService` send paths
+- Affects: Frozen Warframe 360 HID Type 2 (`0416:5302`), Assassin Spirit 120 Vision ARGB (#28, #16)
+- 2359 tests across 35 files
+
+## v5.0.7
+
+### PA120 LED Segment Display Fix
+- **Fixed**: PA120 wire remap table had SSD/HSD/C11/B11 displaced to end, shifting zones 4+ by 4 positions
+- **Fixed**: PA120Display indices didn't match C# (indicators 0-9 vs 2-8, digit 1 at 10 vs 9)
+- 2359 tests across 35 files
+
+## v5.0.6
+
+### Video Hot Path Optimization
+- Commit Renderer ABC + PilRenderer for display pipeline
+- Delete dead files, clean up unused code
+- 2359 tests across 35 files
+
+## v5.0.5
+
+### FBL 50 Resolution & Overlay Caching Fix
+- **Fixed**: FBL 50 resolution was 240x320 (wrong) — corrected to 320x240
+- **Fixed**: Overlay caching not invalidating on element changes
+- **Fixed**: Cloud theme download path resolution
+- 2395 tests across 35 files
+
 ## v5.0.4
 
 ### HID Type 2 Frame Header Fix

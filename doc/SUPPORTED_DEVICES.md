@@ -1,40 +1,57 @@
 # Supported Devices
 
-## Supported (Tested & Working)
+## Confirmed Working
 
-These devices have been tested on real hardware and are confirmed working with TRCC Linux.
+These devices have been tested on real hardware and confirmed working with TRCC Linux.
 
 ### Full LCD Screen (Custom Themes, Images, Videos, Overlays)
 
-| Product | Connection | Screen |
-|---------|-----------|--------|
-| Frozen Warframe series (360, SE, PRO, Ultra) | SCSI (0402:3922) | 320x320 |
-| Thermalright LCD Display | SCSI (87CD:70DB) | 320x320 |
-| GrandVision 360 AIO | Bulk (87AD:70DB) | 480x480 |
-| Winbond LCD Display | SCSI (0416:5406) | 320x320 |
+| Product | Connection | Screen | Tested By |
+|---------|-----------|--------|-----------|
+| FROZEN HORIZON PRO | SCSI (87CD:70DB) | 320x320 | Developer |
+| FROZEN MAGIC PRO | SCSI (87CD:70DB) | 320x320 | Developer |
+| FROZEN VISION V2 | SCSI (87CD:70DB) | 320x320 | Developer |
+| FROZEN WARFRAME | SCSI (0402:3922) | 320x320 | Developer |
+| FROZEN WARFRAME SE | SCSI (0402:3922) | 320x320 | Developer |
+| LC1, LC2, LC3, LC5 | SCSI (0416:5406) | 320x320 | Developer |
+| GrandVision 360 AIO | Bulk (87AD:70DB) | 480x480 | [bipobuilt](https://github.com/bipobuilt) |
+| Mjolnir Vision 360 | Bulk (87AD:70DB) | 480x480 | [Pikarz](https://github.com/Pikarz) |
+| Trofeo Vision LCD | HID (0416:5302) | 1280x480 | [PantherX12max](https://github.com/PantherX12max) |
+
+### LED + Segment Display (RGB Fan Control, Temperature Readout)
+
+| Product | Connection | Tested By |
+|---------|-----------|-----------|
+| HR10 2280 PRO Digital | HID (0416:8001) | [Lcstyle](https://github.com/Lcstyle) |
+| AX120 Digital | HID (0416:8001) | [shadowepaxeor-glitch](https://github.com/shadowepaxeor-glitch), [hexskrew](https://github.com/hexskrew) |
+| Peerless Assassin 120 Digital ARGB White | HID (0416:8001) | [Xentrino](https://github.com/Xentrino) |
+| Phantom Spirit 120 Digital EVO | HID (0416:8001) | [javisaman](https://github.com/javisaman) |
 
 ---
 
-## Supported (Tester-Reported)
+## In Progress (Tester-Reported, Fixes Pending)
 
-These devices have been reported by testers with varying levels of validation.
+These devices have been reported by testers and are being actively debugged.
 
 ### HID LCD Devices
 
 | Product | Connection | Issue | Status |
 |---------|-----------|-------|--------|
-| Assassin Spirit 120 Vision ARGB | HID (0416:5302) | [#16](https://github.com/Lexonight1/thermalright-trcc-linux/issues/16) | Fix posted in v5.0.4 (frame header magic), awaiting confirmation |
-| Mjolnir Vision 360 | Bulk (87AD:70DB) | [#22](https://github.com/Lexonight1/thermalright-trcc-linux/issues/22) | Fix posted in v3.0.4 (JPEG encoding + PM=5), awaiting confirmation |
+| Frozen Warframe 360 | HID (0416:5302) | [#28](https://github.com/Lexonight1/thermalright-trcc-linux/issues/28) | Color + rotation fix in v5.0.8, awaiting confirmation |
+| Assassin Spirit 120 Vision ARGB | HID (0416:5302) | [#16](https://github.com/Lexonight1/thermalright-trcc-linux/issues/16) | Same fix as #28 (v5.0.8), awaiting confirmation |
+| Assassin Spirit 120 Vision | HID (0416:5302) | [#32](https://github.com/Lexonight1/thermalright-trcc-linux/issues/32) | Udev setup needed, awaiting response |
 
-### LED + Segment Display (RGB Fan Control, Temperature Readout)
+### SCSI Devices
 
 | Product | Connection | Issue | Status |
 |---------|-----------|-------|--------|
-| Assassin X 120 R Digital | HID (0416:8001) | [#5](https://github.com/Lexonight1/thermalright-trcc-linux/issues/5) | LED RGB working |
-| AX120 Digital | HID (0416:8001) | [#23](https://github.com/Lexonight1/thermalright-trcc-linux/issues/23) | Fix posted in v3.0.8 (°C/°F + phase cycling), awaiting confirmation |
-| HR10 2280 PRO Digital | HID (0416:8001) | [#1](https://github.com/Lexonight1/thermalright-trcc-linux/issues/1) | Fully supported — 7-segment display, NVMe temp daemon, color wheel |
-| Peerless Assassin 120 Digital ARGB White | HID (0416:8001) | [#15](https://github.com/Lexonight1/thermalright-trcc-linux/issues/15) | Fix posted in v3.0.9 (PA120 remap table), awaiting confirmation |
-| Phantom Spirit 120 Digital EVO | HID (0416:8001) | [#19](https://github.com/Lexonight1/thermalright-trcc-linux/issues/19) | Detected, awaiting retest |
+| FROZEN WARFRAME 240 | SCSI (0402:3922) | [#17](https://github.com/Lexonight1/thermalright-trcc-linux/issues/17) | FBL=100 mismatch (320x320 vs 320x240 panel), investigating |
+
+### LED Devices
+
+| Product | Connection | Issue | Status |
+|---------|-----------|-------|--------|
+| PA120 Digital | HID (0416:8001) | [#15](https://github.com/Lexonight1/thermalright-trcc-linux/issues/15) | Display turns off after 10s, investigating |
 
 ---
 
@@ -51,14 +68,10 @@ These have a full pixel LCD (240x240 to 1920x462) for custom themes, images, vid
 | Frozen Vision V2 | 冰封视界 V2 |
 | Core Vision | 核芯视界 |
 | Core Matrix VISION | 矩阵视界 |
-| Mjolnir Vision | 雷神之锤 |
 | Mjolnir Vision PRO | 雷神之锤 PRO |
 | Elite Vision | 精英视界 |
-| Grand Vision | — |
 | Hyper Vision | 终越视界 |
 | Stream Vision | 风擎视界 |
-| Trofeo VISION | 纵横视界 |
-| Wonder Vision | 奇幻视界 |
 | Rainbow Vision | 彩虹视界 |
 | Peerless Vision | 无双视界 |
 | Levita Vision | 悠浮视界 |
@@ -66,7 +79,6 @@ These have a full pixel LCD (240x240 to 1920x462) for custom themes, images, vid
 | TR-A70 Vision | — |
 | AS120 VISION | — |
 | BA120 VISION | — |
-| Assassin Spirit 120 Vision | — |
 | Burst Assassin 120 Vision | — |
 | Peerless Assassin 120 Vision | — |
 | Royal Lord 120 Vision | — |
@@ -80,13 +92,10 @@ These have a small digital display showing CPU/GPU temperature plus addressable 
 
 | Product |
 |---------|
-| Peerless Assassin 120 Digital |
 | Peerless Assassin 140 Digital |
 | Frozen Magic Digital |
 | Royal Knight 120 Digital |
 | Royal Knight 130 Digital |
-| Phantom Spirit 120 Digital |
-| ~~HR10-2280 PRO Digital~~ (fully supported — see above) |
 | MC-3 DIGITAL |
 
 ---
@@ -101,9 +110,9 @@ All devices connect through one of these USB VID:PIDs:
 | 87AD:70DB | Bulk | Full LCD | GrandVision 360 AIO, Mjolnir Vision 360 |
 | 0402:3922 | SCSI | Full LCD | Frozen Warframe series (360/SE/PRO/Ultra) |
 | 0416:5406 | SCSI | Full LCD | Winbond LCD variant |
-| 0416:52E2 | HID | Full LCD | Vision/Warframe (newer HW) |
-| 0418:52E3 | HID | Full LCD | ALi Corp LCD variant |
-| 0418:52E4 | HID | Full LCD | ALi Corp LCD variant |
+| 0416:5302 | HID Type 2 | Full LCD | Vision/Warframe (newer HW) |
+| 0418:5303 | HID Type 3 | Full LCD | TARAN ARMS |
+| 0418:5304 | HID Type 3 | Full LCD | TARAN ARMS |
 | 0416:8001 | HID | LED + segment / Full LCD | Digital series + many Vision products |
 
 The exact product model is identified after a USB handshake. The device responds with PM (product model) and SUB bytes that tell the app which product it is and whether to show the LCD or LED control panel.
@@ -112,9 +121,9 @@ The exact product model is identified after a USB handshake. The device responds
 
 If you own any of the untested devices above and run Linux:
 
-1. Install: `pip install trcc-linux pyusb`
+1. Install: `pip install trcc-linux`
 2. Run the setup wizard: `trcc setup` (checks deps, installs udev rules, desktop entry)
 3. Unplug/replug USB cable
 4. Run detection: `trcc detect --all`
-5. Try the GUI: `trcc gui` (HID devices are auto-detected)
+5. Try the GUI: `trcc gui`
 6. Report what you see at https://github.com/Lexonight1/thermalright-trcc-linux/issues

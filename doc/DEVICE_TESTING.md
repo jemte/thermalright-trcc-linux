@@ -1,6 +1,6 @@
 # Device Testing Guide
 
-All 4 protocols (SCSI, HID, LED, Bulk) are implemented with **2290 automated tests**. Several HID/LED devices have been validated by testers. If you have a device not listed below, please help test.
+All 4 protocols (SCSI, HID, LED, Bulk) are implemented with **2359 automated tests**. Several HID/LED devices have been validated by testers. If you have a device not listed below, please help test.
 
 ## Supported HID Devices
 
@@ -11,7 +11,7 @@ Run `lsusb` and look for your VID:PID:
 | `0416:5302` | Winbond Electronics Corp. USBDISPLAY | HID Type 2 (LCD) | Trofeo Vision, AS120 VISION, BA120 VISION, FROZEN WARFRAME PRO |
 | `0418:5303` | ALi Corp. LCD Display | HID Type 3 (LCD) | TARAN ARMS |
 | `0418:5304` | ALi Corp. LCD Display | HID Type 3 (LCD) | TARAN ARMS |
-| `0416:8001` | Winbond Electronics Corp. LED Controller | HID LED (RGB) | AX120 DIGITAL, PA120 DIGITAL, HR10 2280 PRO DIGITAL |
+| `0416:8001` | Winbond Electronics Corp. LED Controller | HID LED (RGB) | AX120 DIGITAL, PA120 DIGITAL, HR10 2280 PRO DIGITAL, Phantom Spirit 120 Digital EVO, Assassin X 120R Digital ARGB |
 
 ## Quick Start
 

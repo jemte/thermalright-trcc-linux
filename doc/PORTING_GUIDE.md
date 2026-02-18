@@ -1,6 +1,6 @@
-# Porting a .NET Windows Application to Linux with Python + PyQt6
+# Porting a .NET Windows Application to Linux with Python + PySide6
 
-A practical guide distilled from porting Thermalright's TRCC (C# / WinForms / .NET) to native Linux (Python / PyQt6).
+A practical guide distilled from porting Thermalright's TRCC (C# / WinForms / .NET) to native Linux (Python / PySide6).
 
 ## Decompilation
 
@@ -11,9 +11,9 @@ Use **ILSpy** or **dnSpy** to decompile the .NET executable into readable C#. Th
 - **Delegate/event wiring** — search for `delegate*.Invoke(cmd, ...)` to find command constants that drive the UI logic.
 - **Binary data formats** — struct layouts, magic bytes, field offsets. Reimplement parsers by reading the C# struct definitions.
 
-## UI Translation: WinForms to PyQt6
+## UI Translation: WinForms to PySide6
 
-| WinForms | PyQt6 Equivalent |
+| WinForms | PySide6 Equivalent |
 |----------|-------------------|
 | `Form` | `QMainWindow` or `QDialog` |
 | `UserControl` | `QWidget` subclass |
@@ -31,11 +31,11 @@ Use **ILSpy** or **dnSpy** to decompile the .NET executable into readable C#. Th
 
 ### Coordinate mapping
 
-WinForms uses absolute pixel positioning via `Location = new Point(x, y)` and `Size = new Size(w, h)` in InitializeComponent(). Translate directly to `widget.setGeometry(x, y, w, h)` in PyQt6. No layout managers needed — absolute positioning matches 1:1.
+WinForms uses absolute pixel positioning via `Location = new Point(x, y)` and `Size = new Size(w, h)` in InitializeComponent(). Translate directly to `widget.setGeometry(x, y, w, h)` in PySide6. No layout managers needed — absolute positioning matches 1:1.
 
 ### Background images
 
-WinForms sets `BackgroundImage` on controls. In PyQt6:
+WinForms sets `BackgroundImage` on controls. In PySide6:
 
 ```python
 palette = widget.palette()
@@ -44,7 +44,7 @@ widget.setPalette(palette)
 widget.setAutoFillBackground(True)
 ```
 
-**Never use `setStyleSheet()` on container widgets** — it overrides QPalette on all descendants, breaking image backgrounds on child widgets. This is the single most common PyQt6 porting pitfall.
+**Never use `setStyleSheet()` on container widgets** — it overrides QPalette on all descendants, breaking image backgrounds on child widgets. This is the single most common PySide6 porting pitfall.
 
 ### Asset extraction
 
@@ -61,9 +61,9 @@ Extract every embedded resource from the .resx files. Windows apps typically emb
 **Separate into MVC:**
 - **Models** — pure data classes (Python dataclasses)
 - **Controllers** — all business logic, zero GUI imports, callback-based notification
-- **Views** — PyQt6 widgets that subscribe to controller callbacks
+- **Views** — PySide6 widgets that subscribe to controller callbacks
 
-This lets you swap GUI frameworks (PyQt6, Tkinter, GTK) without rewriting logic.
+This lets you swap GUI frameworks (PySide6, Tkinter, GTK) without rewriting logic.
 
 ## Platform Replacements
 
@@ -101,7 +101,7 @@ This lets you swap GUI frameworks (PyQt6, Tkinter, GTK) without rewriting logic.
 | Windows | Linux |
 |---------|-------|
 | GDI+ `Bitmap`, `Graphics` | Pillow (`PIL.Image`) |
-| `System.Drawing.Color` | Pillow tuples or PyQt6 `QColor` |
+| `System.Drawing.Color` | Pillow tuples or PySide6 `QColor` |
 | DirectShow / MediaFoundation | FFmpeg subprocess (`ffprobe` + `ffmpeg`) |
 | `System.Media.SoundPlayer` | Not needed (or `pygame.mixer`) |
 
@@ -147,8 +147,8 @@ def get_localized(base_name: str, lang: str) -> str:
 
 1. **Don't guess coordinates** — always read InitializeComponent(). One pixel off and buttons overlap or hide behind panels.
 2. **Watch for off-by-one in tab/panel mapping** — WinForms TabControl indices often don't match the visual button order.
-3. **C# delegates ≠ Python signals** — map `delegate.Invoke(cmd, data)` patterns to PyQt6 `pyqtSignal` or controller callbacks.
-4. **Thread safety** — WinForms `Invoke`/`BeginInvoke` for UI updates becomes `QMetaObject.invokeMethod` or `pyqtSignal.emit` from worker threads.
+3. **C# delegates ≠ Python signals** — map `delegate.Invoke(cmd, data)` patterns to PySide6 `Signal` or controller callbacks.
+4. **Thread safety** — WinForms `Invoke`/`BeginInvoke` for UI updates becomes `QMetaObject.invokeMethod` or `Signal.emit` from worker threads.
 5. **Font rendering differs** — Windows ClearType and Linux FreeType render differently. Accept minor text width variations.
 6. **Color depth** — if the device expects RGB565, use numpy for fast conversion, not per-pixel Python loops.
 7. **Stub what you can't port** — some Windows features (e.g., shared memory IPC with HWiNFO) have no direct equivalent. Build the Linux-native replacement instead of trying to emulate the Windows mechanism.
@@ -210,7 +210,7 @@ src/
 ├── core/
 │   ├── models.py       # Data classes (ThemeInfo, DeviceInfo, etc.)
 │   └── controllers.py  # GUI-independent business logic
-├── qt_components/      # PyQt6 views (one file per major panel)
+├── qt_components/      # PySide6 views (one file per major panel)
 ├── parsers/            # Binary file format parsers
 └── drivers/            # Hardware communication (SCSI, HID, etc.)
 ```

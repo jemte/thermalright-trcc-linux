@@ -99,102 +99,13 @@ Detects your distro, installs system packages, Python deps, udev rules, and desk
 
 After it finishes: **unplug and replug the USB cable**, then run `trcc gui`.
 
-### Manual one-liners
+### Supported distros
 
-Find your distro, copy the block, paste in terminal. After it finishes: **unplug and replug the USB cable**, then **open a new terminal** and run `trcc gui`.
+Fedora, Nobara, Ubuntu, Debian, Mint, Pop!_OS, Zorin, elementary OS, Arch, Manjaro, EndeavourOS, CachyOS, Garuda, openSUSE, Void, Gentoo, Alpine, NixOS, Bazzite, Aurora, Bluefin, SteamOS (Steam Deck).
 
 > **`trcc: command not found`?** Open a new terminal — pip installs to `~/.local/bin` which needs a new shell session to appear on PATH.
 
-> See the **[Install Guide](doc/INSTALL_GUIDE.md)** for troubleshooting, optional deps, and 25+ distros step by step.
-
-### Fedora / Nobara
-
-```bash
-sudo dnf install sg3_utils python3-pyqt6 ffmpeg && pip install --break-system-packages trcc-linux && sudo trcc setup-udev && trcc install-desktop
-```
-
-### Ubuntu / Debian / Mint / Pop!_OS / Zorin / elementary OS
-
-```bash
-sudo apt install sg3-utils python3-pyqt6 ffmpeg python3-pip && pip install --break-system-packages trcc-linux && sudo trcc setup-udev && trcc install-desktop
-```
-
-> **Segfault on `trcc gui`?** Install the missing Qt6 dependency: `sudo apt install libxcb-cursor0`. If that doesn't help, see [Troubleshooting](doc/TROUBLESHOOTING.md#segmentation-fault-core-dumped).
-
-### Arch / Manjaro / EndeavourOS / CachyOS / Garuda
-
-```bash
-sudo pacman -S sg3_utils python-pyqt6 ffmpeg python-pip && pip install --break-system-packages trcc-linux && sudo trcc setup-udev && trcc install-desktop
-```
-
-### openSUSE
-
-```bash
-sudo zypper install sg3_utils python3-qt6 ffmpeg python3-pip && pip install --break-system-packages trcc-linux && sudo trcc setup-udev && trcc install-desktop
-```
-
-### Void Linux
-
-```bash
-sudo xbps-install sg3_utils python3-PyQt6 ffmpeg python3-pip && pip install --break-system-packages trcc-linux && sudo trcc setup-udev && trcc install-desktop
-```
-
-### Gentoo
-
-```bash
-sudo emerge --ask sg3_utils dev-python/PyQt6 media-video/ffmpeg dev-python/pip && pip install --break-system-packages trcc-linux && sudo trcc setup-udev && trcc install-desktop
-```
-
-### Alpine
-
-```bash
-sudo apk add sg3_utils py3-pyqt6 ffmpeg py3-pip python3 && pip install --break-system-packages trcc-linux && sudo trcc setup-udev && trcc install-desktop
-```
-
-### Bazzite / Fedora Atomic / Aurora / Bluefin
-
-```bash
-rpm-ostree install sg3_utils && echo "Reboot now, then run the next block" && systemctl reboot
-```
-After reboot:
-```bash
-python3 -m venv ~/trcc-env && source ~/trcc-env/bin/activate && pip install trcc-linux && sudo trcc setup-udev && trcc setup-selinux && trcc install-desktop
-```
-Launch: `source ~/trcc-env/bin/activate && trcc gui`
-
-### SteamOS (Steam Deck)
-
-Switch to Desktop Mode, open Konsole:
-```bash
-sudo steamos-readonly disable && sudo pacman -S --needed sg3_utils python-pip python-pyqt6 ffmpeg && pip install --break-system-packages trcc-linux && sudo trcc setup-udev && trcc install-desktop && sudo steamos-readonly enable
-```
-
-### NixOS
-
-Add to `/etc/nixos/configuration.nix`, then `sudo nixos-rebuild switch`:
-```nix
-environment.systemPackages = with pkgs; [
-  python3 python3Packages.pip python3Packages.pyqt6 python3Packages.pillow
-  python3Packages.psutil sg3_utils ffmpeg p7zip
-];
-services.udev.extraRules = ''
-  # SCSI LCD devices
-  SUBSYSTEM=="scsi_generic", ATTRS{idVendor}=="87cd", ATTRS{idProduct}=="70db", MODE="0666"
-  SUBSYSTEM=="scsi_generic", ATTRS{idVendor}=="0416", ATTRS{idProduct}=="5406", MODE="0666"
-  SUBSYSTEM=="scsi_generic", ATTRS{idVendor}=="0402", ATTRS{idProduct}=="3922", MODE="0666"
-  # Bulk USB devices
-  SUBSYSTEM=="usb", ATTR{idVendor}=="87ad", ATTR{idProduct}=="70db", MODE="0666"
-  # HID LCD/LED devices
-  SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0416", ATTRS{idProduct}=="5302", MODE="0666"
-  SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0418", ATTRS{idProduct}=="5303", MODE="0666"
-  SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0418", ATTRS{idProduct}=="5304", MODE="0666"
-  SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0416", ATTRS{idProduct}=="8001", MODE="0666"
-'';
-```
-Then:
-```bash
-pip install --break-system-packages trcc-linux && trcc install-desktop
-```
+> See the **[Install Guide](doc/INSTALL_GUIDE.md)** for distro-specific instructions, troubleshooting, and optional deps.
 
 ## Usage
 

@@ -10,7 +10,7 @@ Quick reference for common TRCC Linux issues. For full installation instructions
 2. [No Device Detected](#no-compatible-trcc-lcd-device-detected)
 3. [Permission Denied](#permission-denied-when-accessing-the-device)
 4. [SELinux / Immutable Distros](#selinux--immutable-distros)
-5. [PyQt6 Issues](#pyqt6-issues)
+5. [PySide6 Issues](#pyside6-issues)
 6. [HID Device Issues](#hid-device-issues)
 7. [Display Issues](#display-issues)
 8. [Video / Media Issues](#video--media-issues)
@@ -123,23 +123,23 @@ sudo dnf install checkpolicy    # Fedora/Bazzite
 
 ---
 
-## PyQt6 Issues
+## PySide6 Issues
 
-### "Error: PyQt6 not available"
+### "Error: PySide6 not available"
 
 **Fix:** Install for your distro:
 ```bash
 # Fedora
-sudo dnf install python3-pyqt6
+sudo dnf install python3-pyside6
 
 # Ubuntu / Debian
-sudo apt install python3-pyqt6
+sudo apt install python3-pyside6
 
 # Arch
-sudo pacman -S python-pyqt6
+sudo pacman -S python-pyside6
 
 # Or via pip as fallback
-pip install PyQt6
+pip install PySide6
 ```
 
 ### Segmentation fault (core dumped)
@@ -154,7 +154,7 @@ sudo apt install libxcb-cursor0
 **Fix 2 — Use a virtual environment** (if Fix 1 doesn't help):
 ```bash
 python3 -m venv ~/.local/share/trcc-venv
-~/.local/share/trcc-venv/bin/pip install trcc-linux PyQt6 pyusb
+~/.local/share/trcc-venv/bin/pip install trcc-linux
 ~/.local/share/trcc-venv/bin/trcc gui
 ```
 
@@ -162,30 +162,6 @@ python3 -m venv ~/.local/share/trcc-venv
 ```bash
 # Show Qt plugin loading errors
 QT_DEBUG_PLUGINS=1 trcc gui 2>&1 | head -30
-```
-
-### "Qt_6_PRIVATE_API not found"
-
-**Cause:** pip-installed PyQt6 bundles its own Qt6 libraries, but your system's Qt6 is loaded first. Version mismatch causes symbol errors.
-
-**Fix (recommended):** Use the system PyQt6 package:
-```bash
-# Fedora
-sudo dnf install python3-pyqt6
-pip uninstall PyQt6 PyQt6-Qt6 PyQt6-sip
-
-# Ubuntu / Debian
-sudo apt install python3-pyqt6
-pip uninstall PyQt6 PyQt6-Qt6 PyQt6-sip
-
-# Arch
-sudo pacman -S python-pyqt6
-pip uninstall PyQt6 PyQt6-Qt6 PyQt6-sip
-```
-
-**Fix (alternative):** Force pip PyQt6 to use its own bundled Qt6:
-```bash
-LD_LIBRARY_PATH=$(python3 -c "import PyQt6; print(PyQt6.__path__[0])")/Qt6/lib trcc gui
 ```
 
 ---
@@ -249,13 +225,20 @@ QT_AUTO_SCREEN_SCALE_FACTOR=0 trcc gui
 
 ### Colors are wrong (red/blue swapped)
 
-**Cause:** Some SCSI devices use different RGB565 byte ordering. This was fixed in v1.2.1. Upgrade:
+**Cause:** RGB565 byte order mismatch. Different protocols and resolutions use different byte orders (big-endian vs little-endian). Fixed in v5.0.8 for HID Type 2 devices. Upgrade:
 
 ```bash
 pip install --upgrade trcc-linux
 ```
 
-If the issue persists, [open an issue](https://github.com/Lexonight1/thermalright-trcc-linux/issues) with `trcc report` output.
+If the issue persists after upgrading, do a clean reinstall:
+```bash
+trcc uninstall
+pip install trcc-linux
+trcc setup
+```
+
+If colors are still wrong, [open an issue](https://github.com/Lexonight1/thermalright-trcc-linux/issues) with `trcc report` output.
 
 ### Device detected but nothing displays / sg_raw errors
 

@@ -14,6 +14,14 @@ Linux port of the Thermalright TRCC application for controlling LCD displays on 
 
 SCSI devices appear as SCSI Generic (`/dev/sgX`) with vendor "USBLCD".
 
+### Bulk USB Devices
+
+| VID    | PID    | Vendor      | Product           |
+|--------|--------|-------------|-------------------|
+| 0x87AD | 0x70DB | Thermalright| LCD Display       |
+
+Bulk devices use raw USB vendor-specific transfers via PyUSB. Products: GrandVision 360 AIO, Mjolnir Vision 360, Wonder Vision Pro 360.
+
 ### HID Devices
 
 | VID    | PID    | Protocol | Type | Notes |
@@ -26,7 +34,7 @@ SCSI devices appear as SCSI Generic (`/dev/sgX`) with vendor "USBLCD".
 
 | VID    | PID    | Protocol | Type | Notes |
 |--------|--------|----------|------|-------|
-| 0x0416 | 0x8001 | LED      | HID 64-byte | RGB LED controller (AX120 DIGITAL, PA120 DIGITAL, HR10 2280 PRO DIGITAL) |
+| 0x0416 | 0x8001 | LED      | HID 64-byte | RGB LED controller (AX120 DIGITAL, PA120 DIGITAL, HR10 2280 PRO DIGITAL, Phantom Spirit 120 Digital EVO, Peerless Assassin 120 Digital ARGB White) |
 
 LED devices are distinguished from LCD HID devices by the `implementation` field (`hid_led`) set during device detection based on the Windows device model registry.
 
@@ -263,10 +271,23 @@ LED devices communicate via 64-byte HID reports (matching Windows FormLED).
 
 The LED handshake reads a PM (product mode) byte from the device, which maps to an LED style:
 
-| PM | Style | Model | Segments | Zones |
-|----|-------|-------|----------|-------|
-| 1  | 1     | AX120 DIGITAL | 12 | 4 |
-| 13 | 13    | HR10 2280 PRO DIGITAL | 31 | 1 |
+| PM | Style | Model | LEDs | Segments |
+|----|-------|-------|------|----------|
+| 1  | 1     | FROZEN HORIZON PRO | 30 | 10 |
+| 2  | 1     | FROZEN MAGIC PRO | 30 | 10 |
+| 3  | 1     | AX120 DIGITAL | 30 | 10 |
+| 16 | 2     | PA120 DIGITAL | 84 | 18 |
+| 23 | 2     | RK120 DIGITAL | 84 | 18 |
+| 32 | 3     | AK120 DIGITAL | 64 | 10 |
+| 48 | 5     | LF8 | 93 | 23 |
+| 80 | 6     | LF12 | 124 | 72 |
+| 96 | 7     | LF10 | 116 | 12 |
+| 112| 9     | LC2 | 61 | 31 |
+| 128| 4     | HR10 2280 PRO DIGITAL / LC1 | 31 | 14 |
+| 129| 10    | LF11 | 38 | 17 |
+| 144| 11    | LF15 | 93 | 72 |
+| 160| 12    | LF13 | 62 | 62 |
+| 208| 8     | CZ1 | 18 | 13 |
 
 ### LED Packet Format
 
@@ -289,6 +310,28 @@ Bytes 4-N:  Per-LED data: [R, G, B, on/off] × segment_count
 | 4 | Wave | Color wave propagation |
 | 5 | Flash | Strobe effect |
 | 6 | Music | Reactive to audio input (stub) |
+
+## Bulk USB Protocol
+
+Bulk devices (`87AD:70DB`) use raw USB vendor-specific transfers via PyUSB, bypassing the kernel's USB Mass Storage / SCSI stack entirely.
+
+### Handshake
+
+Same PM→FBL→resolution pipeline as HID devices. Default resolution: 480×480 if handshake fails.
+
+### Frame Transfer
+
+Frames are sent as raw RGB565 data via USB bulk OUT endpoint. The frame is split into chunks matching the endpoint's max packet size. No SCSI CDB header — just raw pixel data.
+
+### Known Products
+
+| Product | Resolution |
+|---------|------------|
+| GrandVision 360 AIO | 480×480 |
+| Mjolnir Vision 360 | 480×480 |
+| Wonder Vision Pro 360 | 480×480 |
+
+---
 
 ## Architecture
 
@@ -580,5 +623,6 @@ sudo modprobe sg
 ## See Also
 
 - [USBLCD_PROTOCOL.md](USBLCD_PROTOCOL.md) — Full SCSI protocol reverse-engineered from USBLCD.exe (handles `0402:3922`)
-- [USBLCDNEW_PROTOCOL.md](USBLCDNEW_PROTOCOL.md) — USB bulk protocol reverse-engineered from USBLCDNEW.exe (handles `87CD:70DB`, `0416:5302`, `0416:5406`)
+- [USBLCDNEW_PROTOCOL.md](USBLCDNEW_PROTOCOL.md) — USB protocol reverse-engineered from USBLCDNEW.exe (handles `87CD:70DB`, `0416:5302`, `0416:5406`, `87AD:70DB`)
 - [USBLED_PROTOCOL.md](USBLED_PROTOCOL.md) — HID LED protocol reverse-engineered from FormLED.cs (handles `0416:8001`)
+- [SUPPORTED_DEVICES.md](SUPPORTED_DEVICES.md) — Full device compatibility list with tester credits

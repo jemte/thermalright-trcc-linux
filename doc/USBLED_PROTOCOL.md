@@ -473,7 +473,7 @@ Cache keys include the USB bus path (e.g. `2-1.4`) to disambiguate multiple devi
 | `models.py` | `LEDMode`, `LEDState`, `LEDModel` (MVC state + tick computation) |
 | `hr10_display.py` | HR10 7-segment renderer (text → 31-LED color array) |
 | `hr10_tempd.py` | HR10 NVMe temperature daemon |
-| `uc_led_control.py` | PyQt6 GUI panel (all LED styles 1-13) |
+| `uc_led_control.py` | PySide6 GUI panel (all LED styles 1-13) |
 | `uc_screen_led.py` | LED segment visualization widget |
 | `uc_color_wheel.py` | HSV color wheel widget |
 | `uc_seven_segment.py` | 7-segment display preview widget |

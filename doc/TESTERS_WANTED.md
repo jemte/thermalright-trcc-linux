@@ -32,9 +32,13 @@ These devices have been tested on real Linux hardware by contributors:
 | FROZEN VISION V2 | `87CD:70DB` | SCSI | Developer |
 | LC1, LC2, LC3, LC5 | `0416:5406` | SCSI | Developer |
 | FROZEN WARFRAME, WARFRAME SE | `0402:3922` | SCSI | Developer |
+| GrandVision 360 AIO | `87AD:70DB` | Bulk | [bipobuilt](https://github.com/bipobuilt) |
+| Mjolnir Vision 360 | `87AD:70DB` | Bulk | [Pikarz](https://github.com/Pikarz) |
+| Trofeo Vision LCD | `0416:5302` | HID Type 2 | [PantherX12max](https://github.com/PantherX12max) |
 | HR10 2280 PRO Digital | `0416:8001` | HID LED | [Lcstyle](https://github.com/Lcstyle) |
-| AX120 Digital (LED) | `0416:8001` | HID LED | [shadowepaxeor-glitch](https://github.com/shadowepaxeor-glitch) |
+| AX120 Digital (LED) | `0416:8001` | HID LED | [shadowepaxeor-glitch](https://github.com/shadowepaxeor-glitch), [hexskrew](https://github.com/hexskrew) |
 | Peerless Assassin 120 Digital ARGB White (LED) | `0416:8001` | HID LED | [Xentrino](https://github.com/Xentrino) |
+| Phantom Spirit 120 Digital EVO (LED) | `0416:8001` | HID LED | [javisaman](https://github.com/javisaman) |
 
 ## Need Testers — HID LCD Devices
 
