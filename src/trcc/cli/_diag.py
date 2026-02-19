@@ -13,14 +13,14 @@ def _hex_dump(data: bytes, max_bytes: int = 64) -> None:
         print(f"  {row:04x}: {hex_str:<48s} {ascii_str}")
 
 
-def _hid_debug_lcd(dev) -> None:
+def _hid_debug_lcd(dev, *, test_frame: bool = False) -> None:
     """HID handshake diagnostic for LCD devices (Type 2/3)."""
     from trcc.adapters.device.factory import HidProtocol
     from trcc.adapters.device.hid import (
         HidHandshakeInfo,
         get_button_image,
     )
-    from trcc.core.models import FBL_TO_RESOLUTION, fbl_to_resolution, pm_to_fbl
+    from trcc.core.models import FBL_TO_RESOLUTION, JPEG_MODE_FBLS, fbl_to_resolution, pm_to_fbl
 
     protocol = HidProtocol(
         vid=dev.vid, pid=dev.pid,
@@ -50,6 +50,10 @@ def _hid_debug_lcd(dev) -> None:
     print(f"  Serial   = {info.serial}")
     print(f"  Resolution = {resolution[0]}x{resolution[1]}")
 
+    # Encoding mode
+    is_jpeg = fbl in JPEG_MODE_FBLS
+    print(f"  Encoding = {'JPEG' if is_jpeg else 'RGB565'}")
+
     # Button image from PM + SUB
     button = get_button_image(pm, sub)
     if button:
@@ -68,7 +72,46 @@ def _hid_debug_lcd(dev) -> None:
         print("\n  Raw handshake response (first 64 bytes):")
         _hex_dump(info.raw_response)
 
+    # Test frame send
+    if test_frame:
+        _send_test_frame(protocol, resolution, fbl)
+
     protocol.close()
+
+
+def _send_test_frame(protocol, resolution: tuple, fbl: int) -> None:
+    """Send a solid red test frame and report transfer details."""
+    from trcc.core.models import JPEG_MODE_FBLS
+
+    w, h = resolution
+    print(f"\n  Sending RED test frame ({w}x{h})...")
+
+    try:
+        from PIL import Image as PILImage
+
+        img = PILImage.new('RGB', (w, h), (255, 0, 0))
+
+        is_jpeg = fbl in JPEG_MODE_FBLS
+        if is_jpeg:
+            from trcc.services.image import ImageService
+            data = ImageService.to_jpeg(img)
+            print(f"    Encoding: JPEG ({len(data):,} bytes)")
+        else:
+            from trcc.services.image import ImageService
+            data = ImageService.to_rgb565(img, '<')
+            print(f"    Encoding: RGB565 LE ({len(data):,} bytes)")
+
+        # Show packet header
+        packet = protocol._device.build_frame_packet(data, w, h)
+        print(f"    Packet size: {len(packet):,} bytes")
+        print(f"    Header: {packet[:20].hex()}")
+
+        ok = protocol._device.send_frame(data)
+        print(f"    Send result: {'OK' if ok else 'FAILED'}")
+        print("    >>> Check your LCD — did it turn RED?")
+
+    except Exception as e:
+        print(f"    Test frame FAILED: {e}")
 
 
 def _hid_debug_led(dev) -> None:
@@ -116,11 +159,14 @@ def _hid_debug_led(dev) -> None:
     protocol.close()
 
 
-def hid_debug():
+def hid_debug(*, test_frame: bool = False):
     """HID handshake diagnostic — prints hex dump and resolved device info.
 
     Users can share this output in bug reports to help debug HID device issues.
     Routes LED devices (Type 1) through LedProtocol, LCD devices through HidProtocol.
+
+    Args:
+        test_frame: If True, send a solid red test frame after handshake.
     """
     try:
         from trcc.adapters.device.detector import detect_devices
@@ -151,7 +197,7 @@ def hid_debug():
                 if is_led:
                     _hid_debug_led(dev)
                 else:
-                    _hid_debug_lcd(dev)
+                    _hid_debug_lcd(dev, test_frame=test_frame)
             except ImportError as e:
                 print(f"  Missing dependency: {e}")
                 print("  Install: pip install pyusb  (or pip install hidapi)")

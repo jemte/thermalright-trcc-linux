@@ -86,8 +86,19 @@ TYPE3_ACK_SIZE = 16
 # Alignment
 USB_BULK_ALIGNMENT = 512
 
-# Default timeout (ms) — for frame send / normal I/O
+# Default timeout (ms) — for frame send / normal I/O.
+# Small displays (240x320 ~150 KB) fit within 100ms easily.
 DEFAULT_TIMEOUT_MS = 100
+
+
+def _frame_timeout_ms(packet_size: int) -> int:
+    """Scale frame send timeout based on packet size.
+
+    USB 2.0 Hi-Speed interrupt endpoint: ~4 KB/ms theoretical max.
+    Add 100ms margin for OS scheduling / USB controller overhead.
+    Large displays (1280x480 JPEG ~450 KB) need ~200ms+ at full speed.
+    """
+    return max(DEFAULT_TIMEOUT_MS, packet_size // 4 + 100)
 
 # Handshake timeout (ms) — much longer than frame-send.
 # Windows uses async HID API with no explicit timeout; our synchronous read
@@ -420,12 +431,13 @@ class HidDeviceType2(HidDevice):
         packet = self.build_frame_packet(image_data, w, h)
 
         # C# USBLCDNEW ThreadSendDeviceDataH: single Transfer() call
-        total = self.transport.write(EP_WRITE_02, packet, DEFAULT_TIMEOUT_MS)
+        timeout = _frame_timeout_ms(len(packet))
+        total = self.transport.write(EP_WRITE_02, packet, timeout)
 
         # C#: Thread.Sleep(1) after frame transfer
         time.sleep(DELAY_FRAME_TYPE2_S)
 
-        return total > 0
+        return total == len(packet)
 
 
 # =========================================================================
@@ -547,7 +559,8 @@ class HidDeviceType3(HidDevice):
             raise RuntimeError("Type 3 device not initialized — call handshake() first")
 
         packet = self.build_frame_packet(image_data)
-        transferred = self.transport.write(EP_WRITE_02, packet, DEFAULT_TIMEOUT_MS)
+        timeout = _frame_timeout_ms(len(packet))
+        transferred = self.transport.write(EP_WRITE_02, packet, timeout)
         if transferred == 0:
             return False
 

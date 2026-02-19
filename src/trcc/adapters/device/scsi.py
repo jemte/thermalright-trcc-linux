@@ -297,7 +297,7 @@ class ScsiDevice(FrameDevice):
             return result.returncode == 0
 
     @staticmethod
-    def _init_device(dev: str) -> int:
+    def _init_device(dev: str) -> tuple[int, bytes]:
         """Poll + init handshake (must be called before first frame send).
 
         Matches USBLCD.exe initialization sequence:
@@ -307,8 +307,7 @@ class ScsiDevice(FrameDevice):
         4. Brief delay to let display controller settle before first frame
 
         Returns:
-            FBL byte (poll response byte[0]).  This IS the FBL directly --
-            the ASCII value maps to a resolution via fbl_to_resolution().
+            (FBL byte, raw poll response first 64 bytes).
         """
         poll_header = ScsiDevice._build_header(0xF5, 0xE100)
 
@@ -334,7 +333,7 @@ class ScsiDevice(FrameDevice):
         # Step 3: Brief delay to let display controller settle
         time.sleep(_POST_INIT_DELAY)
 
-        return fbl
+        return fbl, response[:64]
 
     @staticmethod
     def _send_frame(dev: str, rgb565_data: bytes, width: int = 320, height: int = 320):
@@ -427,12 +426,12 @@ class ScsiDevice(FrameDevice):
         Reads FBL from poll response byte[0] and resolves
         the actual LCD resolution via fbl_to_resolution().
         """
-        fbl = ScsiDevice._init_device(self.device_path)
+        fbl, raw = ScsiDevice._init_device(self.device_path)
         resolution = fbl_to_resolution(fbl)
         self.width, self.height = resolution
         self._initialized = True
         log.info("SCSI handshake OK: FBL=%d, resolution=%s", fbl, resolution)
-        return HandshakeResult(resolution=resolution, model_id=fbl)
+        return HandshakeResult(resolution=resolution, model_id=fbl, raw_response=raw)
 
     def send_frame(self, rgb565_data: bytes) -> bool:
         """Send one RGB565 frame."""
@@ -597,7 +596,7 @@ def send_image_to_device(
     """
     try:
         if device_path not in ScsiDevice._initialized_devices:
-            ScsiDevice._init_device(device_path)
+            ScsiDevice._init_device(device_path)  # return value unused here
             ScsiDevice._initialized_devices.add(device_path)
 
         ScsiDevice._send_frame(device_path, rgb565_data, width, height)

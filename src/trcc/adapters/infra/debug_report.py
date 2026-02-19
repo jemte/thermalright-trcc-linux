@@ -332,6 +332,8 @@ class DebugReport:
             sec.lines.append(
                 f"    FBL={fbl} ({known}), "
                 f"resolution={res[0]}x{res[1]}")
+            if result.raw_response:
+                sec.lines.append(f"    raw[0:64]={result.raw_response[:64].hex()}")
         finally:
             protocol.close()
 

@@ -457,9 +457,13 @@ def _cmd_uninstall(
 
 
 @app.command("hid-debug")
-def _cmd_hid_debug() -> int:
+def _cmd_hid_debug(
+    test_frame: Annotated[bool, typer.Option(
+        "--test-frame", "-t", help="Send solid red test frame after handshake",
+    )] = False,
+) -> int:
     """HID handshake diagnostic (hex dump for bug reports)."""
-    return _diag.hid_debug()
+    return _diag.hid_debug(test_frame=test_frame)
 
 
 @app.command("led-debug")

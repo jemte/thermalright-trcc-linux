@@ -1,6 +1,6 @@
 """TRCC Linux version information."""
 
-__version__ = "5.2.1"
+__version__ = "5.2.2"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Version history:
@@ -281,3 +281,9 @@ __version_info__ = tuple(int(x) for x in __version__.split("."))
 #          LF11 (1→4) matching C# FormLED button visibility. Enables zone
 #          carousel (circulate) feature for these devices — zone buttons and
 #          interval input were already wired but hidden by wrong count. 2286 tests.
+# 5.2.2  - Scale HID frame timeout for large-resolution devices (1280x480+):
+#          100ms→dynamic based on packet size, prevents truncated transfers.
+#          Verify all bytes sent (total == len vs total > 0). Add --test-frame
+#          to trcc hid-debug: sends solid red frame + reports encoding, header,
+#          packet size, transfer result. Add SCSI raw poll bytes to trcc report
+#          (was missing vs HID/LED/Bulk). Addresses #36. 2286 tests.
