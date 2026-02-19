@@ -249,7 +249,7 @@ class DataManager:
 
     GITHUB_BASE_URL = (
         "https://raw.githubusercontent.com/Lexonight1/"
-        "thermalright-trcc-linux/stable/src/trcc/data/"
+        "thermalright-trcc-linux/main/src/trcc/data/"
     )
 
     _7Z_INSTALL_HELP = (

@@ -31,11 +31,11 @@ All PRs must pass tests, `ruff check`, and `pyright` with 0 errors.
 
 ## Branch Strategy
 
-1. Fork the repo and create a branch off `stable`
+1. Fork the repo and create a branch off `main`
 2. Make your changes and ensure tests pass
-3. Open a PR targeting `stable`
+3. Open a PR targeting `main`
 
-> `stable` is the default branch. All development, releases, and user-facing clones happen here.
+> `main` is the default branch. All development, releases, and user-facing clones happen here.
 
 ## Ways to Contribute
 

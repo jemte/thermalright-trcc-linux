@@ -13,10 +13,10 @@ name: "CodeQL Advanced"
 
 on:
   push:
-    branches: [ "stable" ]
+    branches: [ "main" ]
     tags-ignore: [ "**" ]
   pull_request:
-    branches: [ "stable" ]
+    branches: [ "main" ]
   schedule:
     - cron: '34 4 * * 0'
   workflow_dispatch: {}

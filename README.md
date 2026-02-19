@@ -73,7 +73,7 @@ Then **unplug and replug the USB cable** and run `trcc gui`.
 Download and run — installs trcc-linux, then launches the setup wizard (GUI if you have a display, CLI otherwise):
 
 ```bash
-bash <(curl -sSL https://raw.githubusercontent.com/Lexonight1/thermalright-trcc-linux/stable/setup.sh)
+bash <(curl -sSL https://raw.githubusercontent.com/Lexonight1/thermalright-trcc-linux/main/setup.sh)
 ```
 
 ### Setup wizard
@@ -90,7 +90,7 @@ The wizard checks system dependencies, GPU packages, udev rules, and desktop int
 ### Automatic (recommended for full setup)
 
 ```bash
-git clone -b stable https://github.com/Lexonight1/thermalright-trcc-linux.git
+git clone https://github.com/Lexonight1/thermalright-trcc-linux.git
 cd thermalright-trcc-linux
 sudo ./install.sh
 ```

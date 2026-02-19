@@ -2,10 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [ stable ]
+    branches: [ main ]
     tags-ignore: [ "**" ]
   pull_request:
-    branches: [ stable ]
+    branches: [ main ]
   workflow_dispatch: {}
 
 permissions:

@@ -3,13 +3,13 @@
 TRCC Linux is **feature-complete** — all 45 features from the Windows TRCC 2.0.3 have been ported, with full CLI/GUI/API parity via hexagonal architecture.
 
 **Current version:** 5.3.2
-**Branch:** `stable`
+**Branch:** `main`
 **Tests:** 2291 across 34 files
 **PyPI:** [trcc-linux](https://pypi.org/project/trcc-linux/)
 
 ## What's Stable
 
-All features are tested and working on the `stable` branch:
+All features are tested and working on the `main` branch:
 
 - **4 protocol backends** — SCSI, HID, LED, Bulk (raw USB)
 - **Full GUI** — local/cloud/mask themes, overlays, video playback, carousel, image cropper, video trimmer
