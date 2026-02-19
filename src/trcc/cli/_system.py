@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import site
 import subprocess
 import sys
 from pathlib import Path
@@ -12,13 +13,17 @@ from trcc.cli import _cli_handler
 def _sudo_reexec(subcommand):
     """Re-exec `trcc <subcommand>` as root via sudo with correct PYTHONPATH.
 
-    Only includes the trcc package directory — user site-packages are excluded
-    to prevent privilege escalation via malicious packages in ~/.local/lib.
+    sudo strips user site-packages (~/.local/lib), so we include both
+    the trcc package root and all site-packages where dependencies live.
     """
     # __file__ is trcc/cli/_system.py — 3 levels up to reach src/ (PYTHONPATH root)
     trcc_pkg = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    paths = [trcc_pkg]
+    paths.extend(site.getsitepackages())
+    paths.append(site.getusersitepackages())
+    pythonpath = os.pathsep.join(paths)
     cmd = [
-        "sudo", "env", f"PYTHONPATH={trcc_pkg}",
+        "sudo", "env", f"PYTHONPATH={pythonpath}",
         sys.executable, "-m", "trcc.cli", subcommand,
     ]
     print("Root required — requesting sudo...")
@@ -350,11 +355,47 @@ def setup_polkit():
         print(f"Policy file not found: {policy_src}")
         return 1
 
+    # Resolve canonical binary paths — root PATH may differ from user PATH
+    # (e.g. root's which returns /usr/sbin/dmidecode but user uses /usr/bin/).
+    # realpath resolves symlinks so UsrMerge distros get /usr/bin consistently.
+    policy_text = policy_src.read_text()
+    for binary in ('dmidecode', 'smartctl'):
+        found = shutil.which(binary)
+        if found:
+            real_path = os.path.realpath(found)
+            policy_text = policy_text.replace(f'/usr/bin/{binary}', real_path)
+
     policy_dst = Path("/usr/share/polkit-1/actions/com.github.lexonight1.trcc.policy")
     policy_dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(policy_src, policy_dst)
+    policy_dst.write_text(policy_text)
+
+    # JavaScript rules file — scoped to the installing user only.
+    # XML allow_active=yes doesn't work on all DEs (e.g. XFCE),
+    # so this guarantees passwordless access regardless of session state.
+    invoking_user = os.environ.get('SUDO_USER', '')
+    if invoking_user:
+        rules_dst = Path("/etc/polkit-1/rules.d/50-trcc.rules")
+        rules_dst.parent.mkdir(parents=True, exist_ok=True)
+        rules_dst.write_text(
+            '// TRCC Linux — passwordless dmidecode/smartctl for installing user\n'
+            'polkit.addRule(function(action, subject) {\n'
+            '    if ((action.id == "com.github.lexonight1.trcc.dmidecode" ||\n'
+            '         action.id == "com.github.lexonight1.trcc.smartctl") &&\n'
+            f'        subject.user == "{invoking_user}") {{\n'
+            '        return polkit.Result.YES;\n'
+            '    }\n'
+            '});\n'
+        )
+        print(f"Installed {rules_dst} (user: {invoking_user})")
+
+    # Fix SELinux contexts
+    restore_paths = [str(policy_dst)]
+    if invoking_user:
+        restore_paths.append(str(rules_dst))
+    if shutil.which('restorecon'):
+        subprocess.run(['restorecon'] + restore_paths, check=False)
     print(f"Installed {policy_dst}")
-    print("Active sessions can now run dmidecode/smartctl without a password.")
+    print(f"User '{invoking_user}' can now run dmidecode/smartctl without a password.")
     return 0
 
 
@@ -374,6 +415,7 @@ def uninstall(*, yes: bool = False):
         "/etc/udev/rules.d/99-trcc-lcd.rules",
         "/etc/modprobe.d/trcc-lcd.conf",
         "/usr/share/polkit-1/actions/com.github.lexonight1.trcc.policy",
+        "/etc/polkit-1/rules.d/50-trcc.rules",
     ]
 
     # User files/dirs to remove

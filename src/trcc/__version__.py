@@ -1,9 +1,12 @@
 """TRCC Linux version information."""
 
-__version__ = "5.3.2"
+__version__ = "5.3.3"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Version history:
+# 5.3.3 - Fix polkit setup: _sudo_reexec includes site-packages in PYTHONPATH,
+#         realpath resolves UsrMerge symlinks, JS rules file for cross-DE support,
+#         SELinux restorecon, pkexec uses absolute binary paths. 2291 tests.
 # 1.0.0 - Initial release: GUI, local themes, cloud themes, video playback
 # 1.1.0 - Settings tab fixes: overlay element cards, mask visibility, font picker,
 #         12-hour time format without leading zero
