@@ -477,10 +477,10 @@ LED_STYLES: dict[int, LedDeviceStyle] = {
     6: LedDeviceStyle(6, 124, 72, 2, "LF12", "DLF12", "D0LF12"),
     7: LedDeviceStyle(7, 116, 12, 3, "LF10", "DLF10", "D0LF10"),
     8: LedDeviceStyle(8, 18, 13, 4, "CZ1", "DCZ1", "D0CZ1"),
-    9: LedDeviceStyle(9, 61, 31, 1, "LC2", "DLC2", "D0LC2"),
+    9: LedDeviceStyle(9, 61, 31, 0, "LC2", "DLC2", "D0LC2"),
     10: LedDeviceStyle(10, 38, 17, 4, "LF11", "DLF11", "D0LF11"),
     11: LedDeviceStyle(11, 93, 72, 2, "LF15", "DLF15", "D0LF15"),
-    12: LedDeviceStyle(12, 62, 62, 1, "LF13", "DLF13", "D0LF13"),
+    12: LedDeviceStyle(12, 62, 62, 0, "LF13", "DLF13", "D0LF13"),
 }
 
 

@@ -99,9 +99,13 @@ class TestLedDeviceStyle:
         assert style.segment_count <= style.led_count
 
     @pytest.mark.parametrize("style_id", range(1, 13))
-    def test_style_zone_count_positive(self, style_id):
+    def test_style_zone_count_non_negative(self, style_id):
         style = LED_STYLES[style_id]
-        assert style.zone_count >= 1
+        # Styles 9 (LC2 clock) and 12 (LF13 panel) have no zones (C# zone_count=0)
+        if style_id in (9, 12):
+            assert style.zone_count == 0
+        else:
+            assert style.zone_count >= 1
 
     @pytest.mark.parametrize("style_id", range(1, 13))
     def test_style_has_model_name(self, style_id):
@@ -146,9 +150,9 @@ class TestLedDeviceStyle:
         assert LED_STYLES[3].zone_count == 2   # AK120: 2 zones
         assert LED_STYLES[4].zone_count == 3   # LC1: 3 zones (buttonN1-N3)
         assert LED_STYLES[8].zone_count == 4   # CZ1: 4 zones
-        assert LED_STYLES[9].zone_count == 1   # LC2: clock-only, no carousel
+        assert LED_STYLES[9].zone_count == 0   # LC2: clock-only, no zones (C#)
         assert LED_STYLES[10].zone_count == 4  # LF11: 4 zones (buttonN1-N4)
-        assert LED_STYLES[12].zone_count == 1  # LF13: RGB-only, no carousel
+        assert LED_STYLES[12].zone_count == 0  # LF13: RGB-only, no zones (C#)
 
     def test_dataclass_default_zone_count(self):
         """LedDeviceStyle defaults zone_count to 1."""

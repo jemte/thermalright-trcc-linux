@@ -1,6 +1,6 @@
 """TRCC Linux version information."""
 
-__version__ = "5.3.0"
+__version__ = "5.3.1"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Version history:
@@ -299,3 +299,9 @@ __version_info__ = tuple(int(x) for x in __version__.split("."))
 #          not big-endian — only FBL 51 triggers SPIMode=2), propagate FBL
 #          to all byte_order_for() callers (device.py, display.py, lcd.py).
 #          API also propagates fbl_code from handshake. 2291 tests.
+# 5.3.1  - Fix LED segment mask_size: AK120 69→64 (C# LedCountVal3=64),
+#          LC1 38→31 (C# LedCountVal4=31) — extra mask entries were harmless
+#          but semantically wrong. Fix LED styles 9/12 zone_count: 1→0
+#          matching C# (LC2 and LF13 are zone-less). Fresh GAPS.md rewrite
+#          from 4-agent cross-reference audit of all doc/audit files vs code.
+#          2291 tests.

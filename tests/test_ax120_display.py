@@ -285,7 +285,7 @@ class TestAK120Display:
         self.d = AK120Display()
 
     def test_mask_size(self):
-        assert self.d.mask_size == 69
+        assert self.d.mask_size == 64  # C# LedCountVal3 = 64
 
     def test_phase_count(self):
         assert self.d.phase_count == 2
@@ -325,7 +325,7 @@ class TestLC1Display:
         self.d = LC1Display()
 
     def test_mask_size(self):
-        assert self.d.mask_size == 38
+        assert self.d.mask_size == 31  # C# LedCountVal4 = 31
 
     def test_phase_count(self):
         assert self.d.phase_count == 3
@@ -682,7 +682,7 @@ class TestLF11Display:
 class TestCrossStyleConsistency:
     def test_all_mask_sizes_correct(self):
         expected = {
-            1: 30, 2: 84, 3: 69, 4: 38, 5: 93, 6: 124,
+            1: 30, 2: 84, 3: 64, 4: 31, 5: 93, 6: 124,
             7: 116, 8: 18, 9: 61, 10: 38, 11: 93,
         }
         for style_id, size in expected.items():

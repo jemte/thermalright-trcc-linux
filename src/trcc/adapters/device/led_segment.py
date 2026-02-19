@@ -456,7 +456,7 @@ class PA120Display(SegmentDisplay):
 # ═══════════════════════════════════════════════════════════════════════
 
 class AK120Display(SegmentDisplay):
-    """Style 3 — AK120 Digital: 69-LED mask, 2-phase CPU/GPU rotation.
+    """Style 3 — AK120 Digital: 64-LED mask, 2-phase CPU/GPU rotation.
 
     Shows watt + temp + usage per phase (CPU or GPU).  Remapped style.
     """
@@ -494,7 +494,7 @@ class AK120Display(SegmentDisplay):
 
     @property
     def mask_size(self) -> int:
-        return 69
+        return 64
 
     @property
     def phase_count(self) -> int:
@@ -502,7 +502,7 @@ class AK120Display(SegmentDisplay):
 
     def compute_mask(self, metrics: HardwareMetrics, phase: int = 0,
                      temp_unit: str = "C", **kw: Any) -> List[bool]:
-        mask = [False] * 69
+        mask = [False] * 64
 
         mask[self.WATT] = True
         mask[self.BFB] = True
@@ -524,7 +524,7 @@ class AK120Display(SegmentDisplay):
 # ═══════════════════════════════════════════════════════════════════════
 
 class LC1Display(SegmentDisplay):
-    """Style 4 — LC1: 38-LED mask, mode-based 3-phase (temp/MHz/GB).
+    """Style 4 — LC1: 31-LED mask, mode-based 3-phase (temp/MHz/GB).
 
     NVMe memory device — displays different metrics with unit symbol.
     Sub-style 0 = memory mode (temp/MHz*DDR/GB).
@@ -561,7 +561,7 @@ class LC1Display(SegmentDisplay):
 
     @property
     def mask_size(self) -> int:
-        return 38
+        return 31
 
     @property
     def phase_count(self) -> int:
@@ -577,7 +577,7 @@ class LC1Display(SegmentDisplay):
 
     def compute_mask(self, metrics: HardwareMetrics, phase: int = 0,
                      temp_unit: str = "C", **kw: Any) -> List[bool]:
-        mask = [False] * 38
+        mask = [False] * 31
 
         sub_style = kw.get('sub_style', 0)
         memory_ratio = kw.get('memory_ratio', 2)
