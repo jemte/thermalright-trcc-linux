@@ -1,9 +1,19 @@
 """TRCC Linux version information."""
 
-__version__ = "6.0.2"
+__version__ = "6.0.3"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Version history:
+# 6.0.3 - Fix LF13 (style 12) LED preview: DLF13 overlay had opaque black
+#         center covering the LED color fill — made center transparent so
+#         colors show through. Fix LF13 mode numbering: D0rgblf13 rainbow
+#         image was shown for Temp Linked (mode 4) instead of Rainbow (mode 3)
+#         due to C# 1-based vs our 0-based mode indexing. Fix PA120 segment
+#         display indices: off-by-one from C# (indicators at 2-8 instead of
+#         0-9, digits starting at 9 instead of 10). GPU indicators SSD1/HSD1/
+#         BFB1 were aliased to CPU indices — now have own positions. Zone
+#         coverage 81→84/84. LED test harness: real LEDService for segment
+#         rendering, zone-aware signal wiring matching LEDHandler. 2349 tests.
 # 6.0.2 - Fix video background not persisting after reboot: ThemeService.save()
 #         stored video path pointing to temp dir (/tmp/trcc_work_*/Theme.zt),
 #         now copies video into theme directory as Theme.zt so it survives

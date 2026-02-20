@@ -569,10 +569,14 @@ class UCScreenLED(QWidget):
                     painter.fillRect(QRect(*pos), black)
 
     def _paint_deco_lf13(self, painter: QPainter, deco: _DecoConfig) -> None:
-        """Style 12 (LF13) decoration: full-screen color or image."""
+        """Style 12 (LF13) decoration: full-screen color or image.
+
+        C# myLedMode==4 (CHMS/Rainbow, our mode 3) shows D0rgblf13 image;
+        all other modes show solid color fill at (0,0,460,460).
+        """
         if not self._is_on or not self._is_on[0]:
             return
-        if self._led_mode == 4:
+        if self._led_mode == 3:
             pm = self._deco_pixmaps.get("D0rgblf13")
             if pm:
                 painter.drawPixmap(0, 0, pm)
