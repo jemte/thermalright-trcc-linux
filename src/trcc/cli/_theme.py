@@ -44,7 +44,7 @@ def list_themes(cloud=False, category=None):
 
 
 @_cli_handler
-def load_theme(name, *, device=None):
+def load_theme(name, *, device=None, preview=False):
     """Load a theme by name and send to LCD."""
     from PIL import Image
 
@@ -101,6 +101,8 @@ def load_theme(name, *, device=None):
         # Save as last-used theme
         Settings.save_device_setting(key, 'theme_path', str(match.path))
         print(f"Loaded '{match.name}' → {dev.path}")
+        if preview:
+            print(ImageService.to_ansi(img))
     else:
         print(f"Theme '{match.name}' has no background image.")
         return 1

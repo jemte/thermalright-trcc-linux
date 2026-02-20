@@ -114,7 +114,7 @@ class TestMainEntryPoint(unittest.TestCase):
         with patch('sys.argv', ['trcc', 'color', 'ff0000']), \
              patch('trcc.cli._display.send_color', return_value=0) as mock_color:
             main()
-            mock_color.assert_called_once_with('ff0000', device=None)
+            mock_color.assert_called_once_with('ff0000', device=None, preview=False)
 
     def test_info_dispatches(self):
         """'info' subcommand dispatches to SystemCommands.show_info."""
@@ -1876,6 +1876,8 @@ class TestLEDCommands(unittest.TestCase):
     def _mock_led_svc(self):
         """Create a mock LED service with status string."""
         mock_svc = MagicMock()
+        mock_svc.tick.return_value = [(255, 0, 0)]
+        mock_svc.send_colors.return_value = True
         mock_svc.send_tick.return_value = True
         return mock_svc, "LED: AX120 (18 LEDs)"
 
@@ -1898,7 +1900,8 @@ class TestLEDCommands(unittest.TestCase):
             result = LEDCommands.set_color('00ff00')
             self.assertEqual(result, 0)
             mock_svc.set_color.assert_called_once_with(0, 255, 0)
-            mock_svc.send_tick.assert_called_once()
+            mock_svc.tick.assert_called_once()
+            mock_svc.send_colors.assert_called_once()
             mock_svc.save_config.assert_called_once()
 
     def test_set_mode_invalid(self):
@@ -1916,7 +1919,8 @@ class TestLEDCommands(unittest.TestCase):
                           return_value=(mock_svc, status)):
             result = LEDCommands.set_mode('static')
             self.assertEqual(result, 0)
-            mock_svc.send_tick.assert_called_once()
+            mock_svc.tick.assert_called_once()
+            mock_svc.send_colors.assert_called_once()
 
     def test_set_brightness_invalid(self):
         """Out of range brightness returns 1."""
@@ -2139,7 +2143,7 @@ class TestMaskClear(unittest.TestCase):
              patch('trcc.cli._display.send_color',
                           return_value=0) as mock:
             main()
-            mock.assert_called_once_with('#000000', device=None)
+            mock.assert_called_once_with('#000000', device=None, preview=False)
 
     def test_mask_no_args_errors(self, capsys=None):
         """'mask' with no path and no --clear prints error."""
@@ -2188,7 +2192,7 @@ class TestNewCommandDispatch(unittest.TestCase):
              patch('trcc.cli._theme.load_theme',
                           return_value=0) as mock:
             main()
-            mock.assert_called_once_with('myTheme', device=None)
+            mock.assert_called_once_with('myTheme', device=None, preview=False)
 
     def test_led_color_dispatches(self):
         """'led-color ff0000' calls LEDCommands.set_color()."""
@@ -2196,7 +2200,7 @@ class TestNewCommandDispatch(unittest.TestCase):
              patch('trcc.cli._led.set_color',
                           return_value=0) as mock:
             main()
-            mock.assert_called_once_with('ff0000')
+            mock.assert_called_once_with('ff0000', preview=False)
 
     def test_led_mode_dispatches(self):
         """'led-mode rainbow' calls LEDCommands.set_mode()."""
@@ -2204,7 +2208,7 @@ class TestNewCommandDispatch(unittest.TestCase):
              patch('trcc.cli._led.set_mode',
                           return_value=0) as mock:
             main()
-            mock.assert_called_once_with('rainbow')
+            mock.assert_called_once_with('rainbow', preview=False)
 
     def test_led_brightness_dispatches(self):
         """'led-brightness 50' calls LEDCommands.set_led_brightness()."""
@@ -2212,7 +2216,7 @@ class TestNewCommandDispatch(unittest.TestCase):
              patch('trcc.cli._led.set_led_brightness',
                           return_value=0) as mock:
             main()
-            mock.assert_called_once_with(50)
+            mock.assert_called_once_with(50, preview=False)
 
     def test_led_off_dispatches(self):
         """'led-off' calls LEDCommands.led_off()."""
@@ -2229,7 +2233,7 @@ class TestNewCommandDispatch(unittest.TestCase):
                           return_value=0) as mock:
             main()
             mock.assert_called_once_with(
-                device=None, x=0, y=0, w=0, h=0, fps=10)
+                device=None, x=0, y=0, w=0, h=0, fps=10, preview=False)
 
     def test_mask_dispatches(self):
         """'mask /tmp/m.png' calls DisplayCommands.load_mask()."""
@@ -2237,7 +2241,7 @@ class TestNewCommandDispatch(unittest.TestCase):
              patch('trcc.cli._display.load_mask',
                           return_value=0) as mock:
             main()
-            mock.assert_called_once_with('/tmp/m.png', device=None)
+            mock.assert_called_once_with('/tmp/m.png', device=None, preview=False)
 
     def test_overlay_dispatches(self):
         """'overlay /tmp/dc' calls DisplayCommands.render_overlay()."""
@@ -2246,7 +2250,7 @@ class TestNewCommandDispatch(unittest.TestCase):
                           return_value=0) as mock:
             main()
             mock.assert_called_once_with(
-                '/tmp/dc', device=None, send=False, output=None)
+                '/tmp/dc', device=None, send=False, output=None, preview=False)
 
     def test_theme_save_dispatches(self):
         """'theme-save MyTheme' calls ThemeCommands.save_theme()."""

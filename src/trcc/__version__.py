@@ -1,9 +1,14 @@
 """TRCC Linux version information."""
 
-__version__ = "6.0.0"
+__version__ = "6.0.1"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Version history:
+# 6.0.1 - Fix SCSI 320x240 chunk size (0x10000→0xE100 matching C# USBLCD.exe
+#         Mode 1/2). Fixes garbled display on FBL 50 devices (Frozen Warframe
+#         240, #17). Terminal preview: --preview/-p flag on all LCD and LED CLI
+#         commands renders ANSI true-color art in terminal for headless/SSH
+#         users (ImageService.to_ansi, LEDService.zones_to_ansi). 2319 tests.
 # 6.0.0 - GoF refactoring: 5-phase OOP overhaul. Phase 1: Flyweight+Strategy
 #         collapse led_segment.py 1109→687 (-38%). Phase 3: eliminate 5 thin
 #         controller wrappers (ThemeController, DeviceController, VideoController,

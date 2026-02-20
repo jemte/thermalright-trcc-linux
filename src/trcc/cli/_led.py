@@ -29,7 +29,7 @@ def _get_led_service():
 
 
 @_cli_handler
-def set_color(hex_color):
+def set_color(hex_color, *, preview=False):
     """Set LED static color."""
     hex_color = hex_color.lstrip('#')
     if len(hex_color) != 6:
@@ -51,14 +51,18 @@ def set_color(hex_color):
     led_svc.set_mode(LEDMode.STATIC)
     led_svc.set_color(r, g, b)
     led_svc.toggle_global(True)
-    led_svc.send_tick()
+    colors = led_svc.tick()
+    led_svc.send_colors(colors)
     led_svc.save_config()
 
     print(f"LED color set to #{hex_color}")
+    if preview and colors:
+        from trcc.services import LEDService
+        print(LEDService.zones_to_ansi(colors))
     return 0
 
 
-def set_mode(mode_name):
+def set_mode(mode_name, *, preview=False):
     """Set LED effect mode."""
     try:
         import time
@@ -89,16 +93,25 @@ def set_mode(mode_name):
 
         if mode in (LEDMode.BREATHING, LEDMode.COLORFUL, LEDMode.RAINBOW):
             print(f"LED mode: {mode_name} (running animation, Ctrl+C to stop)")
+            if preview:
+                from trcc.services import LEDService
             try:
                 while True:
-                    led_svc.send_tick()
+                    colors = led_svc.tick()
+                    led_svc.send_colors(colors)
+                    if preview and colors:
+                        print(LEDService.zones_to_ansi(colors), end='\r', flush=True)
                     time.sleep(0.05)
             except KeyboardInterrupt:
                 pass
             print("\nStopped.")
         else:
-            led_svc.send_tick()
+            colors = led_svc.tick()
+            led_svc.send_colors(colors)
             print(f"LED mode: {mode_name}")
+            if preview and colors:
+                from trcc.services import LEDService
+                print(LEDService.zones_to_ansi(colors))
 
         led_svc.save_config()
         return 0
@@ -108,7 +121,7 @@ def set_mode(mode_name):
 
 
 @_cli_handler
-def set_led_brightness(level):
+def set_led_brightness(level, *, preview=False):
     """Set LED brightness (0-100)."""
     if level < 0 or level > 100:
         print("Error: Brightness must be 0-100")
@@ -122,10 +135,14 @@ def set_led_brightness(level):
     print(status)
     led_svc.set_brightness(level)
     led_svc.toggle_global(True)
-    led_svc.send_tick()
+    colors = led_svc.tick()
+    led_svc.send_colors(colors)
     led_svc.save_config()
 
     print(f"LED brightness set to {level}%")
+    if preview and colors:
+        from trcc.services import LEDService
+        print(LEDService.zones_to_ansi(colors))
     return 0
 
 

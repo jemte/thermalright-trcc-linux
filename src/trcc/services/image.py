@@ -159,6 +159,48 @@ class ImageService:
         return '>' if resolution == (320, 320) else '<'
 
     @staticmethod
+    def to_ansi(img: Any, cols: int = 60) -> str:
+        """Render PIL Image as ANSI true-color block art for terminal preview.
+
+        Uses Unicode half-block (U+2580) to encode two pixel rows per
+        terminal line.  Foreground = top pixel, background = bottom pixel.
+
+        Args:
+            img: PIL Image (any mode — converted to RGB internally).
+            cols: Output width in terminal columns (height scales proportionally).
+        """
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+
+        w, h = img.size
+        rows = max(1, int(cols * h / w))
+        # Round rows to even so half-block pairs are complete
+        rows += rows % 2
+        thumb = img.resize((cols, rows), PILImage.Resampling.LANCZOS)
+        pixels = thumb.load()
+
+        lines: list[str] = []
+        for y in range(0, rows, 2):
+            parts: list[str] = []
+            for x in range(cols):
+                tr, tg, tb = pixels[x, y]          # top pixel → foreground
+                if y + 1 < rows:
+                    br, bg_, bb = pixels[x, y + 1]  # bottom pixel → background
+                else:
+                    br, bg_, bb = 0, 0, 0
+                parts.append(
+                    f'\033[38;2;{tr};{tg};{tb}m'
+                    f'\033[48;2;{br};{bg_};{bb}m\u2580'
+                )
+            lines.append(''.join(parts) + '\033[0m')
+        return '\n'.join(lines)
+
+    @staticmethod
+    def to_ansi_cursor_home(img: Any, cols: int = 60) -> str:
+        """Same as to_ansi() but prefixed with cursor-home escape for animation."""
+        return '\033[H' + ImageService.to_ansi(img, cols)
+
+    @staticmethod
     def apply_device_rotation(image: Any, resolution: tuple[int, int]) -> Any:
         """Apply device-level pre-rotation for non-square displays.
 

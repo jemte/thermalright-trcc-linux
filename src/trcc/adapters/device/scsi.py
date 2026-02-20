@@ -180,7 +180,12 @@ _POST_INIT_DELAY = 0.1
 
 # Base command for frame data chunks; chunk index goes in bits [27:24]
 _FRAME_CMD_BASE = 0x101F5
-_CHUNK_SIZE = 0x10000  # 64 KiB per chunk (except possibly the last)
+_CHUNK_SIZE_LARGE = 0x10000  # 64 KiB per chunk for large displays (320x320+)
+_CHUNK_SIZE_SMALL = 0xE100   # 57,600 bytes per chunk for small displays (≤320x240)
+# Threshold: displays with ≤76,800 pixels (320x240=76,800) use small chunks.
+# USBLCD.exe Mode 1 (240x240) and Mode 2 (320x240) use 0xE100 chunks;
+# Mode 3 (320x320+) uses 0x10000 chunks.
+_SMALL_DISPLAY_PIXELS = 76800
 
 # Boot animation SCSI commands (from USBLCD.exe reverse engineering)
 _ANIM_FIRST_FRAME = 0x000201F5   # Compressed first frame (CDB[8]=frame_count)
@@ -219,18 +224,24 @@ class ScsiDevice(FrameDevice):
     def _get_frame_chunks(width: int, height: int) -> list:
         """Calculate frame chunk commands for a given resolution.
 
-        Each chunk is up to 64 KiB. The command encodes the chunk index in
-        bits [27:24] above the base command 0x101F5.
+        USBLCD.exe uses different chunk sizes per resolution mode:
+          Mode 1/2 (≤320x240): 0xE100 (57,600) byte chunks
+          Mode 3   (320x320+): 0x10000 (65,536) byte chunks
 
-        For 320x320: 4 chunks (3x64K + 8K = 204,800 bytes)
-        For 480x480: 8 chunks (7x64K + 2K = 460,800 bytes)
+        For 240x240: 2 chunks (2×0xE100 = 115,200 bytes)
+        For 320x240: 3 chunks (2×0xE100 + 0x9600 = 153,600 bytes)
+        For 320x320: 4 chunks (3×0x10000 + 0x2000 = 204,800 bytes)
+        For 480x480: 8 chunks (7×0x10000 + 0x2800 = 460,800 bytes)
         """
-        total = width * height * 2  # RGB565: 2 bytes per pixel
+        pixels = width * height
+        chunk_size = (_CHUNK_SIZE_SMALL if pixels <= _SMALL_DISPLAY_PIXELS
+                      else _CHUNK_SIZE_LARGE)
+        total = pixels * 2  # RGB565: 2 bytes per pixel
         chunks = []
         offset = 0
         idx = 0
         while offset < total:
-            size = min(_CHUNK_SIZE, total - offset)
+            size = min(chunk_size, total - offset)
             cmd = _FRAME_CMD_BASE | (idx << 24)
             chunks.append((cmd, size))
             offset += size

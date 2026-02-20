@@ -408,6 +408,16 @@ class LEDService:
         """Tick animation and send colors to device. Returns success."""
         return self.send_colors(self.tick())
 
+    @staticmethod
+    def zones_to_ansi(colors: List[Tuple[int, int, int]]) -> str:
+        """Render LED zone colors as ANSI true-color blocks for terminal preview."""
+        if not colors:
+            return ''
+        parts = [
+            f'\033[48;2;{r};{g};{b}m  \033[0m' for r, g, b in colors
+        ]
+        return ''.join(parts)
+
     # ── Device initialization ───────────────────────────────────────
 
     def initialize(self, device_info: Any, led_style: int = 1) -> str:

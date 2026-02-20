@@ -9,7 +9,8 @@ from trcc.adapters.device.scsi import (
     _BOOT_MAX_RETRIES,
     _BOOT_SIGNATURE,
     _BOOT_WAIT_SECONDS,
-    _CHUNK_SIZE,
+    _CHUNK_SIZE_LARGE,
+    _CHUNK_SIZE_SMALL,
     _FRAME_CMD_BASE,
     _POST_INIT_DELAY,
     ScsiDevice,
@@ -116,11 +117,31 @@ class TestGetFrameChunks(unittest.TestCase):
         total = sum(size for _, size in chunks)
         self.assertEqual(total, 240 * 240 * 2)  # 115,200
 
+    def test_320x240_uses_small_chunks(self):
+        """FBL 50 (320x240) uses 0xE100 chunks like Windows USBLCD.exe."""
+        chunks = ScsiDevice._get_frame_chunks(320, 240)
+        total = sum(size for _, size in chunks)
+        self.assertEqual(total, 320 * 240 * 2)  # 153,600
+        self.assertEqual(len(chunks), 3)
+        self.assertEqual(chunks[0][1], _CHUNK_SIZE_SMALL)  # 0xE100
+        self.assertEqual(chunks[1][1], _CHUNK_SIZE_SMALL)  # 0xE100
+        self.assertEqual(chunks[2][1], 153600 - 2 * _CHUNK_SIZE_SMALL)  # 0x9600
+
+    def test_240x240_uses_small_chunks(self):
+        """FBL 36 (240x240) uses 0xE100 chunks like Windows USBLCD.exe."""
+        chunks = ScsiDevice._get_frame_chunks(240, 240)
+        self.assertEqual(len(chunks), 2)
+        self.assertEqual(chunks[0][1], _CHUNK_SIZE_SMALL)
+        self.assertEqual(chunks[1][1], 240 * 240 * 2 - _CHUNK_SIZE_SMALL)
+
     def test_chunk_sizes_within_limit(self):
-        """No chunk exceeds 64 KiB."""
+        """No chunk exceeds its mode's limit."""
         for w, h in [(320, 320), (480, 480), (640, 480)]:
             for _, size in ScsiDevice._get_frame_chunks(w, h):
-                self.assertLessEqual(size, _CHUNK_SIZE)
+                self.assertLessEqual(size, _CHUNK_SIZE_LARGE)
+        for w, h in [(240, 240), (320, 240)]:
+            for _, size in ScsiDevice._get_frame_chunks(w, h):
+                self.assertLessEqual(size, _CHUNK_SIZE_SMALL)
 
     def test_cmd_encodes_index(self):
         """Chunk index embedded in bits [27:24] above base command."""
@@ -132,7 +153,7 @@ class TestGetFrameChunks(unittest.TestCase):
     def test_last_chunk_may_be_smaller(self):
         chunks = ScsiDevice._get_frame_chunks(320, 320)
         last_size = chunks[-1][1]
-        self.assertEqual(last_size, 320 * 320 * 2 - 3 * _CHUNK_SIZE)  # 8192
+        self.assertEqual(last_size, 320 * 320 * 2 - 3 * _CHUNK_SIZE_LARGE)  # 8192
 
 
 # -- SCSI read/write --

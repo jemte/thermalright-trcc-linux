@@ -81,11 +81,13 @@ Send an image to the LCD.
 ```bash
 trcc send image.png
 trcc send photo.jpg --device /dev/sg2
+trcc send image.png --preview       # show ANSI preview in terminal
 ```
 
 | Option | Description |
 |--------|-------------|
 | `--device`, `-d` | Device path (default: auto-detect) |
+| `--preview`, `-p` | Show ANSI art preview in terminal (for headless/SSH) |
 
 The image is automatically resized and cropped to fit the LCD resolution.
 
@@ -104,6 +106,7 @@ trcc color '#0000ff'   # blue (quote the # in shell)
 | Option | Description |
 |--------|-------------|
 | `--device`, `-d` | Device path (default: auto-detect) |
+| `--preview`, `-p` | Show ANSI art preview in terminal |
 
 ---
 
@@ -114,13 +117,14 @@ Test the display with a color cycle (red, green, blue, yellow, magenta, cyan, wh
 ```bash
 trcc test
 trcc test --loop       # cycle continuously until Ctrl+C
-trcc test --device /dev/sg2
+trcc test --preview    # show ANSI preview for each color
 ```
 
 | Option | Description |
 |--------|-------------|
 | `--loop`, `-l` | Loop colors continuously (Ctrl+C to stop) |
 | `--device`, `-d` | Device path (default: auto-detect) |
+| `--preview`, `-p` | Show ANSI art preview in terminal |
 
 ---
 
@@ -136,6 +140,7 @@ trcc reset --device /dev/sg2
 | Option | Description |
 |--------|-------------|
 | `--device`, `-d` | Device path (default: auto-detect) |
+| `--preview`, `-p` | Show ANSI art preview in terminal |
 
 ---
 
@@ -251,7 +256,12 @@ HID handshake diagnostic — prints hex dump and resolved device info for bug re
 
 ```bash
 trcc hid-debug
+trcc hid-debug --test-frame   # send red test frame after handshake
 ```
+
+| Option | Description |
+|--------|-------------|
+| `--test-frame`, `-t` | Send a solid red test frame after handshake |
 
 **Example output:**
 
@@ -295,25 +305,6 @@ trcc led-debug --test      # handshake + send test colors
 
 ---
 
-### `trcc hr10-tempd`
-
-Display NVMe drive temperature on the HR10 2280 PRO Digital 7-segment display. Runs as a daemon — reads sysfs temperature and sends it to the device continuously with a breathe animation and thermal color gradient.
-
-```bash
-trcc hr10-tempd                          # default: 100% brightness, "9100" drive, Celsius
-trcc hr10-tempd --brightness 50          # 50% brightness
-trcc hr10-tempd --drive "Samsung 990"    # match a specific drive model
-trcc hr10-tempd --unit F                 # Fahrenheit
-```
-
-| Option | Description |
-|--------|-------------|
-| `--brightness` | LED brightness 0-100 (default: 100) |
-| `--drive` | Drive model substring to match (default: "9100") |
-| `--unit` | Temperature unit: C or F (default: C) |
-
----
-
 ### `trcc setup`
 
 Interactive setup wizard — checks system dependencies, GPU packages, udev rules, and desktop integration. Offers to install anything missing.
@@ -344,6 +335,24 @@ trcc setup-gui
 ```
 
 If trcc-linux is not installed, shows a dialog offering to install it via pip. After installing, Re-check reveals the full system checks.
+
+---
+
+### `trcc setup-polkit`
+
+Install a polkit policy for passwordless `dmidecode` and `smartctl` access. Avoids repeated sudo prompts when the GUI reads motherboard/disk info.
+
+```bash
+trcc setup-polkit
+```
+
+**What this does:**
+
+1. Installs an XML polkit policy (`com.trcc.pkexec.policy`) allowing your user to run `dmidecode` and `smartctl` without a password
+2. On XFCE (where `allow_active=yes` doesn't work), installs a JavaScript `.rules` file scoped to your user
+3. Runs `restorecon` on SELinux systems to fix file contexts
+
+After running, hardware info panels in the GUI will populate without sudo prompts.
 
 ---
 
@@ -461,6 +470,7 @@ trcc video clip.mp4 --duration 30
 | `--device`, `-d` | Device path (default: auto-detect) |
 | `--no-loop` | Play once instead of looping |
 | `--duration` | Stop after N seconds (default: 0 = forever) |
+| `--preview`, `-p` | Animate ANSI preview in terminal |
 
 ---
 
@@ -480,6 +490,7 @@ trcc screencast --fps 15
 | `--x`, `--y` | Top-left corner of capture region |
 | `--w`, `--h` | Width/height of capture region (0 = full screen) |
 | `--fps` | Frames per second (default: 10) |
+| `--preview`, `-p` | Animate ANSI preview in terminal |
 
 ---
 
@@ -497,6 +508,7 @@ trcc mask --clear                 # remove mask (send solid black)
 |--------|-------------|
 | `--device`, `-d` | Device path (default: auto-detect) |
 | `--clear` | Clear mask (send solid black) |
+| `--preview`, `-p` | Show ANSI art preview in terminal |
 
 ---
 
@@ -515,6 +527,7 @@ trcc overlay /path/to/theme/dir --output rendered.png
 | `--device`, `-d` | Device path (default: auto-detect) |
 | `--send`, `-s` | Send rendered result to LCD |
 | `--output`, `-o` | Save rendered image to file |
+| `--preview`, `-p` | Show ANSI art preview in terminal |
 
 ---
 
@@ -548,6 +561,7 @@ trcc theme-load warframe          # partial match
 | Option | Description |
 |--------|-------------|
 | `--device`, `-d` | Device path (default: auto-detect) |
+| `--preview`, `-p` | Show ANSI art preview in terminal |
 
 Applies saved brightness/rotation, saves as last-used theme.
 
@@ -605,6 +619,10 @@ trcc led-color ff0000      # red
 trcc led-color 00ff00      # green
 ```
 
+| Option | Description |
+|--------|-------------|
+| `--preview`, `-p` | Show LED zone colors as ANSI blocks in terminal |
+
 ---
 
 ### `trcc led-mode`
@@ -618,6 +636,10 @@ trcc led-mode colorful     # cycle colors (Ctrl+C to stop)
 trcc led-mode rainbow      # rotating hue (Ctrl+C to stop)
 ```
 
+| Option | Description |
+|--------|-------------|
+| `--preview`, `-p` | Show LED zone colors as ANSI blocks in terminal (animates for breathing/colorful/rainbow) |
+
 Animated modes run until Ctrl+C.
 
 ---
@@ -630,6 +652,10 @@ Set LED brightness.
 trcc led-brightness 50     # 50%
 trcc led-brightness 100    # full
 ```
+
+| Option | Description |
+|--------|-------------|
+| `--preview`, `-p` | Show LED zone colors as ANSI blocks in terminal |
 
 Range: 0-100.
 

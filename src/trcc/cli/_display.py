@@ -6,7 +6,7 @@ import os
 from trcc.cli import _cli_handler, _device
 
 
-def test(device=None, loop=False):
+def test(device=None, loop=False, preview=False):
     """Test display with color cycle."""
     try:
         import time
@@ -38,6 +38,8 @@ def test(device=None, loop=False):
                 print(f"  Displaying: {name}")
                 img = ImageService.solid_color(r, g, b, w, h)
                 svc.send_pil(img, w, h)
+                if preview:
+                    print(ImageService.to_ansi(img))
                 time.sleep(1)
 
             if not loop:
@@ -53,7 +55,7 @@ def test(device=None, loop=False):
         return 1
 
 
-def send_image(image_path, device=None):
+def send_image(image_path, device=None, preview=False):
     """Send image to LCD."""
     try:
         if not os.path.exists(image_path):
@@ -75,13 +77,15 @@ def send_image(image_path, device=None):
         img = ImageService.resize(img, w, h)
         svc.send_pil(img, w, h)
         print(f"Sent {image_path} to {dev.path}")
+        if preview:
+            print(ImageService.to_ansi(img))
         return 0
     except Exception as e:
         print(f"Error sending image: {e}")
         return 1
 
 
-def send_color(hex_color, device=None):
+def send_color(hex_color, device=None, preview=False):
     """Send solid color to LCD."""
     try:
         hex_color = hex_color.lstrip('#')
@@ -105,13 +109,16 @@ def send_color(hex_color, device=None):
         img = ImageService.solid_color(r, g, b, w, h)
         svc.send_pil(img, w, h)
         print(f"Sent color #{hex_color} to {dev.path}")
+        if preview:
+            print(ImageService.to_ansi(img))
         return 0
     except Exception as e:
         print(f"Error sending color: {e}")
         return 1
 
 
-def play_video(video_path, *, device=None, loop=True, duration=0):
+def play_video(video_path, *, device=None, loop=True, duration=0,
+               preview=False):
     """Play video/GIF/ZT on LCD device."""
     try:
         import time
@@ -121,7 +128,7 @@ def play_video(video_path, *, device=None, loop=True, duration=0):
             print(f"Error: File not found: {video_path}")
             return 1
 
-        from trcc.services import MediaService
+        from trcc.services import ImageService, MediaService
 
         svc = _device._get_service(device)
         if not svc.selected:
@@ -149,6 +156,8 @@ def play_video(video_path, *, device=None, loop=True, duration=0):
 
         interval = media.frame_interval_ms / 1000.0
         start = time.monotonic()
+        if preview:
+            print('\033[2J', end='', flush=True)  # clear screen
 
         while media.is_playing:
             frame, should_send, progress = media.tick()
@@ -156,7 +165,9 @@ def play_video(video_path, *, device=None, loop=True, duration=0):
                 break
             if should_send:
                 svc.send_pil(frame, w, h)
-            if progress:
+            if preview and frame:
+                print(ImageService.to_ansi_cursor_home(frame), flush=True)
+            elif progress:
                 pct, cur, total_t = progress
                 print(f"\r  {cur} / {total_t} ({pct:.0f}%)",
                       end="", flush=True)
@@ -231,7 +242,7 @@ def set_rotation(degrees, *, device=None):
     return 0
 
 
-def screencast(*, device=None, x=0, y=0, w=0, h=0, fps=10):
+def screencast(*, device=None, x=0, y=0, w=0, h=0, fps=10, preview=False):
     """Stream screen region to LCD. Ctrl+C to stop."""
     try:
         import time
@@ -260,6 +271,8 @@ def screencast(*, device=None, x=0, y=0, w=0, h=0, fps=10):
 
         interval = 1.0 / fps
         frames = 0
+        if preview:
+            print('\033[2J', end='', flush=True)
 
         while True:
             start = time.monotonic()
@@ -267,7 +280,10 @@ def screencast(*, device=None, x=0, y=0, w=0, h=0, fps=10):
             img = ImageService.resize(img, lcd_w, lcd_h)
             svc.send_pil(img, lcd_w, lcd_h)
             frames += 1
-            print(f"\r  Frames: {frames}", end="", flush=True)
+            if preview:
+                print(ImageService.to_ansi_cursor_home(img), flush=True)
+            else:
+                print(f"\r  Frames: {frames}", end="", flush=True)
             elapsed = time.monotonic() - start
             if elapsed < interval:
                 time.sleep(interval - elapsed)
@@ -285,7 +301,7 @@ def screencast(*, device=None, x=0, y=0, w=0, h=0, fps=10):
 
 
 @_cli_handler
-def load_mask(mask_path, *, device=None):
+def load_mask(mask_path, *, device=None, preview=False):
     """Load mask overlay from file/directory and send composited image."""
     from pathlib import Path
 
@@ -329,11 +345,14 @@ def load_mask(mask_path, *, device=None):
 
     svc.send_pil(result, w, h)
     print(f"Sent mask {mask_file.name} to {dev.path}")
+    if preview:
+        print(ImageService.to_ansi(result))
     return 0
 
 
 @_cli_handler
-def render_overlay(dc_path, *, device=None, send=False, output=None):
+def render_overlay(dc_path, *, device=None, send=False, output=None,
+                   preview=False):
     """Render overlay from DC config file."""
     from pathlib import Path
 
@@ -377,7 +396,10 @@ def render_overlay(dc_path, *, device=None, send=False, output=None):
         svc.send_pil(result, w, h)
         print(f"Sent overlay to {svc.selected.path}")
 
-    if not output and not send:
+    if preview:
+        print(ImageService.to_ansi(result))
+
+    if not output and not send and not preview:
         elements = len(overlay.config) if overlay.config else 0
         print(f"Overlay config loaded: {elements} elements ({w}x{h})")
         if display_opts:
@@ -387,7 +409,7 @@ def render_overlay(dc_path, *, device=None, send=False, output=None):
     return 0
 
 
-def reset(device=None):
+def reset(device=None, *, preview=False):
     """Reset/reinitialize the LCD device."""
     try:
         from trcc.services import ImageService
@@ -405,6 +427,8 @@ def reset(device=None):
         img = ImageService.solid_color(255, 0, 0, w, h)
         svc.send_pil(img, w, h)
         print("[OK] Device reset - displaying RED")
+        if preview:
+            print(ImageService.to_ansi(img))
         return 0
     except Exception as e:
         print(f"Error resetting device: {e}")

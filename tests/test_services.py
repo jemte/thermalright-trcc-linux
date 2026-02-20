@@ -275,6 +275,81 @@ class TestImageServiceToJpeg(unittest.TestCase):
         self.assertLess(len(jpeg), len(rgb565))
 
 
+class TestImageServiceToAnsi(unittest.TestCase):
+    """Test ANSI true-color terminal rendering."""
+
+    def test_returns_string(self):
+        img = Image.new('RGB', (4, 4), (255, 0, 0))
+        result = ImageService.to_ansi(img, cols=4)
+        self.assertIsInstance(result, str)
+
+    def test_contains_half_block(self):
+        img = Image.new('RGB', (4, 4), (0, 255, 0))
+        result = ImageService.to_ansi(img, cols=4)
+        self.assertIn('\u2580', result)
+
+    def test_contains_ansi_escapes(self):
+        img = Image.new('RGB', (4, 4), (255, 0, 0))
+        result = ImageService.to_ansi(img, cols=4)
+        self.assertIn('\033[38;2;', result)   # foreground
+        self.assertIn('\033[48;2;', result)   # background
+        self.assertIn('\033[0m', result)      # reset
+
+    def test_red_contains_red_color(self):
+        """Solid red should produce 255;0;0 (or close) in ANSI escapes."""
+        img = Image.new('RGB', (2, 2), (255, 0, 0))
+        result = ImageService.to_ansi(img, cols=2)
+        self.assertIn('255;0;0', result)
+
+    def test_rgba_input(self):
+        """RGBA images should render without error."""
+        img = Image.new('RGBA', (4, 4), (0, 0, 255, 128))
+        result = ImageService.to_ansi(img, cols=4)
+        self.assertIn('\u2580', result)
+
+    def test_cursor_home_variant(self):
+        img = Image.new('RGB', (4, 4), (0, 0, 0))
+        result = ImageService.to_ansi_cursor_home(img, cols=4)
+        self.assertTrue(result.startswith('\033[H'))
+
+    def test_cols_parameter(self):
+        """Smaller cols = shorter lines."""
+        img = Image.new('RGB', (100, 100), (128, 128, 128))
+        narrow = ImageService.to_ansi(img, cols=10)
+        wide = ImageService.to_ansi(img, cols=40)
+        # Wider output should have more characters
+        self.assertGreater(len(wide), len(narrow))
+
+
+class TestLEDServiceZonesToAnsi(unittest.TestCase):
+    """Test LED zone ANSI terminal rendering."""
+
+    def test_empty_returns_empty(self):
+        from trcc.services.led import LEDService
+        self.assertEqual(LEDService.zones_to_ansi([]), '')
+
+    def test_single_zone(self):
+        from trcc.services.led import LEDService
+        result = LEDService.zones_to_ansi([(255, 0, 0)])
+        self.assertIn('48;2;255;0;0', result)
+        self.assertIn('\033[0m', result)
+
+    def test_multiple_zones(self):
+        from trcc.services.led import LEDService
+        colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
+        result = LEDService.zones_to_ansi(colors)
+        self.assertIn('48;2;255;0;0', result)
+        self.assertIn('48;2;0;255;0', result)
+        self.assertIn('48;2;0;0;255', result)
+
+    def test_zone_count_matches(self):
+        from trcc.services.led import LEDService
+        colors = [(i, i, i) for i in range(5)]
+        result = LEDService.zones_to_ansi(colors)
+        # Each zone produces one reset escape
+        self.assertEqual(result.count('\033[0m'), 5)
+
+
 class TestDeviceServiceSendPilBulk(unittest.TestCase):
     """Test that send_pil routes bulk devices through JPEG encoding."""
 

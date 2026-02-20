@@ -177,9 +177,12 @@ def _cmd_test(
     loop: Annotated[bool, typer.Option(
         "--loop", "-l", help="Loop colors continuously",
     )] = False,
+    preview: Annotated[bool, typer.Option(
+        "--preview", "-p", help="Show ANSI terminal preview",
+    )] = False,
 ) -> int:
     """Test display with color cycle."""
-    return _display.test(device=device, loop=loop)
+    return _display.test(device=device, loop=loop, preview=preview)
 
 
 @app.command("send")
@@ -188,9 +191,12 @@ def _cmd_send(
     device: Annotated[Optional[str], typer.Option(
         "--device", "-d", help="Device path",
     )] = None,
+    preview: Annotated[bool, typer.Option(
+        "--preview", "-p", help="Show ANSI terminal preview",
+    )] = False,
 ) -> int:
     """Send image to LCD."""
-    return _display.send_image(image, device=device)
+    return _display.send_image(image, device=device, preview=preview)
 
 
 @app.command("color")
@@ -201,9 +207,12 @@ def _cmd_color(
     device: Annotated[Optional[str], typer.Option(
         "--device", "-d", help="Device path",
     )] = None,
+    preview: Annotated[bool, typer.Option(
+        "--preview", "-p", help="Show ANSI terminal preview",
+    )] = False,
 ) -> int:
     """Display solid color."""
-    return _display.send_color(hex_color, device=device)
+    return _display.send_color(hex_color, device=device, preview=preview)
 
 
 @app.command("video")
@@ -218,10 +227,14 @@ def _cmd_video(
     duration: Annotated[int, typer.Option(
         "--duration", "-t", help="Stop after N seconds (0=unlimited)",
     )] = 0,
+    preview: Annotated[bool, typer.Option(
+        "--preview", "-p", help="Show ANSI terminal preview",
+    )] = False,
 ) -> int:
     """Play video/GIF on LCD."""
     return _display.play_video(
-        path, device=device, loop=not no_loop, duration=duration)
+        path, device=device, loop=not no_loop, duration=duration,
+        preview=preview)
 
 
 @app.command("brightness")
@@ -256,9 +269,13 @@ def _cmd_screencast(
     w: Annotated[int, typer.Option(help="Capture region width (0=full)")] = 0,
     h: Annotated[int, typer.Option(help="Capture region height (0=full)")] = 0,
     fps: Annotated[int, typer.Option(help="Target frames per second")] = 10,
+    preview: Annotated[bool, typer.Option(
+        "--preview", "-p", help="Show ANSI terminal preview",
+    )] = False,
 ) -> int:
     """Stream screen region to LCD."""
-    return _display.screencast(device=device, x=x, y=y, w=w, h=h, fps=fps)
+    return _display.screencast(device=device, x=x, y=y, w=w, h=h, fps=fps,
+                               preview=preview)
 
 
 @app.command("mask")
@@ -272,14 +289,17 @@ def _cmd_mask(
     clear: Annotated[bool, typer.Option(
         "--clear", "-c", help="Clear mask (send solid black)",
     )] = False,
+    preview: Annotated[bool, typer.Option(
+        "--preview", "-p", help="Show ANSI terminal preview",
+    )] = False,
 ) -> int:
     """Load mask overlay and send to LCD."""
     if clear:
-        return _display.send_color("#000000", device=device)
+        return _display.send_color("#000000", device=device, preview=preview)
     if not path:
         typer.echo("Error: Provide a mask path or use --clear")
         raise typer.Exit(1)
-    return _display.load_mask(path, device=device)
+    return _display.load_mask(path, device=device, preview=preview)
 
 
 @app.command("overlay")
@@ -294,10 +314,13 @@ def _cmd_overlay(
     output: Annotated[Optional[str], typer.Option(
         "--output", "-o", help="Save rendered image to file",
     )] = None,
+    preview: Annotated[bool, typer.Option(
+        "--preview", "-p", help="Show ANSI terminal preview",
+    )] = False,
 ) -> int:
     """Render overlay from DC config."""
     return _display.render_overlay(
-        dc_path, device=device, send=send, output=output)
+        dc_path, device=device, send=send, output=output, preview=preview)
 
 
 @app.command("theme-list")
@@ -319,9 +342,12 @@ def _cmd_theme_load(
     device: Annotated[Optional[str], typer.Option(
         "--device", "-d", help="Device path",
     )] = None,
+    preview: Annotated[bool, typer.Option(
+        "--preview", "-p", help="Show ANSI terminal preview",
+    )] = False,
 ) -> int:
     """Load a theme and send to LCD."""
-    return _theme.load_theme(name, device=device)
+    return _theme.load_theme(name, device=device, preview=preview)
 
 
 @app.command("led-color")
@@ -329,9 +355,12 @@ def _cmd_led_color(
     hex_color: Annotated[str, typer.Argument(
         metavar="HEX", help="Hex color (e.g., ff0000 for red)",
     )],
+    preview: Annotated[bool, typer.Option(
+        "--preview", "-p", help="Show ANSI terminal preview",
+    )] = False,
 ) -> int:
     """Set LED static color."""
-    return _led.set_color(hex_color)
+    return _led.set_color(hex_color, preview=preview)
 
 
 @app.command("led-mode")
@@ -339,17 +368,23 @@ def _cmd_led_mode(
     mode: Annotated[str, typer.Argument(
         help="Effect: static, breathing, colorful, rainbow",
     )],
+    preview: Annotated[bool, typer.Option(
+        "--preview", "-p", help="Show ANSI terminal preview",
+    )] = False,
 ) -> int:
     """Set LED effect mode."""
-    return _led.set_mode(mode)
+    return _led.set_mode(mode, preview=preview)
 
 
 @app.command("led-brightness")
 def _cmd_led_brightness(
     level: Annotated[int, typer.Argument(help="Brightness 0-100")],
+    preview: Annotated[bool, typer.Option(
+        "--preview", "-p", help="Show ANSI terminal preview",
+    )] = False,
 ) -> int:
     """Set LED brightness."""
-    return _led.set_led_brightness(level)
+    return _led.set_led_brightness(level, preview=preview)
 
 
 @app.command("led-off")
@@ -413,9 +448,12 @@ def _cmd_reset(
     device: Annotated[Optional[str], typer.Option(
         "--device", "-d", help="Device path (e.g., /dev/sg0)",
     )] = None,
+    preview: Annotated[bool, typer.Option(
+        "--preview", "-p", help="Show ANSI terminal preview",
+    )] = False,
 ) -> int:
     """Reset/reinitialize LCD device."""
-    return _display.reset(device=device)
+    return _display.reset(device=device, preview=preview)
 
 
 @app.command("setup-udev")
