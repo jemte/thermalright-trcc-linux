@@ -5,13 +5,13 @@ Interactive HSV color wheel widget for LED control panels.
 Matches C# UCColorA: rainbow ring image (D3旋钮), click/drag hue
 selection, and center on/off toggle button (D3开关/D3开关a).
 
-The C# color wheel uses a non-standard angle system:
-  - 0° = top (north), increases counterclockwise
-  - Hue mapping: Red(0°) → Magenta(60°) → Blue(120°) → Cyan(180°)
-    → Green(240°) → Yellow(300°) → Red(360°)
+The D3旋钮 image has colors going clockwise from Red at top:
+  Red → Magenta → Blue → Cyan → Green → Yellow → Red
+This is the reverse of standard HSV hue order.
 
-This is equivalent to standard HSV hue = (360 - c_sharp_angle) % 360.
-Combined with the math-convention offset: HSV hue = (450 - math_angle) % 360.
+Mapping: HSV hue = (math_angle + 270) % 360, where math_angle is
+standard atan2 (0°=right, CCW positive).  Inverse for dot placement:
+math_angle = (hue - 270) % 360.
 
 Original color ring by Lcstyle (GitHub PR #9).
 """
@@ -164,10 +164,10 @@ class UCColorWheel(QWidget):
 
         # --- Selector indicator on the ring midpoint ---
         # Convert HSV hue back to math angle for position on the ring.
-        # C# angle convention: 0°=top, CCW.  Math: 0°=right, CCW.
-        # Relationship: math_angle = (450 - hue) % 360
+        # D3旋钮 goes CW from Red: Red→Magenta→Blue→Cyan→Green→Yellow.
+        # Inverse of hue=(math_angle+270)%360 → math_angle=(hue-270)%360
         mid_r = (self.OUTER_RADIUS + self.INNER_RADIUS) / 2.0
-        math_angle = (450 - self._hue) % 360
+        math_angle = (self._hue - 270) % 360
         angle_rad = math.radians(math_angle)
         sx = cx + mid_r * math.cos(angle_rad)
         sy = cy - mid_r * math.sin(angle_rad)
@@ -207,10 +207,11 @@ class UCColorWheel(QWidget):
     def _update_hue_from_pos(self, pos):
         """Convert mouse position to HSV hue matching the D3旋钮 image.
 
-        The D3旋钮 image matches C#'s angle system where 0° is at top and
-        colors go clockwise: Red → Yellow → Green → Cyan → Blue → Magenta.
+        The D3旋钮 image has colors going CW from Red at top:
+        Red → Magenta → Blue → Cyan → Green → Yellow → Red
+        (reverse of standard HSV order).
         Standard math atan2 gives 0°=right, CCW positive.
-        Conversion: hue = (450 - math_angle) % 360.
+        Conversion: hue = (math_angle + 270) % 360.
         """
         cx = self.width() / 2.0
         cy = self.height() / 2.0
@@ -219,7 +220,7 @@ class UCColorWheel(QWidget):
         math_angle = math.degrees(math.atan2(dy, dx))
         if math_angle < 0:
             math_angle += 360
-        hue = int(450 - math_angle) % 360
+        hue = int(math_angle + 270) % 360
         if hue != self._hue:
             self._hue = hue
             self.update()

@@ -36,27 +36,52 @@ def _sudo_run(cmd):
     return subprocess.run(["sudo"] + cmd)
 
 
-def show_info():
-    """Show system metrics."""
+def show_info(*, preview: bool = False, metric: str | None = None):
+    """Show system metrics, optionally as ANSI terminal art.
+
+    Args:
+        preview: Render metrics as ANSI colored dashboard.
+        metric: Filter to a group — cpu, gpu, mem, disk, net, fan, time.
+    """
     try:
         from trcc.adapters.system.info import format_metric, get_all_metrics
 
         metrics = get_all_metrics()
 
+        if preview:
+            from trcc.services import ImageService
+            print(ImageService.metrics_to_ansi(metrics, group=metric))
+            return 0
+
+        # Text output (original behavior)
         print("System Information")
         print("=" * 40)
 
         groups = [
-            ("CPU", ['cpu_temp', 'cpu_percent', 'cpu_freq']),
-            ("GPU", ['gpu_temp', 'gpu_usage', 'gpu_clock']),
-            ("Memory", ['mem_percent']),
+            ("CPU", ['cpu_temp', 'cpu_percent', 'cpu_freq', 'cpu_power']),
+            ("GPU", ['gpu_temp', 'gpu_usage', 'gpu_clock', 'gpu_power']),
+            ("Memory", ['mem_temp', 'mem_percent', 'mem_clock', 'mem_available']),
+            ("Disk", ['disk_temp', 'disk_activity', 'disk_read', 'disk_write']),
+            ("Network", ['net_up', 'net_down', 'net_total_up', 'net_total_down']),
+            ("Fan", ['fan_cpu', 'fan_gpu', 'fan_ssd', 'fan_sys2']),
             ("Date/Time", ['date', 'time', 'weekday']),
         ]
+
+        # Filter if metric specified
+        if metric:
+            key = metric.lower()
+            alias = {'mem': 'Memory', 'cpu': 'CPU', 'gpu': 'GPU',
+                     'disk': 'Disk', 'net': 'Network', 'fan': 'Fan',
+                     'time': 'Date/Time'}
+            target = alias.get(key)
+            if target:
+                groups = [(lb, ks) for lb, ks in groups if lb == target]
+
         for label, keys in groups:
             print(f"\n{label}:")
             for key in keys:
                 val = getattr(metrics, key, None)
-                if val is not None:
+                if val is not None and (val != 0.0 or key in ('date', 'time', 'weekday')):
                     print(f"  {key}: {format_metric(key, val)}")
 
         return 0

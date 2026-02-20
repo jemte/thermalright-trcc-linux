@@ -1,184 +1,582 @@
-"""LED color, mode, brightness control commands."""
+"""LED color, mode, brightness control commands.
+
+LEDDispatcher is the single authority for all LED operations.
+GUI and API import LEDDispatcher directly; CLI functions are thin
+presentation wrappers (print + exit code).
+"""
 from __future__ import annotations
 
-from trcc.cli import _cli_handler
+from typing import Any
+
+from trcc.cli import _cli_handler, _parse_hex
+
+# =========================================================================
+# LEDDispatcher — programmatic API (returns data, never prints)
+# =========================================================================
+
+class LEDDispatcher:
+    """LED command dispatcher — single authority for all LED operations.
+
+    Returns result dicts with 'success', 'message', 'error', and optional
+    data ('colors', 'animated').  CLI wraps with print/exit.  GUI and API
+    import and use directly.
+    """
+
+    # Canonical mode name → LEDMode mapping (import deferred to avoid top-level dep)
+    _MODE_MAP: dict[str, Any] | None = None
+
+    @classmethod
+    def _modes(cls) -> dict[str, Any]:
+        if cls._MODE_MAP is None:
+            from trcc.core.models import LEDMode
+            cls._MODE_MAP = {
+                'static': LEDMode.STATIC,
+                'breathing': LEDMode.BREATHING,
+                'colorful': LEDMode.COLORFUL,
+                'rainbow': LEDMode.RAINBOW,
+            }
+        return cls._MODE_MAP
+
+    def __init__(self, svc: Any = None):
+        self._svc = svc
+        self._init_status: str | None = None
+
+    # ── Properties ────────────────────────────────────────────────────
+
+    @property
+    def connected(self) -> bool:
+        return self._svc is not None
+
+    @property
+    def status(self) -> str | None:
+        return self._init_status
+
+    @property
+    def service(self) -> Any:
+        return self._svc
+
+    # ── Connection ────────────────────────────────────────────────────
+
+    def connect(self) -> dict:
+        """Auto-detect LED device and initialize.
+
+        Returns: {"success": bool, "status": str, "error": str}
+        """
+        if self._svc:
+            return {"success": True, "status": self._init_status or ""}
+
+        from trcc.adapters.device.detector import detect_devices
+        from trcc.services import LEDService
+
+        devices = detect_devices()
+        led_dev = next(
+            (d for d in devices if d.implementation == 'hid_led'), None)
+        if not led_dev:
+            return {"success": False, "error": "No LED device found"}
+
+        self._svc = LEDService()
+        from trcc.adapters.device.led import probe_led_model
+        info = probe_led_model(led_dev.vid, led_dev.pid,
+                               usb_path=led_dev.usb_path)
+        style_id = info.style.style_id if (info and info.style) else 1
+        self._init_status = self._svc.initialize(led_dev, style_id)
+        return {"success": True, "status": self._init_status or ""}
+
+    # ── Global operations ─────────────────────────────────────────────
+
+    def set_color(self, r: int, g: int, b: int) -> dict:
+        """Set LED static color."""
+        from trcc.core.models import LEDMode
+
+        self._svc.set_mode(LEDMode.STATIC)
+        self._svc.set_color(r, g, b)
+        self._svc.toggle_global(True)
+        colors = self._svc.tick()
+        self._svc.send_colors(colors)
+        self._svc.save_config()
+        return {
+            "success": True,
+            "colors": colors,
+            "message": f"LED color set to #{r:02x}{g:02x}{b:02x}",
+        }
+
+    def set_mode(self, mode_name: str) -> dict:
+        """Set LED effect mode. Returns animated=True for breathing/colorful/rainbow."""
+        from trcc.core.models import LEDMode
+
+        modes = self._modes()
+        mode = modes.get(mode_name.lower())
+        if not mode:
+            return {
+                "success": False,
+                "error": f"Unknown mode '{mode_name}'",
+                "available": list(modes.keys()),
+            }
+
+        self._svc.set_mode(mode)
+        self._svc.toggle_global(True)
+        colors = self._svc.tick()
+        self._svc.send_colors(colors)
+        self._svc.save_config()
+
+        animated = mode in (LEDMode.BREATHING, LEDMode.COLORFUL, LEDMode.RAINBOW)
+        return {
+            "success": True,
+            "colors": colors,
+            "animated": animated,
+            "message": f"LED mode: {mode_name}",
+        }
+
+    def set_brightness(self, level: int) -> dict:
+        """Set LED brightness (0-100)."""
+        if level < 0 or level > 100:
+            return {"success": False, "error": "Brightness must be 0-100"}
+
+        self._svc.set_brightness(level)
+        self._svc.toggle_global(True)
+        colors = self._svc.tick()
+        self._svc.send_colors(colors)
+        self._svc.save_config()
+        return {
+            "success": True,
+            "colors": colors,
+            "message": f"LED brightness set to {level}%",
+        }
+
+    def off(self) -> dict:
+        """Turn LEDs off."""
+        self._svc.toggle_global(False)
+        self._svc.send_tick()
+        self._svc.save_config()
+        return {"success": True, "message": "LEDs turned off"}
+
+    def set_sensor_source(self, source: str) -> dict:
+        """Set CPU/GPU sensor source for temp/load linked modes."""
+        source = source.lower()
+        if source not in ('cpu', 'gpu'):
+            return {"success": False, "error": "Source must be 'cpu' or 'gpu'"}
+
+        self._svc.set_sensor_source(source)
+        self._svc.save_config()
+        return {"success": True, "message": f"LED sensor source set to {source.upper()}"}
+
+    # ── Zone operations ───────────────────────────────────────────────
+
+    def set_zone_color(self, zone: int, r: int, g: int, b: int) -> dict:
+        """Set color for a specific LED zone."""
+        self._svc.set_zone_color(zone, r, g, b)
+        self._svc.toggle_global(True)
+        colors = self._svc.tick()
+        self._svc.send_colors(colors)
+        self._svc.save_config()
+        return {
+            "success": True,
+            "colors": colors,
+            "message": f"Zone {zone} color set to #{r:02x}{g:02x}{b:02x}",
+        }
+
+    def set_zone_mode(self, zone: int, mode_name: str) -> dict:
+        """Set effect mode for a specific LED zone."""
+        mode = self._modes().get(mode_name.lower())
+        if not mode:
+            return {"success": False, "error": f"Unknown mode '{mode_name}'"}
+
+        self._svc.set_zone_mode(zone, mode)
+        self._svc.toggle_global(True)
+        colors = self._svc.tick()
+        self._svc.send_colors(colors)
+        self._svc.save_config()
+        return {
+            "success": True,
+            "colors": colors,
+            "message": f"Zone {zone} mode set to {mode_name}",
+        }
+
+    def set_zone_brightness(self, zone: int, level: int) -> dict:
+        """Set brightness for a specific LED zone (0-100)."""
+        if level < 0 or level > 100:
+            return {"success": False, "error": "Brightness must be 0-100"}
+
+        self._svc.set_zone_brightness(zone, level)
+        self._svc.toggle_global(True)
+        colors = self._svc.tick()
+        self._svc.send_colors(colors)
+        self._svc.save_config()
+        return {
+            "success": True,
+            "colors": colors,
+            "message": f"Zone {zone} brightness set to {level}%",
+        }
+
+    def toggle_zone(self, zone: int, on: bool) -> dict:
+        """Toggle a specific LED zone on/off."""
+        self._svc.toggle_zone(zone, on)
+        self._svc.send_tick()
+        self._svc.save_config()
+        state = "ON" if on else "OFF"
+        return {"success": True, "message": f"Zone {zone} turned {state}"}
+
+    def set_zone_sync(self, enabled: bool, interval: int | None = None) -> dict:
+        """Enable/disable zone sync (circulate/select-all)."""
+        if interval is not None:
+            self._svc.set_zone_sync_interval(interval)
+        self._svc.set_zone_sync(enabled)
+        self._svc.send_tick()
+        self._svc.save_config()
+        state = "enabled" if enabled else "disabled"
+        return {"success": True, "message": f"Zone sync {state}"}
+
+    # ── Segment operations ────────────────────────────────────────────
+
+    def toggle_segment(self, index: int, on: bool) -> dict:
+        """Toggle a specific LED segment on/off."""
+        self._svc.toggle_segment(index, on)
+        self._svc.send_tick()
+        self._svc.save_config()
+        state = "ON" if on else "OFF"
+        return {"success": True, "message": f"Segment {index} turned {state}"}
+
+    def set_clock_format(self, is_24h: bool) -> dict:
+        """Set LED segment display clock format (12h/24h)."""
+        self._svc.set_clock_format(is_24h)
+        self._svc.send_tick()
+        self._svc.save_config()
+        fmt = "24h" if is_24h else "12h"
+        return {"success": True, "message": f"Clock format set to {fmt}"}
+
+    def set_temp_unit(self, unit: str) -> dict:
+        """Set LED segment display temperature unit (C/F)."""
+        unit = unit.upper()
+        if unit not in ('C', 'F'):
+            return {"success": False, "error": "Unit must be 'C' or 'F'"}
+
+        self._svc.set_seg_temp_unit(unit)
+        self._svc.send_tick()
+        self._svc.save_config()
+        name = "Celsius" if unit == 'C' else "Fahrenheit"
+        return {"success": True, "message": f"Temperature unit set to {name}"}
+
+    # ── Animation tick ────────────────────────────────────────────────
+
+    def tick(self) -> dict:
+        """Advance one animation frame. Returns colors for preview."""
+        colors = self._svc.tick()
+        self._svc.send_colors(colors)
+        return {"colors": colors}
 
 
+# =========================================================================
+# CLI presentation helpers
+# =========================================================================
+
+def _connect_or_fail() -> tuple[LEDDispatcher, int]:
+    """Create dispatcher from _get_led_service. Returns (dispatcher, exit_code).
+
+    Uses _get_led_service() so test mocks that patch it still work.
+    """
+    svc, status = _get_led_service()
+    if not svc:
+        print("No LED device found.")
+        return LEDDispatcher(), 1
+    if status:
+        print(status)
+    return LEDDispatcher(svc=svc), 0
+
+
+def _print_result(result: dict, *, preview: bool = False) -> int:
+    """Print result message + optional ANSI preview. Returns exit code."""
+    if not result["success"]:
+        print(f"Error: {result.get('error', 'Unknown error')}")
+        return 1
+    print(result["message"])
+    if preview and result.get("colors"):
+        from trcc.services import LEDService
+        print(LEDService.zones_to_ansi(result["colors"]))
+    return 0
+
+
+# =========================================================================
+# CLI functions (thin wrappers — print + exit code)
+# =========================================================================
+
+# Keep _get_led_service for backward compat (tests import it)
 def _get_led_service():
     """Detect LED device and create initialized LEDService."""
-    from trcc.adapters.device.detector import detect_devices
-    from trcc.services import LEDService
-
-    devices = detect_devices()
-    led_dev = next(
-        (d for d in devices if d.implementation == 'hid_led'), None)
-    if not led_dev:
+    led = LEDDispatcher()
+    result = led.connect()
+    if not result["success"]:
         return None, None
-
-    led_svc = LEDService()
-    from trcc.adapters.device.led import probe_led_model
-    info = probe_led_model(led_dev.vid, led_dev.pid,
-                           usb_path=led_dev.usb_path)
-    if info and info.style:
-        style_id = info.style.style_id
-    else:
-        style_id = 1
-
-    status = led_svc.initialize(led_dev, style_id)
-    return led_svc, status
+    return led.service, result["status"]
 
 
 @_cli_handler
 def set_color(hex_color, *, preview=False):
     """Set LED static color."""
-    hex_color = hex_color.lstrip('#')
-    if len(hex_color) != 6:
+    rgb = _parse_hex(hex_color)
+    if not rgb:
         print("Error: Invalid hex color. Use format: ff0000")
         return 1
 
-    r = int(hex_color[0:2], 16)
-    g = int(hex_color[2:4], 16)
-    b = int(hex_color[4:6], 16)
+    led, rc = _connect_or_fail()
+    if rc:
+        return rc
+    return _print_result(led.set_color(*rgb), preview=preview)
 
-    from trcc.core.models import LEDMode
 
-    led_svc, status = _get_led_service()
-    if not led_svc:
-        print("No LED device found.")
+@_cli_handler
+def set_mode(mode_name, *, preview=False):
+    """Set LED effect mode."""
+    import time
+
+    led, rc = _connect_or_fail()
+    if rc:
+        return rc
+
+    result = led.set_mode(mode_name)
+    if not result["success"]:
+        print(f"Error: {result['error']}")
+        if result.get("available"):
+            print(f"Available: {', '.join(result['available'])}")
         return 1
 
-    print(status)
-    led_svc.set_mode(LEDMode.STATIC)
-    led_svc.set_color(r, g, b)
-    led_svc.toggle_global(True)
-    colors = led_svc.tick()
-    led_svc.send_colors(colors)
-    led_svc.save_config()
-
-    print(f"LED color set to #{hex_color}")
-    if preview and colors:
+    if result["animated"]:
         from trcc.services import LEDService
-        print(LEDService.zones_to_ansi(colors))
+
+        print(f"LED mode: {mode_name} (running animation, Ctrl+C to stop)")
+        try:
+            while True:
+                tick = led.tick()
+                if preview and tick.get("colors"):
+                    print(LEDService.zones_to_ansi(tick["colors"]),
+                          end='\r', flush=True)
+                time.sleep(0.05)
+        except KeyboardInterrupt:
+            pass
+        print("\nStopped.")
+    else:
+        print(result["message"])
+        if preview and result.get("colors"):
+            from trcc.services import LEDService
+            print(LEDService.zones_to_ansi(result["colors"]))
+
     return 0
 
 
-def set_mode(mode_name, *, preview=False):
-    """Set LED effect mode."""
+@_cli_handler
+def set_led_brightness(level, *, preview=False):
+    """Set LED brightness (0-100)."""
+    led, rc = _connect_or_fail()
+    if rc:
+        return rc
+    return _print_result(led.set_brightness(level), preview=preview)
+
+
+@_cli_handler
+def led_off():
+    """Turn LEDs off."""
+    led, rc = _connect_or_fail()
+    if rc:
+        return rc
+    return _print_result(led.off())
+
+
+@_cli_handler
+def set_sensor_source(source):
+    """Set CPU/GPU sensor source for temp/load linked LED modes."""
+    led, rc = _connect_or_fail()
+    if rc:
+        return rc
+    return _print_result(led.set_sensor_source(source))
+
+
+@_cli_handler
+def set_zone_color(zone: int, hex_color: str, *, preview: bool = False):
+    """Set color for a specific LED zone."""
+    rgb = _parse_hex(hex_color)
+    if not rgb:
+        print("Error: Invalid hex color. Use format: ff0000")
+        return 1
+
+    led, rc = _connect_or_fail()
+    if rc:
+        return rc
+    return _print_result(led.set_zone_color(zone, *rgb), preview=preview)
+
+
+@_cli_handler
+def set_zone_mode(zone: int, mode_name: str, *, preview: bool = False):
+    """Set effect mode for a specific LED zone."""
+    led, rc = _connect_or_fail()
+    if rc:
+        return rc
+    return _print_result(led.set_zone_mode(zone, mode_name), preview=preview)
+
+
+@_cli_handler
+def set_zone_brightness(zone: int, level: int, *, preview: bool = False):
+    """Set brightness for a specific LED zone (0-100)."""
+    led, rc = _connect_or_fail()
+    if rc:
+        return rc
+    return _print_result(led.set_zone_brightness(zone, level), preview=preview)
+
+
+@_cli_handler
+def toggle_zone(zone: int, on: bool):
+    """Toggle a specific LED zone on/off."""
+    led, rc = _connect_or_fail()
+    if rc:
+        return rc
+    return _print_result(led.toggle_zone(zone, on))
+
+
+@_cli_handler
+def set_zone_sync(enabled: bool, *, interval: int | None = None):
+    """Enable/disable zone sync (circulate or select-all depending on style)."""
+    led, rc = _connect_or_fail()
+    if rc:
+        return rc
+    return _print_result(led.set_zone_sync(enabled, interval=interval))
+
+
+@_cli_handler
+def toggle_segment(index: int, on: bool):
+    """Toggle a specific LED segment on/off."""
+    led, rc = _connect_or_fail()
+    if rc:
+        return rc
+    return _print_result(led.toggle_segment(index, on))
+
+
+@_cli_handler
+def set_clock_format(is_24h: bool):
+    """Set LED segment display clock format (12h/24h)."""
+    led, rc = _connect_or_fail()
+    if rc:
+        return rc
+    return _print_result(led.set_clock_format(is_24h))
+
+
+@_cli_handler
+def set_temp_unit(unit: str):
+    """Set LED segment display temperature unit (C/F)."""
+    led, rc = _connect_or_fail()
+    if rc:
+        return rc
+    return _print_result(led.set_temp_unit(unit))
+
+
+# =========================================================================
+# Developer test commands (no device needed)
+# =========================================================================
+
+def test_led(*, mode: str | None = None, segments: int = 64,
+             duration: int = 0):
+    """Test LED ANSI preview with real system metrics. No device needed.
+
+    Cycles through LED modes rendering zone colors as ANSI blocks in terminal.
+    Developers can verify LED rendering without hardware.
+    """
+    import time
+
+    from trcc.core.models import LEDMode, LEDState
+    from trcc.services.led import LEDService
+    from trcc.services.system import SystemService
+
+    modes = {
+        'static': LEDMode.STATIC,
+        'breathing': LEDMode.BREATHING,
+        'colorful': LEDMode.COLORFUL,
+        'rainbow': LEDMode.RAINBOW,
+    }
+
+    if mode:
+        key = mode.lower()
+        if key not in modes:
+            print(f"Unknown mode '{mode}'. Choose: {', '.join(modes)}")
+            return 1
+        run_modes = {key: modes[key]}
+    else:
+        run_modes = modes
+
+    # Real metrics from this machine
+    sys_svc = SystemService()
+    sys_svc.discover()
+    metrics = sys_svc.all_metrics
+
+    print(f"LED ANSI Preview ({segments} segments)")
+    print(f"CPU: {metrics.cpu_temp:.0f}°C {metrics.cpu_percent:.0f}%  "
+          f"GPU: {metrics.gpu_temp:.0f}°C {metrics.gpu_usage:.0f}%  "
+          f"MEM: {metrics.mem_percent:.0f}%")
+    print("─" * 60)
+
     try:
-        import time
+        start = time.monotonic()
+        for mode_name, led_mode in run_modes.items():
+            state = LEDState()
+            state.mode = led_mode
+            state.color = (255, 0, 0) if led_mode == LEDMode.STATIC else (0, 255, 255)
+            state.segment_count = segments
+            state.global_on = True
+            state.brightness = 100
+            svc = LEDService(state=state)
+            svc.update_metrics(metrics)
 
-        from trcc.core.models import LEDMode
-
-        mode_map = {
-            'static': LEDMode.STATIC,
-            'breathing': LEDMode.BREATHING,
-            'colorful': LEDMode.COLORFUL,
-            'rainbow': LEDMode.RAINBOW,
-        }
-
-        mode = mode_map.get(mode_name.lower())
-        if not mode:
-            print(f"Error: Unknown mode '{mode_name}'")
-            print(f"Available: {', '.join(mode_map)}")
-            return 1
-
-        led_svc, status = _get_led_service()
-        if not led_svc:
-            print("No LED device found.")
-            return 1
-
-        print(status)
-        led_svc.set_mode(mode)
-        led_svc.toggle_global(True)
-
-        if mode in (LEDMode.BREATHING, LEDMode.COLORFUL, LEDMode.RAINBOW):
-            print(f"LED mode: {mode_name} (running animation, Ctrl+C to stop)")
-            if preview:
-                from trcc.services import LEDService
-            try:
-                while True:
-                    colors = led_svc.tick()
-                    led_svc.send_colors(colors)
-                    if preview and colors:
-                        print(LEDService.zones_to_ansi(colors), end='\r', flush=True)
+            animated = led_mode in (LEDMode.BREATHING, LEDMode.COLORFUL,
+                                    LEDMode.RAINBOW)
+            if animated:
+                print(f"\n  {mode_name} (animating, Ctrl+C to skip)")
+                ticks = 60 if duration == 0 else duration * 20
+                for _ in range(ticks):
+                    colors = svc.tick()
+                    line = LEDService.zones_to_ansi(colors[:20])
+                    print(f'  {line}', end='\r', flush=True)
+                    if duration and (time.monotonic() - start) >= duration:
+                        break
                     time.sleep(0.05)
-            except KeyboardInterrupt:
-                pass
-            print("\nStopped.")
-        else:
-            colors = led_svc.tick()
-            led_svc.send_colors(colors)
-            print(f"LED mode: {mode_name}")
-            if preview and colors:
-                from trcc.services import LEDService
-                print(LEDService.zones_to_ansi(colors))
+                print()
+            else:
+                colors = svc.tick()
+                line = LEDService.zones_to_ansi(colors[:20])
+                print(f"  {mode_name:12s} {line}")
 
-        led_svc.save_config()
+        sys_svc.stop_polling()
+        print("\nDone.")
+        return 0
+    except KeyboardInterrupt:
+        sys_svc.stop_polling()
+        print("\nStopped.")
         return 0
     except Exception as e:
         print(f"Error: {e}")
         return 1
 
 
-@_cli_handler
-def set_led_brightness(level, *, preview=False):
-    """Set LED brightness (0-100)."""
-    if level < 0 or level > 100:
-        print("Error: Brightness must be 0-100")
-        return 1
+def test_lcd(*, cols: int = 60):
+    """Test LCD ANSI preview with real system metrics. No device needed.
 
-    led_svc, status = _get_led_service()
-    if not led_svc:
-        print("No LED device found.")
-        return 1
+    Renders a metrics dashboard as ANSI half-block art in terminal.
+    Developers can verify LCD rendering without hardware.
+    """
+    from trcc.services.image import ImageService
+    from trcc.services.system import SystemService
 
-    print(status)
-    led_svc.set_brightness(level)
-    led_svc.toggle_global(True)
-    colors = led_svc.tick()
-    led_svc.send_colors(colors)
-    led_svc.save_config()
+    sys_svc = SystemService()
+    sys_svc.discover()
+    metrics = sys_svc.all_metrics
 
-    print(f"LED brightness set to {level}%")
-    if preview and colors:
-        from trcc.services import LEDService
-        print(LEDService.zones_to_ansi(colors))
-    return 0
+    print(f"LCD ANSI Preview ({cols} cols)")
+    print("─" * 60)
 
+    # Full dashboard
+    print("\n  All metrics:")
+    print(ImageService.metrics_to_ansi(metrics, cols=cols))
 
-@_cli_handler
-def led_off():
-    """Turn LEDs off."""
-    led_svc, status = _get_led_service()
-    if not led_svc:
-        print("No LED device found.")
-        return 1
+    # Per-group
+    for group in ('cpu', 'gpu', 'mem', 'disk', 'net', 'fan', 'time'):
+        print(f"\n  {group.upper()}:")
+        print(ImageService.metrics_to_ansi(metrics, cols=cols, group=group))
 
-    print(status)
-    led_svc.toggle_global(False)
-    led_svc.send_tick()
-    led_svc.save_config()
-
-    print("LEDs turned off.")
-    return 0
-
-
-@_cli_handler
-def set_sensor_source(source):
-    """Set CPU/GPU sensor source for temp/load linked LED modes."""
-    source = source.lower()
-    if source not in ('cpu', 'gpu'):
-        print("Error: Source must be 'cpu' or 'gpu'")
-        return 1
-
-    led_svc, status = _get_led_service()
-    if not led_svc:
-        print("No LED device found.")
-        return 1
-
-    print(status)
-    led_svc.set_sensor_source(source)
-    led_svc.save_config()
-
-    print(f"LED sensor source set to {source.upper()}")
+    sys_svc.stop_polling()
+    print("\nDone.")
     return 0

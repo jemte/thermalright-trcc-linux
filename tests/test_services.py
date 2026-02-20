@@ -350,6 +350,206 @@ class TestLEDServiceZonesToAnsi(unittest.TestCase):
         self.assertEqual(result.count('\033[0m'), 5)
 
 
+class TestMetricsToAnsi(unittest.TestCase):
+    """Test ANSI dashboard rendering with arbitrary user metrics.
+
+    Hexagonal: services take data in (HardwareMetrics), produce ANSI out.
+    Any user's metrics should render correctly — hot CPU, idle GPU, full RAM, etc.
+    """
+
+    def _make_metrics(self, **overrides):
+        """Create HardwareMetrics with custom values."""
+        from trcc.core.models import HardwareMetrics
+        m = HardwareMetrics()
+        for k, v in overrides.items():
+            setattr(m, k, v)
+        return m
+
+    def test_all_groups_returns_string(self):
+        m = self._make_metrics(cpu_temp=45, gpu_temp=55, mem_percent=60)
+        result = ImageService.metrics_to_ansi(m, cols=40)
+        self.assertIsInstance(result, str)
+        self.assertIn('\033[', result)  # has ANSI escapes
+
+    def test_cpu_group_only(self):
+        m = self._make_metrics(cpu_temp=85, cpu_percent=95, cpu_freq=4500)
+        result = ImageService.metrics_to_ansi(m, cols=40, group='cpu')
+        self.assertIn('\033[', result)
+        self.assertIn('\u2580', result)
+
+    def test_gpu_group_only(self):
+        m = self._make_metrics(gpu_temp=78, gpu_usage=100, gpu_clock=1800)
+        result = ImageService.metrics_to_ansi(m, cols=40, group='gpu')
+        self.assertIn('\033[', result)
+
+    def test_mem_group_only(self):
+        m = self._make_metrics(mem_percent=92, mem_available=2048)
+        result = ImageService.metrics_to_ansi(m, cols=40, group='mem')
+        self.assertIn('\033[', result)
+
+    def test_disk_group_only(self):
+        m = self._make_metrics(disk_read=150.5, disk_write=80.3, disk_temp=42)
+        result = ImageService.metrics_to_ansi(m, cols=40, group='disk')
+        self.assertIn('\033[', result)
+
+    def test_net_group_only(self):
+        m = self._make_metrics(net_up=500, net_down=12000)
+        result = ImageService.metrics_to_ansi(m, cols=40, group='net')
+        self.assertIn('\033[', result)
+
+    def test_fan_group_only(self):
+        m = self._make_metrics(fan_cpu=1200, fan_gpu=657)
+        result = ImageService.metrics_to_ansi(m, cols=40, group='fan')
+        self.assertIn('\033[', result)
+
+    def test_time_group_only(self):
+        """Time group always renders (date/time/weekday are never 0-filtered)."""
+        m = self._make_metrics()
+        result = ImageService.metrics_to_ansi(m, cols=40, group='time')
+        self.assertIn('\033[', result)
+
+    def test_unknown_group_returns_error(self):
+        m = self._make_metrics()
+        result = ImageService.metrics_to_ansi(m, group='bogus')
+        self.assertIn('Unknown group', result)
+        self.assertIn('cpu', result)
+
+    def test_zero_metrics_still_renders(self):
+        """All-zero metrics should still produce valid ANSI (time group)."""
+        m = self._make_metrics()
+        result = ImageService.metrics_to_ansi(m, cols=30)
+        self.assertIsInstance(result, str)
+        self.assertIn('\033[', result)
+
+    def test_hot_cpu_scenario(self):
+        """Simulate user with overheating CPU — 95°C, 100% load."""
+        m = self._make_metrics(cpu_temp=95, cpu_percent=100, cpu_freq=5200,
+                               fan_cpu=2800, mem_percent=78)
+        result = ImageService.metrics_to_ansi(m, cols=50)
+        self.assertIn('\u2580', result)
+
+    def test_idle_system_scenario(self):
+        """Simulate idle system — low temps, low usage."""
+        m = self._make_metrics(cpu_temp=28, cpu_percent=2, cpu_freq=800,
+                               gpu_temp=25, gpu_usage=0, mem_percent=15)
+        result = ImageService.metrics_to_ansi(m, cols=50)
+        self.assertIn('\u2580', result)
+
+    def test_full_load_scenario(self):
+        """Simulate gaming — high everything."""
+        m = self._make_metrics(
+            cpu_temp=82, cpu_percent=87, cpu_freq=4800,
+            gpu_temp=76, gpu_usage=99, gpu_clock=2100,
+            mem_percent=91, mem_available=1200,
+            fan_cpu=2200, fan_gpu=1800,
+            net_down=50000, net_up=3000,
+            disk_read=200, disk_write=150,
+        )
+        result = ImageService.metrics_to_ansi(m, cols=60)
+        self.assertIn('\u2580', result)
+
+    def test_cols_affects_output_length(self):
+        m = self._make_metrics(cpu_temp=50, cpu_percent=50)
+        narrow = ImageService.metrics_to_ansi(m, cols=30, group='cpu')
+        wide = ImageService.metrics_to_ansi(m, cols=80, group='cpu')
+        self.assertGreater(len(wide), len(narrow))
+
+
+class TestLEDZonesAnsiWithMetrics(unittest.TestCase):
+    """Test LED zone ANSI preview with simulated device tick output.
+
+    Hexagonal: LEDService.tick() produces colors, zones_to_ansi() renders them.
+    Any user's device configuration should produce valid ANSI output.
+    """
+
+    def _make_led_service(self, mode='static', color=(255, 0, 0),
+                          brightness=100, segment_count=64):
+        from trcc.core.models import LEDMode, LEDState
+        from trcc.services.led import LEDService
+        state = LEDState()
+        state.mode = LEDMode[mode.upper()] if isinstance(mode, str) else mode
+        state.color = color
+        state.brightness = brightness
+        state.segment_count = segment_count
+        state.global_on = True
+        svc = LEDService(state=state)
+        return svc
+
+    def test_static_red_zones(self):
+        """Static red → all zones red."""
+        from trcc.services.led import LEDService
+        svc = self._make_led_service(color=(255, 0, 0))
+        colors = svc.tick()
+        result = LEDService.zones_to_ansi(colors)
+        self.assertIn('255;0;0', result)
+
+    def test_static_blue_zones(self):
+        from trcc.services.led import LEDService
+        svc = self._make_led_service(color=(0, 0, 255))
+        colors = svc.tick()
+        result = LEDService.zones_to_ansi(colors)
+        self.assertIn('0;0;255', result)
+
+    def test_breathing_produces_output(self):
+        """Breathing mode tick → valid ANSI zones."""
+        from trcc.services.led import LEDService
+        svc = self._make_led_service(mode='breathing', color=(0, 255, 0))
+        colors = svc.tick()
+        result = LEDService.zones_to_ansi(colors)
+        self.assertIn('\033[48;2;', result)
+
+    def test_rainbow_produces_output(self):
+        from trcc.services.led import LEDService
+        svc = self._make_led_service(mode='rainbow')
+        colors = svc.tick()
+        result = LEDService.zones_to_ansi(colors)
+        self.assertIn('\033[48;2;', result)
+
+    def test_colorful_produces_output(self):
+        from trcc.services.led import LEDService
+        svc = self._make_led_service(mode='colorful')
+        colors = svc.tick()
+        result = LEDService.zones_to_ansi(colors)
+        self.assertIn('\033[48;2;', result)
+
+    def test_many_segments(self):
+        """128-segment device → 128 zone blocks."""
+        from trcc.services.led import LEDService
+        svc = self._make_led_service(segment_count=128)
+        colors = svc.tick()
+        result = LEDService.zones_to_ansi(colors)
+        self.assertEqual(result.count('\033[0m'), 128)
+
+    def test_low_brightness_applied_manually(self):
+        """Brightness scaling applied to zone colors before ANSI rendering."""
+        from trcc.services.led import LEDService
+        # Simulate what send_colors does: scale by brightness
+        brightness = 10
+        base = (255, 255, 255)
+        scale = brightness / 100.0
+        colors = [(int(r * scale), int(g * scale), int(b * scale))
+                  for r, g, b in [base] * 4]
+        result = LEDService.zones_to_ansi(colors)
+        # At 10% brightness, channels should be ~25, not 255
+        self.assertNotIn('255;255;255', result)
+        self.assertIn('25;25;25', result)
+
+    def test_zones_to_ansi_all_black(self):
+        """All-black zones still produce valid ANSI."""
+        from trcc.services.led import LEDService
+        colors = [(0, 0, 0)] * 10
+        result = LEDService.zones_to_ansi(colors)
+        self.assertEqual(result.count('\033[0m'), 10)
+        self.assertIn('0;0;0', result)
+
+    def test_zones_to_ansi_max_white(self):
+        from trcc.services.led import LEDService
+        colors = [(255, 255, 255)] * 4
+        result = LEDService.zones_to_ansi(colors)
+        self.assertIn('255;255;255', result)
+        self.assertEqual(result.count('\033[0m'), 4)
+
+
 class TestDeviceServiceSendPilBulk(unittest.TestCase):
     """Test that send_pil routes bulk devices through JPEG encoding."""
 

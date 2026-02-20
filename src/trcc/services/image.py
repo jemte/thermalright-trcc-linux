@@ -18,6 +18,12 @@ from PIL import Image as PILImage
 PILImage.MAX_IMAGE_PIXELS = 1920 * 720 * 4  # 5,529,600 pixels
 
 
+def _get_draw(img: Any) -> Any:
+    """Lazy-import ImageDraw and return a Draw object."""
+    from PIL import ImageDraw
+    return ImageDraw.Draw(img)
+
+
 class ImageService:
     """Stateless image processing utilities."""
 
@@ -199,6 +205,83 @@ class ImageService:
     def to_ansi_cursor_home(img: Any, cols: int = 60) -> str:
         """Same as to_ansi() but prefixed with cursor-home escape for animation."""
         return '\033[H' + ImageService.to_ansi(img, cols)
+
+    # Metric groups for dashboard rendering (label, fields, color)
+    _METRIC_GROUPS: dict[str, tuple[str, list[str], tuple[int, int, int]]] = {
+        'cpu':  ('CPU',  ['cpu_temp', 'cpu_percent', 'cpu_freq', 'cpu_power'], (0, 200, 255)),
+        'gpu':  ('GPU',  ['gpu_temp', 'gpu_usage', 'gpu_clock', 'gpu_power'], (0, 255, 100)),
+        'mem':  ('MEM',  ['mem_temp', 'mem_percent', 'mem_clock', 'mem_available'], (255, 200, 0)),
+        'disk': ('DISK', ['disk_temp', 'disk_activity', 'disk_read', 'disk_write'], (200, 100, 255)),
+        'net':  ('NET',  ['net_up', 'net_down', 'net_total_up', 'net_total_down'], (100, 255, 200)),
+        'fan':  ('FAN',  ['fan_cpu', 'fan_gpu', 'fan_ssd', 'fan_sys2'], (255, 80, 80)),
+        'time': ('TIME', ['date', 'time', 'weekday'], (180, 180, 255)),
+    }
+
+    @staticmethod
+    def metrics_to_ansi(metrics: Any, cols: int = 60,
+                        group: str | None = None) -> str:
+        """Render HardwareMetrics as ANSI terminal dashboard.
+
+        Args:
+            metrics: HardwareMetrics dataclass instance.
+            cols: Terminal width in columns.
+            group: Optional filter — 'cpu', 'gpu', 'mem', 'disk', 'net',
+                   'fan', 'time', or None for all.
+        """
+        from .system import SystemService
+
+        groups = ImageService._METRIC_GROUPS
+        if group:
+            key = group.lower()
+            if key not in groups:
+                return f"Unknown group '{group}'. Choose: {', '.join(groups)}"
+            items = {key: groups[key]}
+        else:
+            items = groups
+
+        # Build text dashboard image
+        line_h = 20
+        padding = 8
+        h = padding + len(items) * (line_h + padding)
+        # Count non-zero fields to size height properly
+        total_lines = 0
+        for _, (_, fields, _) in items.items():
+            total_lines += 1  # header
+            for f in fields:
+                v = getattr(metrics, f, 0.0)
+                if v != 0.0 or f in ('date', 'time', 'weekday'):
+                    total_lines += 1
+        h = max(40, padding + total_lines * line_h + padding)
+        w = int(cols * 2.5)  # approximate pixel width from cols
+
+        img = PILImage.new('RGB', (w, h), (10, 10, 30))
+        draw = _get_draw(img)
+
+        y = padding
+        for _, (label, fields, color) in items.items():
+            # Group header
+            draw.text((8, y), label, fill=color)
+            y += line_h
+            # Field values
+            for f in fields:
+                v = getattr(metrics, f, 0.0)
+                if v == 0.0 and f not in ('date', 'time', 'weekday'):
+                    continue
+                formatted = SystemService.format_metric(f, v)
+                name = f.replace('_', ' ').title()
+                draw.text((16, y), f'{name}:', fill=(140, 140, 160))
+                draw.text((w // 2, y), formatted, fill=(220, 220, 220))
+                # Bar for percentage metrics
+                if 'percent' in f or 'usage' in f or 'activity' in f:
+                    bar_x = w * 3 // 4
+                    bar_w = int((w - bar_x - 8) * min(v, 100) / 100)
+                    draw.rectangle([bar_x, y + 2, bar_x + bar_w, y + 14],
+                                   fill=color)
+                    draw.rectangle([bar_x, y + 2, w - 8, y + 14],
+                                   outline=(50, 50, 50))
+                y += line_h
+
+        return ImageService.to_ansi(img, cols=cols)
 
     @staticmethod
     def apply_device_rotation(image: Any, resolution: tuple[int, int]) -> Any:

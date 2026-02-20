@@ -37,6 +37,19 @@ def _cli_handler(func):
     return wrapper
 
 
+def _parse_hex(hex_color: str) -> tuple[int, int, int] | None:
+    """Parse hex color string → (r, g, b) or None. Shared by _led and _display."""
+    hex_color = hex_color.lstrip('#')
+    if len(hex_color) != 6:
+        return None
+    try:
+        return (int(hex_color[0:2], 16),
+                int(hex_color[2:4], 16),
+                int(hex_color[4:6], 16))
+    except ValueError:
+        return None
+
+
 # =========================================================================
 # Import submodules (must be AFTER _cli_handler definition)
 # =========================================================================
@@ -403,6 +416,130 @@ def _cmd_led_sensor(
     return _led.set_sensor_source(source)
 
 
+@app.command("led-zone-color")
+def _cmd_led_zone_color(
+    zone: Annotated[int, typer.Argument(help="Zone index (0-based)")],
+    hex_color: Annotated[str, typer.Argument(
+        metavar="HEX", help="Hex color (e.g., ff0000)",
+    )],
+    preview: Annotated[bool, typer.Option(
+        "--preview", "-p", help="Show ANSI terminal preview",
+    )] = False,
+) -> int:
+    """Set color for a specific LED zone."""
+    return _led.set_zone_color(zone, hex_color, preview=preview)
+
+
+@app.command("led-zone-mode")
+def _cmd_led_zone_mode(
+    zone: Annotated[int, typer.Argument(help="Zone index (0-based)")],
+    mode: Annotated[str, typer.Argument(
+        help="Effect: static, breathing, colorful, rainbow",
+    )],
+    preview: Annotated[bool, typer.Option(
+        "--preview", "-p", help="Show ANSI terminal preview",
+    )] = False,
+) -> int:
+    """Set effect mode for a specific LED zone."""
+    return _led.set_zone_mode(zone, mode, preview=preview)
+
+
+@app.command("led-zone-brightness")
+def _cmd_led_zone_brightness(
+    zone: Annotated[int, typer.Argument(help="Zone index (0-based)")],
+    level: Annotated[int, typer.Argument(help="Brightness 0-100")],
+    preview: Annotated[bool, typer.Option(
+        "--preview", "-p", help="Show ANSI terminal preview",
+    )] = False,
+) -> int:
+    """Set brightness for a specific LED zone."""
+    return _led.set_zone_brightness(zone, level, preview=preview)
+
+
+@app.command("led-zone-toggle")
+def _cmd_led_zone_toggle(
+    zone: Annotated[int, typer.Argument(help="Zone index (0-based)")],
+    on: Annotated[bool, typer.Argument(help="true/false")],
+) -> int:
+    """Toggle a specific LED zone on/off."""
+    return _led.toggle_zone(zone, on)
+
+
+@app.command("led-zone-sync")
+def _cmd_led_zone_sync(
+    enabled: Annotated[bool, typer.Argument(help="true/false")],
+    interval: Annotated[Optional[int], typer.Option(
+        "--interval", "-i", help="Sync interval in seconds",
+    )] = None,
+) -> int:
+    """Enable/disable LED zone sync (circulate/select-all)."""
+    return _led.set_zone_sync(enabled, interval=interval)
+
+
+@app.command("led-segment")
+def _cmd_led_segment(
+    index: Annotated[int, typer.Argument(help="Segment index (0-based)")],
+    on: Annotated[bool, typer.Argument(help="true/false")],
+) -> int:
+    """Toggle a specific LED segment on/off."""
+    return _led.toggle_segment(index, on)
+
+
+@app.command("led-clock")
+def _cmd_led_clock(
+    is_24h: Annotated[bool, typer.Argument(help="true=24h, false=12h")],
+) -> int:
+    """Set LED segment display clock format."""
+    return _led.set_clock_format(is_24h)
+
+
+@app.command("led-temp-unit")
+def _cmd_led_temp_unit(
+    unit: Annotated[str, typer.Argument(help="C or F")],
+) -> int:
+    """Set LED segment display temperature unit."""
+    return _led.set_temp_unit(unit)
+
+
+@app.command("split")
+def _cmd_split(
+    mode: Annotated[int, typer.Argument(
+        help="Split mode: 0=off, 1-3=Dynamic Island style",
+    )],
+    device: Annotated[Optional[str], typer.Option(
+        "--device", "-d", help="Device path",
+    )] = None,
+) -> int:
+    """Set split mode (Dynamic Island) for widescreen displays."""
+    return _display.set_split_mode(mode, device=device)
+
+
+@app.command("test-led")
+def _cmd_test_led(
+    mode: Annotated[Optional[str], typer.Argument(
+        help="LED mode: static, breathing, colorful, rainbow (omit for all)",
+    )] = None,
+    segments: Annotated[int, typer.Option(
+        "--segments", "-s", help="Number of LED segments to simulate",
+    )] = 64,
+    duration: Annotated[int, typer.Option(
+        "--duration", "-t", help="Animation duration in seconds (0=default)",
+    )] = 0,
+) -> int:
+    """Test LED ANSI preview with real metrics. No device needed."""
+    return _led.test_led(mode=mode, segments=segments, duration=duration)
+
+
+@app.command("test-lcd")
+def _cmd_test_lcd(
+    cols: Annotated[int, typer.Option(
+        "--cols", "-c", help="Terminal width in columns",
+    )] = 60,
+) -> int:
+    """Test LCD ANSI preview with real metrics. No device needed."""
+    return _led.test_lcd(cols=cols)
+
+
 @app.command("theme-save")
 def _cmd_theme_save(
     name: Annotated[str, typer.Argument(help="Theme name")],
@@ -438,9 +575,17 @@ def _cmd_theme_import(
 
 
 @app.command("info")
-def _cmd_info() -> int:
+def _cmd_info(
+    preview: Annotated[bool, typer.Option(
+        "--preview", "-p", help="Show ANSI terminal dashboard",
+    )] = False,
+    metric: Annotated[Optional[str], typer.Option(
+        "--metric", "-m",
+        help="Filter: cpu, gpu, mem, disk, net, fan, time",
+    )] = None,
+) -> int:
     """Show system metrics."""
-    return _system.show_info()
+    return _system.show_info(preview=preview, metric=metric)
 
 
 @app.command("reset")
@@ -631,6 +776,7 @@ class DisplayCommands:
     play_video = staticmethod(_display.play_video)
     set_brightness = staticmethod(_display.set_brightness)
     set_rotation = staticmethod(_display.set_rotation)
+    set_split_mode = staticmethod(_display.set_split_mode)
     screencast = staticmethod(_display.screencast)
     load_mask = staticmethod(_display.load_mask)
     render_overlay = staticmethod(_display.render_overlay)
@@ -668,7 +814,7 @@ class DiagCommands:
 
 class SystemCommands:
     """Backward-compat stub — delegates to _system module functions."""
-    show_info = staticmethod(_system.show_info)
+    show_info = staticmethod(_system.show_info)  # now accepts preview=, metric=
     setup_udev = staticmethod(_system.setup_udev)
     setup_selinux = staticmethod(_system.setup_selinux)
     setup_polkit = staticmethod(_system.setup_polkit)
@@ -716,6 +862,7 @@ _hid_debug_led = _diag._hid_debug_led
 # Display adjustments
 set_brightness = _display.set_brightness
 set_rotation = _display.set_rotation
+set_split_mode = _display.set_split_mode
 screencast = _display.screencast
 load_mask = _display.load_mask
 render_overlay = _display.render_overlay

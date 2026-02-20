@@ -1,10 +1,304 @@
-"""LCD display frame sending commands."""
+"""LCD display frame sending commands.
+
+DisplayDispatcher is the single authority for LCD frame operations.
+GUI and API import DisplayDispatcher directly; CLI functions are thin
+presentation wrappers (print + exit code).
+
+Blocking loops (video, screencast, test) remain as standalone CLI functions
+because they're inherently terminal-oriented.
+"""
 from __future__ import annotations
 
 import os
+from typing import Any
 
-from trcc.cli import _cli_handler, _device
+from trcc.cli import _cli_handler, _device, _parse_hex
 
+# =========================================================================
+# DisplayDispatcher — programmatic API (returns data, never prints)
+# =========================================================================
+
+class DisplayDispatcher:
+    """LCD command dispatcher — single authority for all LCD operations.
+
+    Returns result dicts with 'success', 'message', 'error', and optional
+    data ('image', 'resolution', 'device_path').  CLI wraps with print/exit.
+    GUI and API import and use directly.
+    """
+
+    def __init__(self, device_svc: Any = None):
+        self._svc = device_svc
+
+    # ── Properties ────────────────────────────────────────────────────
+
+    @property
+    def connected(self) -> bool:
+        return self._svc is not None and self._svc.selected is not None
+
+    @property
+    def device(self) -> Any:
+        return self._svc.selected if self._svc else None
+
+    @property
+    def resolution(self) -> tuple[int, int]:
+        dev = self.device
+        return dev.resolution if dev else (0, 0)
+
+    @property
+    def device_path(self) -> str | None:
+        dev = self.device
+        return dev.path if dev else None
+
+    @property
+    def service(self) -> Any:
+        return self._svc
+
+    # ── Connection ────────────────────────────────────────────────────
+
+    def connect(self, device: str | None = None) -> dict:
+        """Detect device, handshake, resolve resolution.
+
+        Returns: {"success": bool, "resolution": (w, h), "device_path": str}
+        """
+        self._svc = _device._get_service(device)
+        if not self._svc.selected:
+            return {"success": False, "error": "No device found"}
+        dev = self._svc.selected
+        return {
+            "success": True,
+            "resolution": dev.resolution,
+            "device_path": dev.path,
+        }
+
+    # ── Image operations ──────────────────────────────────────────────
+
+    def send_image(self, image_path: str) -> dict:
+        """Send image file to LCD. Returns rendered PIL image."""
+        if not os.path.exists(image_path):
+            return {"success": False, "error": f"File not found: {image_path}"}
+
+        from PIL import Image
+
+        from trcc.services import ImageService
+
+        dev = self._svc.selected
+        w, h = dev.resolution
+        img = Image.open(image_path).convert('RGB')
+        img = ImageService.resize(img, w, h)
+        self._svc.send_pil(img, w, h)
+        return {
+            "success": True,
+            "image": img,
+            "message": f"Sent {image_path} to {dev.path}",
+        }
+
+    def send_color(self, r: int, g: int, b: int) -> dict:
+        """Send solid color to LCD. Returns rendered PIL image."""
+        from trcc.services import ImageService
+
+        dev = self._svc.selected
+        w, h = dev.resolution
+        img = ImageService.solid_color(r, g, b, w, h)
+        self._svc.send_pil(img, w, h)
+        return {
+            "success": True,
+            "image": img,
+            "message": f"Sent color #{r:02x}{g:02x}{b:02x} to {dev.path}",
+        }
+
+    def reset(self) -> dict:
+        """Reset device by sending solid red frame."""
+        from trcc.services import ImageService
+
+        dev = self._svc.selected
+        w, h = dev.resolution
+        img = ImageService.solid_color(255, 0, 0, w, h)
+        self._svc.send_pil(img, w, h)
+        return {
+            "success": True,
+            "image": img,
+            "message": f"Device reset — displaying RED on {dev.path}",
+        }
+
+    # ── Display settings ──────────────────────────────────────────────
+
+    def set_brightness(self, level: int) -> dict:
+        """Set display brightness (1=25%, 2=50%, 3=100%). Persists to config."""
+        level_map = {1: 25, 2: 50, 3: 100}
+        if level not in level_map:
+            return {"success": False, "error": "Brightness level must be 1, 2, or 3"}
+
+        from trcc.conf import Settings
+
+        dev = self._svc.selected
+        key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
+        Settings.save_device_setting(key, 'brightness_level', level)
+        return {
+            "success": True,
+            "message": f"Brightness set to L{level} ({level_map[level]}%) on {dev.path}",
+        }
+
+    def set_rotation(self, degrees: int) -> dict:
+        """Set display rotation (0, 90, 180, 270). Persists to config."""
+        if degrees not in (0, 90, 180, 270):
+            return {"success": False, "error": "Rotation must be 0, 90, 180, or 270"}
+
+        from trcc.conf import Settings
+
+        dev = self._svc.selected
+        key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
+        Settings.save_device_setting(key, 'rotation', degrees)
+        return {
+            "success": True,
+            "message": f"Rotation set to {degrees}° on {dev.path}",
+        }
+
+    def set_split_mode(self, mode: int) -> dict:
+        """Set split mode (0=off, 1-3=Dynamic Island). Persists to config."""
+        if mode not in (0, 1, 2, 3):
+            return {"success": False, "error": "Split mode must be 0, 1, 2, or 3"}
+
+        from trcc.conf import Settings
+
+        dev = self._svc.selected
+        w, h = dev.resolution
+
+        from trcc.core.models import SPLIT_MODE_RESOLUTIONS
+        warning = None
+        if (w, h) not in SPLIT_MODE_RESOLUTIONS:
+            warning = f"Split mode only supports widescreen ({w}x{h} is not 1600x720)"
+
+        key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
+        Settings.save_device_setting(key, 'split_mode', mode)
+        state = "off" if mode == 0 else f"style {mode}"
+        result: dict[str, Any] = {
+            "success": True,
+            "message": f"Split mode set to {state} on {dev.path}",
+        }
+        if warning:
+            result["warning"] = warning
+        return result
+
+    # ── Overlay operations ────────────────────────────────────────────
+
+    def load_mask(self, mask_path: str) -> dict:
+        """Load mask overlay and send composited image."""
+        from pathlib import Path
+
+        from PIL import Image
+
+        from trcc.services import ImageService, OverlayService
+
+        if not os.path.exists(mask_path):
+            return {"success": False, "error": f"Path not found: {mask_path}"}
+
+        dev = self._svc.selected
+        w, h = dev.resolution
+
+        p = Path(mask_path)
+        if p.is_dir():
+            mask_file = p / "01.png"
+            if not mask_file.exists():
+                mask_file = next(p.glob("*.png"), None)
+            if not mask_file:
+                return {"success": False, "error": f"No PNG files in {mask_path}"}
+        else:
+            mask_file = p
+
+        overlay = OverlayService(w, h)
+        mask_img = Image.open(mask_file).convert('RGBA')
+        overlay.set_mask(mask_img)
+
+        bg = ImageService.solid_color(0, 0, 0, w, h)
+        overlay.set_background(bg)
+        overlay.enabled = True
+        result_img = overlay.render()
+
+        self._svc.send_pil(result_img, w, h)
+        return {
+            "success": True,
+            "image": result_img,
+            "message": f"Sent mask {mask_file.name} to {dev.path}",
+        }
+
+    def render_overlay(self, dc_path: str, *, send: bool = False,
+                       output: str | None = None) -> dict:
+        """Render overlay from DC config. Optionally send to device or save."""
+        from pathlib import Path
+
+        from trcc.adapters.system.info import get_all_metrics
+        from trcc.services import ImageService, OverlayService
+
+        if not os.path.exists(dc_path):
+            return {"success": False, "error": f"Path not found: {dc_path}"}
+
+        dev = self._svc.selected if self._svc else None
+        w, h = dev.resolution if dev else (320, 320)
+
+        overlay = OverlayService(w, h)
+
+        p = Path(dc_path)
+        dc_file = p / "config1.dc" if p.is_dir() else p
+        display_opts = overlay.load_from_dc(dc_file)
+
+        metrics = get_all_metrics()
+        overlay.update_metrics(metrics)
+        overlay.enabled = True
+
+        bg = ImageService.solid_color(0, 0, 0, w, h)
+        overlay.set_background(bg)
+        result_img = overlay.render()
+
+        messages = []
+        if output:
+            result_img.save(output)
+            messages.append(f"Saved overlay render to {output}")
+        if send and dev:
+            self._svc.send_pil(result_img, w, h)
+            messages.append(f"Sent overlay to {dev.path}")
+
+        elements = len(overlay.config) if overlay.config else 0
+        return {
+            "success": True,
+            "image": result_img,
+            "elements": elements,
+            "display_opts": display_opts or {},
+            "message": "; ".join(messages) if messages else
+                       f"Overlay config loaded: {elements} elements ({w}x{h})",
+        }
+
+
+# =========================================================================
+# CLI presentation helpers
+# =========================================================================
+
+def _connect_or_fail(device: str | None = None) -> tuple[DisplayDispatcher, int]:
+    """Create dispatcher, connect. Returns (dispatcher, exit_code)."""
+    lcd = DisplayDispatcher()
+    result = lcd.connect(device)
+    if not result["success"]:
+        print(result["error"])
+        return lcd, 1
+    return lcd, 0
+
+
+def _print_result(result: dict, *, preview: bool = False) -> int:
+    """Print result message + optional ANSI preview. Returns exit code."""
+    if not result["success"]:
+        print(f"Error: {result.get('error', 'Unknown error')}")
+        return 1
+    if result.get("warning"):
+        print(f"Warning: {result['warning']}")
+    print(result["message"])
+    if preview and result.get("image"):
+        from trcc.services import ImageService
+        print(ImageService.to_ansi(result["image"]))
+    return 0
+
+
+# =========================================================================
+# CLI functions — blocking loops (terminal-only)
+# =========================================================================
 
 def test(device=None, loop=False, preview=False):
     """Test display with color cycle."""
@@ -52,68 +346,6 @@ def test(device=None, loop=False, preview=False):
         return 0
     except Exception as e:
         print(f"Error testing display: {e}")
-        return 1
-
-
-def send_image(image_path, device=None, preview=False):
-    """Send image to LCD."""
-    try:
-        if not os.path.exists(image_path):
-            print(f"Error: File not found: {image_path}")
-            return 1
-
-        from PIL import Image
-
-        from trcc.services import ImageService
-
-        svc = _device._get_service(device)
-        if not svc.selected:
-            print("No device found.")
-            return 1
-
-        dev = svc.selected
-        w, h = dev.resolution
-        img = Image.open(image_path).convert('RGB')
-        img = ImageService.resize(img, w, h)
-        svc.send_pil(img, w, h)
-        print(f"Sent {image_path} to {dev.path}")
-        if preview:
-            print(ImageService.to_ansi(img))
-        return 0
-    except Exception as e:
-        print(f"Error sending image: {e}")
-        return 1
-
-
-def send_color(hex_color, device=None, preview=False):
-    """Send solid color to LCD."""
-    try:
-        hex_color = hex_color.lstrip('#')
-        if len(hex_color) != 6:
-            print("Error: Invalid hex color. Use format: ff0000")
-            return 1
-
-        r = int(hex_color[0:2], 16)
-        g = int(hex_color[2:4], 16)
-        b = int(hex_color[4:6], 16)
-
-        from trcc.services import ImageService
-
-        svc = _device._get_service(device)
-        if not svc.selected:
-            print("No device found.")
-            return 1
-
-        dev = svc.selected
-        w, h = dev.resolution
-        img = ImageService.solid_color(r, g, b, w, h)
-        svc.send_pil(img, w, h)
-        print(f"Sent color #{hex_color} to {dev.path}")
-        if preview:
-            print(ImageService.to_ansi(img))
-        return 0
-    except Exception as e:
-        print(f"Error sending color: {e}")
         return 1
 
 
@@ -185,63 +417,6 @@ def play_video(video_path, *, device=None, loop=True, duration=0,
         return 1
 
 
-@_cli_handler
-def set_brightness(level, *, device=None):
-    """Set display brightness level (1=25%, 2=50%, 3=100%).
-
-    Persists to device config so 'trcc resume' uses it.
-    """
-    level_map = {1: 25, 2: 50, 3: 100}
-    if level not in level_map:
-        print("Error: brightness level must be 1, 2, or 3")
-        print("  1 = 25%  (dim)")
-        print("  2 = 50%  (medium)")
-        print("  3 = 100% (full)")
-        return 1
-
-    percent = level_map[level]
-
-    svc = _device._get_service(device)
-    if not svc.selected:
-        print("No device found.")
-        return 1
-
-    dev = svc.selected
-
-    # Persist to device config
-    from trcc.conf import Settings
-    key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
-    Settings.save_device_setting(key, 'brightness_level', level)
-
-    print(f"Brightness set to L{level} ({percent}%) on {dev.path}")
-    return 0
-
-
-@_cli_handler
-def set_rotation(degrees, *, device=None):
-    """Set display rotation (0, 90, 180, 270).
-
-    Persists to device config so 'trcc resume' uses it.
-    """
-    if degrees not in (0, 90, 180, 270):
-        print("Error: rotation must be 0, 90, 180, or 270")
-        return 1
-
-    svc = _device._get_service(device)
-    if not svc.selected:
-        print("No device found.")
-        return 1
-
-    dev = svc.selected
-
-    from trcc.conf import Settings
-    key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
-    Settings.save_device_setting(key, 'rotation', degrees)
-
-    print(f"Rotation set to {degrees}° on {dev.path}")
-    return 0
-
-
 def screencast(*, device=None, x=0, y=0, w=0, h=0, fps=10, preview=False):
     """Stream screen region to LCD. Ctrl+C to stop."""
     try:
@@ -300,139 +475,122 @@ def screencast(*, device=None, x=0, y=0, w=0, h=0, fps=10, preview=False):
         return 1
 
 
+# =========================================================================
+# CLI functions — thin wrappers around DisplayDispatcher
+# =========================================================================
+
+@_cli_handler
+def send_image(image_path, device=None, preview=False):
+    """Send image to LCD."""
+    lcd, rc = _connect_or_fail(device)
+    if rc:
+        return rc
+    return _print_result(lcd.send_image(image_path), preview=preview)
+
+
+@_cli_handler
+def send_color(hex_color, device=None, preview=False):
+    """Send solid color to LCD."""
+    rgb = _parse_hex(hex_color)
+    if not rgb:
+        print("Error: Invalid hex color. Use format: ff0000")
+        return 1
+
+    lcd, rc = _connect_or_fail(device)
+    if rc:
+        return rc
+    return _print_result(lcd.send_color(*rgb), preview=preview)
+
+
+@_cli_handler
+def set_brightness(level, *, device=None):
+    """Set display brightness level (1=25%, 2=50%, 3=100%)."""
+    lcd, rc = _connect_or_fail(device)
+    if rc:
+        return rc
+    result = lcd.set_brightness(level)
+    if not result["success"]:
+        print(f"Error: {result['error']}")
+        print("  1 = 25%  (dim)")
+        print("  2 = 50%  (medium)")
+        print("  3 = 100% (full)")
+        return 1
+    print(result["message"])
+    return 0
+
+
+@_cli_handler
+def set_rotation(degrees, *, device=None):
+    """Set display rotation (0, 90, 180, 270)."""
+    lcd, rc = _connect_or_fail(device)
+    if rc:
+        return rc
+    return _print_result(lcd.set_rotation(degrees))
+
+
+@_cli_handler
+def set_split_mode(mode, *, device=None, preview=False):
+    """Set split mode (Dynamic Island) for widescreen displays."""
+    lcd, rc = _connect_or_fail(device)
+    if rc:
+        return rc
+    return _print_result(lcd.set_split_mode(mode), preview=preview)
+
+
 @_cli_handler
 def load_mask(mask_path, *, device=None, preview=False):
     """Load mask overlay from file/directory and send composited image."""
-    from pathlib import Path
-
-    from PIL import Image
-
-    from trcc.services import ImageService, OverlayService
-
-    if not os.path.exists(mask_path):
-        print(f"Error: Path not found: {mask_path}")
-        return 1
-
-    svc = _device._get_service(device)
-    if not svc.selected:
-        print("No device found.")
-        return 1
-
-    dev = svc.selected
-    w, h = dev.resolution
-
-    # Find mask image
-    p = Path(mask_path)
-    if p.is_dir():
-        mask_file = p / "01.png"
-        if not mask_file.exists():
-            mask_file = next(p.glob("*.png"), None)
-        if not mask_file:
-            print(f"Error: No PNG files in {mask_path}")
-            return 1
-    else:
-        mask_file = p
-
-    overlay = OverlayService(w, h)
-    mask_img = Image.open(mask_file).convert('RGBA')
-    overlay.set_mask(mask_img)
-
-    # Black background + mask
-    bg = ImageService.solid_color(0, 0, 0, w, h)
-    overlay.set_background(bg)
-    overlay.enabled = True
-    result = overlay.render()
-
-    svc.send_pil(result, w, h)
-    print(f"Sent mask {mask_file.name} to {dev.path}")
-    if preview:
-        print(ImageService.to_ansi(result))
-    return 0
+    lcd, rc = _connect_or_fail(device)
+    if rc:
+        return rc
+    return _print_result(lcd.load_mask(mask_path), preview=preview)
 
 
 @_cli_handler
 def render_overlay(dc_path, *, device=None, send=False, output=None,
                    preview=False):
     """Render overlay from DC config file."""
-    from pathlib import Path
-
-    from trcc.adapters.system.info import get_all_metrics
-    from trcc.services import ImageService, OverlayService
-
-    if not os.path.exists(dc_path):
-        print(f"Error: Path not found: {dc_path}")
+    lcd, rc = _connect_or_fail(device)
+    if rc:
+        return rc
+    result = lcd.render_overlay(dc_path, send=send, output=output)
+    if not result["success"]:
+        print(f"Error: {result['error']}")
         return 1
-
-    # Resolve device for resolution
-    w, h = 320, 320
-    svc = None
-    if device or send:
-        svc = _device._get_service(device)
-        if svc and svc.selected:
-            w, h = svc.selected.resolution
-
-    overlay = OverlayService(w, h)
-
-    # Load DC config
-    p = Path(dc_path)
-    dc_file = p / "config1.dc" if p.is_dir() else p
-    display_opts = overlay.load_from_dc(dc_file)
-
-    # Collect system metrics
-    metrics = get_all_metrics()
-    overlay.update_metrics(metrics)
-    overlay.enabled = True
-
-    # Black background
-    bg = ImageService.solid_color(0, 0, 0, w, h)
-    overlay.set_background(bg)
-    result = overlay.render()
-
-    if output:
-        result.save(output)
-        print(f"Saved overlay render to {output}")
-
-    if send and svc and svc.selected:
-        svc.send_pil(result, w, h)
-        print(f"Sent overlay to {svc.selected.path}")
-
-    if preview:
-        print(ImageService.to_ansi(result))
-
+    if result["message"]:
+        print(result["message"])
+    if preview and result.get("image"):
+        from trcc.services import ImageService
+        print(ImageService.to_ansi(result["image"]))
     if not output and not send and not preview:
-        elements = len(overlay.config) if overlay.config else 0
-        print(f"Overlay config loaded: {elements} elements ({w}x{h})")
-        if display_opts:
-            for k, v in display_opts.items():
-                print(f"  {k}: {v}")
-
+        opts = result.get("display_opts", {})
+        for k, v in opts.items():
+            print(f"  {k}: {v}")
     return 0
 
 
+@_cli_handler
 def reset(device=None, *, preview=False):
     """Reset/reinitialize the LCD device."""
-    try:
-        from trcc.services import ImageService
+    lcd, rc = _connect_or_fail(device)
+    if rc:
+        return rc
+    print(f"  Device: {lcd.device_path}")
+    return _print_result(lcd.reset(), preview=preview)
 
-        print("Resetting LCD device...")
-        svc = _device._get_service(device)
-        if not svc.selected:
-            print("No device found.")
-            return 1
 
-        dev = svc.selected
-        w, h = dev.resolution
-        print(f"  Device: {dev.path}")
-
-        img = ImageService.solid_color(255, 0, 0, w, h)
-        svc.send_pil(img, w, h)
-        print("[OK] Device reset - displaying RED")
-        if preview:
-            print(ImageService.to_ansi(img))
-        return 0
-    except Exception as e:
-        print(f"Error resetting device: {e}")
+@_cli_handler
+def video_status(*, device=None):
+    """Show current video playback status."""
+    svc = _device._get_service(device)
+    if not svc.selected:
+        print("No device found.")
         return 1
+
+    print("Video playback is controlled by the running 'trcc video' process.")
+    print("Use Ctrl+C in the video process to stop playback.")
+    print("For interactive control, use the GUI: trcc gui")
+    return 0
 
 
 @_cli_handler

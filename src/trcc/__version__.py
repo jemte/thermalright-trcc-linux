@@ -8,7 +8,11 @@ __version_info__ = tuple(int(x) for x in __version__.split("."))
 #         Mode 1/2). Fixes garbled display on FBL 50 devices (Frozen Warframe
 #         240, #17). Terminal preview: --preview/-p flag on all LCD and LED CLI
 #         commands renders ANSI true-color art in terminal for headless/SSH
-#         users (ImageService.to_ansi, LEDService.zones_to_ansi). 2319 tests.
+#         users (ImageService.to_ansi, LEDService.zones_to_ansi). CLI dispatcher
+#         refactor: LEDDispatcher + DisplayDispatcher classes (single authority,
+#         return result dicts, never print). Shared _parse_hex utility, _MODE_MAP
+#         class constant, @_cli_handler consistency. Color wheel mirror fix
+#         (flip canvas horizontally to match C# gradient). 2349 tests.
 # 6.0.0 - GoF refactoring: 5-phase OOP overhaul. Phase 1: Flyweight+Strategy
 #         collapse led_segment.py 1109→687 (-38%). Phase 3: eliminate 5 thin
 #         controller wrappers (ThemeController, DeviceController, VideoController,
