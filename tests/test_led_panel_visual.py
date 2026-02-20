@@ -213,20 +213,30 @@ class LEDPanelTestHarness(QWidget):
         scroll.setWidget(self._container)
         layout.addWidget(scroll, 1)
 
-        # ── Wire ALL panel signals ────────────────────────────────
+        # ── Wire ALL panel signals (matches LEDHandler._connect_signals) ─
         p = self._led_panel
         p.mode_changed.connect(self._on_mode)
         p.color_changed.connect(self._on_color)
         p.brightness_changed.connect(self._on_brightness)
-        p.global_toggled.connect(self._on_global_toggle)
+        p.global_toggled.connect(lambda on: self._svc.toggle_global(on))
         p.segment_clicked.connect(self._on_segment_click)
         p.zone_selected.connect(self._on_zone_selected)
-        p.zone_toggled.connect(self._on_zone_toggled)
-        p.carousel_changed.connect(self._on_carousel)
-        p.carousel_interval_changed.connect(self._on_carousel_interval)
+        p.zone_toggled.connect(lambda zi, on: self._svc.toggle_zone(zi, on))
+        p.carousel_changed.connect(lambda on: self._svc.set_zone_sync(on))
+        p.carousel_zone_changed.connect(
+            lambda zi, sel: self._svc.set_zone_sync_zone(zi, sel))
+        p.carousel_interval_changed.connect(
+            lambda secs: self._svc.set_zone_sync_interval(secs))
+        p.clock_format_changed.connect(
+            lambda is_24h: self._svc.set_clock_format(is_24h))
+        p.week_start_changed.connect(
+            lambda is_sun: self._svc.set_week_start(is_sun))
         p.temp_unit_changed.connect(self._on_temp_unit)
-        p.close_requested.connect(self._on_close)
-        p.test_mode_changed.connect(self._on_test_mode)
+        p.disk_index_changed.connect(
+            lambda idx: self._svc.set_disk_index(idx))
+        p.memory_ratio_changed.connect(self._on_memory_ratio)
+        p.test_mode_changed.connect(
+            lambda on: self._svc.set_test_mode(on))
 
         # ── Start with style 1 ───────────────────────────────────
         self._switch_style(1)
@@ -237,57 +247,53 @@ class LEDPanelTestHarness(QWidget):
         self._timer.start(100)
 
     # ================================================================
-    # Signal handlers — delegate to LEDService
+    # Signal handlers — zone-aware routing (matches LEDHandler)
     # ================================================================
 
     def _on_mode(self, mode: int):
-        self._svc.set_mode(mode)
-        self._update_status()
+        """Route mode to zone or global, matching LEDHandler._on_mode_changed."""
+        if self._svc.state.zones:
+            self._svc.set_zone_mode(self._led_panel.selected_zone, mode)
+        else:
+            self._svc.set_mode(mode)
 
     def _on_color(self, r: int, g: int, b: int):
-        self._svc.set_color(r, g, b)
-        self._update_status()
+        """Route color to zone or global, matching LEDHandler._on_color_changed."""
+        if self._svc.state.zones:
+            self._svc.set_zone_color(self._led_panel.selected_zone, r, g, b)
+        else:
+            self._svc.set_color(r, g, b)
 
     def _on_brightness(self, val: int):
-        self._svc.set_brightness(val)
-        self._update_status()
-
-    def _on_global_toggle(self, on: bool):
-        self._svc.toggle_global(on)
-        self._update_status()
+        """Route brightness to zone or global, matching LEDHandler._on_brightness_changed."""
+        if self._svc.state.zones:
+            self._svc.set_zone_brightness(self._led_panel.selected_zone, val)
+        else:
+            self._svc.set_brightness(val)
 
     def _on_segment_click(self, idx: int):
         seg_on = self._svc.state.segment_on
         if 0 <= idx < len(seg_on):
             self._svc.toggle_segment(idx, not seg_on[idx])
             self._led_panel._preview.set_segment_on(idx, seg_on[idx])
-        self._update_status()
 
     def _on_zone_selected(self, zone: int):
+        """Select zone + load its state into panel, matching LEDHandler._on_zone_selected."""
         self._svc.set_selected_zone(zone)
-        self._update_status()
-
-    def _on_zone_toggled(self, zone: int, on: bool):
-        self._svc.toggle_zone(zone, on)
-        self._update_status()
-
-    def _on_carousel(self, on: bool):
-        self._svc.set_zone_sync(on)
-        self._update_status()
-
-    def _on_carousel_interval(self, secs: int):
-        self._svc.set_zone_sync_interval(secs)
-        self._update_status()
+        zones = self._svc.state.zones
+        if 0 <= zone < len(zones):
+            z = zones[zone]
+            self._led_panel.load_zone_state(
+                zone, z.mode.value, z.color, z.brightness, z.on)
 
     def _on_temp_unit(self, unit: str):
-        self._update_status()
+        """Forward temp unit to segment display."""
+        seg_unit = "F" if unit == "\u00b0F" else "C"
+        self._svc.set_seg_temp_unit(seg_unit)
 
-    def _on_close(self):
-        self._update_status()
-
-    def _on_test_mode(self, on: bool):
-        self._svc.state.test_mode = on
-        self._update_status()
+    def _on_memory_ratio(self, ratio: int):
+        self._svc.set_memory_ratio(ratio)
+        self._led_panel.set_memory_ratio(ratio)
 
     # ================================================================
     # Device switching
@@ -307,13 +313,14 @@ class LEDPanelTestHarness(QWidget):
         for i, sid in enumerate(sorted_styles):
             self._device_buttons[i].setChecked(sid == style_id)
 
-        # Initialize panel
+        # Initialize panel (matches LEDHandler.show())
         self._led_panel.initialize(
             style_id=style.style_id,
             segment_count=style.segment_count,
             zone_count=style.zone_count,
             model=style.model_name,
         )
+        self._led_panel.set_memory_ratio(self._svc.state.memory_ratio)
 
         # Reset overlay positions
         positions = STYLE_POSITIONS.get(style_id, ())
@@ -385,6 +392,7 @@ class LEDPanelTestHarness(QWidget):
         colors = self._svc.tick()
         display_colors = self._svc.apply_mask(colors)
         self._led_panel.set_led_colors(display_colors)
+        self._update_status()
 
 
 def main():
