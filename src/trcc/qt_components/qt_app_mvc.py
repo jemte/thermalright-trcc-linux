@@ -191,28 +191,28 @@ class LEDHandler:
         ctrl = self._controller
         if not ctrl:
             return
+        # C# always sets global myLedMode, AND per-zone for zone styles.
+        ctrl.set_mode(mode)
         if ctrl.state.zones:
             ctrl.set_zone_mode(self._panel.selected_zone, mode)
-        else:
-            ctrl.set_mode(mode)
 
     def _on_color_changed(self, r, g, b):
         ctrl = self._controller
         if not ctrl:
             return
+        # C# always sets global rgbR1/G1/B1, AND per-zone for zone styles.
+        ctrl.set_color(r, g, b)
         if ctrl.state.zones:
             ctrl.set_zone_color(self._panel.selected_zone, r, g, b)
-        else:
-            ctrl.set_color(r, g, b)
 
     def _on_brightness_changed(self, val):
         ctrl = self._controller
         if not ctrl:
             return
+        # C# always sets global myBrightness, AND per-zone for zone styles.
+        ctrl.set_brightness(val)
         if ctrl.state.zones:
             ctrl.set_zone_brightness(self._panel.selected_zone, val)
-        else:
-            ctrl.set_brightness(val)
 
     def _on_zone_selected(self, zone_index):
         ctrl = self._controller

@@ -1,9 +1,17 @@
 """TRCC Linux version information."""
 
-__version__ = "6.0.4"
+__version__ = "6.0.5"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Version history:
+# 6.0.5 - Fix LED circulate not rotating zones: zone_sync_zones was never
+#         initialized in configure_for_style() — stayed empty [], so zone
+#         toggles during circulate silently failed and _next_sync_zone found
+#         nothing to rotate. Fix color/mode not applied during circulate:
+#         C# uses global rgbR1/myLedMode for non-2/7 styles (zones only drive
+#         segment data rotation, not LED color), but tick() was reading
+#         per-zone color. Fix color/mode routing to always set global state
+#         (C# always sets rgbR1/G1/B1 + per-zone). 2349 tests.
 # 6.0.4 - Fix LED circulate (zone carousel): zone buttons now toggle zones
 #         in/out when circulate is active (C# radio-select sets clicked zone,
 #         user adds more by clicking buttons). Interval input fires on every

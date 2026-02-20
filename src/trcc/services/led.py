@@ -271,8 +271,14 @@ class LEDService:
             self.state.segment_on = [True] * style.segment_count
             if style.zone_count > 1:
                 self.state.zones = [LEDZoneState() for _ in range(style.zone_count)]
+                # Must also size zone_sync_zones — __post_init__ ran with
+                # default zone_count=1 which leaves it empty.
+                if len(self.state.zone_sync_zones) != style.zone_count:
+                    self.state.zone_sync_zones = (
+                        [True] + [False] * (style.zone_count - 1))
             else:
                 self.state.zones = []
+                self.state.zone_sync_zones = []
 
         self._seg_display = get_display(style_id)
         self._segment_mode = self._seg_display is not None
@@ -315,19 +321,12 @@ class LEDService:
         if self._segment_mode and self.state.zones and self._seg_display:
             zone_map = self._seg_display.zone_led_map
             if zone_map:
-                # Physical zones: each zone colors its own mapped LED indices
+                # Styles 2/7 (PA120/LF10): physical zones with per-zone
+                # color/mode — each zone colors its own mapped LED indices.
                 return self._tick_multi_zone(zone_map)
-            # Phase-rotating: active zone's color/mode for ALL LEDs
-            active = self._seg_phase
-            if 0 <= active < len(self.state.zones):
-                z = self.state.zones[active]
-                colors = self._tick_single_mode(z.mode, z.color,
-                                                self.state.segment_count)
-                if z.brightness < 100:
-                    scale = z.brightness / 100.0
-                    colors = [(int(r * scale), int(g * scale), int(b * scale))
-                              for r, g, b in colors]
-                return colors
+            # Non-2/7 styles: C# uses global rgbR1/G1/B1 and myLedMode.
+            # Zones only drive segment display data rotation (CPU/GPU),
+            # not LED color. Fall through to global tick below.
 
         return self._tick_single_mode(self.state.mode, self.state.color,
                                       self.state.segment_count)
