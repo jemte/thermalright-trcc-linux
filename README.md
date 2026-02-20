@@ -5,16 +5,17 @@
 [![PyPI](https://img.shields.io/pypi/v/trcc-linux)](https://pypi.org/project/trcc-linux/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://python.org)
 [![License](https://img.shields.io/badge/license-GPL--3.0-green.svg)](LICENSE)
+[![Buy Me a Beer](https://img.shields.io/badge/Buy_Me_a_Beer-🍺-FF5F5F?style=flat)](https://buymeacoffee.com/Lexonight1)
 
-If this project helped you, consider <a href="https://buymeacoffee.com/Lexonight1"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a beer&emoji=🍺&slug=Lexonight1&button_colour=FF5F5F&font_colour=ffffff&font_family=Cookie&outline_colour=000000&coffee_colour=FFDD00" height="28"></a>
+Native Linux port of the Thermalright LCD Control Center (Windows TRCC 2.0.3). Control and customize the LCD displays and LED segment displays on Thermalright CPU coolers, AIO pump heads, and fan hubs — entirely from Linux.
 
-Native Linux port of the Thermalright LCD Control Center (Windows TRCC 2.0.3). Control and customize the LCD displays on Thermalright CPU coolers, AIO pump heads, and fan hubs — entirely from Linux.
+> **This project wouldn't exist without our testers.** I only own one device. Every supported device in this list works because someone plugged it in, ran `trcc report`, and told me what broke. 20 testers across 6 countries helped us go from "SCSI only" to full C# feature parity with 4 USB protocols, 16 FBL resolutions, and 12 LED styles. Open source at its best — see [Contributors](#contributors) below.
 
-> Unofficial community project, not affiliated with Thermalright. I develop and test on Fedora — if something doesn't work on your distro, please [open an issue](https://github.com/Lexonight1/thermalright-trcc-linux/issues).
+> Unofficial community project, not affiliated with Thermalright. Built with [Claude](https://claude.ai) (AI) for protocol reverse engineering and code generation, guided by human architecture decisions and logical assessment. If something doesn't work on your distro, please [open an issue](https://github.com/Lexonight1/thermalright-trcc-linux/issues).
 
-### Testers Wanted
+### Have an untested device?
 
-I don't own every Thermalright device — ~31 models need real hardware validation. Testing takes 30 seconds: run `trcc report` and [paste the output in an issue](https://github.com/Lexonight1/thermalright-trcc-linux/issues/new). See the **[full list of devices that need testers](doc/TESTERS_WANTED.md)**.
+Run `trcc report` and [paste the output in an issue](https://github.com/Lexonight1/thermalright-trcc-linux/issues/new) — takes 30 seconds. See the **[full list of devices that need testers](doc/TESTERS_WANTED.md)**.
 
 ![TRCC Linux GUI](doc/screenshots/screenshot.png)
 
