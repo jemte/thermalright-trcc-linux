@@ -27,6 +27,12 @@ def _get_draw(img: Any) -> Any:
 class ImageService:
     """Stateless image processing utilities."""
 
+    # Cached JPEG quality from last successful encode.  Avoids repeated
+    # trial encodes for video/screencast where frame complexity is stable.
+    # C# CompressionImage() does the same loop from 95→5 every frame;
+    # we short-circuit by starting at the last-known-good quality.
+    _jpeg_quality_hint: int = 95
+
     @staticmethod
     def to_rgb565(img: Any, byte_order: str = '>') -> bytes:
         """Convert PIL Image to RGB565 bytes.
@@ -55,20 +61,48 @@ class ImageService:
         Matches C# CompressionImage(): starts at *quality*, reduces by 5
         until output < *max_size*.  USBLCDNew bulk devices expect JPEG
         (cmd=2) instead of raw RGB565.
+
+        Optimization: starts at the last successful quality level instead
+        of always from 95.  For video/screencast where consecutive frames
+        have similar complexity, this typically hits on the first try
+        (1 encode instead of 4).  If the cached quality is too low (scene
+        change to simpler content), we retry from *quality* to find a
+        higher-quality encode.
         """
         if img.mode != 'RGB':
             img = img.convert('RGB')
 
+        hint = ImageService._jpeg_quality_hint
+
+        # Fast path: try cached quality first
+        if hint < quality:
+            buf = io.BytesIO()
+            img.save(buf, format='JPEG', quality=hint)
+            data = buf.getvalue()
+            if len(data) < max_size:
+                # Scene got simpler — try higher quality
+                for q in range(min(quality, hint + 10), hint, -5):
+                    buf2 = io.BytesIO()
+                    img.save(buf2, format='JPEG', quality=q)
+                    d2 = buf2.getvalue()
+                    if len(d2) < max_size:
+                        ImageService._jpeg_quality_hint = q
+                        return d2
+                return data
+
+        # Normal path: scan from top quality down
         for q in range(quality, 4, -5):
             buf = io.BytesIO()
             img.save(buf, format='JPEG', quality=q)
             data = buf.getvalue()
             if len(data) < max_size:
+                ImageService._jpeg_quality_hint = q
                 return data
 
         # Fallback: minimum quality
         buf = io.BytesIO()
         img.save(buf, format='JPEG', quality=5)
+        ImageService._jpeg_quality_hint = 5
         return buf.getvalue()
 
     @staticmethod
