@@ -1,9 +1,13 @@
 """TRCC Linux version information."""
 
-__version__ = "6.1.8"
+__version__ = "6.1.9"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Version history:
+# 6.1.9 - Add TLS support to REST API server: --tls flag auto-generates a
+#         self-signed certificate in ~/.config/trcc/tls/ (RSA 2048, 10-year
+#         validity). --cert/--key flags for custom certificates. Warns when
+#         --token is used without TLS on non-localhost binds. 2439 tests.
 # 6.1.8 - Add LY protocol support for Peerless Vision and other 0416:5408/5409
 #         devices. New USB bulk handler (LyDevice) reverse-engineered from TRCC
 #         v2.1.2 USBLCDNEW.dll ThreadSendDeviceDataLY/LY1. Handshake: 2048-byte
