@@ -563,6 +563,75 @@ class BulkProtocol(DeviceProtocol):
         return f"BulkProtocol(vid=0x{self._vid:04x}, pid=0x{self._pid:04x})"
 
 
+class LyProtocol(DeviceProtocol):
+    """LCD communication via LY USB bulk (0416:5408 / 0416:5409).
+
+    Wraps ly.LyDevice.  Protocol from TRCC v2.1.2 USBLCDNEW.dll
+    ThreadSendDeviceDataLY / ThreadSendDeviceDataLY1.
+    """
+
+    def __init__(self, vid: int, pid: int):
+        super().__init__()
+        self._vid = vid
+        self._pid = pid
+        self._device: Optional[Any] = None  # LyDevice (lazy import)
+
+    def _ensure_device(self):
+        """Lazily create and handshake the LY device."""
+        if self._device is None:
+            from .ly import LyDevice
+            self._device = LyDevice(self._vid, self._pid)
+            result = self._device.handshake()
+            self._handshake_result = result
+            if result.resolution:
+                self._notify_state_changed("handshake_complete", True)
+                log.info("LY handshake OK: PM=%d, resolution=%s",
+                         result.model_id, result.resolution)
+            else:
+                log.warning("LY handshake: no resolution detected")
+
+    def _do_handshake(self) -> Optional[HandshakeResult]:
+        self._ensure_device()
+        return self._handshake_result
+
+    @property
+    def _handshake_label(self) -> str:
+        return f"LY {self._vid:04X}:{self._pid:04X}"
+
+    def send_image(self, image_data: bytes, width: int, height: int) -> bool:
+        def _do_send() -> bool:
+            self._ensure_device()
+            assert self._device is not None
+            return self._device.send_frame(image_data)
+        return self._guarded_send("LY", _do_send)
+
+    def close(self) -> None:
+        if self._device is not None:
+            try:
+                self._device.close()
+            except Exception:
+                pass
+            self._device = None
+
+    def get_info(self) -> 'ProtocolInfo':
+        return self._build_usb_protocol_info(
+            "ly", 5, "USB Bulk LY", "USB Bulk LY LCD",
+            self._device is not None, pyusb_only=True,
+        )
+
+    @property
+    def protocol_name(self) -> str:
+        return "ly"
+
+    @property
+    def is_available(self) -> bool:
+        backends = DeviceProtocolFactory._get_hid_backends()
+        return backends["pyusb"]
+
+    def __repr__(self) -> str:
+        return f"LyProtocol(vid=0x{self._vid:04x}, pid=0x{self._pid:04x})"
+
+
 # =========================================================================
 # Factory
 # =========================================================================
@@ -619,6 +688,13 @@ class DeviceProtocolFactory:
             log.info("Creating BulkProtocol for %04X:%04X",
                      device_info.vid, device_info.pid)
             return BulkProtocol(
+                vid=device_info.vid,
+                pid=device_info.pid,
+            )
+        elif protocol == 'ly':
+            log.info("Creating LyProtocol for %04X:%04X",
+                     device_info.vid, device_info.pid)
+            return LyProtocol(
                 vid=device_info.vid,
                 pid=device_info.pid,
             )

@@ -1,9 +1,16 @@
 """TRCC Linux version information."""
 
-__version__ = "6.1.7"
+__version__ = "6.1.8"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Version history:
+# 6.1.8 - Add LY protocol support for Peerless Vision and other 0416:5408/5409
+#         devices. New USB bulk handler (LyDevice) reverse-engineered from TRCC
+#         v2.1.2 USBLCDNEW.dll ThreadSendDeviceDataLY/LY1. Handshake: 2048-byte
+#         write + 512-byte read + validation. PM extraction: LY=64+resp[20],
+#         LY1=50+resp[36]. Frame chunking: 512-byte blocks (16-byte header +
+#         496 data), 4096-byte USB writes + ACK. Both PIDs auto-detected.
+#         Addresses #45. 2439 tests.
 # 6.1.7 - Fix Bulk PM=32 (Frozen Warframe Pro) distorted colors: encoding path
 #         assumed all Bulk devices use JPEG, but PM=32 uses RGB565 (cmd=3). Added
 #         use_jpeg flag to DeviceInfo, propagated from BulkDevice after handshake.

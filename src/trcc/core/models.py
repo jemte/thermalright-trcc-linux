@@ -1338,6 +1338,7 @@ PROTOCOL_NAMES: dict[str, str] = {
     "hid": "HID (USB bulk)",
     "led": "LED (HID 64-byte)",
     "bulk": "USB Bulk (USBLCDNew)",
+    "ly": "USB Bulk LY",
 }
 
 DEVICE_TYPE_NAMES: dict[int, str] = {
@@ -1345,6 +1346,7 @@ DEVICE_TYPE_NAMES: dict[int, str] = {
     2: "HID Type 2 (H)",
     3: "HID Type 3 (ALi)",
     4: "Raw USB Bulk LCD",
+    5: "USB Bulk LY LCD",
 }
 
 LED_DEVICE_TYPE_NAME: str = "RGB LED Controller"

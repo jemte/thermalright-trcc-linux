@@ -18,6 +18,10 @@ Supported devices (HID LED — RGB controllers, auto-detected when plugged in):
 
 Supported devices (Raw USB bulk — bInterfaceClass=255, Vendor Specific):
 - ChiZhu Tech:  VID=0x87AD, PID=0x70DB  (GrandVision/Mjolnir Vision, USBLCDNew protocol)
+
+Supported devices (LY USB bulk — bInterfaceClass=255, TRCC v2.1.2):
+- Winbond:      VID=0x0416, PID=0x5408  (LY)
+- Winbond:      VID=0x0416, PID=0x5409  (LY1)
 """
 
 import logging
@@ -121,6 +125,18 @@ _BULK_DEVICES: dict[tuple[int, int], DeviceEntry] = {
     ),
 }
 
+# LY USB bulk devices (bInterfaceClass=255, TRCC v2.1.2 ThreadSendDeviceDataLY)
+_LY_DEVICES: dict[tuple[int, int], DeviceEntry] = {
+    (0x0416, 0x5408): DeviceEntry(
+        vendor="Winbond", product="USBDISPLAY",
+        implementation="ly_bulk", protocol="ly", device_type=5,
+    ),
+    (0x0416, 0x5409): DeviceEntry(
+        vendor="Winbond", product="USBDISPLAY",
+        implementation="ly_bulk", protocol="ly", device_type=5,
+    ),
+}
+
 # Backward-compat aliases
 KNOWN_LED_DEVICES = _LED_DEVICES
 KNOWN_BULK_DEVICES = _BULK_DEVICES
@@ -149,6 +165,7 @@ class DeviceDetector:
         all_devices.update(_HID_LCD_DEVICES)
         all_devices.update(_LED_DEVICES)
         all_devices.update(_BULK_DEVICES)
+        all_devices.update(_LY_DEVICES)
         return all_devices
 
     @staticmethod
