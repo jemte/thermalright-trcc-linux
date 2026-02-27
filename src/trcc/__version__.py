@@ -1,9 +1,13 @@
 """TRCC Linux version information."""
 
-__version__ = "6.1.9"
+__version__ = "6.1.10"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Version history:
+# 6.1.10 - Move fastapi + uvicorn from optional [api] extra to base dependencies.
+#          REST API is now always available — no extra install step needed.
+#          Prepares for Android companion app using trcc serve as backend.
+#          Remove ImportError guard from trcc serve. 2439 tests.
 # 6.1.9 - Add TLS support to REST API server: --tls flag auto-generates a
 #         self-signed certificate in ~/.config/trcc/tls/ (RSA 2048, 10-year
 #         validity). --cert/--key flags for custom certificates. Warns when

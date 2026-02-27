@@ -737,34 +737,30 @@ def _cmd_serve(
         "--key", help="Path to TLS private key file (.pem)",
     )] = None,
 ) -> int:
-    """Start REST API server (requires trcc-linux[api])."""
-    try:
-        import uvicorn  # noqa: I001
+    """Start REST API server."""
+    import uvicorn  # noqa: I001
 
-        from trcc.api import app as api_app, configure_auth
-        configure_auth(token)
+    from trcc.api import app as api_app, configure_auth
+    configure_auth(token)
 
-        ssl_kwargs: dict = {}
-        if cert and key:
-            ssl_kwargs = {"ssl_certfile": cert, "ssl_keyfile": key}
-        elif tls:
-            certs = _ensure_self_signed_cert()
-            if not certs:
-                return 1
-            ssl_kwargs = {"ssl_certfile": certs[0], "ssl_keyfile": certs[1]}
+    ssl_kwargs: dict = {}
+    if cert and key:
+        ssl_kwargs = {"ssl_certfile": cert, "ssl_keyfile": key}
+    elif tls:
+        certs = _ensure_self_signed_cert()
+        if not certs:
+            return 1
+        ssl_kwargs = {"ssl_certfile": certs[0], "ssl_keyfile": certs[1]}
 
-        # Warn if token travels in plaintext over LAN
-        if token and host != "127.0.0.1" and not ssl_kwargs:
-            print("WARNING: --token without --tls exposes your API key in plaintext on the network.")
-            print("         Add --tls for HTTPS, or use --cert/--key for a custom certificate.")
+    # Warn if token travels in plaintext over LAN
+    if token and host != "127.0.0.1" and not ssl_kwargs:
+        print("WARNING: --token without --tls exposes your API key in plaintext on the network.")
+        print("         Add --tls for HTTPS, or use --cert/--key for a custom certificate.")
 
-        scheme = "https" if ssl_kwargs else "http"
-        print(f"Serving on {scheme}://{host}:{port}")
-        uvicorn.run(api_app, host=host, port=port, **ssl_kwargs)
-        return 0
-    except ImportError:
-        print("REST API requires: pip install trcc-linux[api]")
-        return 1
+    scheme = "https" if ssl_kwargs else "http"
+    print(f"Serving on {scheme}://{host}:{port}")
+    uvicorn.run(api_app, host=host, port=port, **ssl_kwargs)
+    return 0
 
 
 def _ensure_self_signed_cert() -> Optional[tuple[str, str]]:
