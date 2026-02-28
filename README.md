@@ -345,6 +345,7 @@ A big thanks to everyone who has contributed invaluable reports to this project:
 - **[tensaiteki](https://github.com/tensaiteki)** — Elite Vision 360 SCSI detection on CachyOS (sg module bug)
 - **[wrightbyname](https://github.com/wrightbyname)** — CLI compatibility testing & bug report
 - **[Scifiguygaming](https://github.com/Scifiguygaming)** — Frozen Warframe HID testing on CachyOS
+- **[mog199](https://github.com/mog199)** — HID Type 2 permission error bug report
 
 ## Donations
 
