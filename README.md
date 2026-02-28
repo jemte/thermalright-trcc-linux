@@ -1,41 +1,43 @@
 # TRCC Linux
 
+[![GitHub Release](https://img.shields.io/github/v/release/Lexonight1/thermalright-trcc-linux?color=green&logo=github)](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest)
+[![PyPI](https://img.shields.io/pypi/v/trcc-linux)](https://pypi.org/project/trcc-linux/)
+[![GitHub Downloads](https://img.shields.io/github/downloads/Lexonight1/thermalright-trcc-linux/total?color=blue&logo=github&label=downloads)](https://github.com/Lexonight1/thermalright-trcc-linux/releases)
+[![PyPI Downloads](https://img.shields.io/pypi/dm/trcc-linux?label=PyPI%20downloads&color=blue)](https://pypi.org/project/trcc-linux/)
+[![License](https://img.shields.io/badge/license-GPL--3.0-green.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Linux-FCC624?logo=linux&logoColor=black)](https://github.com/Lexonight1/thermalright-trcc-linux)
+
 [![CI](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/ci.yml/badge.svg)](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/ci.yml)
 [![Tests](https://img.shields.io/badge/tests-2523_passed-brightgreen.svg)](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-96%25-brightgreen.svg)](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/trcc-linux)](https://pypi.org/project/trcc-linux/)
-[![PyPI Downloads](https://img.shields.io/pypi/dm/trcc-linux?label=PyPI%20downloads&color=blue)](https://pypi.org/project/trcc-linux/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://python.org)
-[![License](https://img.shields.io/badge/license-GPL--3.0-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Linux-FCC624?logo=linux&logoColor=black)](https://github.com/Lexonight1/thermalright-trcc-linux)
 [![Code Style](https://img.shields.io/badge/code_style-ruff-D7FF64?logo=ruff&logoColor=black)](https://docs.astral.sh/ruff/)
 [![Type Check](https://img.shields.io/badge/type_check-pyright-blue?logo=python&logoColor=white)](https://microsoft.github.io/pyright/)
+
+[![Fedora](https://img.shields.io/badge/Fedora-RPM-51A2DA?logo=fedora&logoColor=white)](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest)
+[![openSUSE](https://img.shields.io/badge/openSUSE-RPM-73BA25?logo=opensuse&logoColor=white)](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest)
+
+[![Ubuntu](https://img.shields.io/badge/Ubuntu-DEB-E95420?logo=ubuntu&logoColor=white)](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest)
+[![Debian](https://img.shields.io/badge/Debian-DEB-A81D33?logo=debian&logoColor=white)](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest)
+
+[![Arch](https://img.shields.io/badge/Arch-pkg.tar.zst-1793D1?logo=archlinux&logoColor=white)](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest)
+[![CachyOS](https://img.shields.io/badge/CachyOS-pkg.tar.zst-6B8E23?logo=archlinux&logoColor=white)](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest)
+[![Manjaro](https://img.shields.io/badge/Manjaro-pkg.tar.zst-35BF5C?logo=manjaro&logoColor=white)](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest)
+
+[![NixOS](https://img.shields.io/badge/NixOS-flake-5277C3?logo=nixos&logoColor=white)](https://github.com/Lexonight1/thermalright-trcc-linux/blob/main/flake.nix)
+[![Gentoo](https://img.shields.io/badge/Gentoo-ebuild-54487A?logo=gentoo&logoColor=white)](https://github.com/Lexonight1/thermalright-trcc-linux/tree/main/packaging/gentoo)
+
 [![Stars](https://img.shields.io/github/stars/Lexonight1/thermalright-trcc-linux?style=flat&color=yellow&logo=github)](https://github.com/Lexonight1/thermalright-trcc-linux/stargazers)
 [![Forks](https://img.shields.io/github/forks/Lexonight1/thermalright-trcc-linux?style=flat&color=blue&logo=github)](https://github.com/Lexonight1/thermalright-trcc-linux/network/members)
 [![Issues](https://img.shields.io/github/issues/Lexonight1/thermalright-trcc-linux?color=orange&logo=github)](https://github.com/Lexonight1/thermalright-trcc-linux/issues)
 [![Last Commit](https://img.shields.io/github/last-commit/Lexonight1/thermalright-trcc-linux?color=purple&logo=git&logoColor=white)](https://github.com/Lexonight1/thermalright-trcc-linux/commits/main)
-[![GitHub Release](https://img.shields.io/github/v/release/Lexonight1/thermalright-trcc-linux?color=green&logo=github)](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest)
-[![GitHub Downloads](https://img.shields.io/github/downloads/Lexonight1/thermalright-trcc-linux/total?color=blue&logo=github&label=downloads)](https://github.com/Lexonight1/thermalright-trcc-linux/releases)
 [![Code Size](https://img.shields.io/github/languages/code-size/Lexonight1/thermalright-trcc-linux?color=lightgrey&logo=github)](https://github.com/Lexonight1/thermalright-trcc-linux)
-
-[![Fedora](https://img.shields.io/badge/Fedora-RPM-51A2DA?logo=fedora&logoColor=white)](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest)
-[![openSUSE](https://img.shields.io/badge/openSUSE-RPM-73BA25?logo=opensuse&logoColor=white)](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest)
-[![Ubuntu](https://img.shields.io/badge/Ubuntu-DEB-E95420?logo=ubuntu&logoColor=white)](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest)
-[![Debian](https://img.shields.io/badge/Debian-DEB-A81D33?logo=debian&logoColor=white)](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest)
-[![Arch](https://img.shields.io/badge/Arch-pkg.tar.zst-1793D1?logo=archlinux&logoColor=white)](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest)
-[![CachyOS](https://img.shields.io/badge/CachyOS-pkg.tar.zst-6B8E23?logo=archlinux&logoColor=white)](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest)
-[![Manjaro](https://img.shields.io/badge/Manjaro-pkg.tar.zst-35BF5C?logo=manjaro&logoColor=white)](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest)
-[![NixOS](https://img.shields.io/badge/NixOS-flake-5277C3?logo=nixos&logoColor=white)](https://github.com/Lexonight1/thermalright-trcc-linux/blob/main/flake.nix)
-[![Gentoo](https://img.shields.io/badge/Gentoo-ebuild-54487A?logo=gentoo&logoColor=white)](https://github.com/Lexonight1/thermalright-trcc-linux/tree/main/packaging/gentoo)
-[![Buy Me a Beer](https://img.shields.io/badge/Buy_Me_a_Beer-🍺-FF5F5F?style=flat)](https://buymeacoffee.com/Lexonight1)
-
-> If this helped you, could you **[buy me a nice frosty cold one](https://buymeacoffee.com/Lexonight1)**? Huge thanks to **[@javisaman](https://github.com/javisaman)**, **[@Xentrino](https://github.com/Xentrino)**, **[@loosethoughts19-hash](https://github.com/loosethoughts19-hash)**, **[@Mr-Renegade](https://github.com/Mr-Renegade)**, and **[@Reborn627](https://github.com/Reborn627)** for buying me a beer — you guys are legends.
 
 Native Linux port of the Thermalright LCD Control Center (Windows TRCC 2.0.3). Control and customize the LCD displays and LED segment displays on Thermalright CPU coolers, AIO pump heads, and fan hubs — entirely from Linux. One less reason to keep Micro$lop Window$ around.
 
-> **This project wouldn't exist without our testers.** I only own one device. Every supported device in this list works because someone plugged it in, ran `trcc report`, and told me what broke. 20 testers across 6 countries helped us go from "SCSI only" to full C# feature parity with 5 USB protocols, 16 FBL resolutions, and 12 LED styles. Open source at its best — see [Contributors](#contributors) below.
+> **This project wouldn't exist without our testers.** I only own one device. Every supported device in this list works because someone plugged it in, ran `trcc report`, and told me what broke. 25+ testers across 6 countries helped us go from "SCSI only" to full C# feature parity with 5 USB protocols, 16 FBL resolutions, and 12 LED styles. Open source at its best — see [Contributors](#contributors) below.
 
-> Unofficial community project, not affiliated with Thermalright. Built with [Claude](https://claude.ai) (AI) for protocol reverse engineering and code generation, guided by human architecture decisions and logical assessment. If something doesn't work on your distro, please **update to the latest version first** — ![latest](https://img.shields.io/pypi/v/trcc-linux?label=latest&color=blue) (`pip install --upgrade trcc-linux`) — your issue may already be fixed. If it persists, [open an issue](https://github.com/Lexonight1/thermalright-trcc-linux/issues).
+> Unofficial community project, not affiliated with Thermalright. Built with [Claude](https://claude.ai) (AI) for protocol reverse engineering and code generation, guided by human architecture decisions and logical assessment.
 
 ### Have an untested device?
 
@@ -45,12 +47,21 @@ Run `trcc report` and [paste the output in an issue](https://github.com/Lexonigh
 
 ## Features
 
-- **Themes** — Local, cloud, masks, carousel mode, export/import as `.tr` files
-- **Media** — Video/GIF playback, video trimmer, image cropper, screen cast (X11 + Wayland)
-- **Editor** — Overlay text/sensors/date/time, font picker, dynamic scaling, color picker
-- **Hardware** — 77+ sensors, customizable dashboard, multi-device with per-device config, RGB LED control
-- **Display** — 15 resolutions (240x240 to 1920x462), 0/90/180/270 rotation, 3 brightness levels
-- **Extras** — 5 starter themes + 120 masks per resolution, on-demand download, system tray, auto-start
+| Category | What you get |
+|----------|-------------|
+| **GUI** | Full PySide6 desktop app — theme browser, video player, overlay editor, LED control panel |
+| **CLI** | 50 commands — `trcc gui`, `trcc send`, `trcc video`, `trcc led-color`, `trcc screencast`, and more |
+| **REST API** | 41 endpoints — control everything remotely, build integrations, or use the upcoming Android app |
+| **Themes** | Local, cloud, and masks — carousel mode, export/import as `.tr` files, 5 starters + 120 masks per resolution |
+| **Media** | Video/GIF playback, video trimmer, image cropper, screen cast (X11 + Wayland) |
+| **Overlay Editor** | Text, sensors, date/time overlays — font picker, dynamic scaling, color picker |
+| **Hardware Sensors** | 77+ sensors — CPU/GPU temp, fan speed, power, usage — customizable dashboard |
+| **LED Control** | 12 LED styles, zone carousel, breathing/rainbow/static/wave modes, per-zone color |
+| **Display** | 15 resolutions (240x240 to 1920x462), 0/90/180/270 rotation, 3 brightness levels |
+| **Multi-device** | Per-device config, auto-detect, multi-device with device selection |
+| **Security** | udev rules, polkit policy, SELinux support, no root required after setup |
+
+**Under the hood**: 96 source files, ~36K lines of Python, 2523 tests across 39 test files, 96% coverage. Hexagonal architecture — GUI, CLI, and API all talk to the same core services. 5 USB protocols reverse-engineered from the Windows C# app.
 
 ## Supported Devices
 
@@ -74,7 +85,7 @@ Run `lsusb` to find your USB ID (`xxxx:xxxx` after `ID`), then match it below.
 | `0416:5408` | Peerless Vision |
 | `0416:5409` | Peerless Vision (variant) |
 
-**HID LCD devices** — auto-detected, needs hardware testers:
+**HID LCD devices** — auto-detected:
 | USB ID | Devices |
 |--------|---------|
 | `0416:5302` | Trofeo Vision LCD, Assassin Spirit 120 Vision ARGB, AS120 VISION, BA120 VISION, FROZEN WARFRAME, FROZEN WARFRAME 360, FROZEN WARFRAME SE, FROZEN WARFRAME PRO, ELITE VISION, LC5 |
@@ -86,19 +97,19 @@ Run `lsusb` to find your USB ID (`xxxx:xxxx` after `ID`), then match it below.
 |--------|---------|
 | `0416:8001` | AX120 DIGITAL, PA120 DIGITAL, Peerless Assassin 120 DIGITAL, Assassin X 120R Digital ARGB, Phantom Spirit 120 Digital EVO, and others (model auto-detected via handshake) |
 
-> HID devices are auto-detected. See the [Device Testing Guide](doc/DEVICE_TESTING.md) if you have one — I need testers.
+> See the [full device list with protocol details](doc/SUPPORTED_DEVICES.md) and the [Device Testing Guide](doc/DEVICE_TESTING.md) if you have an untested device.
 
 ## Install
 
 ### Native packages (recommended)
 
-Pre-built packages are available for every major distro. No pip, no venv, no PEP 668 headaches — just download and install like any other app.
+Pre-built packages are available for every major distro. No pip, no venv, no PEP 668 headaches — just download and install like any other app. Every release is built automatically from source using [GitHub Actions](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/release.yml) — the build logs are public so anyone can verify what went in.
 
-**Step 1:** Go to the [latest release](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest) page and download the package for your distro.
+**Step 1:** Go to the [latest release](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest) and download the package for your distro.
 
 > Not sure which distro you're running? Open a terminal and type `cat /etc/os-release` — the `ID` line tells you.
 
-**Step 2:** Open a terminal in your Downloads folder and run the install command for your distro:
+**Step 2:** Open a terminal in your Downloads folder and install:
 
 **Fedora / openSUSE / Nobara:**
 ```bash
@@ -110,7 +121,7 @@ sudo dnf install ./trcc-linux-*.noarch.rpm
 ```bash
 cd ~/Downloads
 sudo dpkg -i trcc-linux_*_all.deb
-sudo apt-get install -f    # this pulls in any missing dependencies
+sudo apt-get install -f    # pulls in any missing dependencies
 ```
 
 **Arch / CachyOS / Manjaro / EndeavourOS / Garuda:**
@@ -119,7 +130,7 @@ cd ~/Downloads
 sudo pacman -U trcc-linux-*-any.pkg.tar.zst
 ```
 
-**NixOS** — add to your `flake.nix` inputs and `configuration.nix`:
+**NixOS** — add to your `flake.nix` inputs:
 ```nix
 {
   inputs.trcc-linux.url = "github:Lexonight1/thermalright-trcc-linux";
@@ -141,14 +152,14 @@ That's it! If your device isn't detected, run `trcc detect --all` to see what's 
 
 ### Verify your download
 
-Every release includes a `SHA256SUMS.txt` file so you can verify the package hasn't been tampered with. Download it from the same release page, then run:
+Every release includes a `SHA256SUMS.txt` file. Download it from the same release page, then:
 
 ```bash
 cd ~/Downloads
 sha256sum -c SHA256SUMS.txt --ignore-missing
 ```
 
-If you see `OK` next to your package — it's clean. All packages are built automatically from source using GitHub Actions — the [build logs are public](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/release.yml) so anyone can verify what went into the package. Source code is GPL-3.0, fully auditable — no binaries, no obfuscation, no telemetry.
+If you see `OK` next to your package — it's clean. Source code is GPL-3.0, fully auditable — no binaries, no obfuscation, no telemetry.
 
 ### PyPI
 
@@ -169,24 +180,13 @@ Then **unplug and replug the USB cable** and run `trcc gui`.
 
 ### One-line bootstrap
 
-Download and run — installs trcc-linux, then launches the setup wizard (GUI if you have a display, CLI otherwise):
-
 ```bash
 bash <(curl -sSL https://raw.githubusercontent.com/Lexonight1/thermalright-trcc-linux/main/setup.sh)
 ```
 
-### Setup wizard
+Downloads and installs trcc-linux, then launches the setup wizard.
 
-After installing, run the setup wizard to configure everything:
-
-```bash
-trcc setup        # interactive CLI wizard
-trcc setup-gui    # GUI wizard with Install buttons
-```
-
-The wizard checks system dependencies, GPU packages, udev rules, and desktop integration — and offers to install anything missing.
-
-### Automatic (recommended for full setup)
+### Automatic (git clone)
 
 ```bash
 git clone https://github.com/Lexonight1/thermalright-trcc-linux.git
@@ -194,9 +194,7 @@ cd thermalright-trcc-linux
 sudo ./install.sh
 ```
 
-Detects your distro, installs system packages, Python deps, udev rules, and desktop shortcut. On PEP 668 distros (Arch, CachyOS, Ubuntu 24.04+, Fedora 41+) it auto-falls back to a virtual environment if `pip` refuses direct install.
-
-After it finishes: **unplug and replug the USB cable**, then run `trcc gui`.
+Detects your distro, installs system packages, Python deps, udev rules, and desktop shortcut.
 
 ### Supported distros
 
@@ -204,53 +202,112 @@ Fedora, Nobara, Ubuntu, Debian, Mint, Pop!_OS, Zorin, elementary OS, Arch, Manja
 
 > **`trcc: command not found`?** Open a new terminal — pip installs to `~/.local/bin` which needs a new shell session to appear on PATH.
 
-> See the **[Install Guide](doc/INSTALL_GUIDE.md)** for distro-specific instructions, troubleshooting, and optional deps.
+> See the **[Install Guide](doc/INSTALL_GUIDE.md)** for distro-specific instructions and troubleshooting.
 
 ## Usage
 
+### GUI
+
 ```bash
-trcc gui                  # Launch GUI
+trcc gui
+```
+
+Full desktop app with theme browser, video player, overlay editor, LED control panel, and hardware sensor dashboard.
+
+### CLI
+
+```bash
 trcc detect               # Show connected devices
 trcc send image.png       # Send image to LCD
 trcc color "#ff0000"      # Fill LCD with solid color
+trcc video clip.mp4       # Play video on LCD
+trcc screencast           # Live screen capture to LCD
 trcc brightness 2         # Set brightness (1=25%, 2=50%, 3=100%)
 trcc rotation 90          # Rotate display (0/90/180/270)
 trcc theme-list           # List available themes
 trcc theme-load NAME      # Load a theme by name
 trcc overlay              # Render and send overlay
-trcc screencast           # Live screen capture to LCD
-trcc video clip.mp4       # Play video on LCD
 trcc led-color "#00ff00"  # Set LED color
 trcc led-mode breathing   # Set LED effect mode
-trcc serve                # Start REST API server
-trcc setup                # Interactive setup wizard (CLI)
-trcc setup-gui            # Setup wizard (GUI)
-trcc setup-selinux        # Install SELinux USB policy (Bazzite/Silverblue)
-trcc doctor               # Check system dependencies
 trcc report               # Generate diagnostic report
-trcc setup-udev           # Install udev rules
-trcc install-desktop      # Install app menu entry and icon
+trcc doctor               # Check system dependencies
+trcc setup                # Interactive setup wizard
 trcc uninstall            # Remove TRCC completely
 ```
 
-See the **[CLI Reference](doc/CLI_REFERENCE.md)** for all 39 commands, options, and troubleshooting.
+50 commands total — see the **[CLI Reference](doc/CLI_REFERENCE.md)** for the full list.
+
+### REST API
+
+Start the API server and control your devices remotely:
+
+```bash
+trcc serve                    # Start on http://localhost:9876
+trcc serve --port 8080        # Custom port
+trcc serve --tls              # HTTPS with auto-generated self-signed cert
+trcc serve --host 0.0.0.0     # Listen on all interfaces (LAN access)
+```
+
+41 endpoints covering devices, display, LED, themes, and system metrics. Use `trcc api` to list all endpoints.
+
+```bash
+# Examples with curl
+curl http://localhost:9876/devices              # List devices
+curl -X POST http://localhost:9876/display/send \
+  -F "file=@wallpaper.png"                     # Send image
+curl -X POST http://localhost:9876/led/color \
+  -H "Content-Type: application/json" \
+  -d '{"color": "#ff0000"}'                    # Set LED color
+```
 
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
 | [Install Guide](doc/INSTALL_GUIDE.md) | Installation for all major distros |
+| [CLI Reference](doc/CLI_REFERENCE.md) | All 50 commands with options and examples |
 | [Troubleshooting](doc/TROUBLESHOOTING.md) | Common issues and fixes |
-| [CLI Reference](doc/CLI_REFERENCE.md) | All commands, options, and troubleshooting |
+| [New to Linux](doc/NEW_TO_LINUX.md) | Guide for Linux beginners |
 | [Changelog](doc/CHANGELOG.md) | Version history |
+| [Supported Devices](doc/SUPPORTED_DEVICES.md) | Full device list with USB IDs and protocols |
+| [Testers Wanted](doc/TESTERS_WANTED.md) | Devices that need hardware validation |
+| [Device Testing Guide](doc/DEVICE_TESTING.md) | How to test and report device compatibility |
 | [Architecture](doc/ARCHITECTURE.md) | Project layout and design |
 | [Technical Reference](doc/TECHNICAL_REFERENCE.md) | SCSI protocol and file formats |
-| [USBLCD Protocol](doc/audit/USBLCD_PROTOCOL.md) | SCSI protocol reverse-engineered from USBLCD.exe |
-| [USBLCDNEW Protocol](doc/audit/USBLCDNEW_PROTOCOL.md) | USB bulk protocol reverse-engineered from USBLCDNEW.exe |
-| [USBLED Protocol](doc/audit/USBLED_PROTOCOL.md) | HID LED protocol reverse-engineered from FormLED.cs |
-| [Testers Wanted](doc/TESTERS_WANTED.md) | Devices that need hardware validation |
-| [Device Testing Guide](doc/DEVICE_TESTING.md) | Device support and troubleshooting |
-| [Supported Devices](doc/SUPPORTED_DEVICES.md) | Full device list with USB IDs |
+
+### Protocol documentation (reverse-engineered from Windows TRCC)
+
+| Document | Description |
+|----------|-------------|
+| [USBLCD Protocol](doc/audit/USBLCD_PROTOCOL.md) | SCSI frame transfer protocol |
+| [USBLCDNEW Protocol](doc/audit/USBLCDNEW_PROTOCOL.md) | USB bulk/LY frame transfer protocol |
+| [USBLED Protocol](doc/audit/USBLED_PROTOCOL.md) | HID LED segment display protocol |
+
+## Architecture
+
+```
+src/trcc/
+├── core/           # Models, enums, domain constants — zero I/O
+├── services/       # Business logic — pure Python, no framework deps
+├── adapters/       # USB device protocols (SCSI, HID, Bulk, LY, LED)
+├── qt_components/  # PySide6 GUI (themes, video, overlay, LED, sensors)
+├── cli/            # Typer CLI — 50 commands across 7 modules
+├── api/            # FastAPI REST API — 41 endpoints across 7 modules
+├── conf.py         # Settings singleton
+└── assets/         # GUI images, desktop entry, polkit policy, systemd service
+```
+
+**Hexagonal architecture** — GUI, CLI, and API are interchangeable adapters over the same core services. Adding a new interface (Android app, Home Assistant plugin) means writing a new adapter, not touching business logic.
+
+**5 USB protocols** reverse-engineered from the Windows C# app:
+
+| Protocol | Transport | Devices |
+|----------|-----------|---------|
+| SCSI | SG_IO ioctl | Frozen Warframe, Elite Vision, AK/AX120, PA120, LC1-5 |
+| HID | pyusb interrupt | Trofeo Vision, Assassin Spirit, AS/BA120, TARAN ARMS |
+| Bulk | pyusb bulk | GrandVision 360, Mjolnir Vision 360 |
+| LY | pyusb bulk (chunked) | Peerless Vision |
+| LED | pyusb HID | All LED segment display devices (12 styles) |
 
 ## Contributors
 
@@ -282,6 +339,12 @@ A big thanks to everyone who has contributed invaluable reports to this project:
 - **[tensaiteki](https://github.com/tensaiteki)** — Elite Vision 360 SCSI detection on CachyOS (sg module bug)
 - **[wrightbyname](https://github.com/wrightbyname)** — CLI compatibility testing & bug report
 - **[Scifiguygaming](https://github.com/Scifiguygaming)** — Frozen Warframe HID testing on CachyOS
+
+## Donations
+
+[![Buy Me a Beer](https://img.shields.io/badge/Buy_Me_a_Beer-🍺-FF5F5F?style=flat)](https://buymeacoffee.com/Lexonight1)
+
+If this project saved you from keeping a Windows partition around, consider **[buying me a cold one](https://buymeacoffee.com/Lexonight1)**. Huge thanks to **[@javisaman](https://github.com/javisaman)**, **[@Xentrino](https://github.com/Xentrino)**, **[@loosethoughts19-hash](https://github.com/loosethoughts19-hash)**, **[@Mr-Renegade](https://github.com/Mr-Renegade)**, and **[@Reborn627](https://github.com/Reborn627)** for the beers — you guys are legends.
 
 ## License
 
