@@ -92,25 +92,34 @@ Run `lsusb` to find your USB ID (`xxxx:xxxx` after `ID`), then match it below.
 
 ### Native packages (recommended)
 
-Download from the [latest release](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest) and install with your package manager:
+Pre-built packages are available for every major distro. No pip, no venv, no PEP 668 headaches — just download and install like any other app.
 
-**Fedora / openSUSE:**
+**Step 1:** Go to the [latest release](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest) page and download the package for your distro.
+
+> Not sure which distro you're running? Open a terminal and type `cat /etc/os-release` — the `ID` line tells you.
+
+**Step 2:** Open a terminal in your Downloads folder and run the install command for your distro:
+
+**Fedora / openSUSE / Nobara:**
 ```bash
+cd ~/Downloads
 sudo dnf install ./trcc-linux-*.noarch.rpm
 ```
 
-**Ubuntu / Debian:**
+**Ubuntu / Debian / Mint / Pop!_OS / Zorin:**
 ```bash
+cd ~/Downloads
 sudo dpkg -i trcc-linux_*_all.deb
-sudo apt-get install -f    # install any missing deps
+sudo apt-get install -f    # this pulls in any missing dependencies
 ```
 
-**Arch / CachyOS / Manjaro:**
+**Arch / CachyOS / Manjaro / EndeavourOS / Garuda:**
 ```bash
+cd ~/Downloads
 sudo pacman -U trcc-linux-*-any.pkg.tar.zst
 ```
 
-**NixOS** — add to your `configuration.nix`:
+**NixOS** — add to your `flake.nix` inputs and `configuration.nix`:
 ```nix
 {
   inputs.trcc-linux.url = "github:Lexonight1/thermalright-trcc-linux";
@@ -119,18 +128,27 @@ sudo pacman -U trcc-linux-*-any.pkg.tar.zst
   programs.trcc-linux.enable = true;
 }
 ```
+Then run `sudo nixos-rebuild switch`.
 
-Then **unplug and replug the USB cable** and run `trcc gui`.
+**Step 3:** Unplug and replug the USB cable (this reloads the device permissions).
+
+**Step 4:** Launch the app:
+```bash
+trcc gui
+```
+
+That's it! If your device isn't detected, run `trcc detect --all` to see what's connected, or `trcc report` and [open an issue](https://github.com/Lexonight1/thermalright-trcc-linux/issues/new) with the output.
 
 ### Verify your download
 
-Every release includes a `SHA256SUMS.txt` file. After downloading, verify the package hasn't been tampered with:
+Every release includes a `SHA256SUMS.txt` file so you can verify the package hasn't been tampered with. Download it from the same release page, then run:
 
 ```bash
+cd ~/Downloads
 sha256sum -c SHA256SUMS.txt --ignore-missing
 ```
 
-All packages are built in CI from source using GitHub Actions — the [build logs are public](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/release.yml). Source code is GPL-3.0, fully auditable — no binaries, no obfuscation.
+If you see `OK` next to your package — it's clean. All packages are built automatically from source using GitHub Actions — the [build logs are public](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/release.yml) so anyone can verify what went into the package. Source code is GPL-3.0, fully auditable — no binaries, no obfuscation, no telemetry.
 
 ### PyPI
 
