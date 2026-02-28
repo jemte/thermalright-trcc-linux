@@ -1,9 +1,13 @@
 """TRCC Linux version information."""
 
-__version__ = "6.3.0"
+__version__ = "6.3.1"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Version history:
+# 6.3.1  - Fix device naming for 0402:3922: shared by Frozen Warframe (SE/PRO/Ultra)
+#          and Elite Vision 360 — was hardcoded as "FROZEN WARFRAME" from initial
+#          development. Vendor corrected from "ALi Corp" to "Thermalright". Product
+#          now shows "Frozen Warframe / Elite Vision". Addresses #46. 2523 tests.
 # 6.3.0  - SOLID refactoring: 7-phase architectural alignment. OCP: ProtocolTraits
 #          frozen dataclass in core/models.py replaces 18 scattered protocol string
 #          checks across 10 files; factory registry dict replaces create_protocol()

@@ -83,9 +83,9 @@ KNOWN_DEVICES: dict[tuple[int, int], DeviceEntry] = {
         vendor="Winbond", product="LCD Display",
         implementation="ali_corp_lcd_v1",
     ),
-    # USB 0402:3922 - FROZEN WARFRAME series (SE/PRO/Ultra, confirmed on PRO 360 Black)
+    # USB 0402:3922 - shared by Frozen Warframe (SE/PRO/Ultra) + Elite Vision 360
     (0x0402, 0x3922): DeviceEntry(
-        vendor="ALi Corp", product="FROZEN WARFRAME",
+        vendor="Thermalright", product="Frozen Warframe / Elite Vision",
         model="FROZEN_WARFRAME", button_image="A1FROZEN_WARFRAME",
         implementation="ali_corp_lcd_v1",
     ),
