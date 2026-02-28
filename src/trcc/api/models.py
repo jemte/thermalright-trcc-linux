@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from fastapi import HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # ── Shared helpers ────────────────────────────────────────────────────
 
@@ -60,14 +60,24 @@ class MaskResponse(BaseModel):
     preview_url: str
 
 
-# ── Display request models ─────────────────────────────────────────────
+# ── Shared request models ─────────────────────────────────────────────
 
-class ColorRequest(BaseModel):
+class HexColorRequest(BaseModel):
     hex: str
 
 
+class ModeRequest(BaseModel):
+    mode: str
+
+
+class ToggleRequest(BaseModel):
+    on: bool
+
+
+# ── Display request models ─────────────────────────────────────────────
+
 class BrightnessRequest(BaseModel):
-    level: int
+    level: int = Field(ge=1, le=3)
 
 
 class RotationRequest(BaseModel):
@@ -75,50 +85,22 @@ class RotationRequest(BaseModel):
 
 
 class SplitRequest(BaseModel):
-    mode: int
+    mode: int = Field(ge=0, le=3)
 
 
 # ── LED request models ─────────────────────────────────────────────────
 
-class LEDColorRequest(BaseModel):
-    hex: str
-
-
-class LEDModeRequest(BaseModel):
-    mode: str
-
-
 class LEDBrightnessRequest(BaseModel):
-    level: int
+    level: int = Field(ge=0, le=100)
 
 
 class LEDSensorRequest(BaseModel):
     source: str
 
 
-class ZoneColorRequest(BaseModel):
-    hex: str
-
-
-class ZoneModeRequest(BaseModel):
-    mode: str
-
-
-class ZoneBrightnessRequest(BaseModel):
-    level: int
-
-
-class ZoneToggleRequest(BaseModel):
-    on: bool
-
-
 class ZoneSyncRequest(BaseModel):
     enabled: bool
     interval: int | None = None
-
-
-class SegmentToggleRequest(BaseModel):
-    on: bool
 
 
 class ClockFormatRequest(BaseModel):

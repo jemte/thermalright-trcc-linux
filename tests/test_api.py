@@ -360,10 +360,8 @@ class TestDisplayEndpoints(unittest.TestCase):
         self.mock_lcd.set_brightness.assert_called_once_with(2)
 
     def test_set_brightness_invalid(self):
-        self.mock_lcd.set_brightness.return_value = {
-            "success": False, "error": "Brightness level must be 1, 2, or 3"}
         resp = self.client.post("/display/brightness", json={"level": 5})
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 422)  # Pydantic rejects level > 3
 
     def test_set_rotation_success(self):
         self.mock_lcd.set_rotation.return_value = {
@@ -482,10 +480,8 @@ class TestLEDEndpoints(unittest.TestCase):
         self.mock_led.set_brightness.assert_called_once_with(75)
 
     def test_set_brightness_invalid(self):
-        self.mock_led.set_brightness.return_value = {
-            "success": False, "error": "Brightness must be 0-100"}
         resp = self.client.post("/led/brightness", json={"level": 150})
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 422)  # Pydantic rejects level > 100
 
     def test_turn_off(self):
         self.mock_led.off.return_value = {

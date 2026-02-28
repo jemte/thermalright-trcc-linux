@@ -487,13 +487,19 @@ def screencast(*, device=None, x=0, y=0, w=0, h=0, fps=10, preview=False):
 # CLI functions — thin wrappers around DisplayDispatcher
 # =========================================================================
 
-@_cli_handler
-def send_image(image_path, device=None, preview=False):
-    """Send image to LCD."""
+def _display_command(method: str, *args, device: str | None = None,
+                     preview: bool = False, **kwargs) -> int:
+    """Generic: connect LCD, call dispatcher method, print result."""
     lcd, rc = _connect_or_fail(device)
     if rc:
         return rc
-    return _print_result(lcd.send_image(image_path), preview=preview)
+    return _print_result(getattr(lcd, method)(*args, **kwargs), preview=preview)
+
+
+@_cli_handler
+def send_image(image_path, device=None, preview=False):
+    """Send image to LCD."""
+    return _display_command("send_image", image_path, device=device, preview=preview)
 
 
 @_cli_handler
@@ -503,11 +509,7 @@ def send_color(hex_color, device=None, preview=False):
     if not rgb:
         print("Error: Invalid hex color. Use format: ff0000")
         return 1
-
-    lcd, rc = _connect_or_fail(device)
-    if rc:
-        return rc
-    return _print_result(lcd.send_color(*rgb), preview=preview)
+    return _display_command("send_color", *rgb, device=device, preview=preview)
 
 
 @_cli_handler
@@ -530,28 +532,19 @@ def set_brightness(level, *, device=None):
 @_cli_handler
 def set_rotation(degrees, *, device=None):
     """Set display rotation (0, 90, 180, 270)."""
-    lcd, rc = _connect_or_fail(device)
-    if rc:
-        return rc
-    return _print_result(lcd.set_rotation(degrees))
+    return _display_command("set_rotation", degrees, device=device)
 
 
 @_cli_handler
 def set_split_mode(mode, *, device=None, preview=False):
     """Set split mode (Dynamic Island) for widescreen displays."""
-    lcd, rc = _connect_or_fail(device)
-    if rc:
-        return rc
-    return _print_result(lcd.set_split_mode(mode), preview=preview)
+    return _display_command("set_split_mode", mode, device=device, preview=preview)
 
 
 @_cli_handler
 def load_mask(mask_path, *, device=None, preview=False):
     """Load mask overlay from file/directory and send composited image."""
-    lcd, rc = _connect_or_fail(device)
-    if rc:
-        return rc
-    return _print_result(lcd.load_mask(mask_path), preview=preview)
+    return _display_command("load_mask", mask_path, device=device, preview=preview)
 
 
 @_cli_handler

@@ -1,9 +1,14 @@
 """TRCC Linux version information."""
 
-__version__ = "6.3.5"
+__version__ = "6.3.6"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Version history:
+# 6.3.6  - CLI-centric simplification: generic dispatch helpers (`_led_command`,
+#          `_display_command`, `_led_route`, `_display_route`) collapse 32
+#          repetitive connect→call→format wrappers into one-liners. Merge 6
+#          duplicate Pydantic models into 3 shared (`HexColorRequest`,
+#          `ModeRequest`, `ToggleRequest`). Net -36 lines. 2523 tests.
 # 6.3.5  - DRY refactoring: USB Device Factory (`_usb_helpers.py`) eliminates
 #          ~190 lines of duplicate USB lifecycle code between BulkDevice and
 #          LyDevice. Shared `parse_hex_or_400()` in api/models.py replaces

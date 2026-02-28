@@ -7,17 +7,13 @@ from fastapi import APIRouter, HTTPException
 
 from trcc.api.models import (
     ClockFormatRequest,
+    HexColorRequest,
     LEDBrightnessRequest,
-    LEDColorRequest,
-    LEDModeRequest,
     LEDSensorRequest,
-    SegmentToggleRequest,
+    ModeRequest,
     TempUnitRequest,
-    ZoneBrightnessRequest,
-    ZoneColorRequest,
-    ZoneModeRequest,
+    ToggleRequest,
     ZoneSyncRequest,
-    ZoneToggleRequest,
     dispatch_result,
     parse_hex_or_400,
 )
@@ -36,104 +32,95 @@ def _get_led():
     return _led_dispatcher
 
 
+def _led_route(method: str, *args, **kwargs) -> dict:
+    """Generic: get LED dispatcher, call method, return dispatch result."""
+    return dispatch_result(getattr(_get_led(), method)(*args, **kwargs))
+
 
 # ── Global operations ──────────────────────────────────────────────────
 
 @router.post("/color")
-def set_color(body: LEDColorRequest) -> dict:
+def set_color(body: HexColorRequest) -> dict:
     """Set LED static color."""
-    led = _get_led()
     r, g, b = parse_hex_or_400(body.hex)
-    return dispatch_result(led.set_color(r, g, b))
+    return _led_route("set_color", r, g, b)
 
 
 @router.post("/mode")
-def set_mode(body: LEDModeRequest) -> dict:
+def set_mode(body: ModeRequest) -> dict:
     """Set LED effect mode (static, breathing, colorful, rainbow)."""
-    led = _get_led()
-    return dispatch_result(led.set_mode(body.mode))
+    return _led_route("set_mode", body.mode)
 
 
 @router.post("/brightness")
 def set_brightness(body: LEDBrightnessRequest) -> dict:
     """Set LED brightness (0-100)."""
-    led = _get_led()
-    return dispatch_result(led.set_brightness(body.level))
+    return _led_route("set_brightness", body.level)
 
 
 @router.post("/off")
 def turn_off() -> dict:
     """Turn LEDs off."""
-    led = _get_led()
-    return dispatch_result(led.off())
+    return _led_route("off")
 
 
 @router.post("/sensor")
 def set_sensor(body: LEDSensorRequest) -> dict:
     """Set CPU/GPU sensor source for temp/load linked modes."""
-    led = _get_led()
-    return dispatch_result(led.set_sensor_source(body.source))
+    return _led_route("set_sensor_source", body.source)
 
 
 # ── Zone operations ────────────────────────────────────────────────────
 
 @router.post("/zones/{zone}/color")
-def set_zone_color(zone: int, body: ZoneColorRequest) -> dict:
+def set_zone_color(zone: int, body: HexColorRequest) -> dict:
     """Set color for a specific LED zone."""
-    led = _get_led()
     r, g, b = parse_hex_or_400(body.hex)
-    return dispatch_result(led.set_zone_color(zone, r, g, b))
+    return _led_route("set_zone_color", zone, r, g, b)
 
 
 @router.post("/zones/{zone}/mode")
-def set_zone_mode(zone: int, body: ZoneModeRequest) -> dict:
+def set_zone_mode(zone: int, body: ModeRequest) -> dict:
     """Set effect mode for a specific LED zone."""
-    led = _get_led()
-    return dispatch_result(led.set_zone_mode(zone, body.mode))
+    return _led_route("set_zone_mode", zone, body.mode)
 
 
 @router.post("/zones/{zone}/brightness")
-def set_zone_brightness(zone: int, body: ZoneBrightnessRequest) -> dict:
+def set_zone_brightness(zone: int, body: LEDBrightnessRequest) -> dict:
     """Set brightness for a specific LED zone (0-100)."""
-    led = _get_led()
-    return dispatch_result(led.set_zone_brightness(zone, body.level))
+    return _led_route("set_zone_brightness", zone, body.level)
 
 
 @router.post("/zones/{zone}/toggle")
-def toggle_zone(zone: int, body: ZoneToggleRequest) -> dict:
+def toggle_zone(zone: int, body: ToggleRequest) -> dict:
     """Toggle a specific LED zone on/off."""
-    led = _get_led()
-    return dispatch_result(led.toggle_zone(zone, body.on))
+    return _led_route("toggle_zone", zone, body.on)
 
 
 @router.post("/sync")
 def set_sync(body: ZoneSyncRequest) -> dict:
     """Enable/disable zone sync (circulate/select-all)."""
-    led = _get_led()
-    return dispatch_result(led.set_zone_sync(body.enabled, body.interval))
+    return _led_route("set_zone_sync", body.enabled, body.interval)
 
 
 # ── Segment operations ─────────────────────────────────────────────────
 
 @router.post("/segments/{index}/toggle")
-def toggle_segment(index: int, body: SegmentToggleRequest) -> dict:
+def toggle_segment(index: int, body: ToggleRequest) -> dict:
     """Toggle a specific LED segment on/off."""
-    led = _get_led()
-    return dispatch_result(led.toggle_segment(index, body.on))
+    return _led_route("toggle_segment", index, body.on)
 
 
 @router.post("/clock")
 def set_clock(body: ClockFormatRequest) -> dict:
     """Set LED segment display clock format (12h/24h)."""
-    led = _get_led()
-    return dispatch_result(led.set_clock_format(body.is_24h))
+    return _led_route("set_clock_format", body.is_24h)
 
 
 @router.post("/temp-unit")
 def set_temp_unit(body: TempUnitRequest) -> dict:
     """Set LED segment display temperature unit (C/F)."""
-    led = _get_led()
-    return dispatch_result(led.set_temp_unit(body.unit))
+    return _led_route("set_temp_unit", body.unit)
 
 
 # ── Status ─────────────────────────────────────────────────────────────

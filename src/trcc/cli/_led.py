@@ -98,6 +98,24 @@ class LEDDispatcher:
         self._svc.send_tick()
         self._svc.save_config()
 
+    def _validate_zone(self, zone: int) -> dict | None:
+        """Return error dict if zone index is out of bounds, else None."""
+        n = len(self._svc.state.zones)
+        if n == 0:
+            return {"success": False, "error": "This LED device has no zones"}
+        if zone < 0 or zone >= n:
+            return {"success": False, "error": f"Zone {zone} out of range (valid: 0–{n - 1})"}
+        return None
+
+    def _validate_segment(self, index: int) -> dict | None:
+        """Return error dict if segment index is out of bounds, else None."""
+        n = len(self._svc.state.segment_on)
+        if n == 0:
+            return {"success": False, "error": "This LED device has no segments"}
+        if index < 0 or index >= n:
+            return {"success": False, "error": f"Segment {index} out of range (valid: 0–{n - 1})"}
+        return None
+
     # ── Global operations ─────────────────────────────────────────────
 
     def set_color(self, r: int, g: int, b: int) -> dict:
@@ -170,6 +188,8 @@ class LEDDispatcher:
 
     def set_zone_color(self, zone: int, r: int, g: int, b: int) -> dict:
         """Set color for a specific LED zone."""
+        if err := self._validate_zone(zone):
+            return err
         self._svc.set_zone_color(zone, r, g, b)
         colors = self._apply_and_send()
         return {
@@ -180,6 +200,8 @@ class LEDDispatcher:
 
     def set_zone_mode(self, zone: int, mode_name: str) -> dict:
         """Set effect mode for a specific LED zone."""
+        if err := self._validate_zone(zone):
+            return err
         mode = self._modes().get(mode_name.lower())
         if not mode:
             return {"success": False, "error": f"Unknown mode '{mode_name}'"}
@@ -194,6 +216,8 @@ class LEDDispatcher:
 
     def set_zone_brightness(self, zone: int, level: int) -> dict:
         """Set brightness for a specific LED zone (0-100)."""
+        if err := self._validate_zone(zone):
+            return err
         if level < 0 or level > 100:
             return {"success": False, "error": "Brightness must be 0-100"}
 
@@ -207,6 +231,8 @@ class LEDDispatcher:
 
     def toggle_zone(self, zone: int, on: bool) -> dict:
         """Toggle a specific LED zone on/off."""
+        if err := self._validate_zone(zone):
+            return err
         self._svc.toggle_zone(zone, on)
         self._send_and_save()
         state = "ON" if on else "OFF"
@@ -225,6 +251,8 @@ class LEDDispatcher:
 
     def toggle_segment(self, index: int, on: bool) -> dict:
         """Toggle a specific LED segment on/off."""
+        if err := self._validate_segment(index):
+            return err
         self._svc.toggle_segment(index, on)
         self._send_and_save()
         state = "ON" if on else "OFF"
@@ -285,6 +313,14 @@ def _print_result(result: dict, *, preview: bool = False) -> int:
         from trcc.services import LEDService
         print(LEDService.zones_to_ansi(result["colors"]))
     return 0
+
+
+def _led_command(method: str, *args, preview: bool = False, **kwargs) -> int:
+    """Generic: connect LED, call dispatcher method, print result."""
+    led, rc = _connect_or_fail()
+    if rc:
+        return rc
+    return _print_result(getattr(led, method)(*args, **kwargs), preview=preview)
 
 
 # =========================================================================
@@ -357,28 +393,19 @@ def set_mode(mode_name, *, preview=False):
 @_cli_handler
 def set_led_brightness(level, *, preview=False):
     """Set LED brightness (0-100)."""
-    led, rc = _connect_or_fail()
-    if rc:
-        return rc
-    return _print_result(led.set_brightness(level), preview=preview)
+    return _led_command("set_brightness", level, preview=preview)
 
 
 @_cli_handler
 def led_off():
     """Turn LEDs off."""
-    led, rc = _connect_or_fail()
-    if rc:
-        return rc
-    return _print_result(led.off())
+    return _led_command("off")
 
 
 @_cli_handler
 def set_sensor_source(source):
     """Set CPU/GPU sensor source for temp/load linked LED modes."""
-    led, rc = _connect_or_fail()
-    if rc:
-        return rc
-    return _print_result(led.set_sensor_source(source))
+    return _led_command("set_sensor_source", source)
 
 
 @_cli_handler
@@ -398,64 +425,43 @@ def set_zone_color(zone: int, hex_color: str, *, preview: bool = False):
 @_cli_handler
 def set_zone_mode(zone: int, mode_name: str, *, preview: bool = False):
     """Set effect mode for a specific LED zone."""
-    led, rc = _connect_or_fail()
-    if rc:
-        return rc
-    return _print_result(led.set_zone_mode(zone, mode_name), preview=preview)
+    return _led_command("set_zone_mode", zone, mode_name, preview=preview)
 
 
 @_cli_handler
 def set_zone_brightness(zone: int, level: int, *, preview: bool = False):
     """Set brightness for a specific LED zone (0-100)."""
-    led, rc = _connect_or_fail()
-    if rc:
-        return rc
-    return _print_result(led.set_zone_brightness(zone, level), preview=preview)
+    return _led_command("set_zone_brightness", zone, level, preview=preview)
 
 
 @_cli_handler
 def toggle_zone(zone: int, on: bool):
     """Toggle a specific LED zone on/off."""
-    led, rc = _connect_or_fail()
-    if rc:
-        return rc
-    return _print_result(led.toggle_zone(zone, on))
+    return _led_command("toggle_zone", zone, on)
 
 
 @_cli_handler
 def set_zone_sync(enabled: bool, *, interval: int | None = None):
     """Enable/disable zone sync (circulate or select-all depending on style)."""
-    led, rc = _connect_or_fail()
-    if rc:
-        return rc
-    return _print_result(led.set_zone_sync(enabled, interval=interval))
+    return _led_command("set_zone_sync", enabled, interval=interval)
 
 
 @_cli_handler
 def toggle_segment(index: int, on: bool):
     """Toggle a specific LED segment on/off."""
-    led, rc = _connect_or_fail()
-    if rc:
-        return rc
-    return _print_result(led.toggle_segment(index, on))
+    return _led_command("toggle_segment", index, on)
 
 
 @_cli_handler
 def set_clock_format(is_24h: bool):
     """Set LED segment display clock format (12h/24h)."""
-    led, rc = _connect_or_fail()
-    if rc:
-        return rc
-    return _print_result(led.set_clock_format(is_24h))
+    return _led_command("set_clock_format", is_24h)
 
 
 @_cli_handler
 def set_temp_unit(unit: str):
     """Set LED segment display temperature unit (C/F)."""
-    led, rc = _connect_or_fail()
-    if rc:
-        return rc
-    return _print_result(led.set_temp_unit(unit))
+    return _led_command("set_temp_unit", unit)
 
 
 # =========================================================================

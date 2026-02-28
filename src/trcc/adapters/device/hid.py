@@ -621,7 +621,7 @@ class HidDeviceManager:
             return handler.send_frame(image_data)
 
         except Exception as e:
-            print(f"[!] HID send failed: {e}")
+            log.error("HID send failed: %s", e)
             cls._initialized_transports.discard(transport_id)
             cls._device_handlers.pop(transport_id, None)
             return False

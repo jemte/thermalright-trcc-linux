@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, UploadFile
 
 from trcc.api.models import (
     BrightnessRequest,
-    ColorRequest,
+    HexColorRequest,
     RotationRequest,
     SplitRequest,
     dispatch_result,
@@ -28,40 +28,40 @@ def _get_display():
     return _display_dispatcher
 
 
+def _display_route(method: str, *args, **kwargs) -> dict:
+    """Generic: get display dispatcher, call method, return dispatch result."""
+    return dispatch_result(getattr(_get_display(), method)(*args, **kwargs))
+
+
 @router.post("/color")
-def set_color(body: ColorRequest) -> dict:
+def set_color(body: HexColorRequest) -> dict:
     """Send solid color to LCD."""
-    lcd = _get_display()
     r, g, b = parse_hex_or_400(body.hex)
-    return dispatch_result(lcd.send_color(r, g, b))
+    return _display_route("send_color", r, g, b)
 
 
 @router.post("/brightness")
 def set_brightness(body: BrightnessRequest) -> dict:
     """Set display brightness (1=25%, 2=50%, 3=100%). Persists to config."""
-    lcd = _get_display()
-    return dispatch_result(lcd.set_brightness(body.level))
+    return _display_route("set_brightness", body.level)
 
 
 @router.post("/rotation")
 def set_rotation(body: RotationRequest) -> dict:
     """Set display rotation (0, 90, 180, 270). Persists to config."""
-    lcd = _get_display()
-    return dispatch_result(lcd.set_rotation(body.degrees))
+    return _display_route("set_rotation", body.degrees)
 
 
 @router.post("/split")
 def set_split(body: SplitRequest) -> dict:
     """Set split mode (0=off, 1-3=Dynamic Island). Persists to config."""
-    lcd = _get_display()
-    return dispatch_result(lcd.set_split_mode(body.mode))
+    return _display_route("set_split_mode", body.mode)
 
 
 @router.post("/reset")
 def reset_display() -> dict:
     """Reset device by sending solid red frame."""
-    lcd = _get_display()
-    return dispatch_result(lcd.reset())
+    return _display_route("reset")
 
 
 @router.post("/mask")
