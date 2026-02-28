@@ -29,6 +29,19 @@ def display_temp(celsius: float, unit: str = "C") -> int:
     return v
 
 
+def parse_hex_color(hex_color: str) -> Optional[Tuple[int, int, int]]:
+    """Parse '#RRGGBB' or 'RRGGBB' → (r, g, b), or None on invalid input."""
+    hex_color = hex_color.lstrip('#')
+    if len(hex_color) != 6:
+        return None
+    try:
+        return (int(hex_color[0:2], 16),
+                int(hex_color[2:4], 16),
+                int(hex_color[4:6], 16))
+    except ValueError:
+        return None
+
+
 # =============================================================================
 # Browser Item Dataclasses (replace raw dicts in theme/mask panels)
 # =============================================================================

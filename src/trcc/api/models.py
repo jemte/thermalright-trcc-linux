@@ -1,7 +1,19 @@
-"""Pydantic request/response models for all API endpoints."""
+"""Pydantic request/response models and shared helpers for all API endpoints."""
 from __future__ import annotations
 
+from fastapi import HTTPException
 from pydantic import BaseModel
+
+# ── Shared helpers ────────────────────────────────────────────────────
+
+_NON_SERIALIZABLE_KEYS = frozenset({"image", "colors"})
+
+
+def dispatch_result(result: dict) -> dict:
+    """Convert dispatcher result dict to JSON-safe API response. Raises 400 on failure."""
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Unknown error"))
+    return {k: v for k, v in result.items() if k not in _NON_SERIALIZABLE_KEYS}
 
 # ── Device models ──────────────────────────────────────────────────────
 

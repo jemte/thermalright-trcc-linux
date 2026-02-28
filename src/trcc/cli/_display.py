@@ -12,7 +12,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from trcc.cli import _cli_handler, _device, _parse_hex
+from trcc.cli import _cli_handler, _device
+from trcc.core.models import parse_hex_color as _parse_hex
 
 # =========================================================================
 # DisplayDispatcher — programmatic API (returns data, never prints)

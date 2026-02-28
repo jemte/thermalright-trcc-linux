@@ -1,9 +1,15 @@
 """TRCC Linux version information."""
 
-__version__ = "6.2.3"
+__version__ = "6.2.4"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Version history:
+# 6.2.4  - DRY refactoring: eliminate 3 code duplications across 10 source files.
+#          Extract parse_hex_color() to core/models.py (was duplicated in CLI and
+#          2 API modules). Extract dispatch_result() to api/models.py (was duplicated
+#          in api/display.py and api/led.py). Extract ImageService.encode_for_device()
+#          Strategy pattern (was duplicated in services/device.py and services/display.py).
+#          28 new tests with pytest fixtures. Clean stale gitignore entries. 2509 tests.
 # 6.2.3  - Fix HiDPI scaling override: force-set QT_ENABLE_HIGHDPI_SCALING=0
 #          instead of setdefault, so desktop environments and system updates
 #          (e.g. CachyOS Qt6 packages) can't re-enable it. Fix black background

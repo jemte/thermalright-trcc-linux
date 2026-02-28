@@ -4,12 +4,15 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import pytest
+
 from trcc.core.models import (
     DeviceInfo,
     ThemeInfo,
     ThemeType,
     VideoState,
     fbl_to_resolution,
+    parse_hex_color,
     pm_to_fbl,
 )
 
@@ -288,6 +291,34 @@ class TestVideoStateTotalTimeStr(unittest.TestCase):
         vs = VideoState()
         vs.fps = 0
         self.assertEqual(vs.total_time_str, "00:00")
+
+
+# =============================================================================
+# parse_hex_color
+# =============================================================================
+
+class TestParseHexColor:
+    """parse_hex_color() — shared hex color parser."""
+
+    @pytest.mark.parametrize("input_hex,expected", [
+        ("ff0000", (255, 0, 0)),
+        ("#ff0000", (255, 0, 0)),
+        ("00ff00", (0, 255, 0)),
+        ("#00FF00", (0, 255, 0)),
+        ("0000ff", (0, 0, 255)),
+        ("000000", (0, 0, 0)),
+        ("ffffff", (255, 255, 255)),
+        ("#abcdef", (171, 205, 239)),
+    ])
+    def test_valid_colors(self, input_hex, expected):
+        assert parse_hex_color(input_hex) == expected
+
+    @pytest.mark.parametrize("invalid", [
+        "", "fff", "fffffff", "gggggg", "#xyz", "12345",
+        "#12345g", "not-a-color",
+    ])
+    def test_invalid_returns_none(self, invalid):
+        assert parse_hex_color(invalid) is None
 
 
 if __name__ == '__main__':

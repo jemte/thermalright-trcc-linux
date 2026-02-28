@@ -90,7 +90,3 @@ doc/*.pdf
 
 # C# audit docs (reference only, not for distribution)
 doc/audit/
-.audit/
-
-# Dev notes
-FROZEN_WARFRAME_RESOLUTION_FIX.txt

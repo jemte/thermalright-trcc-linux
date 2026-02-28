@@ -15,7 +15,7 @@ from typing import Any, Tuple
 
 from ..adapters.infra.data_repository import RESOURCES_DIR, DataManager, ThemeDir
 from ..conf import settings
-from ..core.models import JPEG_MODE_FBLS, SPLIT_MODE_RESOLUTIONS, SPLIT_OVERLAY_MAP
+from ..core.models import SPLIT_MODE_RESOLUTIONS, SPLIT_OVERLAY_MAP
 from .device import DeviceService
 from .image import ImageService
 from .media import MediaService
@@ -511,34 +511,15 @@ class DisplayService:
     def _encode_for_device(self, img: Any) -> bytes:
         """Encode image for LCD device.
 
-        C# protocol encoding depends on device type:
-        - Bulk: JPEG (ImageToJpg) for most PMs; PM=32 uses RGB565 (cmd=3)
-        - HID Type 2 with JPEG_MODE_FBLS: JPEG (ImageToJpg), no rotation
-        - SCSI / HID (standard): RGB565 (ImageTo565), non-square pre-rotation
-
-        C# ImageTo565 rotates non-square displays +90° CW before encoding.
-        ImageToJpg does NOT rotate.
+        Delegates encoding strategy to ImageService.encode_for_device() —
+        JPEG for bulk/LY/HID-JPEG devices, RGB565 with pre-rotation for others.
         """
         device = self.devices.selected
         protocol = device.protocol if device else 'scsi'
         resolution = device.resolution if device else (320, 320)
         fbl = device.fbl_code if device else None
-
-        # Bulk (most use JPEG, PM=32 uses RGB565) and HID JPEG-mode devices
         use_jpeg = device.use_jpeg if device else True
-        if (protocol in ('bulk', 'ly') and use_jpeg) or (protocol == 'hid' and fbl in JPEG_MODE_FBLS):
-            data = ImageService.to_jpeg(img)
-            log.debug("_encode_for_device: %dx%d → JPEG %d bytes (protocol=%s, fbl=%s)",
-                      img.width, img.height, len(data), protocol, fbl)
-            return data
-
-        # C# ImageTo565: non-square displays rotate +90° CW before encoding.
-        img = ImageService.apply_device_rotation(img, resolution)
-        byte_order = ImageService.byte_order_for(protocol, resolution, fbl)
-        data = ImageService.to_rgb565(img, byte_order)
-        log.debug("_encode_for_device: %dx%d mode=%s order=%s → RGB565 %d bytes",
-                  img.width, img.height, img.mode, byte_order, len(data))
-        return data
+        return ImageService.encode_for_device(img, protocol, resolution, fbl, use_jpeg)
 
     # ── Theme save (delegates to ThemeService) ────────────────────────
 

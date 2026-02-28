@@ -335,3 +335,23 @@ class ImageService:
         if resolution in ImageService._SQUARE_NO_ROTATE:
             return image
         return image.transpose(PILImage.Transpose.ROTATE_270)
+
+    @staticmethod
+    def encode_for_device(img: Any, protocol: str,
+                          resolution: tuple[int, int],
+                          fbl: int | None,
+                          use_jpeg: bool) -> bytes:
+        """Encode PIL image for LCD device — JPEG or RGB565 based on device properties.
+
+        Strategy: Bulk/LY (JPEG-capable) and HID JPEG-mode FBLs use JPEG.
+        All others use RGB565 with device pre-rotation and protocol byte order.
+        """
+        from ..core.models import JPEG_MODE_FBLS
+
+        if (protocol in ('bulk', 'ly') and use_jpeg) or (
+                protocol == 'hid' and fbl in JPEG_MODE_FBLS):
+            return ImageService.to_jpeg(img)
+
+        img = ImageService.apply_device_rotation(img, resolution)
+        byte_order = ImageService.byte_order_for(protocol, resolution, fbl)
+        return ImageService.to_rgb565(img, byte_order)

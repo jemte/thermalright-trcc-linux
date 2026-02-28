@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from trcc.cli import _cli_handler, _parse_hex
+from trcc.cli import _cli_handler
+from trcc.core.models import parse_hex_color as _parse_hex
 
 # =========================================================================
 # LEDDispatcher — programmatic API (returns data, never prints)

@@ -9,7 +9,7 @@ import logging
 import threading
 from typing import Any, Optional
 
-from ..core.models import JPEG_MODE_FBLS, DeviceInfo, LCDDeviceConfig
+from ..core.models import DeviceInfo, LCDDeviceConfig
 
 log = logging.getLogger(__name__)
 
@@ -162,9 +162,8 @@ class DeviceService:
     def send_pil(self, image: Any, width: int, height: int) -> bool:
         """Encode PIL Image for device and send.
 
-        Bulk (most use JPEG, PM=32 uses RGB565) and HID JPEG-mode devices
-        use JPEG (C# ImageToJpg — no rotation).
-        SCSI/HID (standard) use RGB565 (C# ImageTo565 — non-square pre-rotation).
+        Delegates encoding strategy to ImageService.encode_for_device() —
+        JPEG for bulk/LY/HID-JPEG devices, RGB565 with pre-rotation for others.
         """
         from .image import ImageService
 
@@ -172,17 +171,10 @@ class DeviceService:
         protocol = device.protocol if device else 'scsi'
         resolution = device.resolution if device else (320, 320)
         fbl = device.fbl_code if device else None
-
-        # Bulk PM=32 uses RGB565, not JPEG
         use_jpeg = device.use_jpeg if device else True
-        if (protocol in ('bulk', 'ly') and use_jpeg) or (protocol == 'hid' and fbl in JPEG_MODE_FBLS):
-            jpeg = ImageService.to_jpeg(image)
-            return self.send_rgb565(jpeg, width, height)
 
-        # C# ImageTo565: non-square displays rotate +90° CW before encoding.
-        image = ImageService.apply_device_rotation(image, resolution)
-        byte_order = ImageService.byte_order_for(protocol, resolution, fbl)
-        return self.send_image(image, width, height, byte_order)
+        data = ImageService.encode_for_device(image, protocol, resolution, fbl, use_jpeg)
+        return self.send_rgb565(data, width, height)
 
     def send_rgb565_async(self, data: bytes, width: int, height: int) -> None:
         """Send RGB565 bytes in a background thread. Thread-safe."""

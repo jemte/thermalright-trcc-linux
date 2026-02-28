@@ -38,18 +38,6 @@ def _cli_handler(func):
     return wrapper
 
 
-def _parse_hex(hex_color: str) -> Optional[tuple[int, int, int]]:
-    """Parse hex color string → (r, g, b) or None. Shared by _led and _display."""
-    hex_color = hex_color.lstrip('#')
-    if len(hex_color) != 6:
-        return None
-    try:
-        return (int(hex_color[0:2], 16),
-                int(hex_color[2:4], 16),
-                int(hex_color[4:6], 16))
-    except ValueError:
-        return None
-
 
 # =========================================================================
 # Import submodules (must be AFTER _cli_handler definition)

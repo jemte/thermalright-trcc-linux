@@ -4,11 +4,14 @@ import io
 import unittest
 from unittest.mock import MagicMock, patch
 
+import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from PIL import Image
 
 import trcc.api as api_module
 from trcc.api import _device_svc, app, configure_auth
+from trcc.api.models import dispatch_result
 from trcc.core.models import DeviceInfo
 
 
@@ -766,6 +769,42 @@ class TestStaticMounts(unittest.TestCase):
             # Verify at least the theme mount was created
             from trcc.api import _mounted_routes
             self.assertIn("/static/themes", _mounted_routes)
+
+
+# =============================================================================
+# dispatch_result — shared API helper
+# =============================================================================
+
+class TestDispatchResult:
+    """dispatch_result() — strips non-serializable keys, raises on failure."""
+
+    def test_success_passthrough(self):
+        result = {"success": True, "message": "ok", "value": 42}
+        assert dispatch_result(result) == {"success": True, "message": "ok", "value": 42}
+
+    def test_strips_image_key(self):
+        img = Image.new("RGB", (10, 10))
+        result = {"success": True, "image": img, "message": "sent"}
+        out = dispatch_result(result)
+        assert "image" not in out
+        assert out["message"] == "sent"
+
+    def test_strips_colors_key(self):
+        result = {"success": True, "colors": [1, 2, 3], "message": "set"}
+        out = dispatch_result(result)
+        assert "colors" not in out
+        assert out["message"] == "set"
+
+    def test_failure_raises_400(self):
+        with pytest.raises(HTTPException) as exc_info:
+            dispatch_result({"success": False, "error": "bad input"})
+        assert exc_info.value.status_code == 400
+        assert "bad input" in exc_info.value.detail
+
+    def test_failure_default_message(self):
+        with pytest.raises(HTTPException) as exc_info:
+            dispatch_result({"success": False})
+        assert "Unknown error" in exc_info.value.detail
 
 
 if __name__ == '__main__':

@@ -5,7 +5,13 @@ import logging
 
 from fastapi import APIRouter, HTTPException, UploadFile
 
-from trcc.api.models import BrightnessRequest, ColorRequest, RotationRequest, SplitRequest
+from trcc.api.models import (
+    BrightnessRequest,
+    ColorRequest,
+    RotationRequest,
+    SplitRequest,
+    dispatch_result,
+)
 
 log = logging.getLogger(__name__)
 
@@ -23,21 +29,13 @@ def _get_display():
 
 def _parse_hex(hex_color: str) -> tuple[int, int, int]:
     """Parse hex color string to (r, g, b). Raises 400 on invalid format."""
-    hex_color = hex_color.lstrip('#')
-    if len(hex_color) != 6:
-        raise HTTPException(status_code=400, detail="Invalid hex color (use 6-digit hex, e.g. 'ff0000')")
-    try:
-        return (int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16))
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid hex color (use 6-digit hex, e.g. 'ff0000')")
+    from trcc.core.models import parse_hex_color
 
+    rgb = parse_hex_color(hex_color)
+    if rgb is None:
+        raise HTTPException(status_code=400, detail="Invalid hex color (use 6-digit hex, e.g. 'ff0000')")
+    return rgb
 
-def _dispatch_result(result: dict) -> dict:
-    """Convert dispatcher result to API response. Raises on failure."""
-    if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error", "Unknown error"))
-    # Strip non-serializable fields (PIL images)
-    return {k: v for k, v in result.items() if k != "image"}
 
 
 @router.post("/color")
@@ -45,35 +43,35 @@ def set_color(body: ColorRequest) -> dict:
     """Send solid color to LCD."""
     lcd = _get_display()
     r, g, b = _parse_hex(body.hex)
-    return _dispatch_result(lcd.send_color(r, g, b))
+    return dispatch_result(lcd.send_color(r, g, b))
 
 
 @router.post("/brightness")
 def set_brightness(body: BrightnessRequest) -> dict:
     """Set display brightness (1=25%, 2=50%, 3=100%). Persists to config."""
     lcd = _get_display()
-    return _dispatch_result(lcd.set_brightness(body.level))
+    return dispatch_result(lcd.set_brightness(body.level))
 
 
 @router.post("/rotation")
 def set_rotation(body: RotationRequest) -> dict:
     """Set display rotation (0, 90, 180, 270). Persists to config."""
     lcd = _get_display()
-    return _dispatch_result(lcd.set_rotation(body.degrees))
+    return dispatch_result(lcd.set_rotation(body.degrees))
 
 
 @router.post("/split")
 def set_split(body: SplitRequest) -> dict:
     """Set split mode (0=off, 1-3=Dynamic Island). Persists to config."""
     lcd = _get_display()
-    return _dispatch_result(lcd.set_split_mode(body.mode))
+    return dispatch_result(lcd.set_split_mode(body.mode))
 
 
 @router.post("/reset")
 def reset_display() -> dict:
     """Reset device by sending solid red frame."""
     lcd = _get_display()
-    return _dispatch_result(lcd.reset())
+    return dispatch_result(lcd.reset())
 
 
 @router.post("/mask")
@@ -95,7 +93,7 @@ async def load_mask(image: UploadFile) -> dict:
 
     try:
         result = lcd.load_mask(tmp_path)
-        return _dispatch_result(result)
+        return dispatch_result(result)
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
@@ -105,7 +103,7 @@ async def render_overlay(dc_path: str, send: bool = True) -> dict:
     """Render overlay from DC config path and optionally send to device."""
     lcd = _get_display()
     result = lcd.render_overlay(dc_path, send=send)
-    return _dispatch_result(result)
+    return dispatch_result(result)
 
 
 @router.get("/status")
