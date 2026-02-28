@@ -19,6 +19,7 @@ from trcc.api.models import (
     ZoneSyncRequest,
     ZoneToggleRequest,
     dispatch_result,
+    parse_hex_or_400,
 )
 
 log = logging.getLogger(__name__)
@@ -35,16 +36,6 @@ def _get_led():
     return _led_dispatcher
 
 
-def _parse_hex(hex_color: str) -> tuple[int, int, int]:
-    """Parse hex color string to (r, g, b). Raises 400 on invalid format."""
-    from trcc.core.models import parse_hex_color
-
-    rgb = parse_hex_color(hex_color)
-    if rgb is None:
-        raise HTTPException(status_code=400, detail="Invalid hex color (use 6-digit hex, e.g. '00ff00')")
-    return rgb
-
-
 
 # ── Global operations ──────────────────────────────────────────────────
 
@@ -52,7 +43,7 @@ def _parse_hex(hex_color: str) -> tuple[int, int, int]:
 def set_color(body: LEDColorRequest) -> dict:
     """Set LED static color."""
     led = _get_led()
-    r, g, b = _parse_hex(body.hex)
+    r, g, b = parse_hex_or_400(body.hex)
     return dispatch_result(led.set_color(r, g, b))
 
 
@@ -90,7 +81,7 @@ def set_sensor(body: LEDSensorRequest) -> dict:
 def set_zone_color(zone: int, body: ZoneColorRequest) -> dict:
     """Set color for a specific LED zone."""
     led = _get_led()
-    r, g, b = _parse_hex(body.hex)
+    r, g, b = parse_hex_or_400(body.hex)
     return dispatch_result(led.set_zone_color(zone, r, g, b))
 
 

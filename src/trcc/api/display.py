@@ -11,6 +11,7 @@ from trcc.api.models import (
     RotationRequest,
     SplitRequest,
     dispatch_result,
+    parse_hex_or_400,
 )
 
 log = logging.getLogger(__name__)
@@ -27,22 +28,11 @@ def _get_display():
     return _display_dispatcher
 
 
-def _parse_hex(hex_color: str) -> tuple[int, int, int]:
-    """Parse hex color string to (r, g, b). Raises 400 on invalid format."""
-    from trcc.core.models import parse_hex_color
-
-    rgb = parse_hex_color(hex_color)
-    if rgb is None:
-        raise HTTPException(status_code=400, detail="Invalid hex color (use 6-digit hex, e.g. 'ff0000')")
-    return rgb
-
-
-
 @router.post("/color")
 def set_color(body: ColorRequest) -> dict:
     """Send solid color to LCD."""
     lcd = _get_display()
-    r, g, b = _parse_hex(body.hex)
+    r, g, b = parse_hex_or_400(body.hex)
     return dispatch_result(lcd.send_color(r, g, b))
 
 

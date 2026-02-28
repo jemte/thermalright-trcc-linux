@@ -15,6 +15,19 @@ def dispatch_result(result: dict) -> dict:
         raise HTTPException(status_code=400, detail=result.get("error", "Unknown error"))
     return {k: v for k, v in result.items() if k not in _NON_SERIALIZABLE_KEYS}
 
+
+def parse_hex_or_400(hex_color: str) -> tuple[int, int, int]:
+    """Parse hex color string to (r, g, b). Raises 400 on invalid format."""
+    from trcc.core.models import parse_hex_color
+
+    rgb = parse_hex_color(hex_color)
+    if rgb is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid hex color (use 6-digit hex, e.g. 'ff0000')",
+        )
+    return rgb
+
 # ── Device models ──────────────────────────────────────────────────────
 
 class DeviceResponse(BaseModel):

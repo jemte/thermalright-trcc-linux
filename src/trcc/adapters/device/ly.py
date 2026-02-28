@@ -21,6 +21,7 @@ from __future__ import annotations
 import logging
 import struct
 
+from trcc.adapters.device._usb_helpers import open_usb_device
 from trcc.adapters.device.frame import FrameDevice
 from trcc.core.models import HandshakeResult, fbl_to_resolution, pm_to_fbl
 
@@ -47,14 +48,6 @@ _CHUNK_SIZE = 512       # Total bytes per chunk (header + data)
 _CHUNK_HEADER_SIZE = 16
 _CHUNK_DATA_SIZE = 496  # _CHUNK_SIZE - _CHUNK_HEADER_SIZE
 _USB_WRITE_SIZE = 4096  # Bytes per USB bulk write
-
-
-def _find_vendor_interface(cfg):
-    """Prefer vendor-specific interface (bInterfaceClass=255), fallback to (0,0)."""
-    for candidate in cfg:
-        if candidate.bInterfaceClass == 255:  # type: ignore[union-attr]
-            return candidate
-    return cfg[(0, 0)]  # type: ignore[index]
 
 
 def _ly_resolution(pm: int, sub: int = 0) -> tuple[int, int]:
@@ -90,73 +83,10 @@ class LyDevice(FrameDevice):
         self._chunk_cmd: int = 1 if pid == _PID_LY else 2
 
     def _open(self):
-        """Find and claim the USB device."""
-        import usb.core
+        """Find and claim the USB device via shared factory."""
         import usb.util
 
-        dev = usb.core.find(idVendor=self.vid, idProduct=self.pid)
-        if dev is None:
-            raise RuntimeError(f"USB device {self.vid:04x}:{self.pid:04x} not found")
-
-        # Detach kernel drivers
-        for i in range(4):
-            try:
-                if dev.is_kernel_driver_active(i):  # type: ignore[union-attr]
-                    dev.detach_kernel_driver(i)  # type: ignore[union-attr]
-            except (usb.core.USBError, NotImplementedError):
-                pass
-
-        # Configure device
-        cfg = None
-        try:
-            cfg = dev.get_active_configuration()  # type: ignore[union-attr]
-        except usb.core.USBError as e:
-            if e.errno == 13:  # EACCES — permission denied
-                raise
-            try:
-                dev.set_configuration()  # type: ignore[union-attr]
-            except usb.core.USBError:
-                dev.reset()  # type: ignore[union-attr]
-                import time
-                time.sleep(0.5)
-                dev = usb.core.find(idVendor=self.vid, idProduct=self.pid)
-                if dev is None:
-                    raise RuntimeError(
-                        f"USB device {self.vid:04x}:{self.pid:04x} not found after reset"
-                    )
-                for i in range(4):
-                    try:
-                        if dev.is_kernel_driver_active(i):  # type: ignore[union-attr]
-                            dev.detach_kernel_driver(i)  # type: ignore[union-attr]
-                    except (usb.core.USBError, NotImplementedError):
-                        pass
-                dev.set_configuration()  # type: ignore[union-attr]
-            cfg = dev.get_active_configuration()  # type: ignore[union-attr]
-
-        intf = _find_vendor_interface(cfg)
-
-        try:
-            usb.util.claim_interface(dev, intf.bInterfaceNumber)  # type: ignore[union-attr]
-        except usb.core.USBError as e:
-            if e.errno != 16:  # Not EBUSY
-                raise
-            dev.reset()  # type: ignore[union-attr]
-            import time
-            time.sleep(0.5)
-            dev = usb.core.find(idVendor=self.vid, idProduct=self.pid)
-            if dev is None:
-                raise RuntimeError(
-                    f"USB device {self.vid:04x}:{self.pid:04x} not found after reset"
-                ) from e
-            for i in range(4):
-                try:
-                    if dev.is_kernel_driver_active(i):  # type: ignore[union-attr]
-                        dev.detach_kernel_driver(i)  # type: ignore[union-attr]
-                except (usb.core.USBError, NotImplementedError):
-                    pass
-            cfg = dev.get_active_configuration()  # type: ignore[union-attr]
-            intf = _find_vendor_interface(cfg)
-            usb.util.claim_interface(dev, intf.bInterfaceNumber)  # type: ignore[union-attr]
+        dev, intf = open_usb_device(self.vid, self.pid)
 
         self._ep_out = usb.util.find_descriptor(
             intf,

@@ -1,9 +1,15 @@
 """TRCC Linux version information."""
 
-__version__ = "6.3.4"
+__version__ = "6.3.5"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Version history:
+# 6.3.5  - DRY refactoring: USB Device Factory (`_usb_helpers.py`) eliminates
+#          ~190 lines of duplicate USB lifecycle code between BulkDevice and
+#          LyDevice. Shared `parse_hex_or_400()` in api/models.py replaces
+#          duplicate `_parse_hex()` in display.py and led.py. LEDDispatcher
+#          `_apply_and_send()` + `_send_and_save()` deduplicate 11 methods.
+#          Net -190 lines. 2523 tests.
 # 6.3.4  - Fix USB permission error handling: blanket `except USBError` in HID,
 #          Bulk, and LY transport open() caught EACCES (errno 13) and fell through
 #          to set_configuration() retry — producing confusing double-traceback

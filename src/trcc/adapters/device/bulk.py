@@ -18,18 +18,11 @@ from __future__ import annotations
 import logging
 import struct
 
+from trcc.adapters.device._usb_helpers import open_usb_device
 from trcc.adapters.device.frame import FrameDevice
 from trcc.core.models import HandshakeResult, fbl_to_resolution, pm_to_fbl
 
 log = logging.getLogger(__name__)
-
-
-def _find_vendor_interface(cfg):
-    """Prefer vendor-specific interface (bInterfaceClass=255), fallback to (0,0)."""
-    for candidate in cfg:
-        if candidate.bInterfaceClass == 255:  # type: ignore[union-attr]
-            return candidate
-    return cfg[(0, 0)]  # type: ignore[index]
 
 
 # Handshake payload: 64 bytes from USBLCDNew ThreadSendDeviceData
@@ -93,108 +86,10 @@ class BulkDevice(FrameDevice):
         self._raw_handshake: bytes = b""
 
     def _open(self):
-        """Find and claim the USB device."""
-        import usb.core
+        """Find and claim the USB device via shared factory."""
         import usb.util
 
-        dev = usb.core.find(idVendor=self.vid, idProduct=self.pid)
-        if dev is None:
-            raise RuntimeError(f"USB device {self.vid:04x}:{self.pid:04x} not found")
-
-        # Detach kernel drivers (best effort — SELinux may silently block this).
-        selinux_blocked = False
-        for i in range(4):
-            try:
-                if dev.is_kernel_driver_active(i):  # type: ignore[union-attr]
-                    dev.detach_kernel_driver(i)  # type: ignore[union-attr]
-                    # Verify detach actually worked (SELinux silently blocks it)
-                    if dev.is_kernel_driver_active(i):  # type: ignore[union-attr]
-                        selinux_blocked = True
-                        log.warning("Kernel driver still active on interface %d after "
-                                    "detach — SELinux may be blocking USB ioctls", i)
-                    else:
-                        log.debug("Detached kernel driver from interface %d", i)
-            except usb.core.USBError as e:
-                log.debug("Could not detach kernel driver from interface %d: %s", i, e)
-                # Check if driver is still active after the error — if so, SELinux
-                # likely blocked the ioctl (the error alone doesn't tell us).
-                try:
-                    if dev.is_kernel_driver_active(i):  # type: ignore[union-attr]
-                        selinux_blocked = True
-                        log.warning("Kernel driver still active on interface %d "
-                                    "after detach error — SELinux may be blocking", i)
-                except (usb.core.USBError, NotImplementedError):
-                    pass
-            except NotImplementedError:
-                pass
-
-        # Skip set_configuration() if device already has an active config.
-        # On SELinux (Bazzite, Silverblue) detach_kernel_driver() is silently
-        # blocked, so set_configuration() always fails with EBUSY.  The kernel
-        # has already configured the device — just use the existing config.
-        cfg = None
-        try:
-            cfg = dev.get_active_configuration()  # type: ignore[union-attr]
-            log.debug("Device already configured, skipping set_configuration()")
-        except usb.core.USBError as e:
-            if e.errno == 13:  # EACCES — permission denied
-                raise
-            log.debug("No active configuration, calling set_configuration()")
-            try:
-                dev.set_configuration()  # type: ignore[union-attr]
-            except usb.core.USBError:
-                log.warning("set_configuration() failed, resetting device and retrying")
-                dev.reset()  # type: ignore[union-attr]
-                import time
-                time.sleep(0.5)
-                dev = usb.core.find(idVendor=self.vid, idProduct=self.pid)
-                if dev is None:
-                    raise RuntimeError(
-                        f"USB device {self.vid:04x}:{self.pid:04x} not found after reset"
-                    )
-                for i in range(4):
-                    try:
-                        if dev.is_kernel_driver_active(i):  # type: ignore[union-attr]
-                            dev.detach_kernel_driver(i)  # type: ignore[union-attr]
-                    except (usb.core.USBError, NotImplementedError):
-                        pass
-                dev.set_configuration()  # type: ignore[union-attr]
-            cfg = dev.get_active_configuration()  # type: ignore[union-attr]
-
-        intf = _find_vendor_interface(cfg)
-
-        try:
-            usb.util.claim_interface(dev, intf.bInterfaceNumber)  # type: ignore[union-attr]
-        except usb.core.USBError as e:
-            if e.errno != 16:  # Not EBUSY — unknown error
-                raise
-            if selinux_blocked:
-                raise RuntimeError(
-                    "USB interface busy — SELinux is blocking USB device access. "
-                    "Run 'sudo trcc setup-selinux' to install the policy module, "
-                    "then unplug and replug the device."
-                ) from e
-            # EBUSY without SELinux — stale claim from crashed process, suspend,
-            # or device re-enumeration.  Reset the device and retry once.
-            log.warning("claim_interface() EBUSY — resetting device and retrying")
-            dev.reset()  # type: ignore[union-attr]
-            import time
-            time.sleep(0.5)
-            dev = usb.core.find(idVendor=self.vid, idProduct=self.pid)
-            if dev is None:
-                raise RuntimeError(
-                    f"USB device {self.vid:04x}:{self.pid:04x} not found after reset"
-                ) from e
-            for i in range(4):
-                try:
-                    if dev.is_kernel_driver_active(i):  # type: ignore[union-attr]
-                        dev.detach_kernel_driver(i)  # type: ignore[union-attr]
-                except (usb.core.USBError, NotImplementedError):
-                    pass
-            # Re-acquire configuration and interface after reset
-            cfg = dev.get_active_configuration()  # type: ignore[union-attr]
-            intf = _find_vendor_interface(cfg)
-            usb.util.claim_interface(dev, intf.bInterfaceNumber)  # type: ignore[union-attr]
+        dev, intf = open_usb_device(self.vid, self.pid)
 
         self._ep_out = usb.util.find_descriptor(
             intf,

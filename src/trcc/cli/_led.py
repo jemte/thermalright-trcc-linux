@@ -83,6 +83,21 @@ class LEDDispatcher:
         self._init_status = self._svc.initialize(led_dev, style_id)
         return {"success": True, "status": self._init_status or ""}
 
+    # ── Internal helpers ──────────────────────────────────────────────
+
+    def _apply_and_send(self) -> list:
+        """Toggle global on, tick, send colors, save config. Returns colors."""
+        self._svc.toggle_global(True)
+        colors = self._svc.tick()
+        self._svc.send_colors(colors)
+        self._svc.save_config()
+        return colors
+
+    def _send_and_save(self) -> None:
+        """Send tick and save config."""
+        self._svc.send_tick()
+        self._svc.save_config()
+
     # ── Global operations ─────────────────────────────────────────────
 
     def set_color(self, r: int, g: int, b: int) -> dict:
@@ -91,10 +106,7 @@ class LEDDispatcher:
 
         self._svc.set_mode(LEDMode.STATIC)
         self._svc.set_color(r, g, b)
-        self._svc.toggle_global(True)
-        colors = self._svc.tick()
-        self._svc.send_colors(colors)
-        self._svc.save_config()
+        colors = self._apply_and_send()
         return {
             "success": True,
             "colors": colors,
@@ -115,10 +127,7 @@ class LEDDispatcher:
             }
 
         self._svc.set_mode(mode)
-        self._svc.toggle_global(True)
-        colors = self._svc.tick()
-        self._svc.send_colors(colors)
-        self._svc.save_config()
+        colors = self._apply_and_send()
 
         animated = mode in (LEDMode.BREATHING, LEDMode.COLORFUL, LEDMode.RAINBOW)
         return {
@@ -134,10 +143,7 @@ class LEDDispatcher:
             return {"success": False, "error": "Brightness must be 0-100"}
 
         self._svc.set_brightness(level)
-        self._svc.toggle_global(True)
-        colors = self._svc.tick()
-        self._svc.send_colors(colors)
-        self._svc.save_config()
+        colors = self._apply_and_send()
         return {
             "success": True,
             "colors": colors,
@@ -147,8 +153,7 @@ class LEDDispatcher:
     def off(self) -> dict:
         """Turn LEDs off."""
         self._svc.toggle_global(False)
-        self._svc.send_tick()
-        self._svc.save_config()
+        self._send_and_save()
         return {"success": True, "message": "LEDs turned off"}
 
     def set_sensor_source(self, source: str) -> dict:
@@ -166,10 +171,7 @@ class LEDDispatcher:
     def set_zone_color(self, zone: int, r: int, g: int, b: int) -> dict:
         """Set color for a specific LED zone."""
         self._svc.set_zone_color(zone, r, g, b)
-        self._svc.toggle_global(True)
-        colors = self._svc.tick()
-        self._svc.send_colors(colors)
-        self._svc.save_config()
+        colors = self._apply_and_send()
         return {
             "success": True,
             "colors": colors,
@@ -183,10 +185,7 @@ class LEDDispatcher:
             return {"success": False, "error": f"Unknown mode '{mode_name}'"}
 
         self._svc.set_zone_mode(zone, mode)
-        self._svc.toggle_global(True)
-        colors = self._svc.tick()
-        self._svc.send_colors(colors)
-        self._svc.save_config()
+        colors = self._apply_and_send()
         return {
             "success": True,
             "colors": colors,
@@ -199,10 +198,7 @@ class LEDDispatcher:
             return {"success": False, "error": "Brightness must be 0-100"}
 
         self._svc.set_zone_brightness(zone, level)
-        self._svc.toggle_global(True)
-        colors = self._svc.tick()
-        self._svc.send_colors(colors)
-        self._svc.save_config()
+        colors = self._apply_and_send()
         return {
             "success": True,
             "colors": colors,
@@ -212,8 +208,7 @@ class LEDDispatcher:
     def toggle_zone(self, zone: int, on: bool) -> dict:
         """Toggle a specific LED zone on/off."""
         self._svc.toggle_zone(zone, on)
-        self._svc.send_tick()
-        self._svc.save_config()
+        self._send_and_save()
         state = "ON" if on else "OFF"
         return {"success": True, "message": f"Zone {zone} turned {state}"}
 
@@ -222,8 +217,7 @@ class LEDDispatcher:
         if interval is not None:
             self._svc.set_zone_sync_interval(interval)
         self._svc.set_zone_sync(enabled)
-        self._svc.send_tick()
-        self._svc.save_config()
+        self._send_and_save()
         state = "enabled" if enabled else "disabled"
         return {"success": True, "message": f"Zone sync {state}"}
 
@@ -232,16 +226,14 @@ class LEDDispatcher:
     def toggle_segment(self, index: int, on: bool) -> dict:
         """Toggle a specific LED segment on/off."""
         self._svc.toggle_segment(index, on)
-        self._svc.send_tick()
-        self._svc.save_config()
+        self._send_and_save()
         state = "ON" if on else "OFF"
         return {"success": True, "message": f"Segment {index} turned {state}"}
 
     def set_clock_format(self, is_24h: bool) -> dict:
         """Set LED segment display clock format (12h/24h)."""
         self._svc.set_clock_format(is_24h)
-        self._svc.send_tick()
-        self._svc.save_config()
+        self._send_and_save()
         fmt = "24h" if is_24h else "12h"
         return {"success": True, "message": f"Clock format set to {fmt}"}
 
@@ -252,8 +244,7 @@ class LEDDispatcher:
             return {"success": False, "error": "Unit must be 'C' or 'F'"}
 
         self._svc.set_seg_temp_unit(unit)
-        self._svc.send_tick()
-        self._svc.save_config()
+        self._send_and_save()
         name = "Celsius" if unit == 'C' else "Fahrenheit"
         return {"success": True, "message": f"Temperature unit set to {name}"}
 
