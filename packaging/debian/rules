@@ -1,0 +1,27 @@
+#!/usr/bin/make -f
+
+export PYBUILD_NAME=trcc-linux
+
+%:
+	dh $@ --with python3 --buildsystem=pybuild
+
+override_dh_auto_install:
+	dh_auto_install
+	# udev rules
+	install -Dm644 packaging/udev/99-trcc-lcd.rules \
+		debian/trcc-linux/lib/udev/rules.d/99-trcc-lcd.rules
+	# modprobe config
+	install -Dm644 packaging/modprobe/trcc-lcd.conf \
+		debian/trcc-linux/etc/modprobe.d/trcc-lcd.conf
+	# modules-load
+	install -Dm644 packaging/modprobe/trcc-sg.conf \
+		debian/trcc-linux/etc/modules-load.d/trcc-sg.conf
+	# desktop entry
+	install -Dm644 src/trcc/assets/trcc-linux.desktop \
+		debian/trcc-linux/usr/share/applications/trcc-linux.desktop
+	# polkit policy
+	install -Dm644 src/trcc/assets/com.github.lexonight1.trcc.policy \
+		debian/trcc-linux/usr/share/polkit-1/actions/com.github.lexonight1.trcc.policy
+	# systemd service
+	install -Dm644 src/trcc/assets/trcc-quirk-fix.service \
+		debian/trcc-linux/lib/systemd/system/trcc-quirk-fix.service

@@ -1,0 +1,6 @@
+packaging/udev/99-trcc-lcd.rules lib/udev/rules.d/
+packaging/modprobe/trcc-lcd.conf etc/modprobe.d/
+packaging/modprobe/trcc-sg.conf etc/modules-load.d/
+src/trcc/assets/trcc-linux.desktop usr/share/applications/
+src/trcc/assets/com.github.lexonight1.trcc.policy usr/share/polkit-1/actions/
+src/trcc/assets/trcc-quirk-fix.service lib/systemd/system/

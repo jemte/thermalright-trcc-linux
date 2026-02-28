@@ -1,0 +1,72 @@
+# Maintainer: TRCC Linux Contributors <noreply@github.com>
+pkgname=trcc-linux
+pkgver=6.3.3
+pkgrel=1
+pkgdesc="Thermalright LCD/LED Control Center for Linux"
+arch=('any')
+url="https://github.com/Lexonight1/thermalright-trcc-linux"
+license=('GPL-3.0-or-later')
+depends=(
+    'python'
+    'pyside6'
+    'python-pillow'
+    'python-numpy'
+    'python-psutil'
+    'python-pyusb'
+    'python-typer'
+    'python-fastapi'
+    'python-uvicorn'
+    'libusb'
+    'sg3_utils'
+    'p7zip'
+)
+optdepends=(
+    'python-pynvml: NVIDIA GPU sensor support'
+    'python-dbus: Wayland session support'
+    'python-gobject: Wayland session support'
+    'python-hidapi: Alternative HID transport'
+)
+makedepends=(
+    'python-build'
+    'python-installer'
+    'python-hatchling'
+)
+source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/v${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+    cd "thermalright-trcc-linux-${pkgver}"
+    python -m build --wheel --no-isolation
+}
+
+package() {
+    cd "thermalright-trcc-linux-${pkgver}"
+    python -m installer --destdir="${pkgdir}" dist/*.whl
+
+    # udev rules
+    install -Dm644 packaging/udev/99-trcc-lcd.rules \
+        "${pkgdir}/usr/lib/udev/rules.d/99-trcc-lcd.rules"
+
+    # modprobe config (USB storage quirks)
+    install -Dm644 packaging/modprobe/trcc-lcd.conf \
+        "${pkgdir}/usr/lib/modprobe.d/trcc-lcd.conf"
+
+    # modules-load (SCSI generic)
+    install -Dm644 packaging/modprobe/trcc-sg.conf \
+        "${pkgdir}/usr/lib/modules-load.d/trcc-sg.conf"
+
+    # desktop entry
+    install -Dm644 src/trcc/assets/trcc-linux.desktop \
+        "${pkgdir}/usr/share/applications/trcc-linux.desktop"
+
+    # polkit policy
+    install -Dm644 src/trcc/assets/com.github.lexonight1.trcc.policy \
+        "${pkgdir}/usr/share/polkit-1/actions/com.github.lexonight1.trcc.policy"
+
+    # systemd service
+    install -Dm644 src/trcc/assets/trcc-quirk-fix.service \
+        "${pkgdir}/usr/lib/systemd/system/trcc-quirk-fix.service"
+
+    # license
+    install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

@@ -1,0 +1,7 @@
+trcc-linux (6.3.3-1) unstable; urgency=medium
+
+  * Single-instance window raise via SIGUSR1
+  * PM-based device button image resolution
+  * See https://github.com/Lexonight1/thermalright-trcc-linux/releases
+
+ -- TRCC Linux Contributors <noreply@github.com>  Fri, 28 Feb 2026 00:00:00 +0000

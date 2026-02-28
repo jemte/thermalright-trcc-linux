@@ -1,0 +1,121 @@
+%global pypi_name trcc-linux
+%global pkg_name trcc_linux
+%global srcname trcc-linux
+
+Name:           trcc-linux
+Version:        6.3.3
+Release:        1%{?dist}
+Summary:        Thermalright LCD/LED Control Center for Linux
+
+License:        GPL-3.0-or-later
+URL:            https://github.com/Lexonight1/thermalright-trcc-linux
+Source0:        %{pypi_source %{srcname}}
+
+BuildArch:      noarch
+BuildRequires:  python3-devel
+BuildRequires:  python3-hatchling
+BuildRequires:  python3-pip
+
+Requires:       python3-pyside6 >= 6.5.0
+Requires:       python3-pillow >= 10.0.0
+Requires:       python3-numpy >= 1.24.0
+Requires:       python3-psutil >= 5.9.0
+Requires:       python3-pyusb >= 1.2.0
+Requires:       python3-typer >= 0.9.0
+Requires:       python3-fastapi >= 0.100
+Requires:       python3-uvicorn >= 0.20
+Requires:       sg3_utils
+Requires:       p7zip
+Requires:       p7zip-plugins
+
+# libusb is pulled in by python3-pyusb, but be explicit
+%if 0%{?fedora}
+Requires:       libusb1
+%endif
+%if 0%{?suse_version}
+Requires:       libusb-1_0-0
+%endif
+
+# Optional deps
+Recommends:     python3-pynvml
+Recommends:     python3-dbus
+Recommends:     python3-gobject
+Recommends:     python3-hidapi
+
+%description
+Linux implementation of the Thermalright LCD Control Center (TRCC).
+Controls LCD displays and LED segment displays on Thermalright CPU coolers
+and AIO liquid coolers. Supports SCSI, HID, Bulk, and LY USB protocols.
+
+Features:
+- GUI (PySide6) with full Windows TRCC feature parity
+- CLI (Typer) with 36+ commands
+- REST API (FastAPI) with 35+ endpoints
+- Theme management (local + cloud)
+- Video playback on LCD
+- LED RGB effects and segment display control
+- Overlay text/clock/sensor elements
+
+%prep
+%autosetup -n %{srcname}-%{version}
+
+%build
+%pyproject_wheel
+
+%install
+%pyproject_install
+%pyproject_save_files trcc
+
+# System files
+install -Dm644 packaging/udev/99-trcc-lcd.rules \
+    %{buildroot}%{_udevrulesdir}/99-trcc-lcd.rules
+install -Dm644 packaging/modprobe/trcc-lcd.conf \
+    %{buildroot}%{_modprobedir}/trcc-lcd.conf
+install -Dm644 packaging/modprobe/trcc-sg.conf \
+    %{buildroot}%{_modulesloaddir}/trcc-sg.conf
+install -Dm644 src/trcc/assets/trcc-linux.desktop \
+    %{buildroot}%{_datadir}/applications/trcc-linux.desktop
+install -Dm644 src/trcc/assets/com.github.lexonight1.trcc.policy \
+    %{buildroot}%{_datadir}/polkit-1/actions/com.github.lexonight1.trcc.policy
+install -Dm644 src/trcc/assets/trcc-quirk-fix.service \
+    %{buildroot}%{_unitdir}/trcc-quirk-fix.service
+
+# SELinux policy source (Fedora only)
+%if 0%{?fedora}
+install -Dm644 src/trcc/data/trcc_usb.te \
+    %{buildroot}%{_datadir}/selinux/packages/trcc_usb/trcc_usb.te
+%endif
+
+%post
+udevadm control --reload-rules 2>/dev/null || :
+udevadm trigger 2>/dev/null || :
+modprobe sg 2>/dev/null || :
+%systemd_post trcc-quirk-fix.service
+
+%postun
+udevadm control --reload-rules 2>/dev/null || :
+%systemd_postun trcc-quirk-fix.service
+
+%files -f %{pyproject_files}
+%license LICENSE
+%doc README.md
+%{_bindir}/trcc
+%{_bindir}/trcc-gui
+%{_bindir}/trcc-detect
+%{_bindir}/trcc-test
+%{_bindir}/trcc-lcd
+%{_udevrulesdir}/99-trcc-lcd.rules
+%{_modprobedir}/trcc-lcd.conf
+%{_modulesloaddir}/trcc-sg.conf
+%{_datadir}/applications/trcc-linux.desktop
+%{_datadir}/polkit-1/actions/com.github.lexonight1.trcc.policy
+%{_unitdir}/trcc-quirk-fix.service
+%if 0%{?fedora}
+%{_datadir}/selinux/packages/trcc_usb/trcc_usb.te
+%endif
+
+%changelog
+* Fri Feb 28 2026 TRCC Linux Contributors <noreply@github.com> - 6.3.3-1
+- Single-instance window raise via SIGUSR1
+- PM-based device button image resolution
+- See https://github.com/Lexonight1/thermalright-trcc-linux/releases
