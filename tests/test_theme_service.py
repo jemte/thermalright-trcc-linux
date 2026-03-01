@@ -899,11 +899,12 @@ class TestSave:
         assert ok is True
 
         theme_path = tmp_path / 'theme320320' / 'Custom_VidTheme'
-        zt = theme_path / 'Theme.zt'
-        assert zt.exists()
+        # Extension preserved from source (.mp4 stays .mp4, not renamed to .zt)
+        saved_video = theme_path / 'Theme.mp4'
+        assert saved_video.exists()
 
         config = json.loads((theme_path / 'config.json').read_text())
-        assert config['background'] == str(zt)
+        assert config['background'] == str(saved_video)
 
     def test_video_path_same_as_dest_no_copy(
         self, tmp_path: Path, lcd_size: tuple[int, int], big_image: Image.Image

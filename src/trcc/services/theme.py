@@ -310,7 +310,9 @@ class ThemeService:
             if video_path:
                 video_src = Path(video_path)
                 if video_src.exists():
-                    dest = td.zt
+                    # Preserve original extension so the correct decoder is
+                    # used on reload (.zt → ThemeZtDecoder, .mp4 → VideoDecoder)
+                    dest = theme_path / f'Theme{video_src.suffix}'
                     if video_src.resolve() != dest.resolve():
                         shutil.copy2(str(video_src), str(dest))
                     background_path = str(dest)

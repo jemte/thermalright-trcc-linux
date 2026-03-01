@@ -1093,9 +1093,9 @@ class TestReferenceThemeSaveLoad(unittest.TestCase):
         theme_path = Path(self.tmp) / 'theme320320' / 'Custom_VidRef'
         with open(str(theme_path / 'config.json')) as f:
             config = json.load(f)
-        # Video should be copied into theme dir as Theme.zt
-        self.assertEqual(config['background'], str(theme_path / 'Theme.zt'))
-        self.assertTrue((theme_path / 'Theme.zt').exists())
+        # Video should be copied with original extension preserved
+        self.assertEqual(config['background'], str(theme_path / 'Theme.mp4'))
+        self.assertTrue((theme_path / 'Theme.mp4').exists())
 
     def test_save_theme_with_mask(self):
         self.ctrl._display.current_image = _make_test_image()

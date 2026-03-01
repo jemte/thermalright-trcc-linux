@@ -79,8 +79,14 @@ class MediaService:
 
             suffix = path.suffix.lower()
             if suffix == '.zt':
-                self._decoder = ThemeZtDecoder(str(path), self._target_size)
-                self._delays = list(self._decoder.delays)
+                try:
+                    self._decoder = ThemeZtDecoder(str(path), self._target_size)
+                    self._delays = list(self._decoder.delays)
+                except ValueError:
+                    # Not a valid .zt archive (e.g. MP4 renamed to .zt by
+                    # older save code) — fall back to video decoder
+                    self._decoder = VideoDecoder(
+                        str(path), self._target_size, fit_mode=self._fit_mode)
             else:
                 self._decoder = VideoDecoder(
                     str(path), self._target_size, fit_mode=self._fit_mode)
