@@ -359,7 +359,7 @@ Current FBL table (16 entries, full C# parity):
 5. **State not propagated** — handshake discovers resolution/FBL but the value never reaches the encoding layer. Multiple fixes for "fbl not propagated from handshake."
 6. **Linux-specific USB issues** — kernel driver detach, SELinux blocking, polkit for udev rules, UsrMerge symlink differences, XFCE session not "active" in logind.
 
-### Version Evolution (v1.0 → v6.1.5)
+### Version Evolution (v1.0 → v6.5.3)
 - **v1.x** (17 releases) — Basic GUI, SCSI protocol, theme loading, bug-fixing spree
 - **v2.0** — Module rename/restructure, HR10 LED backend, PM/FBL unification
 - **v3.0** — Hexagonal architecture, services layer, CLI (Typer), REST API, 2081→2166 tests
