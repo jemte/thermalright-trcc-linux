@@ -44,6 +44,10 @@ These devices have been tested on real Linux hardware by contributors:
 | Assassin X 120R Digital ARGB (LED) | `0416:8001` | HID LED | [hexskrew](https://github.com/hexskrew) |
 | Peerless Assassin 120 Digital ARGB White (LED) | `0416:8001` | HID LED | [Xentrino](https://github.com/Xentrino) |
 | Phantom Spirit 120 Digital EVO (LED) | `0416:8001` | HID LED | [javisaman](https://github.com/javisaman), [Rizzzolo](https://github.com/Rizzzolo) |
+| Thermalright 9.16 LCD | `0416:5408` | LY (Bulk) | [Mr-Renegade](https://github.com/Mr-Renegade) |
+| Frozen Warframe Pro | `87AD:70DB` | Bulk | [loosethoughts19-hash](https://github.com/loosethoughts19-hash) |
+| Elite Vision 360 ARGB Black | `0402:3922` | SCSI | [tensaiteki](https://github.com/tensaiteki) |
+| GrandVision 360 AIO | `87AD:70DB` | Bulk | [Reborn627](https://github.com/Reborn627) |
 
 ## Need Testers — HID LCD Devices
 
@@ -57,7 +61,7 @@ These use USB HID to display images on the LCD. Code is complete, but no one has
 | FROZEN WARFRAME (HID variant) | `0416:5302` | HID Type 2 | Medium |
 | FROZEN WARFRAME SE (HID variant) | `0416:5302` | HID Type 2 | Medium |
 | FROZEN WARFRAME PRO | `0416:5302` | HID Type 2 | Medium |
-| ELITE VISION | `0416:5302` | HID Type 2 | Medium |
+| ELITE VISION (HID variant) | `0416:5302` | HID Type 2 | Medium — SCSI variant confirmed by tensaiteki |
 | LC5 (HID variant) | `0416:5302` | HID Type 2 | Medium |
 | TARAN ARMS | `0418:5303` | HID Type 3 | High — only Type 3 device |
 | TARAN ARMS | `0418:5304` | HID Type 3 | High — only Type 3 device |
