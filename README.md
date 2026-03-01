@@ -8,8 +8,8 @@
 [![Platform](https://img.shields.io/badge/platform-Linux-FCC624?logo=linux&logoColor=black)](https://github.com/Lexonight1/thermalright-trcc-linux)
 
 [![CI](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/ci.yml/badge.svg)](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-2523_passed-brightgreen.svg)](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-96%25-brightgreen.svg)](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-4440_passed-brightgreen.svg)](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-76%25-brightgreen.svg)](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://python.org)
 [![Code Style](https://img.shields.io/badge/code_style-ruff-D7FF64?logo=ruff&logoColor=black)](https://docs.astral.sh/ruff/)
 [![Type Check](https://img.shields.io/badge/type_check-pyright-blue?logo=python&logoColor=white)](https://microsoft.github.io/pyright/)
@@ -57,7 +57,7 @@ Run `trcc report` and [paste the output in an issue](https://github.com/Lexonigh
 |----------|-------------|
 | **GUI** | Full PySide6 desktop app — theme browser, video player, overlay editor, LED control panel |
 | **CLI** | 50 commands — `trcc gui`, `trcc send`, `trcc video`, `trcc led-color`, `trcc screencast`, and more |
-| **REST API** | 41 endpoints — control everything remotely, build integrations, or use the upcoming Android app |
+| **REST API** | 37 endpoints — control everything remotely, build integrations, or use the upcoming Android app |
 | **Themes** | Local, cloud, and masks — carousel mode, export/import as `.tr` files, 5 starters + 120 masks per resolution |
 | **Media** | Video/GIF playback, video trimmer, image cropper, screen cast (X11 + Wayland) |
 | **Overlay Editor** | Text, sensors, date/time overlays — font picker, dynamic scaling, color picker |
@@ -67,7 +67,7 @@ Run `trcc report` and [paste the output in an issue](https://github.com/Lexonigh
 | **Multi-device** | Per-device config, auto-detect, multi-device with device selection |
 | **Security** | udev rules, polkit policy, SELinux support, no root required after setup |
 
-**Under the hood**: 96 source files, ~36K lines of Python, 2523 tests across 39 test files, 96% coverage. Hexagonal architecture — GUI, CLI, and API all talk to the same core services. 5 USB protocols reverse-engineered from the Windows C# app.
+**Under the hood**: 98 source files, ~36K lines of Python, 4440 tests across 54 test files, 76% coverage. Hexagonal architecture — GUI, CLI, and API all talk to the same core services. 6 USB protocols reverse-engineered from the Windows C# app.
 
 ## Supported Devices
 
@@ -83,13 +83,13 @@ Run `lsusb` to find your USB ID (`xxxx:xxxx` after `ID`), then match it below.
 **Bulk USB devices** — raw USB protocol:
 | USB ID | Devices |
 |--------|---------|
-| `87AD:70DB` | GrandVision 360 AIO, Mjolnir Vision 360 |
+| `87AD:70DB` | GrandVision 360 AIO, Mjolnir Vision 360, Wonder Vision Pro 360, Frozen Warframe Pro |
 
 **LY USB devices** — chunked bulk protocol:
 | USB ID | Devices |
 |--------|---------|
-| `0416:5408` | Peerless Vision |
-| `0416:5409` | Peerless Vision (variant) |
+| `0416:5408` | Trofeo Vision 9.16 LCD |
+| `0416:5409` | (LY1 variant) |
 
 **HID LCD devices** — auto-detected:
 | USB ID | Devices |
@@ -101,7 +101,7 @@ Run `lsusb` to find your USB ID (`xxxx:xxxx` after `ID`), then match it below.
 **HID LED devices** — RGB LED control:
 | USB ID | Devices |
 |--------|---------|
-| `0416:8001` | AX120 DIGITAL, PA120 DIGITAL, Peerless Assassin 120 DIGITAL, Assassin X 120R Digital ARGB, Phantom Spirit 120 Digital EVO, and others (model auto-detected via handshake) |
+| `0416:8001` | AX120 DIGITAL, PA120 DIGITAL, Peerless Assassin 120 DIGITAL ARGB White, Assassin X 120R Digital ARGB, Phantom Spirit 120 Digital EVO, HR10 2280 PRO Digital, and others (model auto-detected via handshake) |
 
 > See the [full device list with protocol details](doc/SUPPORTED_DEVICES.md) and the [Device Testing Guide](doc/DEVICE_TESTING.md) if you have an untested device.
 
@@ -254,7 +254,7 @@ trcc serve --tls              # HTTPS with auto-generated self-signed cert
 trcc serve --host 0.0.0.0     # Listen on all interfaces (LAN access)
 ```
 
-41 endpoints covering devices, display, LED, themes, and system metrics. Use `trcc api` to list all endpoints.
+37 endpoints covering devices, display, LED, themes, and system metrics. Use `trcc api` to list all endpoints.
 
 ```bash
 # Examples with curl
@@ -271,7 +271,7 @@ curl -X POST http://localhost:9876/led/color \
 | Document | Description |
 |----------|-------------|
 | [Install Guide](doc/INSTALL_GUIDE.md) | Installation for all major distros |
-| [CLI Reference](doc/CLI_REFERENCE.md) | All 50 commands with options and examples |
+| [CLI Reference](doc/CLI_REFERENCE.md) | All CLI commands with options and examples |
 | [Troubleshooting](doc/TROUBLESHOOTING.md) | Common issues and fixes |
 | [New to Linux](doc/NEW_TO_LINUX.md) | Guide for Linux beginners |
 | [Changelog](doc/CHANGELOG.md) | Version history |
@@ -298,21 +298,22 @@ src/trcc/
 ├── adapters/       # USB device protocols (SCSI, HID, Bulk, LY, LED)
 ├── qt_components/  # PySide6 GUI (themes, video, overlay, LED, sensors)
 ├── cli/            # Typer CLI — 50 commands across 7 modules
-├── api/            # FastAPI REST API — 41 endpoints across 7 modules
+├── api/            # FastAPI REST API — 37 endpoints across 7 modules
 ├── conf.py         # Settings singleton
 └── assets/         # GUI images, desktop entry, polkit policy, systemd service
 ```
 
 **Hexagonal architecture** — GUI, CLI, and API are interchangeable adapters over the same core services. Adding a new interface (Android app, Home Assistant plugin) means writing a new adapter, not touching business logic.
 
-**5 USB protocols** reverse-engineered from the Windows C# app:
+**6 USB protocols** reverse-engineered from the Windows C# app:
 
 | Protocol | Transport | Devices |
 |----------|-----------|---------|
 | SCSI | SG_IO ioctl | Frozen Warframe, Elite Vision, AK/AX120, PA120, LC1-5 |
-| HID | pyusb interrupt | Trofeo Vision, Assassin Spirit, AS/BA120, TARAN ARMS |
-| Bulk | pyusb bulk | GrandVision 360, Mjolnir Vision 360 |
-| LY | pyusb bulk (chunked) | Peerless Vision |
+| HID Type 2 | pyusb interrupt | Trofeo Vision, Assassin Spirit, AS/BA120, Frozen Warframe SE/PRO |
+| HID Type 3 | pyusb interrupt | TARAN ARMS |
+| Bulk | pyusb bulk | GrandVision 360, Mjolnir Vision 360, Wonder Vision Pro 360, Frozen Warframe Pro |
+| LY | pyusb bulk (chunked) | Trofeo Vision 9.16 LCD |
 | LED | pyusb HID | All LED segment display devices (12 styles) |
 
 ## Contributors

@@ -23,7 +23,7 @@ These devices have been tested on real hardware and confirmed working with TRCC 
 | Assassin Spirit 120 Vision ARGB | HID (0416:5302) | 240x240 | [michael-spinelli](https://github.com/michael-spinelli), [acioannina-wq](https://github.com/acioannina-wq) |
 | Elite Vision 360 ARGB Black | SCSI (0402:3922) | — | [tensaiteki](https://github.com/tensaiteki) |
 | Frozen Warframe Pro | Bulk (87AD:70DB) | — | [loosethoughts19-hash](https://github.com/loosethoughts19-hash) |
-| Thermalright 9.16 LCD | LY (0416:5408) | — | [Mr-Renegade](https://github.com/Mr-Renegade) |
+| Trofeo Vision 9.16 LCD | LY (0416:5408) | — | [Mr-Renegade](https://github.com/Mr-Renegade) |
 
 ### LED + Segment Display (RGB Fan Control, Temperature Readout)
 
@@ -95,7 +95,7 @@ All devices connect through one of these USB VID:PIDs:
 | 0416:5302 | HID Type 2 | Full LCD | Vision/Warframe (newer HW) |
 | 0418:5303 | HID Type 3 | Full LCD | TARAN ARMS |
 | 0418:5304 | HID Type 3 | Full LCD | TARAN ARMS |
-| 0416:5408 | LY Bulk | Full LCD | Thermalright 9.16 LCD |
+| 0416:5408 | LY Bulk | Full LCD | Trofeo Vision 9.16 LCD |
 | 0416:5409 | LY1 Bulk | Full LCD | |
 | 0416:8001 | HID | LED + segment / Full LCD | Digital series + many Vision products |
 

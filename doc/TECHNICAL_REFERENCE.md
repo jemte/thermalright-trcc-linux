@@ -368,7 +368,7 @@ The last chunk is padded with zeros to fill 512 bytes and marked with type `0x65
 
 | Product | Resolution |
 |---------|------------|
-| Thermalright 9.16 LCD | — |
+| Trofeo Vision 9.16 LCD | — |
 
 ---
 

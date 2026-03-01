@@ -12,7 +12,7 @@ Run `lsusb` and look for your VID:PID:
 | `0418:5303` | ALi Corp. LCD Display | HID Type 3 (LCD) | TARAN ARMS |
 | `0418:5304` | ALi Corp. LCD Display | HID Type 3 (LCD) | TARAN ARMS |
 | `0416:8001` | Winbond Electronics Corp. LED Controller | HID LED (RGB) | AX120 DIGITAL, PA120 DIGITAL, HR10 2280 PRO DIGITAL, Phantom Spirit 120 Digital EVO, Assassin X 120R Digital ARGB, Peerless Assassin 120 Digital ARGB White |
-| `0416:5408` | Winbond Electronics Corp. USBDISPLAY | LY Bulk (LCD) | Thermalright 9.16 LCD |
+| `0416:5408` | Winbond Electronics Corp. USBDISPLAY | LY Bulk (LCD) | Trofeo Vision 9.16 LCD |
 | `0416:5409` | Winbond Electronics Corp. USBDISPLAY | LY1 Bulk (LCD) | |
 
 ## Quick Start
@@ -167,7 +167,7 @@ TRCC Linux supports 5 USB protocol types:
 - **HID Type 3** (`0418:5303`, `0418:5304`) — USB HID, 0x65/0x66 prefix, fixed-size frames with ACK
 - **HID LED** (`0416:8001`) — USB HID, 64-byte reports for RGB LED color/effect control
 - **Bulk** (`87AD:70DB`) — Raw USB vendor-specific protocol via pyusb (GrandVision/Mjolnir Vision/Wonder Vision Pro/Frozen Warframe Pro)
-- **LY** (`0416:5408`, `0416:5409`) — USB bulk protocol for LY-type LCDs (Thermalright 9.16 LCD), 512-byte chunked frames with 16-byte headers
+- **LY** (`0416:5408`, `0416:5409`) — USB bulk protocol for LY-type LCDs (Trofeo Vision 9.16 LCD), 512-byte chunked frames with 16-byte headers
 
 ### Resolution Detection
 

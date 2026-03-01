@@ -54,7 +54,7 @@ All features are tested and working on the `main` branch:
 **LY Bulk devices** — chunked bulk protocol:
 | USB ID | Devices |
 |--------|---------|
-| `0416:5408` | Thermalright 9.16 LCD |
+| `0416:5408` | Trofeo Vision 9.16 LCD |
 | `0416:5409` | (LY1 variant) |
 
 ## Roadmap
