@@ -296,101 +296,45 @@ def _check_library(
 
 
 def _check_gpu_packages() -> None:
-    """Detect GPU vendors and check if the matching Python sensor package is installed."""
-    from pathlib import Path
-
-    pci_base = Path('/sys/bus/pci/devices')
-    if not pci_base.exists():
-        print(f"  {_OPT}  GPU detection skipped (no PCI sysfs)")
-        return
-
-    # Scan for VGA (0x0300) and 3D (0x0302) controllers
-    vendors: set[str] = set()
-    for dev_dir in pci_base.iterdir():
-        class_path = dev_dir / 'class'
-        vendor_path = dev_dir / 'vendor'
-        if not class_path.exists() or not vendor_path.exists():
-            continue
-        try:
-            pci_class = class_path.read_text().strip()
-            if pci_class.startswith('0x0300') or pci_class.startswith('0x0302'):
-                vendors.add(vendor_path.read_text().strip().removeprefix('0x'))
-        except OSError:
-            continue
-
-    if not vendors:
+    """Print GPU detection results (delegates to check_gpu())."""
+    results = check_gpu()
+    if not results:
         print(f"  {_OPT}  No discrete GPU detected")
         return
-
-    # NVIDIA
-    if '10de' in vendors:
-        ver = get_module_version('pynvml')
-        if ver is not None:
-            ver_str = f" {ver}" if ver else ""
-            print(f"  {_OK}  nvidia-ml-py{ver_str} (NVIDIA GPU detected)")
-        else:
-            print(f"  {_OPT}  NVIDIA GPU detected — pip install nvidia-ml-py"
+    for g in results:
+        if g.vendor == 'nvidia' and not g.package_installed:
+            print(f"  {_OPT}  NVIDIA GPU detected — {g.install_cmd}"
                   " (enables GPU temp/usage/clock)")
-
-    # AMD
-    if '1002' in vendors:
-        # AMD GPU sensors come from hwmon/DRM sysfs (no extra pip package needed)
-        print(f"  {_OK}  AMD GPU detected (sensors via sysfs)")
-
-    # Intel integrated
-    if '8086' in vendors:
-        print(f"  {_OK}  Intel GPU detected (sensors via sysfs)")
+        elif g.vendor == 'nvidia':
+            ver = get_module_version('pynvml')
+            print(f"  {_OK}  nvidia-ml-py{f' {ver}' if ver else ''} (NVIDIA GPU detected)")
+        else:
+            print(f"  {_OK}  {g.label}")
 
 
 def _check_udev_rules() -> bool:
-    """Check if TRCC udev rules are installed and cover known devices."""
-    path = '/etc/udev/rules.d/99-trcc-lcd.rules'
-    if not os.path.isfile(path):
+    """Print udev rules check (delegates to check_udev())."""
+    result = check_udev()
+    if not result.ok and result.missing_vids:
+        print(f"  {_MISS}  udev rules outdated — missing VID(s): {', '.join(result.missing_vids)}")
+        print("         run: trcc setup-udev")
+    elif not result.ok:
         print(f"  {_MISS}  udev rules — run: trcc setup-udev")
-        return False
-
-    # File exists — verify it covers all known VIDs
-    try:
-        with open(path) as f:
-            content = f.read()
-
-        from trcc.adapters.device.detector import DeviceDetector
-
-        all_devices = DeviceDetector._get_all_registries()
-        all_vids = {f"{vid:04x}" for vid, _ in all_devices}
-        missing = [vid for vid in sorted(all_vids) if vid not in content]
-
-        if missing:
-            print(f"  {_MISS}  udev rules outdated — missing VID(s): {', '.join(missing)}")
-            print("         run: trcc setup-udev")
-            return False
-
-        print(f"  {_OK}  udev rules ({path})")
-        return True
-    except Exception:
-        # File exists but can't verify content — still OK
-        print(f"  {_OK}  udev rules ({path})")
-        return True
+    else:
+        print(f"  {_OK}  udev rules (/etc/udev/rules.d/99-trcc-lcd.rules)")
+    return result.ok
 
 
 def _check_rapl_permissions() -> bool:
-    """Check if RAPL power sensors are readable by non-root users."""
-    rapl_base = '/sys/class/powercap'
-    if not os.path.isdir(rapl_base):
-        return True  # No powercap subsystem — not applicable
-
-    from pathlib import Path
-    energy_files = sorted(Path(rapl_base).glob('intel-rapl:*/energy_uj'))
-    if not energy_files:
-        return True  # No RAPL domains — not applicable
-
-    unreadable = [f for f in energy_files if not os.access(str(f), os.R_OK)]
-    if unreadable:
+    """Print RAPL sensor check (delegates to check_rapl())."""
+    result = check_rapl()
+    if not result.applicable:
+        return True
+    if result.ok:
+        print(f"  {_OK}  RAPL power sensors ({result.domain_count} domain(s))")
+    else:
         print(f"  {_OPT}  RAPL power sensors not readable — run: trcc setup-udev")
-        return False
-
-    print(f"  {_OK}  RAPL power sensors ({len(energy_files)} domain(s))")
-    return True
+    return result.ok
 
 
 # ── Structured check results (for setup wizard GUI) ──────────────────────────

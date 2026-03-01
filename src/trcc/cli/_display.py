@@ -130,20 +130,24 @@ class DisplayDispatcher:
 
     # ── Display settings ──────────────────────────────────────────────
 
+    def _persist_setting(self, field: str, value: object) -> None:
+        """Save a single device setting to config."""
+        from trcc.conf import Settings
+
+        dev = self._dev
+        key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
+        Settings.save_device_setting(key, field, value)
+
     def set_brightness(self, level: int) -> dict:
         """Set display brightness (1=25%, 2=50%, 3=100%). Persists to config."""
         level_map = {1: 25, 2: 50, 3: 100}
         if level not in level_map:
             return {"success": False, "error": "Brightness level must be 1, 2, or 3"}
 
-        from trcc.conf import Settings
-
-        dev = self._dev
-        key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
-        Settings.save_device_setting(key, 'brightness_level', level)
+        self._persist_setting('brightness_level', level)
         return {
             "success": True,
-            "message": f"Brightness set to L{level} ({level_map[level]}%) on {dev.path}",
+            "message": f"Brightness set to L{level} ({level_map[level]}%) on {self._dev.path}",
         }
 
     def set_rotation(self, degrees: int) -> dict:
@@ -151,14 +155,10 @@ class DisplayDispatcher:
         if degrees not in (0, 90, 180, 270):
             return {"success": False, "error": "Rotation must be 0, 90, 180, or 270"}
 
-        from trcc.conf import Settings
-
-        dev = self._dev
-        key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
-        Settings.save_device_setting(key, 'rotation', degrees)
+        self._persist_setting('rotation', degrees)
         return {
             "success": True,
-            "message": f"Rotation set to {degrees}° on {dev.path}",
+            "message": f"Rotation set to {degrees}° on {self._dev.path}",
         }
 
     def set_split_mode(self, mode: int) -> dict:
@@ -166,22 +166,18 @@ class DisplayDispatcher:
         if mode not in (0, 1, 2, 3):
             return {"success": False, "error": "Split mode must be 0, 1, 2, or 3"}
 
-        from trcc.conf import Settings
-
-        dev = self._dev
-        w, h = dev.resolution
-
         from trcc.core.models import SPLIT_MODE_RESOLUTIONS
+
+        w, h = self._dev.resolution
         warning = None
         if (w, h) not in SPLIT_MODE_RESOLUTIONS:
             warning = f"Split mode only supports widescreen ({w}x{h} is not 1600x720)"
 
-        key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
-        Settings.save_device_setting(key, 'split_mode', mode)
+        self._persist_setting('split_mode', mode)
         state = "off" if mode == 0 else f"style {mode}"
         result: dict[str, Any] = {
             "success": True,
-            "message": f"Split mode set to {state} on {dev.path}",
+            "message": f"Split mode set to {state} on {self._dev.path}",
         }
         if warning:
             result["warning"] = warning

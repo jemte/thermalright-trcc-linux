@@ -498,48 +498,48 @@ class LedProtocol(UsbProtocol):
 # BulkProtocol — raw USB bulk (USBLCDNew) implementation
 # =========================================================================
 
-class BulkProtocol(DeviceProtocol):
-    """LCD communication via raw USB bulk (bInterfaceClass=255).
+class _BulkLikeProtocol(DeviceProtocol):
+    """Shared base for BulkProtocol + LyProtocol (identical lifecycle)."""
 
-    Wraps bulk_device.BulkDevice.  Used for GrandVision / Mjolnir Vision
-    devices (87AD:70DB) that use the USBLCDNew ThreadSendDeviceData protocol.
-    """
+    _label: str = ""  # "Bulk" or "LY" — set by subclass
 
     def __init__(self, vid: int, pid: int):
         super().__init__()
         self._vid = vid
         self._pid = pid
-        self._device: Optional[Any] = None  # BulkDevice (lazy import)
+        self._device: Optional[Any] = None
 
-    def _ensure_device(self):
-        """Lazily create and handshake the bulk device."""
+    @staticmethod
+    def _make_device(vid: int, pid: int) -> Any:
+        raise NotImplementedError
+
+    def _ensure_device(self) -> None:
         if self._device is None:
-            from .bulk import BulkDevice
-            self._device = BulkDevice(self._vid, self._pid)
+            self._device = self._make_device(self._vid, self._pid)
+            assert self._device is not None
             result = self._device.handshake()
             self._handshake_result = result
             if result.resolution:
                 self._notify_state_changed("handshake_complete", True)
-                log.info("Bulk handshake OK: PM=%d, resolution=%s",
-                         result.model_id, result.resolution)
+                log.info("%s handshake OK: PM=%d, resolution=%s",
+                         self._label, result.model_id, result.resolution)
             else:
-                log.warning("Bulk handshake: no resolution detected")
+                log.warning("%s handshake: no resolution detected", self._label)
 
     def _do_handshake(self) -> Optional[HandshakeResult]:
-        """Create bulk device and perform handshake."""
         self._ensure_device()
         return self._handshake_result
 
     @property
     def _handshake_label(self) -> str:
-        return f"Bulk {self._vid:04X}:{self._pid:04X}"
+        return f"{self._label} {self._vid:04X}:{self._pid:04X}"
 
     def send_image(self, image_data: bytes, width: int, height: int) -> bool:
         def _do_send() -> bool:
             self._ensure_device()
             assert self._device is not None
             return self._device.send_frame(image_data)
-        return self._guarded_send("Bulk", _do_send)
+        return self._guarded_send(self._label, _do_send)
 
     def close(self) -> None:
         if self._device is not None:
@@ -548,6 +548,22 @@ class BulkProtocol(DeviceProtocol):
             except Exception:
                 pass
             self._device = None
+
+    @property
+    def is_available(self) -> bool:
+        backends = DeviceProtocolFactory._get_hid_backends()
+        return backends["pyusb"]
+
+
+class BulkProtocol(_BulkLikeProtocol):
+    """LCD via raw USB bulk (USBLCDNew, 87AD:70DB)."""
+
+    _label = "Bulk"
+
+    @staticmethod
+    def _make_device(vid: int, pid: int) -> Any:
+        from .bulk import BulkDevice
+        return BulkDevice(vid, pid)
 
     def get_info(self) -> 'ProtocolInfo':
         return self._build_usb_protocol_info(
@@ -559,64 +575,19 @@ class BulkProtocol(DeviceProtocol):
     def protocol_name(self) -> str:
         return "bulk"
 
-    @property
-    def is_available(self) -> bool:
-        backends = DeviceProtocolFactory._get_hid_backends()
-        return backends["pyusb"]
-
     def __repr__(self) -> str:
         return f"BulkProtocol(vid=0x{self._vid:04x}, pid=0x{self._pid:04x})"
 
 
-class LyProtocol(DeviceProtocol):
-    """LCD communication via LY USB bulk (0416:5408 / 0416:5409).
+class LyProtocol(_BulkLikeProtocol):
+    """LCD via LY USB bulk (0416:5408 / 0416:5409)."""
 
-    Wraps ly.LyDevice.  Protocol from TRCC v2.1.2 USBLCDNEW.dll
-    ThreadSendDeviceDataLY / ThreadSendDeviceDataLY1.
-    """
+    _label = "LY"
 
-    def __init__(self, vid: int, pid: int):
-        super().__init__()
-        self._vid = vid
-        self._pid = pid
-        self._device: Optional[Any] = None  # LyDevice (lazy import)
-
-    def _ensure_device(self):
-        """Lazily create and handshake the LY device."""
-        if self._device is None:
-            from .ly import LyDevice
-            self._device = LyDevice(self._vid, self._pid)
-            result = self._device.handshake()
-            self._handshake_result = result
-            if result.resolution:
-                self._notify_state_changed("handshake_complete", True)
-                log.info("LY handshake OK: PM=%d, resolution=%s",
-                         result.model_id, result.resolution)
-            else:
-                log.warning("LY handshake: no resolution detected")
-
-    def _do_handshake(self) -> Optional[HandshakeResult]:
-        self._ensure_device()
-        return self._handshake_result
-
-    @property
-    def _handshake_label(self) -> str:
-        return f"LY {self._vid:04X}:{self._pid:04X}"
-
-    def send_image(self, image_data: bytes, width: int, height: int) -> bool:
-        def _do_send() -> bool:
-            self._ensure_device()
-            assert self._device is not None
-            return self._device.send_frame(image_data)
-        return self._guarded_send("LY", _do_send)
-
-    def close(self) -> None:
-        if self._device is not None:
-            try:
-                self._device.close()
-            except Exception:
-                pass
-            self._device = None
+    @staticmethod
+    def _make_device(vid: int, pid: int) -> Any:
+        from .ly import LyDevice
+        return LyDevice(vid, pid)
 
     def get_info(self) -> 'ProtocolInfo':
         return self._build_usb_protocol_info(
@@ -627,11 +598,6 @@ class LyProtocol(DeviceProtocol):
     @property
     def protocol_name(self) -> str:
         return "ly"
-
-    @property
-    def is_available(self) -> bool:
-        backends = DeviceProtocolFactory._get_hid_backends()
-        return backends["pyusb"]
 
     def __repr__(self) -> str:
         return f"LyProtocol(vid=0x{self._vid:04x}, pid=0x{self._pid:04x})"

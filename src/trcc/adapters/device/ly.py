@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 import struct
 
-from trcc.adapters.device._usb_helpers import open_usb_device
+from trcc.adapters.device._usb_helpers import BulkFrameDevice
 from trcc.adapters.device.frame import FrameDevice
 from trcc.core.models import HandshakeResult, fbl_to_resolution, pm_to_fbl
 
@@ -58,7 +58,7 @@ def _ly_resolution(pm: int, sub: int = 0) -> tuple[int, int]:
 
 # -- LyDevice ----------------------------------------------------------------
 
-class LyDevice(FrameDevice):
+class LyDevice(BulkFrameDevice, FrameDevice):
     """USB bulk device handler for LY-type LCDs (0416:5408 / 0416:5409).
 
     Uses pyusb for raw bulk endpoint I/O.  The kernel must not have
@@ -66,52 +66,9 @@ class LyDevice(FrameDevice):
     """
 
     def __init__(self, vid: int, pid: int, usb_path: str = ""):
-        self.vid = vid
-        self.pid = pid
-        self.usb_path = usb_path
-        self._dev = None
-        self._ep_out = None
-        self._ep_in = None
-        self._intf: int = 0
-        self.pm: int = 0
-        self.sub_type: int = 0
-        self.width: int = 0
-        self.height: int = 0
-        self.use_jpeg: bool = True
-        self._raw_handshake: bytes = b""
+        super().__init__(vid, pid, usb_path)
         # LY uses chunk header byte[8]=1, LY1 uses 2
         self._chunk_cmd: int = 1 if pid == _PID_LY else 2
-
-    def _open(self):
-        """Find and claim the USB device via shared factory."""
-        import usb.util
-
-        dev, intf = open_usb_device(self.vid, self.pid)
-
-        self._ep_out = usb.util.find_descriptor(
-            intf,
-            custom_match=lambda e: (
-                usb.util.endpoint_direction(e.bEndpointAddress) == usb.util.ENDPOINT_OUT
-                and usb.util.endpoint_type(e.bmAttributes) == usb.util.ENDPOINT_TYPE_BULK
-            ),
-        )
-        self._ep_in = usb.util.find_descriptor(
-            intf,
-            custom_match=lambda e: (
-                usb.util.endpoint_direction(e.bEndpointAddress) == usb.util.ENDPOINT_IN
-                and usb.util.endpoint_type(e.bmAttributes) == usb.util.ENDPOINT_TYPE_BULK
-            ),
-        )
-
-        if self._ep_out is None or self._ep_in is None:
-            raise RuntimeError("Could not find bulk IN/OUT endpoints")
-
-        self._intf = intf.bInterfaceNumber  # type: ignore[union-attr]
-        self._dev = dev
-        log.info("Opened LY device %04x:%04x (EP OUT=0x%02x, EP IN=0x%02x)",
-                 self.vid, self.pid,
-                 self._ep_out.bEndpointAddress,  # type: ignore[union-attr]
-                 self._ep_in.bEndpointAddress)  # type: ignore[union-attr]
 
     def handshake(self) -> HandshakeResult:
         """Send 2048-byte handshake, read 512-byte response.
@@ -263,16 +220,4 @@ class LyDevice(FrameDevice):
                           total_size, num_chunks)
             return False
 
-    def close(self) -> None:
-        """Release USB device."""
-        if self._dev is not None:
-            import usb.util
-            try:
-                usb.util.release_interface(self._dev, self._intf)
-            except Exception:
-                pass
-            usb.util.dispose_resources(self._dev)
-            self._dev = None
-            self._ep_out = None
-            self._ep_in = None
-            log.info("LY device closed")
+    # close() inherited from BulkFrameDevice

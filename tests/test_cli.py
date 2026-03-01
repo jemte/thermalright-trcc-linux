@@ -8,11 +8,11 @@ Tests cover:
   reset, setup-udev, download, gui, brightness, rotation, screencast, mask,
   overlay, theme-list, theme-load, theme-save, theme-export, theme-import,
   led-color, led-mode, led-brightness, led-off, led-sensor)
-- DeviceCommands.detect() / detect(--all) with mocked device_detector
-- DeviceCommands.select() validation
-- DisplayCommands.send_color() hex parsing
-- SystemCommands.show_info() with mocked system_info
-- SystemCommands.download_themes() dispatch to theme_downloader
+- _device.detect() / detect(--all) with mocked device_detector
+- _device.select() validation
+- _display.send_color() hex parsing
+- _system.show_info() with mocked system_info
+- _system.download_themes() dispatch to theme_downloader
 - conf.get_selected_device() / conf.save_selected_device() helpers
 """
 
@@ -28,43 +28,28 @@ from unittest.mock import MagicMock, patch
 from tests.conftest import make_device_info as _make_device_info
 from tests.conftest import make_mock_service as _mock_service
 from trcc.cli import (
-    DisplayCommands,
-    LEDCommands,
-    ThemeCommands,
+    _display,
     _ensure_extracted,
     _format_device,
     _get_service,
+    _led,
     _probe_device,
+    _theme,
     detect,
     discover_resolution,
     download_themes,
-    export_theme,
     gui,
     hid_debug,
-    import_theme,
     install_desktop,
-    led_brightness,
-    led_color,
     led_debug,
-    led_mode,
-    led_off,
-    led_sensor,
-    list_themes,
-    load_mask,
-    load_theme,
     main,
     play_video,
-    render_overlay,
     report,
     reset_device,
     resume,
-    save_theme,
-    screencast,
     select_device,
     send_color,
     send_image,
-    set_brightness,
-    set_rotation,
     setup_udev,
     show_info,
     uninstall,
@@ -89,7 +74,7 @@ class TestMainEntryPoint(unittest.TestCase):
             self.assertEqual(result, 0)
 
     def test_detect_dispatches(self):
-        """'detect' subcommand calls DeviceCommands.detect()."""
+        """'detect' subcommand calls _device.detect()."""
         with patch('sys.argv', ['trcc', 'detect']), \
              patch('trcc.cli._device.detect', return_value=0) as mock_detect:
             result = main()
@@ -118,7 +103,7 @@ class TestMainEntryPoint(unittest.TestCase):
             mock_color.assert_called_once_with('ff0000', device=None, preview=False)
 
     def test_info_dispatches(self):
-        """'info' subcommand dispatches to SystemCommands.show_info."""
+        """'info' subcommand dispatches to _system.show_info."""
         with patch('sys.argv', ['trcc', 'info']), \
              patch('trcc.cli._system.show_info', return_value=0) as mock_info:
             main()
@@ -1034,7 +1019,7 @@ class TestResume(unittest.TestCase):
         self.assertEqual(result, 1)
 
     def test_dispatch_resume(self):
-        """main() dispatches 'resume' to DisplayCommands.resume()."""
+        """main() dispatches 'resume' to _display.resume()."""
         with patch('trcc.cli._display.resume', return_value=0) as mock_fn, \
              patch('sys.argv', ['trcc', 'resume']):
             result = main()
@@ -1176,7 +1161,7 @@ class TestUninstall(unittest.TestCase):
             self.assertIn("rm", rm_call[0][0])
 
     def test_dispatch_uninstall(self):
-        """main() dispatches 'uninstall' to SystemCommands.uninstall()."""
+        """main() dispatches 'uninstall' to _system.uninstall()."""
         with patch('trcc.cli._system.uninstall', return_value=0) as mock_fn, \
              patch('sys.argv', ['trcc', 'uninstall']):
             result = main()
@@ -1408,7 +1393,7 @@ class TestHidDebug(unittest.TestCase):
         self.assertEqual(result, 0)
 
     def test_dispatch_hid_debug(self):
-        """main() dispatches 'hid-debug' to DiagCommands.hid_debug()."""
+        """main() dispatches 'hid-debug' to _diag.hid_debug()."""
         with patch('trcc.cli._diag.hid_debug', return_value=0) as mock_fn, \
              patch('sys.argv', ['trcc', 'hid-debug']):
             result = main()
@@ -1472,7 +1457,7 @@ class TestLedDebug(unittest.TestCase):
         self.assertEqual(mock_protocol.send_led_data.call_count, 5)
 
     def test_dispatch_led_debug(self):
-        """main() dispatches 'led-debug' to DiagCommands.led_debug()."""
+        """main() dispatches 'led-debug' to _diag.led_debug()."""
         with patch('trcc.cli._diag.led_debug', return_value=0) as mock_fn, \
              patch('sys.argv', ['trcc', 'led-debug']):
             result = main()
@@ -1514,7 +1499,7 @@ class TestInstallDesktop(unittest.TestCase):
             self.assertTrue(desktop.exists())
 
     def test_dispatch_install_desktop(self):
-        """main() dispatches 'install-desktop' to SystemCommands.install_desktop()."""
+        """main() dispatches 'install-desktop' to _system.install_desktop()."""
         with patch('trcc.cli._system.install_desktop', return_value=0) as mock_fn, \
              patch('sys.argv', ['trcc', 'install-desktop']):
             result = main()
@@ -1538,7 +1523,7 @@ class TestReport(unittest.TestCase):
         mock_collect.assert_called_once()
 
     def test_dispatch_report(self):
-        """main() dispatches 'report' to SystemCommands.report()."""
+        """main() dispatches 'report' to _system.report()."""
         with patch('trcc.cli._system.report', return_value=0) as mock_fn, \
              patch('sys.argv', ['trcc', 'report']):
             result = main()
@@ -1716,19 +1701,19 @@ class TestDiscoverResolution(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestSetBrightness(unittest.TestCase):
-    """Tests for DisplayCommands.set_brightness()."""
+    """Tests for _display.set_brightness()."""
 
     def test_invalid_level(self):
         """Level outside 1-3 returns error."""
-        self.assertEqual(DisplayCommands.set_brightness(5), 1)
-        self.assertEqual(DisplayCommands.set_brightness(0), 1)
+        self.assertEqual(_display.set_brightness(5), 1)
+        self.assertEqual(_display.set_brightness(0), 1)
 
     def test_no_device(self):
         """No device returns 1."""
         svc = _mock_service()
         svc.selected = None
         with patch('trcc.cli._device._get_service', return_value=svc):
-            self.assertEqual(DisplayCommands.set_brightness(2), 1)
+            self.assertEqual(_display.set_brightness(2), 1)
 
     def test_success(self):
         """Valid level persists to config."""
@@ -1736,25 +1721,25 @@ class TestSetBrightness(unittest.TestCase):
         with patch('trcc.cli._device._get_service', return_value=svc), \
              patch('trcc.conf.Settings.device_config_key', return_value='0:87cd_70db'), \
              patch('trcc.conf.Settings.save_device_setting') as mock_save:
-            result = DisplayCommands.set_brightness(2)
+            result = _display.set_brightness(2)
             self.assertEqual(result, 0)
             mock_save.assert_called_once_with('0:87cd_70db', 'brightness_level', 2)
 
 
 class TestSetRotation(unittest.TestCase):
-    """Tests for DisplayCommands.set_rotation()."""
+    """Tests for _display.set_rotation()."""
 
     def test_invalid_degrees(self):
         """Invalid rotation returns error."""
-        self.assertEqual(DisplayCommands.set_rotation(45), 1)
-        self.assertEqual(DisplayCommands.set_rotation(360), 1)
+        self.assertEqual(_display.set_rotation(45), 1)
+        self.assertEqual(_display.set_rotation(360), 1)
 
     def test_no_device(self):
         """No device returns 1."""
         svc = _mock_service()
         svc.selected = None
         with patch('trcc.cli._device._get_service', return_value=svc):
-            self.assertEqual(DisplayCommands.set_rotation(90), 1)
+            self.assertEqual(_display.set_rotation(90), 1)
 
     def test_success(self):
         """Valid rotation persists to config."""
@@ -1762,7 +1747,7 @@ class TestSetRotation(unittest.TestCase):
         with patch('trcc.cli._device._get_service', return_value=svc), \
              patch('trcc.conf.Settings.device_config_key', return_value='0:87cd_70db'), \
              patch('trcc.conf.Settings.save_device_setting') as mock_save:
-            result = DisplayCommands.set_rotation(180)
+            result = _display.set_rotation(180)
             self.assertEqual(result, 0)
             mock_save.assert_called_once_with('0:87cd_70db', 'rotation', 180)
 
@@ -1772,14 +1757,14 @@ class TestSetRotation(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestScreencast(unittest.TestCase):
-    """Tests for DisplayCommands.screencast()."""
+    """Tests for _display.screencast()."""
 
     def test_no_device(self):
         """No device returns 1."""
         svc = _mock_service()
         svc.selected = None
         with patch('trcc.cli._device._get_service', return_value=svc):
-            self.assertEqual(DisplayCommands.screencast(), 1)
+            self.assertEqual(_display.screencast(), 1)
 
     def test_keyboard_interrupt(self):
         """Ctrl+C stops cleanly."""
@@ -1788,7 +1773,7 @@ class TestScreencast(unittest.TestCase):
         with patch('trcc.cli._device._get_service', return_value=svc), \
              patch('PIL.ImageGrab.grab', side_effect=KeyboardInterrupt), \
              patch('trcc.services.ImageService.resize', return_value=mock_img):
-            result = DisplayCommands.screencast()
+            result = _display.screencast()
             self.assertEqual(result, 0)
 
 
@@ -1797,12 +1782,12 @@ class TestScreencast(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestLoadMask(unittest.TestCase):
-    """Tests for DisplayCommands.load_mask()."""
+    """Tests for _display.load_mask()."""
 
     def test_file_not_found(self):
         """Missing path returns 1."""
         with patch('os.path.exists', return_value=False):
-            self.assertEqual(DisplayCommands.load_mask('/no/such/file'), 1)
+            self.assertEqual(_display.load_mask('/no/such/file'), 1)
 
     def test_no_device(self):
         """No device returns 1."""
@@ -1810,7 +1795,7 @@ class TestLoadMask(unittest.TestCase):
         svc.selected = None
         with patch('os.path.exists', return_value=True), \
              patch('trcc.cli._device._get_service', return_value=svc):
-            self.assertEqual(DisplayCommands.load_mask('/tmp/mask.png'), 1)
+            self.assertEqual(_display.load_mask('/tmp/mask.png'), 1)
 
     def test_success_file(self):
         """PNG file is loaded and sent."""
@@ -1828,7 +1813,7 @@ class TestLoadMask(unittest.TestCase):
              patch('trcc.services.ImageService.solid_color', return_value=mock_img):
             overlay_inst = MockOverlay.return_value
             overlay_inst.render.return_value = mock_img
-            result = DisplayCommands.load_mask('/tmp/mask.png')
+            result = _display.load_mask('/tmp/mask.png')
             self.assertEqual(result, 0)
             svc.send_pil.assert_called_once()
 
@@ -1838,12 +1823,12 @@ class TestLoadMask(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestRenderOverlay(unittest.TestCase):
-    """Tests for DisplayCommands.render_overlay()."""
+    """Tests for _display.render_overlay()."""
 
     def test_file_not_found(self):
         """Missing path returns 1."""
         with patch('os.path.exists', return_value=False):
-            self.assertEqual(DisplayCommands.render_overlay('/no/such'), 1)
+            self.assertEqual(_display.render_overlay('/no/such'), 1)
 
     def _mock_connect(self):
         """Mock _connect_or_fail to return a fake dispatcher."""
@@ -1860,7 +1845,7 @@ class TestRenderOverlay(unittest.TestCase):
         """Without --send or --output, just prints info."""
         with self._mock_connect() as mock_conn:
             mock_lcd = mock_conn.return_value[0]
-            result = DisplayCommands.render_overlay('/tmp/config1.dc')
+            result = _display.render_overlay('/tmp/config1.dc')
             self.assertEqual(result, 0)
             mock_lcd.render_overlay.assert_called_once()
 
@@ -1874,7 +1859,7 @@ class TestRenderOverlay(unittest.TestCase):
                 "display_opts": {},
                 "message": "Saved overlay render to /tmp/out.png",
             }
-            result = DisplayCommands.render_overlay(
+            result = _display.render_overlay(
                 '/tmp/config1.dc', output='/tmp/out.png')
             self.assertEqual(result, 0)
 
@@ -1884,7 +1869,7 @@ class TestRenderOverlay(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestThemeList(unittest.TestCase):
-    """Tests for ThemeCommands.list_themes()."""
+    """Tests for _theme.list_themes()."""
 
     def test_list_local(self):
         """Lists local themes."""
@@ -1904,7 +1889,7 @@ class TestThemeList(unittest.TestCase):
             td.exists.return_value = True
             td.path = Path('/themes')
             mock_settings.theme_dir = td
-            result = ThemeCommands.list_themes()
+            result = _theme.list_themes()
             self.assertEqual(result, 0)
 
     def test_list_cloud(self):
@@ -1923,19 +1908,19 @@ class TestThemeList(unittest.TestCase):
             mock_settings.width = 320
             mock_settings.height = 320
             mock_settings.web_dir = mock_web_dir
-            result = ThemeCommands.list_themes(cloud=True)
+            result = _theme.list_themes(cloud=True)
             self.assertEqual(result, 0)
 
 
 class TestThemeLoad(unittest.TestCase):
-    """Tests for ThemeCommands.load_theme()."""
+    """Tests for _theme.load_theme()."""
 
     def test_no_device(self):
         """No device returns 1."""
         svc = _mock_service()
         svc.selected = None
         with patch('trcc.cli._device._get_service', return_value=svc):
-            self.assertEqual(ThemeCommands.load_theme('test'), 1)
+            self.assertEqual(_theme.load_theme('test'), 1)
 
     def test_theme_not_found(self):
         """Non-existent theme returns 1."""
@@ -1948,7 +1933,7 @@ class TestThemeLoad(unittest.TestCase):
             td.exists.return_value = True
             td.path = Path('/themes')
             mock_settings.theme_dir = td
-            result = ThemeCommands.load_theme('nonexistent')
+            result = _theme.load_theme('nonexistent')
             self.assertEqual(result, 1)
 
     def test_load_success(self):
@@ -1985,7 +1970,7 @@ class TestThemeLoad(unittest.TestCase):
                 td.path = Path(tmpdir)
                 mock_settings.theme_dir = td
                 mock_img.convert.return_value = mock_img
-                result = ThemeCommands.load_theme('test_theme')
+                result = _theme.load_theme('test_theme')
                 self.assertEqual(result, 0)
                 svc.send_pil.assert_called_once()
 
@@ -2007,21 +1992,21 @@ class TestLEDCommands(unittest.TestCase):
 
     def test_set_color_invalid_hex(self):
         """Invalid hex returns 1."""
-        self.assertEqual(LEDCommands.set_color('xyz'), 1)
-        self.assertEqual(LEDCommands.set_color('ff'), 1)
+        self.assertEqual(_led.set_color('xyz'), 1)
+        self.assertEqual(_led.set_color('ff'), 1)
 
     def test_set_color_no_device(self):
         """No LED device returns 1."""
         with patch('trcc.cli._led._get_led_service',
                           return_value=(None, None)):
-            self.assertEqual(LEDCommands.set_color('ff0000'), 1)
+            self.assertEqual(_led.set_color('ff0000'), 1)
 
     def test_set_color_success(self):
         """Valid hex sets color and sends."""
         mock_svc, status = self._mock_led_svc()
         with patch('trcc.cli._led._get_led_service',
                           return_value=(mock_svc, status)):
-            result = LEDCommands.set_color('00ff00')
+            result = _led.set_color('00ff00')
             self.assertEqual(result, 0)
             mock_svc.set_color.assert_called_once_with(0, 255, 0)
             mock_svc.tick.assert_called_once()
@@ -2034,29 +2019,29 @@ class TestLEDCommands(unittest.TestCase):
                           return_value=(MagicMock(), "LED")):
             # set_mode checks mode_map before using service
             pass
-        self.assertEqual(LEDCommands.set_mode('explosion'), 1)
+        self.assertEqual(_led.set_mode('explosion'), 1)
 
     def test_set_mode_static(self):
         """Static mode sets and sends once (no animation loop)."""
         mock_svc, status = self._mock_led_svc()
         with patch('trcc.cli._led._get_led_service',
                           return_value=(mock_svc, status)):
-            result = LEDCommands.set_mode('static')
+            result = _led.set_mode('static')
             self.assertEqual(result, 0)
             mock_svc.tick.assert_called_once()
             mock_svc.send_colors.assert_called_once()
 
     def test_set_brightness_invalid(self):
         """Out of range brightness returns 1."""
-        self.assertEqual(LEDCommands.set_led_brightness(-1), 1)
-        self.assertEqual(LEDCommands.set_led_brightness(101), 1)
+        self.assertEqual(_led.set_led_brightness(-1), 1)
+        self.assertEqual(_led.set_led_brightness(101), 1)
 
     def test_set_brightness_success(self):
         """Valid brightness sets and sends."""
         mock_svc, status = self._mock_led_svc()
         with patch('trcc.cli._led._get_led_service',
                           return_value=(mock_svc, status)):
-            result = LEDCommands.set_led_brightness(75)
+            result = _led.set_led_brightness(75)
             self.assertEqual(result, 0)
             mock_svc.set_brightness.assert_called_once_with(75)
 
@@ -2064,14 +2049,14 @@ class TestLEDCommands(unittest.TestCase):
         """No LED device returns 1."""
         with patch('trcc.cli._led._get_led_service',
                           return_value=(None, None)):
-            self.assertEqual(LEDCommands.led_off(), 1)
+            self.assertEqual(_led.led_off(), 1)
 
     def test_led_off_success(self):
         """Turn off sets global=False and sends."""
         mock_svc, status = self._mock_led_svc()
         with patch('trcc.cli._led._get_led_service',
                           return_value=(mock_svc, status)):
-            result = LEDCommands.led_off()
+            result = _led.led_off()
             self.assertEqual(result, 0)
             mock_svc.toggle_global.assert_called_once_with(False)
             mock_svc.send_tick.assert_called_once()
@@ -2082,14 +2067,14 @@ class TestLEDCommands(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestThemeSave(unittest.TestCase):
-    """Tests for ThemeCommands.save_theme()."""
+    """Tests for _theme.save_theme()."""
 
     def test_save_no_device(self):
         """No device returns 1."""
         mock_svc = MagicMock()
         mock_svc.selected = None
         with patch('trcc.cli._device._get_service', return_value=mock_svc):
-            self.assertEqual(ThemeCommands.save_theme('MyTheme'), 1)
+            self.assertEqual(_theme.save_theme('MyTheme'), 1)
 
     def test_save_no_current_theme(self):
         """No current theme returns 1."""
@@ -2099,7 +2084,7 @@ class TestThemeSave(unittest.TestCase):
         with patch('trcc.cli._device._get_service', return_value=mock_svc), \
              patch('trcc.conf.Settings.device_config_key', return_value='k'), \
              patch('trcc.conf.Settings.get_device_config', return_value={}):
-            self.assertEqual(ThemeCommands.save_theme('MyTheme'), 1)
+            self.assertEqual(_theme.save_theme('MyTheme'), 1)
 
     def test_save_success(self):
         """Valid state saves theme."""
@@ -2120,13 +2105,13 @@ class TestThemeSave(unittest.TestCase):
                        return_value={'theme_path': tmpdir}), \
                  patch('trcc.services.theme.ThemeService.save',
                        return_value=(True, 'Saved: Custom_MyTheme')) as mock_save:
-                result = ThemeCommands.save_theme('MyTheme')
+                result = _theme.save_theme('MyTheme')
                 self.assertEqual(result, 0)
                 mock_save.assert_called_once()
 
 
 class TestThemeExport(unittest.TestCase):
-    """Tests for ThemeCommands.export_theme()."""
+    """Tests for _theme.export_theme()."""
 
     def test_export_no_themes(self):
         """No themes returns 1."""
@@ -2136,7 +2121,7 @@ class TestThemeExport(unittest.TestCase):
         mock_settings.theme_dir = None
         with patch('trcc.conf.settings', mock_settings), \
              patch('trcc.adapters.infra.data_repository.DataManager.ensure_all'):
-            self.assertEqual(ThemeCommands.export_theme('foo', '/tmp/foo.tr'), 1)
+            self.assertEqual(_theme.export_theme('foo', '/tmp/foo.tr'), 1)
 
     def test_export_theme_not_found(self):
         """Unknown theme name returns 1."""
@@ -2150,7 +2135,7 @@ class TestThemeExport(unittest.TestCase):
         with patch('trcc.conf.settings', mock_settings), \
              patch('trcc.adapters.infra.data_repository.DataManager.ensure_all'), \
              patch('trcc.services.theme.ThemeService.discover_local', return_value=[]):
-            self.assertEqual(ThemeCommands.export_theme('nonexistent', '/tmp/x.tr'), 1)
+            self.assertEqual(_theme.export_theme('nonexistent', '/tmp/x.tr'), 1)
 
     def test_export_success(self):
         """Valid theme exports."""
@@ -2172,20 +2157,20 @@ class TestThemeExport(unittest.TestCase):
                    return_value=[theme]), \
              patch('trcc.services.theme.ThemeService.export_tr',
                    return_value=(True, 'Exported: out.tr')) as mock_exp:
-            result = ThemeCommands.export_theme('MyTheme', '/tmp/out.tr')
+            result = _theme.export_theme('MyTheme', '/tmp/out.tr')
             self.assertEqual(result, 0)
             mock_exp.assert_called_once()
 
 
 class TestThemeImport(unittest.TestCase):
-    """Tests for ThemeCommands.import_theme()."""
+    """Tests for _theme.import_theme()."""
 
     def test_import_no_device(self):
         """No device returns 1."""
         mock_svc = MagicMock()
         mock_svc.selected = None
         with patch('trcc.cli._device._get_service', return_value=mock_svc):
-            self.assertEqual(ThemeCommands.import_theme('/tmp/t.tr'), 1)
+            self.assertEqual(_theme.import_theme('/tmp/t.tr'), 1)
 
     def test_import_success(self):
         """Valid .tr file imports theme."""
@@ -2200,7 +2185,7 @@ class TestThemeImport(unittest.TestCase):
                           return_value=mock_svc), \
              patch('trcc.services.theme.ThemeService.import_tr',
                    return_value=(True, imported)):
-            result = ThemeCommands.import_theme('/tmp/theme.tr')
+            result = _theme.import_theme('/tmp/theme.tr')
             self.assertEqual(result, 0)
 
     def test_import_failure(self):
@@ -2213,7 +2198,7 @@ class TestThemeImport(unittest.TestCase):
                           return_value=mock_svc), \
              patch('trcc.services.theme.ThemeService.import_tr',
                    return_value=(False, 'Import failed: bad format')):
-            result = ThemeCommands.import_theme('/tmp/bad.tr')
+            result = _theme.import_theme('/tmp/bad.tr')
             self.assertEqual(result, 1)
 
 
@@ -2222,24 +2207,24 @@ class TestThemeImport(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestLEDSensorSource(unittest.TestCase):
-    """Tests for LEDCommands.set_sensor_source()."""
+    """Tests for _led.set_sensor_source()."""
 
     def test_invalid_source(self):
         """Invalid source returns 1."""
-        self.assertEqual(LEDCommands.set_sensor_source('memory'), 1)
+        self.assertEqual(_led.set_sensor_source('memory'), 1)
 
     def test_no_device(self):
         """No LED device returns 1."""
         with patch('trcc.cli._led._get_led_service',
                           return_value=(None, None)):
-            self.assertEqual(LEDCommands.set_sensor_source('cpu'), 1)
+            self.assertEqual(_led.set_sensor_source('cpu'), 1)
 
     def test_cpu_success(self):
         """Set CPU source succeeds."""
         mock_svc = MagicMock()
         with patch('trcc.cli._led._get_led_service',
                           return_value=(mock_svc, "LED: AX120")):
-            result = LEDCommands.set_sensor_source('cpu')
+            result = _led.set_sensor_source('cpu')
             self.assertEqual(result, 0)
             mock_svc.set_sensor_source.assert_called_once_with('cpu')
             mock_svc.save_config.assert_called_once()
@@ -2249,7 +2234,7 @@ class TestLEDSensorSource(unittest.TestCase):
         mock_svc = MagicMock()
         with patch('trcc.cli._led._get_led_service',
                           return_value=(mock_svc, "LED: AX120")):
-            result = LEDCommands.set_sensor_source('GPU')
+            result = _led.set_sensor_source('GPU')
             self.assertEqual(result, 0)
             mock_svc.set_sensor_source.assert_called_once_with('gpu')
 
@@ -2287,7 +2272,7 @@ class TestNewCommandDispatch(unittest.TestCase):
     """Verify Typer wrappers dispatch to correct methods."""
 
     def test_brightness_dispatches(self):
-        """'brightness 2' calls DisplayCommands.set_brightness(2)."""
+        """'brightness 2' calls _display.set_brightness(2)."""
         with patch('sys.argv', ['trcc', 'brightness', '2']), \
              patch('trcc.cli._display.set_brightness',
                           return_value=0) as mock:
@@ -2295,7 +2280,7 @@ class TestNewCommandDispatch(unittest.TestCase):
             mock.assert_called_once_with(2, device=None)
 
     def test_rotation_dispatches(self):
-        """'rotation 90' calls DisplayCommands.set_rotation(90)."""
+        """'rotation 90' calls _display.set_rotation(90)."""
         with patch('sys.argv', ['trcc', 'rotation', '90']), \
              patch('trcc.cli._display.set_rotation',
                           return_value=0) as mock:
@@ -2303,7 +2288,7 @@ class TestNewCommandDispatch(unittest.TestCase):
             mock.assert_called_once_with(90, device=None)
 
     def test_theme_list_dispatches(self):
-        """'theme-list' calls ThemeCommands.list_themes()."""
+        """'theme-list' calls _theme.list_themes()."""
         with patch('sys.argv', ['trcc', 'theme-list']), \
              patch('trcc.cli._theme.list_themes',
                           return_value=0) as mock:
@@ -2311,7 +2296,7 @@ class TestNewCommandDispatch(unittest.TestCase):
             mock.assert_called_once_with(cloud=False, category=None)
 
     def test_theme_load_dispatches(self):
-        """'theme-load myTheme' calls ThemeCommands.load_theme()."""
+        """'theme-load myTheme' calls _theme.load_theme()."""
         with patch('sys.argv', ['trcc', 'theme-load', 'myTheme']), \
              patch('trcc.cli._theme.load_theme',
                           return_value=0) as mock:
@@ -2319,7 +2304,7 @@ class TestNewCommandDispatch(unittest.TestCase):
             mock.assert_called_once_with('myTheme', device=None, preview=False)
 
     def test_led_color_dispatches(self):
-        """'led-color ff0000' calls LEDCommands.set_color()."""
+        """'led-color ff0000' calls _led.set_color()."""
         with patch('sys.argv', ['trcc', 'led-color', 'ff0000']), \
              patch('trcc.cli._led.set_color',
                           return_value=0) as mock:
@@ -2327,7 +2312,7 @@ class TestNewCommandDispatch(unittest.TestCase):
             mock.assert_called_once_with('ff0000', preview=False)
 
     def test_led_mode_dispatches(self):
-        """'led-mode rainbow' calls LEDCommands.set_mode()."""
+        """'led-mode rainbow' calls _led.set_mode()."""
         with patch('sys.argv', ['trcc', 'led-mode', 'rainbow']), \
              patch('trcc.cli._led.set_mode',
                           return_value=0) as mock:
@@ -2335,7 +2320,7 @@ class TestNewCommandDispatch(unittest.TestCase):
             mock.assert_called_once_with('rainbow', preview=False)
 
     def test_led_brightness_dispatches(self):
-        """'led-brightness 50' calls LEDCommands.set_led_brightness()."""
+        """'led-brightness 50' calls _led.set_led_brightness()."""
         with patch('sys.argv', ['trcc', 'led-brightness', '50']), \
              patch('trcc.cli._led.set_led_brightness',
                           return_value=0) as mock:
@@ -2343,7 +2328,7 @@ class TestNewCommandDispatch(unittest.TestCase):
             mock.assert_called_once_with(50, preview=False)
 
     def test_led_off_dispatches(self):
-        """'led-off' calls LEDCommands.led_off()."""
+        """'led-off' calls _led.led_off()."""
         with patch('sys.argv', ['trcc', 'led-off']), \
              patch('trcc.cli._led.led_off',
                           return_value=0) as mock:
@@ -2351,7 +2336,7 @@ class TestNewCommandDispatch(unittest.TestCase):
             mock.assert_called_once()
 
     def test_screencast_dispatches(self):
-        """'screencast' calls DisplayCommands.screencast()."""
+        """'screencast' calls _display.screencast()."""
         with patch('sys.argv', ['trcc', 'screencast']), \
              patch('trcc.cli._display.screencast',
                           return_value=0) as mock:
@@ -2360,7 +2345,7 @@ class TestNewCommandDispatch(unittest.TestCase):
                 device=None, x=0, y=0, w=0, h=0, fps=10, preview=False)
 
     def test_mask_dispatches(self):
-        """'mask /tmp/m.png' calls DisplayCommands.load_mask()."""
+        """'mask /tmp/m.png' calls _display.load_mask()."""
         with patch('sys.argv', ['trcc', 'mask', '/tmp/m.png']), \
              patch('trcc.cli._display.load_mask',
                           return_value=0) as mock:
@@ -2368,7 +2353,7 @@ class TestNewCommandDispatch(unittest.TestCase):
             mock.assert_called_once_with('/tmp/m.png', device=None, preview=False)
 
     def test_overlay_dispatches(self):
-        """'overlay /tmp/dc' calls DisplayCommands.render_overlay()."""
+        """'overlay /tmp/dc' calls _display.render_overlay()."""
         with patch('sys.argv', ['trcc', 'overlay', '/tmp/dc']), \
              patch('trcc.cli._display.render_overlay',
                           return_value=0) as mock:
@@ -2377,7 +2362,7 @@ class TestNewCommandDispatch(unittest.TestCase):
                 '/tmp/dc', device=None, send=False, output=None, preview=False)
 
     def test_theme_save_dispatches(self):
-        """'theme-save MyTheme' calls ThemeCommands.save_theme()."""
+        """'theme-save MyTheme' calls _theme.save_theme()."""
         with patch('sys.argv', ['trcc', 'theme-save', 'MyTheme']), \
              patch('trcc.cli._theme.save_theme',
                           return_value=0) as mock:
@@ -2385,7 +2370,7 @@ class TestNewCommandDispatch(unittest.TestCase):
             mock.assert_called_once_with('MyTheme', device=None, video=None)
 
     def test_theme_export_dispatches(self):
-        """'theme-export Foo /tmp/out.tr' calls ThemeCommands.export_theme()."""
+        """'theme-export Foo /tmp/out.tr' calls _theme.export_theme()."""
         with patch('sys.argv', ['trcc', 'theme-export', 'Foo', '/tmp/out.tr']), \
              patch('trcc.cli._theme.export_theme',
                           return_value=0) as mock:
@@ -2393,7 +2378,7 @@ class TestNewCommandDispatch(unittest.TestCase):
             mock.assert_called_once_with('Foo', '/tmp/out.tr')
 
     def test_theme_import_dispatches(self):
-        """'theme-import /tmp/t.tr' calls ThemeCommands.import_theme()."""
+        """'theme-import /tmp/t.tr' calls _theme.import_theme()."""
         with patch('sys.argv', ['trcc', 'theme-import', '/tmp/t.tr']), \
              patch('trcc.cli._theme.import_theme',
                           return_value=0) as mock:
@@ -2401,41 +2386,12 @@ class TestNewCommandDispatch(unittest.TestCase):
             mock.assert_called_once_with('/tmp/t.tr', device=None)
 
     def test_led_sensor_dispatches(self):
-        """'led-sensor cpu' calls LEDCommands.set_sensor_source()."""
+        """'led-sensor cpu' calls _led.set_sensor_source()."""
         with patch('sys.argv', ['trcc', 'led-sensor', 'cpu']), \
              patch('trcc.cli._led.set_sensor_source',
                           return_value=0) as mock:
             main()
             mock.assert_called_once_with('cpu')
-
-
-# ---------------------------------------------------------------------------
-# Backward-compat alias tests
-# ---------------------------------------------------------------------------
-
-class TestNewAliases(unittest.TestCase):
-    """Verify backward-compat aliases exist."""
-
-    def test_display_aliases(self):
-        self.assertIs(set_brightness, DisplayCommands.set_brightness)
-        self.assertIs(set_rotation, DisplayCommands.set_rotation)
-        self.assertIs(screencast, DisplayCommands.screencast)
-        self.assertIs(load_mask, DisplayCommands.load_mask)
-        self.assertIs(render_overlay, DisplayCommands.render_overlay)
-
-    def test_theme_aliases(self):
-        self.assertIs(list_themes, ThemeCommands.list_themes)
-        self.assertIs(load_theme, ThemeCommands.load_theme)
-        self.assertIs(save_theme, ThemeCommands.save_theme)
-        self.assertIs(export_theme, ThemeCommands.export_theme)
-        self.assertIs(import_theme, ThemeCommands.import_theme)
-
-    def test_led_aliases(self):
-        self.assertIs(led_color, LEDCommands.set_color)
-        self.assertIs(led_mode, LEDCommands.set_mode)
-        self.assertIs(led_brightness, LEDCommands.set_led_brightness)
-        self.assertIs(led_off, LEDCommands.led_off)
-        self.assertIs(led_sensor, LEDCommands.set_sensor_source)
 
 
 if __name__ == '__main__':

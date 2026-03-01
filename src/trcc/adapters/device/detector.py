@@ -588,22 +588,12 @@ def main():
     return 0
 
 
-# =========================================================================
-# Backward-compat aliases
-# =========================================================================
-
+# Aliases used by cli/, __init__.py, and tests
 _get_all_devices = DeviceDetector._get_all_registries
-run_command = DeviceDetector.run_command
-find_usb_devices = DeviceDetector.find_usb_devices
-find_scsi_device_by_usb_path = DeviceDetector.find_scsi_device_by_usb_path
-find_scsi_usblcd_devices = DeviceDetector.find_scsi_usblcd_devices
 detect_devices = DeviceDetector.detect
 check_udev_rules = DeviceDetector.check_udev_rules
 get_default_device = DeviceDetector.get_default
 get_device_path = DeviceDetector.get_device_path
-usb_reset_device = DeviceDetector.usb_reset
-check_device_health = DeviceDetector.check_health
-print_device_info = DeviceDetector.print_info
 
 
 if __name__ == '__main__':

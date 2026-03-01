@@ -173,31 +173,25 @@ class LEDService:
         """True when zone_sync is on AND style uses select-all behavior."""
         return self.state.zone_sync and self._led_style in self.SELECT_ALL_STYLES
 
-    def set_zone_mode(self, zone: int, mode: LEDMode) -> None:
-        """Set mode for a specific zone. Propagates to all if select-all active."""
-        resolved = LEDMode(mode) if not isinstance(mode, LEDMode) else mode
+    def _apply_to_zones(self, zone: int, field: str, value: object) -> None:
+        """Set *field* on one zone, or all zones when select-all is active."""
         if self._select_all_active:
             for z in self.state.zones:
-                z.mode = resolved
+                setattr(z, field, value)
         elif 0 <= zone < len(self.state.zones):
-            self.state.zones[zone].mode = resolved
+            setattr(self.state.zones[zone], field, value)
+
+    def set_zone_mode(self, zone: int, mode: LEDMode) -> None:
+        """Set mode for a specific zone. Propagates to all if select-all active."""
+        self._apply_to_zones(zone, "mode", LEDMode(mode) if not isinstance(mode, LEDMode) else mode)
 
     def set_zone_color(self, zone: int, r: int, g: int, b: int) -> None:
         """Set color for a specific zone. Propagates to all if select-all active."""
-        if self._select_all_active:
-            for z in self.state.zones:
-                z.color = (r, g, b)
-        elif 0 <= zone < len(self.state.zones):
-            self.state.zones[zone].color = (r, g, b)
+        self._apply_to_zones(zone, "color", (r, g, b))
 
     def set_zone_brightness(self, zone: int, brightness: int) -> None:
         """Set brightness for a specific zone. Propagates to all if select-all active."""
-        val = max(0, min(100, brightness))
-        if self._select_all_active:
-            for z in self.state.zones:
-                z.brightness = val
-        elif 0 <= zone < len(self.state.zones):
-            self.state.zones[zone].brightness = val
+        self._apply_to_zones(zone, "brightness", max(0, min(100, brightness)))
 
     def set_disk_index(self, index: int) -> None:
         """Set which disk to monitor (C# hardDiskCount, 0-based)."""

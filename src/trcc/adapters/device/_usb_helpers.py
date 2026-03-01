@@ -1,8 +1,10 @@
 """Shared USB device lifecycle helpers for bulk-class transports.
 
 Eliminates duplication between BulkDevice and LyDevice — both use the same
-find → detach → configure → claim sequence.  Protocol-specific endpoint
-detection stays in each subclass.
+find → detach → configure → claim sequence, endpoint discovery, and close().
+
+BulkFrameDevice is the shared base class; subclasses implement only
+handshake() and send_frame().
 """
 
 from __future__ import annotations
@@ -144,3 +146,75 @@ def open_usb_device(vid: int, pid: int) -> tuple[Any, Any]:
         usb.util.claim_interface(dev, intf.bInterfaceNumber)  # type: ignore[union-attr]
 
     return dev, intf
+
+
+# ---------------------------------------------------------------------------
+# BulkFrameDevice — shared base for BulkDevice + LyDevice
+# ---------------------------------------------------------------------------
+
+class BulkFrameDevice:
+    """Shared base for USB bulk-transport LCD devices (Bulk + LY).
+
+    Provides: __init__, _open() (endpoint discovery), close().
+    Subclasses implement: handshake(), send_frame().
+    """
+
+    def __init__(self, vid: int, pid: int, usb_path: str = ""):
+        self.vid = vid
+        self.pid = pid
+        self.usb_path = usb_path
+        self._dev: Any = None
+        self._ep_out: Any = None
+        self._ep_in: Any = None
+        self._intf: int = 0
+        self.pm: int = 0
+        self.sub_type: int = 0
+        self.width: int = 0
+        self.height: int = 0
+        self.use_jpeg: bool = True
+        self._raw_handshake: bytes = b""
+
+    def _open(self) -> None:
+        """Find and claim the USB device, discover bulk IN/OUT endpoints."""
+        import usb.util
+
+        dev, intf = open_usb_device(self.vid, self.pid)
+
+        self._ep_out = usb.util.find_descriptor(
+            intf,
+            custom_match=lambda e: (
+                usb.util.endpoint_direction(e.bEndpointAddress) == usb.util.ENDPOINT_OUT
+                and usb.util.endpoint_type(e.bmAttributes) == usb.util.ENDPOINT_TYPE_BULK
+            ),
+        )
+        self._ep_in = usb.util.find_descriptor(
+            intf,
+            custom_match=lambda e: (
+                usb.util.endpoint_direction(e.bEndpointAddress) == usb.util.ENDPOINT_IN
+                and usb.util.endpoint_type(e.bmAttributes) == usb.util.ENDPOINT_TYPE_BULK
+            ),
+        )
+
+        if self._ep_out is None or self._ep_in is None:
+            raise RuntimeError("Could not find bulk IN/OUT endpoints")
+
+        self._intf = intf.bInterfaceNumber  # type: ignore[union-attr]
+        self._dev = dev
+        log.info("Opened %s %04x:%04x (EP OUT=0x%02x, EP IN=0x%02x)",
+                 type(self).__name__, self.vid, self.pid,
+                 self._ep_out.bEndpointAddress,  # type: ignore[union-attr]
+                 self._ep_in.bEndpointAddress)  # type: ignore[union-attr]
+
+    def close(self) -> None:
+        """Release USB device."""
+        if self._dev is not None:
+            import usb.util
+            try:
+                usb.util.release_interface(self._dev, self._intf)
+            except Exception:
+                pass
+            usb.util.dispose_resources(self._dev)
+            self._dev = None
+            self._ep_out = None
+            self._ep_in = None
+            log.info("%s closed", type(self).__name__)
