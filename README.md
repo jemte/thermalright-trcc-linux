@@ -14,7 +14,7 @@
 [![Code Style](https://img.shields.io/badge/code_style-ruff-D7FF64?logo=ruff&logoColor=black)](https://docs.astral.sh/ruff/)
 [![Type Check](https://img.shields.io/badge/type_check-pyright-blue?logo=python&logoColor=white)](https://microsoft.github.io/pyright/)
 
-[![Stars](https://img.shields.io/github/stars/Lexonight1/thermalright-trcc-linux?style=flat&color=yellow&logo=github)](https://github.com/Lexonight1/thermalright-trcc-linux/stargazers)
+[![Stars](https://img.shields.io/github/stars/Lexonight1/thermalright-trcc-linux?style=flat&logo=github)](https://github.com/Lexonight1/thermalright-trcc-linux/stargazers)
 [![Forks](https://img.shields.io/github/forks/Lexonight1/thermalright-trcc-linux?style=flat&color=blue&logo=github)](https://github.com/Lexonight1/thermalright-trcc-linux/network/members)
 [![Issues](https://img.shields.io/github/issues/Lexonight1/thermalright-trcc-linux?color=orange&logo=github)](https://github.com/Lexonight1/thermalright-trcc-linux/issues)
 [![Last Commit](https://img.shields.io/github/last-commit/Lexonight1/thermalright-trcc-linux?color=purple&logo=git&logoColor=white)](https://github.com/Lexonight1/thermalright-trcc-linux/commits/main)
