@@ -2,16 +2,16 @@
 
 TRCC Linux is **feature-complete** — all 45 features from the Windows TRCC 2.0.3 have been ported, with full CLI/GUI/API parity via hexagonal architecture.
 
-**Current version:** 6.1.4
+**Current version:** 6.5.3
 **Branch:** `main`
-**Tests:** 2394 across 34 files
+**Tests:** 4440 across 54 files (76% coverage)
 **PyPI:** [trcc-linux](https://pypi.org/project/trcc-linux/)
 
 ## What's Stable
 
 All features are tested and working on the `main` branch:
 
-- **5 protocol backends** — SCSI, HID, LED, Bulk (raw USB), LY (bulk)
+- **6 protocol backends** — SCSI, HID, LED, Bulk (raw USB), LY (bulk), IPC (Unix socket)
 - **Full GUI** — local/cloud/mask themes, overlays, video playback, carousel, image cropper, video trimmer
 - **System info overlays** — 77+ sensors (CPU, GPU, RAM, disk, network, fans)
 - **LED RGB control** — 6 effect modes (Static, Breathing, Colorful, Rainbow, Temp-linked, Load-linked), sensor-linked colors, 12 device styles
@@ -20,9 +20,10 @@ All features are tested and working on the `main` branch:
 - **Setup wizard** — CLI (`trcc setup`) and GUI (`trcc setup-gui`) with bootstrap script (`setup.sh`)
 - **CLI** — 39 Typer commands with full service parity (theme, LED, display, overlay, screencast, video, diagnostics, setup)
 - **REST API** — 35 endpoints with full CLI parity (`trcc serve`), Pydantic models, reuses CLI dispatchers
+- **IPC daemon** — GUI owns device exclusively; CLI auto-routes through Unix socket when GUI is running
 - **Services layer** — 8 pure-Python service classes shared by GUI, CLI, and API
 - **Cross-distro compatibility** — tested on Fedora, Debian/Ubuntu, Arch, openSUSE, Void, Alpine, Gentoo, NixOS, SteamOS, Bazzite
-- **96% test coverage** — 2394 tests across 34 test files
+- **76% test coverage** — 4440 tests across 54 test files
 
 ### Supported Devices
 
@@ -43,19 +44,25 @@ All features are tested and working on the `main` branch:
 **HID LED devices** — RGB LED control:
 | USB ID | Devices |
 |--------|---------|
-| `0416:8001` | AX120 DIGITAL, PA120 DIGITAL, Peerless Assassin 120 DIGITAL, Phantom Spirit 120 Digital EVO, Assassin X 120R Digital ARGB |
+| `0416:8001` | AX120 DIGITAL, PA120 DIGITAL, Peerless Assassin 120 DIGITAL, Phantom Spirit 120 Digital EVO, Assassin X 120R Digital ARGB, HR10 2280 PRO Digital |
 
 **Bulk USB devices** — raw USB protocol:
 | USB ID | Devices |
 |--------|---------|
-| `87AD:70DB` | GrandVision 360 AIO, Mjolnir Vision 360 |
+| `87AD:70DB` | GrandVision 360 AIO, Mjolnir Vision 360, Wonder Vision Pro 360, Frozen Warframe Pro |
+
+**LY Bulk devices** — chunked bulk protocol:
+| USB ID | Devices |
+|--------|---------|
+| `0416:5408` | Thermalright 9.16 LCD |
+| `0416:5409` | (LY1 variant) |
 
 ## Roadmap
 
 | # | Item | Status |
 |---|------|--------|
 | 1 | Full GUI port of Windows TRCC 2.0.3 | Done |
-| 2 | Test coverage 96%+ | Done (2394 tests) |
+| 2 | Test coverage 76%+ | Done (4440 tests, 54 files) |
 | 3 | CI/CD (GitHub Actions) | Done |
 | 4 | Type checking (pyright basic) | Done |
 | 5 | Cross-distro compatibility | Done |
@@ -70,7 +77,7 @@ All features are tested and working on the `main` branch:
 | 14 | Hexagonal architecture (services layer) | Done — 8 services |
 | 15 | CLI Typer refactor | Done — 39 commands |
 | 16 | REST API adapter | Done — FastAPI (`trcc serve`) |
-| 17 | Unified segment display renderer | Done — 11 styles, OOP class hierarchy |
+| 17 | Unified segment display renderer | Done — 10 styles, OOP class hierarchy |
 | 18 | Hexagonal adapters/ restructure | Done — adapters/device, system, infra |
 | 19 | Setup wizard (CLI + GUI) | Done — `trcc setup` + `trcc setup-gui` + `setup.sh` |
 | 20 | SELinux support | Done — `trcc setup-selinux` + policy module + wizard integration |
@@ -78,7 +85,11 @@ All features are tested and working on the `main` branch:
 | 22 | GoF refactoring (5-phase OOP overhaul) | Done — -1203 lines, Facade/Flyweight/Strategy/Template Method/Memento |
 | 23 | REST API full CLI parity | Done — 35 endpoints, 16 Pydantic models, reuses CLI dispatchers |
 | 24 | Full wire remap audit (12 LED styles) | Done — styles 2/3/4 fixed, 9 verified correct |
-| 25 | Type annotation hardening (pyright strict) | Planned |
+| 25 | LY bulk protocol | Done — `0416:5408` / `0416:5409` |
+| 26 | IPC daemon (GUI-as-server) | Done — Unix socket, CLI auto-routes through GUI |
+| 27 | Native packages (RPM, DEB, Arch) | Done — CI builds on tag push |
+| 28 | Version bump automation | Done — `scripts/bump_version.py` |
+| 29 | Type annotation hardening (pyright strict) | Planned |
 
 ## Reporting Issues
 

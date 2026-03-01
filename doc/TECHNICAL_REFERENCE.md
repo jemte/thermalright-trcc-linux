@@ -330,6 +330,45 @@ Frames are sent as raw RGB565 data via USB bulk OUT endpoint. The frame is split
 | GrandVision 360 AIO | 480×480 |
 | Mjolnir Vision 360 | 480×480 |
 | Wonder Vision Pro 360 | 480×480 |
+| Frozen Warframe Pro | 480×480 |
+
+## LY Bulk Protocol
+
+LY devices (`0416:5408` and `0416:5409`) use a chunked USB bulk protocol distinct from the raw bulk protocol above. Source: reverse-engineered from USBLCDNEW.exe.
+
+### Handshake
+
+Same HID-style handshake as other devices. PM byte maps through `pm_to_fbl()` → `fbl_to_resolution()`.
+
+### Frame Transfer
+
+Frames are JPEG-encoded and split into 512-byte chunks:
+
+```
+Each chunk (512 bytes):
+  Bytes 0-15:   Header (16 bytes)
+    [0]:        0xEF (magic)
+    [1]:        chunk type (0x69=data, 0x65=end)
+    [2-3]:      chunk index (LE uint16)
+    [4-7]:      total data length (LE uint32)
+    [8-15]:     padding (zeros)
+  Bytes 16-511: Data payload (496 bytes)
+```
+
+The last chunk is padded with zeros to fill 512 bytes and marked with type `0x65`.
+
+### PID Variants
+
+| PID | PM Formula | Notes |
+|-----|-----------|-------|
+| `0x5408` (LY) | `response[4]` | Standard LY |
+| `0x5409` (LY1) | `response[4] + 2` | LY1 variant, PM offset |
+
+### Known Products
+
+| Product | Resolution |
+|---------|------------|
+| Thermalright 9.16 LCD | — |
 
 ---
 
@@ -389,25 +428,37 @@ Hexagonal architecture (Ports & Adapters). Services are the core hexagon; CLI, G
 
 ```
 src/trcc/
-├── cli/                         # Typer CLI adapter package (6 submodules: _device, _display, _theme, _led, _diag, _system)
-├── api.py                       # FastAPI REST adapter (optional [api] extra)
+├── cli/                         # Typer CLI adapter package (7 submodules)
+├── api/                         # FastAPI REST adapter package (6 submodules)
+│   ├── __init__.py              # App factory, middleware, CORS
+│   ├── devices.py               # Device endpoints
+│   ├── display.py               # Display endpoints
+│   ├── led.py                   # LED endpoints
+│   ├── themes.py                # Theme endpoints
+│   ├── system.py                # System endpoints
+│   └── models.py                # Pydantic request/response models
+├── ipc.py                       # Unix socket IPC daemon (GUI-as-server)
 ├── conf.py                      # Settings singleton + persistence helpers
 ├── __version__.py               # Version info
 ├── adapters/
 │   ├── device/                  # USB device protocol handlers
+│   │   ├── frame.py             # UsbDevice / FrameDevice ABCs
 │   │   ├── scsi.py              # SCSI protocol (sg_raw)
 │   │   ├── hid.py               # HID USB transport (PyUSB)
 │   │   ├── led.py               # LED RGB protocol (effects, HID sender)
-│   │   ├── led_effect.py        # LEDEffectEngine — strategy pattern for LED effects
 │   │   ├── led_kvm.py           # KVM LED backend
-│   │   ├── led_segment.py       # Segment display renderer (11 styles)
+│   │   ├── led_segment.py       # Segment display renderer (10 styles)
 │   │   ├── bulk.py              # Raw USB bulk protocol
+│   │   ├── ly.py                # LY USB bulk protocol (0416:5408/5409)
 │   │   ├── lcd.py               # SCSI RGB565 frame send
 │   │   ├── detector.py          # USB device scan + registries
-│   │   ├── ly.py                # LY USB bulk handler (0416:5408/5409)
-│   │   └── factory.py           # Protocol factory (SCSI/HID/LED/Bulk/LY routing)
+│   │   ├── factory.py           # Protocol factory (SCSI/HID/LED/Bulk/LY routing)
+│   │   └── _usb_helpers.py      # Shared USB utility functions
+│   ├── render/                  # Rendering backends (Strategy pattern)
+│   │   └── pil.py               # PilRenderer — CPU-only PIL/Pillow backend
 │   ├── system/                  # System integration
 │   │   ├── sensors.py           # Hardware sensor discovery + collection
+│   │   ├── hardware.py          # Hardware info (CPU, GPU, RAM, disk)
 │   │   ├── info.py              # Dashboard panel config
 │   │   └── config.py            # Dashboard config persistence
 │   └── infra/                   # Infrastructure (I/O, files, network)
@@ -426,18 +477,23 @@ src/trcc/
 │   ├── __init__.py
 │   └── gui.py                   # PySide6 setup wizard GUI
 ├── services/                    # Core hexagon — pure Python, no framework deps
-│   ├── __init__.py              # Re-exports all 8 service classes
+│   ├── __init__.py              # Re-exports service classes
 │   ├── device.py                # DeviceService — detect, select, send_pil, send_rgb565
 │   ├── image.py                 # ImageService — solid_color, resize, brightness, rotation
 │   ├── display.py               # DisplayService — high-level display orchestration
 │   ├── led.py                   # LEDService — LED RGB control via LedProtocol
+│   ├── led_config.py            # LED config persistence (Memento pattern)
+│   ├── led_effects.py           # LEDEffectEngine — strategy pattern for LED effects
 │   ├── media.py                 # MediaService — GIF/video frame extraction
 │   ├── overlay.py               # OverlayService — overlay rendering
+│   ├── renderer.py              # Renderer ABC — Strategy port for compositing backends
 │   ├── system.py                # SystemService — system sensor access and monitoring
-│   └── theme.py                 # ThemeService — theme loading/saving/export/import
+│   ├── theme.py                 # ThemeService — theme orchestration
+│   ├── theme_loader.py          # Theme loading logic
+│   └── theme_persistence.py     # Theme save/export/import
 ├── core/
 │   ├── models.py                # Domain constants, dataclasses, enums, resolution pipeline
-│   └── controllers.py           # LCDDeviceController, LEDDeviceController, MVC controllers
+│   └── controllers.py           # LCDDeviceController, LEDDeviceController (Facades)
 └── qt_components/               # PySide6 GUI adapter
     ├── qt_app_mvc.py            # Main window (1454x800)
     ├── base.py                  # BasePanel, BaseThemeBrowser, pil_to_pixmap
@@ -460,7 +516,6 @@ src/trcc/
     ├── uc_led_control.py        # LED RGB control panel (LED styles 1-12)
     ├── uc_screen_led.py         # LED segment visualization (colored circles)
     ├── uc_color_wheel.py        # HSV color wheel for LED hue selection
-    ├── uc_seven_segment.py      # 7-segment display preview
     ├── uc_activity_sidebar.py   # Sensor element picker
     └── uc_about.py              # Settings / about panel
 ```

@@ -21,6 +21,9 @@ These devices have been tested on real hardware and confirmed working with TRCC 
 | Wonder Vision Pro 360 | Bulk (87AD:70DB) | — | [Civilgrain](https://github.com/Civilgrain) |
 | Trofeo Vision LCD | HID (0416:5302) | 1280x480 | [PantherX12max](https://github.com/PantherX12max), [N8ghtz](https://github.com/N8ghtz) |
 | Assassin Spirit 120 Vision ARGB | HID (0416:5302) | 240x240 | [michael-spinelli](https://github.com/michael-spinelli), [acioannina-wq](https://github.com/acioannina-wq) |
+| Elite Vision 360 ARGB Black | SCSI (0402:3922) | — | [tensaiteki](https://github.com/tensaiteki) |
+| Frozen Warframe Pro | Bulk (87AD:70DB) | — | [loosethoughts19-hash](https://github.com/loosethoughts19-hash) |
+| Thermalright 9.16 LCD | LY (0416:5408) | — | [Mr-Renegade](https://github.com/Mr-Renegade) |
 
 ### LED + Segment Display (RGB Fan Control, Temperature Readout)
 
@@ -30,17 +33,7 @@ These devices have been tested on real hardware and confirmed working with TRCC 
 | Assassin X 120R Digital ARGB | HID (0416:8001) | [hexskrew](https://github.com/hexskrew) |
 | Peerless Assassin 120 Digital ARGB White | HID (0416:8001) | [Xentrino](https://github.com/Xentrino) |
 | Phantom Spirit 120 Digital EVO | HID (0416:8001) | [javisaman](https://github.com/javisaman), [Rizzzolo](https://github.com/Rizzzolo) |
-
----
-
-## Open Issues (Awaiting Reporter Confirmation)
-
-These devices have reported issues that have been addressed in recent releases. Awaiting testers to confirm on latest version.
-
-| Product | Connection | Issue | Status |
-|---------|-----------|-------|--------|
-| Trofeo Vision LCD | HID (0416:5302) | [#1](https://github.com/Lexonight1/thermalright-trcc-linux/issues/1), [#34](https://github.com/Lexonight1/thermalright-trcc-linux/issues/34) | Video bg persistence fix in v6.0.2, nudged to v6.1.4 |
-| PA120 Digital | HID (0416:8001) | [#15](https://github.com/Lexonight1/thermalright-trcc-linux/issues/15) | LED wire remap fixed in v6.1.1, settings persistence fixed in v6.1.3 |
+| HR10 2280 PRO Digital | HID (0416:8001) | [Lcstyle](https://github.com/Lcstyle) |
 
 ---
 
@@ -102,7 +95,7 @@ All devices connect through one of these USB VID:PIDs:
 | 0416:5302 | HID Type 2 | Full LCD | Vision/Warframe (newer HW) |
 | 0418:5303 | HID Type 3 | Full LCD | TARAN ARMS |
 | 0418:5304 | HID Type 3 | Full LCD | TARAN ARMS |
-| 0416:5408 | LY Bulk | Full LCD | Peerless Vision |
+| 0416:5408 | LY Bulk | Full LCD | Thermalright 9.16 LCD |
 | 0416:5409 | LY1 Bulk | Full LCD | |
 | 0416:8001 | HID | LED + segment / Full LCD | Digital series + many Vision products |
 

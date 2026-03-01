@@ -4,31 +4,42 @@
 
 The project follows hexagonal architecture. The **services layer** is the core hexagon containing all business logic (pure Python, no framework deps). Four driving adapters consume the services:
 
-- **CLI** (`cli/` package) — Typer, 39 commands across 6 submodules. `LEDDispatcher` + `DisplayDispatcher` classes are the single authority for programmatic LED/LCD operations — return result dicts, never print. CLI functions are thin presentation wrappers. GUI and API can import dispatchers directly.
+- **CLI** (`cli/` package) — Typer, 39 commands across 7 submodules. `LEDDispatcher` + `DisplayDispatcher` classes are the single authority for programmatic LED/LCD operations — return result dicts, never print. CLI functions are thin presentation wrappers. GUI and API can import dispatchers directly.
 - **GUI** (`qt_components/`) — PySide6, controllers in `core/` call services
-- **API** (`api.py`) — FastAPI REST adapter (optional `[api]` extra)
+- **API** (`api/` package) — FastAPI REST adapter, 35 endpoints across 6 submodules
+- **IPC** (`ipc.py`) — Unix socket daemon for GUI-as-server single-device-owner safety
 - **Setup GUI** (`install/gui.py`) — Standalone PySide6 setup wizard
 
 ## Project Layout
 
 ```
 src/trcc/
-├── cli/                         # Typer CLI adapter package (6 submodules)
-├── api.py                       # FastAPI REST adapter (optional [api] extra)
+├── cli/                         # Typer CLI adapter package (7 submodules)
+├── api/                         # FastAPI REST adapter package (6 submodules)
+│   ├── __init__.py              # App factory, middleware, CORS
+│   ├── devices.py               # Device endpoints (detect, select, info)
+│   ├── display.py               # Display endpoints (send, color, brightness, rotation)
+│   ├── led.py                   # LED endpoints (color, mode, brightness, sensor)
+│   ├── themes.py                # Theme endpoints (list, load, save, export, import)
+│   ├── system.py                # System endpoints (info, metrics, screencast)
+│   └── models.py                # Pydantic request/response models
+├── ipc.py                       # Unix socket IPC daemon (GUI-as-server)
 ├── conf.py                      # Settings singleton + persistence helpers
 ├── __version__.py               # Version info
 ├── adapters/
 │   ├── device/                  # USB device protocol handlers
+│   │   ├── frame.py             # UsbDevice / FrameDevice ABCs
 │   │   ├── scsi.py              # SCSI protocol (sg_raw)
 │   │   ├── hid.py               # HID USB transport (PyUSB)
 │   │   ├── led.py               # LED RGB protocol (effects, HID sender)
-│   │   ├── led_effect.py        # LEDEffectEngine — strategy pattern for LED effects
 │   │   ├── led_kvm.py           # KVM LED backend
-│   │   ├── led_segment.py       # Segment display renderer (11 styles)
+│   │   ├── led_segment.py       # Segment display renderer (10 styles)
 │   │   ├── bulk.py              # Raw USB bulk protocol
+│   │   ├── ly.py                # LY USB bulk protocol (0416:5408/5409)
 │   │   ├── lcd.py               # SCSI RGB565 frame send
 │   │   ├── detector.py          # USB device scan + registries
-│   │   └── factory.py           # Protocol factory (SCSI/HID/LED/Bulk routing)
+│   │   ├── factory.py           # Protocol factory (SCSI/HID/LED/Bulk/LY routing)
+│   │   └── _usb_helpers.py      # Shared USB utility functions
 │   ├── render/                  # Rendering backends (Strategy pattern)
 │   │   └── pil.py               # PilRenderer — CPU-only PIL/Pillow backend
 │   ├── system/                  # System integration
@@ -52,16 +63,20 @@ src/trcc/
 │   ├── __init__.py
 │   └── gui.py                   # PySide6 setup wizard GUI
 ├── services/                    # Core hexagon — pure Python, no framework deps
-│   ├── __init__.py              # Re-exports all 8 service classes
+│   ├── __init__.py              # Re-exports service classes
 │   ├── device.py                # DeviceService — detect, select, send_pil, send_rgb565
 │   ├── image.py                 # ImageService — solid_color, resize, brightness, rotation
 │   ├── display.py               # DisplayService — high-level display orchestration
 │   ├── led.py                   # LEDService — LED RGB control via LedProtocol
+│   ├── led_config.py            # LED config persistence (Memento pattern)
+│   ├── led_effects.py           # LEDEffectEngine — strategy pattern for LED effects
 │   ├── media.py                 # MediaService — GIF/video frame extraction
 │   ├── overlay.py               # OverlayService — overlay rendering
 │   ├── renderer.py              # Renderer ABC — Strategy port for compositing backends
 │   ├── system.py                # SystemService — system sensor access and monitoring
-│   └── theme.py                 # ThemeService — theme loading/saving/export/import
+│   ├── theme.py                 # ThemeService — theme orchestration
+│   ├── theme_loader.py          # Theme loading logic
+│   └── theme_persistence.py     # Theme save/export/import
 ├── core/
 │   ├── models.py                # Domain constants, dataclasses, enums, resolution pipeline
 │   └── controllers.py           # LCDDeviceController (Facade), LEDDeviceController (Facade)
@@ -87,7 +102,6 @@ src/trcc/
     ├── uc_led_control.py        # LED RGB control panel (LED styles 1-12)
     ├── uc_screen_led.py         # LED segment visualization (colored circles)
     ├── uc_color_wheel.py        # HSV color wheel for LED hue selection
-    ├── uc_seven_segment.py      # 7-segment display preview
     ├── uc_activity_sidebar.py   # Sensor element picker
     └── uc_about.py              # Settings / about panel
 ```
@@ -138,6 +152,7 @@ The `DeviceProtocolFactory` in `device_factory.py` routes devices to the correct
 - **SCSI devices** → `ScsiProtocol` (sg_raw) — LCD displays
 - **HID LCD devices** → `HidProtocol` (PyUSB/HIDAPI) — LCD displays via HID
 - **Bulk USB devices** → `BulkProtocol` (PyUSB) — LCD displays via raw USB bulk
+- **LY Bulk devices** → `LyProtocol` (PyUSB) — LCD displays via chunked bulk (0416:5408/5409)
 - **HID LED devices** → `LedProtocol` (PyUSB/HIDAPI) — RGB LED controllers
 
 The GUI auto-routes LED devices to `UCLedControl` (LED panel) instead of the LCD form. `LEDDeviceController` manages LED effects with a 150ms animation timer, matching Windows FormLED. The unified LED panel handles all device styles (1-12).
