@@ -170,19 +170,13 @@ If you see `OK` next to your package — it's clean. Source code is GPL-3.0, ful
 ### PyPI
 
 ```bash
-pip install trcc-linux
+pipx install trcc-linux
 trcc setup        # interactive wizard — deps, udev, desktop entry
 ```
 
-On Arch-based distros (Arch, CachyOS, Manjaro, EndeavourOS, Garuda) use pipx instead:
-
-```bash
-sudo pacman -S python-pipx
-pipx install trcc-linux
-trcc setup
-```
-
 Then **unplug and replug the USB cable** and run `trcc gui`.
+
+> `pipx` not installed? `sudo apt install pipx` (Debian/Ubuntu), `sudo dnf install pipx` (Fedora), `sudo pacman -S python-pipx` (Arch). See the **[Install Guide](doc/INSTALL_GUIDE.md)** for your distro.
 
 ### One-line bootstrap
 

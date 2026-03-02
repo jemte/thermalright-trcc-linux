@@ -295,13 +295,13 @@ If native packages aren't available for your distro, or you prefer pip. This req
 
 ```bash
 # Step 1: Install system dependencies
-sudo dnf install python3-pip sg3_utils python3-pyside6 ffmpeg
+sudo dnf install pipx sg3_utils python3-pyside6 ffmpeg
 
 # Step 2: Install optional extras (hardware sensors, Wayland screen capture)
 sudo dnf install lm_sensors grim python3-gobject python3-dbus pipewire-devel
 
 # Step 3: Install TRCC
-pip install trcc-linux
+pipx install trcc-linux
 
 # Step 4: Run the setup wizard (device permissions, desktop shortcut)
 trcc setup
@@ -310,12 +310,14 @@ trcc setup
 trcc gui
 ```
 
+> To upgrade later: `pipx upgrade trcc-linux`
+
 > **RHEL / Rocky / Alma:** Enable EPEL and CRB first:
 > ```bash
 > sudo dnf install epel-release
 > sudo dnf config-manager --set-enabled crb
 > ```
-> Then run the commands above. If `python3-pyside6` isn't available, the `pip install trcc-linux` command will pull it in automatically.
+> Then run the commands above. If `python3-pyside6` isn't available, `pipx install trcc-linux` will pull it in automatically.
 
 ---
 
@@ -324,34 +326,29 @@ trcc gui
 ```bash
 # Step 1: Install system dependencies
 sudo apt update
-sudo apt install python3-pip python3-venv sg3-utils python3-pyside6 ffmpeg
+sudo apt install pipx sg3-utils python3-pyside6 ffmpeg
 
 # Step 2: Install optional extras (hardware sensors, Wayland screen capture)
 sudo apt install lm-sensors grim python3-gi python3-dbus python3-gst-1.0
 
 # Step 3: Install TRCC
-pip install trcc-linux
-```
+pipx install trcc-linux
 
-> **"externally-managed-environment" error?** Ubuntu 23.04+, Debian 12+, and Mint 22+ block pip installs by default. Use one of these instead:
-> ```bash
-> # Option A: Allow it anyway (simplest)
-> pip install --break-system-packages trcc-linux
->
-> # Option B: Use a virtual environment (cleanest)
-> python3 -m venv ~/trcc-env
-> source ~/trcc-env/bin/activate
-> pip install trcc-linux
-> ```
-> If you used Option B, you'll need to run `source ~/trcc-env/bin/activate` each time you open a new terminal before running `trcc`.
-
-```bash
 # Step 4: Run the setup wizard
 trcc setup
 
 # Step 5: Unplug and replug the USB cable, then launch
 trcc gui
 ```
+
+> To upgrade later: `pipx upgrade trcc-linux`
+
+> **Older Ubuntu/Debian without pipx?** If `pipx` isn't available (Ubuntu 22.04, Debian 11), fall back to pip:
+> ```bash
+> sudo apt install python3-pip python3-venv
+> pip install trcc-linux
+> ```
+> If pip shows an "externally-managed-environment" error, use `pip install --break-system-packages trcc-linux`.
 
 ---
 
@@ -384,13 +381,13 @@ trcc gui
 
 ```bash
 # Step 1: Install system dependencies
-sudo zypper install python3-pip sg3_utils python3-pyside6 ffmpeg
+sudo zypper install python3-pipx sg3_utils python3-pyside6 ffmpeg
 
 # Step 2: Install optional extras (hardware sensors, Wayland screen capture)
 sudo zypper install sensors grim python3-gobject python3-dbus-python python3-gstreamer
 
 # Step 3: Install TRCC
-pip install trcc-linux
+pipx install trcc-linux
 
 # Step 4: Run the setup wizard
 trcc setup
@@ -399,9 +396,11 @@ trcc setup
 trcc gui
 ```
 
+> To upgrade later: `pipx upgrade trcc-linux`
+
 > **openSUSE MicroOS:** Use `transactional-update` instead of `zypper`:
 > ```bash
-> sudo transactional-update pkg install sg3_utils python3-pip python3-pyside6 ffmpeg
+> sudo transactional-update pkg install sg3_utils python3-pipx python3-pyside6 ffmpeg
 > sudo reboot
 > ```
 > Then continue from Step 3.
@@ -412,13 +411,13 @@ trcc gui
 
 ```bash
 # Step 1: Install system dependencies
-sudo xbps-install sg3_utils python3-pip python3-pyside6 ffmpeg
+sudo xbps-install sg3_utils python3-pipx python3-pyside6 ffmpeg
 
 # Step 2: Install optional extras
 sudo xbps-install lm_sensors grim python3-gobject python3-dbus python3-gst
 
 # Step 3: Install TRCC
-pip install trcc-linux
+pipx install trcc-linux
 
 # Step 4: Run the setup wizard
 trcc setup
@@ -426,6 +425,8 @@ trcc setup
 # Step 5: Unplug and replug the USB cable, then launch
 trcc gui
 ```
+
+> To upgrade later: `pipx upgrade trcc-linux`
 
 > **Void musl:** If packages fail to build, you may need:
 > ```bash
@@ -444,13 +445,13 @@ trcc gui
 
 ```bash
 # Step 1: Install system dependencies
-sudo apk add python3 py3-pip sg3_utils py3-pyside6 ffmpeg
+sudo apk add python3 pipx sg3_utils py3-pyside6 ffmpeg
 
 # Step 2: Install optional extras
 sudo apk add lm-sensors grim py3-gobject3 py3-dbus
 
 # Step 3: Install TRCC
-pip install trcc-linux
+pipx install trcc-linux
 
 # Step 4: Run the setup wizard
 trcc setup
@@ -458,6 +459,8 @@ trcc setup
 # Step 5: Unplug and replug the USB cable, then launch
 trcc gui
 ```
+
+> To upgrade later: `pipx upgrade trcc-linux`
 
 > **Alpine musl:** If `py3-pyside6` isn't available:
 > ```bash
@@ -473,21 +476,21 @@ trcc gui
 # Step 1: Install system dependencies
 sudo eopkg install sg3_utils python3-pip ffmpeg
 
-# Step 2: Install PySide6 (not packaged in Solus)
-pip install PySide6
-
-# Step 3: Install optional extras
+# Step 2: Install optional extras
 sudo eopkg install lm-sensors grim python3-gobject python3-dbus
 
-# Step 4: Install TRCC
-pip install trcc-linux
+# Step 3: Install pipx, then TRCC
+pip install pipx
+pipx install trcc-linux
 
-# Step 5: Run the setup wizard
+# Step 4: Run the setup wizard
 trcc setup
 
-# Step 6: Unplug and replug the USB cable, then launch
+# Step 5: Unplug and replug the USB cable, then launch
 trcc gui
 ```
+
+> To upgrade later: `pipx upgrade trcc-linux`
 
 ---
 
@@ -497,21 +500,21 @@ trcc gui
 # Step 1: Install system dependencies
 sudo swupd bundle-add python3-basic devpkg-sg3_utils ffmpeg
 
-# Step 2: Install PySide6 (not bundled in Clear Linux)
-pip install PySide6
-
-# Step 3: Install optional extras
+# Step 2: Install optional extras
 sudo swupd bundle-add sysadmin-basic devpkg-pipewire
 
-# Step 4: Install TRCC
-pip install trcc-linux
+# Step 3: Install pipx, then TRCC
+pip install pipx
+pipx install trcc-linux
 
-# Step 5: Run the setup wizard
+# Step 4: Run the setup wizard
 trcc setup
 
-# Step 6: Unplug and replug the USB cable, then launch
+# Step 5: Unplug and replug the USB cable, then launch
 trcc gui
 ```
+
+> To upgrade later: `pipx upgrade trcc-linux`
 
 ---
 
