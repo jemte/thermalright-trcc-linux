@@ -4,9 +4,9 @@
 
 The project follows hexagonal architecture. The **services layer** is the core hexagon containing all business logic (pure Python, no framework deps). Four driving adapters consume the services:
 
-- **CLI** (`cli/` package) — Typer, 39 commands across 7 submodules. `LEDDispatcher` + `DisplayDispatcher` classes are the single authority for programmatic LED/LCD operations — return result dicts, never print. CLI functions are thin presentation wrappers. GUI and API can import dispatchers directly.
+- **CLI** (`cli/` package) — Typer, 50 commands across 7 submodules. `LEDDispatcher` + `DisplayDispatcher` classes are the single authority for programmatic LED/LCD operations — return result dicts, never print. CLI functions are thin presentation wrappers. GUI and API can import dispatchers directly.
 - **GUI** (`qt_components/`) — PySide6, controllers in `core/` call services
-- **API** (`api/` package) — FastAPI REST adapter, 35 endpoints across 6 submodules
+- **API** (`api/` package) — FastAPI REST adapter, 38 endpoints across 6 submodules
 - **IPC** (`ipc.py`) — Unix socket daemon for GUI-as-server single-device-owner safety
 - **Setup GUI** (`install/gui.py`) — Standalone PySide6 setup wizard
 
@@ -27,19 +27,20 @@ src/trcc/
 ├── conf.py                      # Settings singleton + persistence helpers
 ├── __version__.py               # Version info
 ├── adapters/
-│   ├── device/                  # USB device protocol handlers
-│   │   ├── frame.py             # UsbDevice / FrameDevice ABCs
-│   │   ├── scsi.py              # SCSI protocol (sg_raw)
-│   │   ├── hid.py               # HID USB transport (PyUSB)
-│   │   ├── led.py               # LED RGB protocol (effects, HID sender)
-│   │   ├── led_kvm.py           # KVM LED backend
-│   │   ├── led_segment.py       # Segment display renderer (10 styles)
-│   │   ├── bulk.py              # Raw USB bulk protocol
-│   │   ├── ly.py                # LY USB bulk protocol (0416:5408/5409)
-│   │   ├── lcd.py               # SCSI RGB565 frame send
-│   │   ├── detector.py          # USB device scan + registries
-│   │   ├── factory.py           # Protocol factory (SCSI/HID/LED/Bulk/LY routing)
-│   │   └── _usb_helpers.py      # Shared USB utility functions
+│   ├── device/                       # USB device protocol handlers (GoF-named)
+│   │   ├── template_method_device.py # UsbDevice / FrameDevice / LedDevice ABCs
+│   │   ├── template_method_hid.py    # HID USB transport (PyUSB)
+│   │   ├── _template_method_bulk.py  # Bulk-like USB base class
+│   │   ├── abstract_factory.py       # Protocol factory + LCDMixin/LEDMixin ABCs
+│   │   ├── adapter_scsi.py           # SCSI protocol (sg_raw)
+│   │   ├── adapter_bulk.py           # Raw USB bulk protocol
+│   │   ├── adapter_ly.py             # LY USB bulk protocol (0416:5408/5409)
+│   │   ├── adapter_led.py            # LED RGB protocol (effects, HID sender)
+│   │   ├── adapter_led_kvm.py        # KVM LED backend
+│   │   ├── adapter_hr10.py           # HR10 LED backend
+│   │   ├── strategy_segment.py       # Segment display renderer (10 styles)
+│   │   ├── facade_lcd.py             # SCSI RGB565 frame send
+│   │   └── registry_detector.py      # USB device scan + registries
 │   ├── render/                  # Rendering backends (Strategy pattern)
 │   │   └── pil.py               # PilRenderer — CPU-only PIL/Pillow backend
 │   ├── system/                  # System integration
@@ -147,7 +148,7 @@ Platform-specific helpers are centralized in `adapters/infra/`:
 
 ### Device Protocol Routing
 
-The `DeviceProtocolFactory` in `device_factory.py` routes devices to the correct protocol based on PID and implementation type:
+The `DeviceProtocolFactory` in `abstract_factory.py` routes devices to the correct protocol via self-registering `@register()` decorators (OCP):
 
 - **SCSI devices** → `ScsiProtocol` (sg_raw) — LCD displays
 - **HID LCD devices** → `HidProtocol` (PyUSB/HIDAPI) — LCD displays via HID

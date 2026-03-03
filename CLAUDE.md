@@ -54,26 +54,31 @@
 ### Abstract Base Classes (ABCs)
 Two layers of ABCs: **transport layer** (raw device I/O) and **adapter layer** (MVC integration). Future-proofed — new Thermalright devices slot in as subclasses without touching existing code.
 
-#### Transport Layer (`adapters/device/frame.py` + `hid.py`)
+#### Transport Layer (`adapters/device/template_method_device.py` + `template_method_hid.py`)
 ```
 UsbDevice (ABC) — handshake() + close()
 ├── FrameDevice (ABC) — + send_frame()
-│   ├── ScsiDevice (scsi.py)
-│   ├── BulkDevice (bulk.py)
-│   └── HidDevice (ABC, hid.py) — + build_init_packet, validate_response, parse_device_info
+│   ├── ScsiDevice (adapter_scsi.py)
+│   ├── BulkDevice (_template_method_bulk.py)
+│   └── HidDevice (ABC, template_method_hid.py) — + build_init_packet, validate_response, parse_device_info
 │       ├── HidDeviceType2
 │       └── HidDeviceType3
 └── LedDevice (ABC) — + send_led_data() + is_sending
-    └── LedHidSender (led.py)
+    └── LedHidSender (adapter_led.py)
 ```
 
-#### Adapter Layer (`adapters/device/factory.py`)
+#### Adapter Layer (`adapters/device/abstract_factory.py`)
 ```
 DeviceProtocol (ABC) — Template Method: handshake() concrete, _do_handshake() abstract
-├── ScsiProtocol  (wraps ScsiDevice)
-├── HidProtocol   (wraps HidDevice)
-├── BulkProtocol  (wraps BulkDevice)
-└── LedProtocol   (wraps LedHidSender)
+├── LCDMixin — send_image() (abstract) + send_pil() (concrete, ISP)
+├── LEDMixin — send_led_data() (abstract, ISP)
+│
+├── ScsiProtocol  (DeviceProtocol + LCDMixin, wraps ScsiDevice)
+├── HidProtocol   (UsbProtocol + LCDMixin, wraps HidDevice)
+├── BulkProtocol  (DeviceProtocol + LCDMixin, wraps BulkDevice)
+└── LedProtocol   (UsbProtocol + LEDMixin, wraps LedHidSender)
+
+DeviceProtocolFactory — @register() decorator for self-registration (OCP)
 ```
 
 #### Other ABCs
@@ -113,7 +118,7 @@ Every piece of data has exactly ONE owner. Violations = bugs.
 - **Logging**: Use `log = logging.getLogger(__name__)` — never `print()` for diagnostics
 - **Paths**: Use `pathlib.Path` where possible; `os.path` only in `data_repository.py` (legacy, perf)
 - **Thread safety**: Use Qt signals to communicate from background threads to GUI — never `QTimer.singleShot` from non-main threads
-- **Tests**: `pytest` with `PYTHONPATH=src`; 4494 tests across 54 files
+- **Tests**: `pytest` with `PYTHONPATH=src`; 4646 tests across 54 files
 - **Linting**: `ruff check .` + `pyright` must pass before any commit (0 errors, 0 warnings)
 - **Assets**: All GUI asset access goes through `Assets` class (`qt_components/assets.py`). Auto-appends `.png` for base names. Never manually build asset paths with `f"{name}.png"`.
 - **Language**: Single source of truth is `settings.lang` (in `conf.py`). Widgets call `Assets.get_localized(name, settings.lang)` — never store `self._lang`.
@@ -230,7 +235,7 @@ When adding GUI assets:
 - **Delegate pattern**: Settings tab communicates via `invoke_delegate(CMD_*, data)` to main window
 - **`_update_selected(**fields)`**: Single entry point for all element property changes (color, position, font, format, text)
 
-## GoF Refactoring (COMPLETE — v6.0.0, 2306 tests passing, extended in v6.0.1)
+## GoF Refactoring (COMPLETE — v6.0.0 through v7.0.2, 4646 tests passing)
 
 ### All Phases
 - **Phase 1: Segment Display Collapse** — `led_segment.py` 1109→687 lines (-422, 38%). Properties→class attrs, 4 encode methods→unified `_encode_digits()` + `_encode_7seg()`, LF12 delegates to LF8. Flyweight + Strategy.
@@ -263,6 +268,17 @@ When adding GUI assets:
 - **Full ReSetUCScreenLED audit**: All 12 styles checked against C# `ReSetUCScreenLED*()` overrides. Styles 2 (PA120), 3 (AK120), 4 (LC1) had default constructor indices instead of style-specific overrides. 9 other styles verified correct.
 - **Guard test**: `test_all_remap_indices_in_range` checks `idx < style.led_count` — catches this class of bug automatically.
 - **Root cause pattern**: C# `UCScreenLED` constructor assigns Cpu1=2, SSD=6, etc. but `ReSetUCScreenLED{N}()` overrides per style. Remap tables must use the overridden indices.
+
+### v7.0.x: GoF File Renames + SOLID Architecture
+- **GoF File Renames (v7.0.1)**: 13 files in `adapters/device/` renamed to `{pattern}_{name}.py` — every adapter file named by its primary design pattern (e.g., `factory.py` → `abstract_factory.py`, `frame.py` → `template_method_device.py`)
+- **SOLID Refactoring (v7.0.2)**: All 5 SOLID principles applied to device protocol architecture:
+  - **ISP**: Split `DeviceProtocol` into `LCDMixin` (send_image, send_pil) + `LEDMixin` (send_led_data)
+  - **LSP**: Removed `LedProtocol.send_image()` returning False, `DeviceProtocol.send_led_data()` default
+  - **DIP**: Injected protocol factory into `DeviceService` via `get_protocol` param + `_get_proto()` method
+  - **SRP**: Moved `detect_lcd_resolution()` from `DeviceService` to `ScsiDevice.detect_resolution()`
+  - **OCP**: Added `@DeviceProtocolFactory.register()` decorator for self-registering protocols
+- **Explicit Dependencies (v7.0.3)**: Added `click` as direct dependency (was transitive through `typer`). Addresses #50.
+- **API DRY (v7.0.4)**: Extracted `require_connected()` into `api/models.py` — eliminated 4 duplicated dispatcher guard patterns.
 
 ### Future Work
 - qt_app_mvc.py Handler extraction (ThemeHandler, OverlayHandler, MediaHandler, DeviceHandler)
@@ -347,7 +363,7 @@ Current FBL table (16 entries, full C# parity):
 1. **Hexagonal architecture** — CLI, GUI, and API all adapt to the same core services. Adding the API took hours, not weeks. Device protocols slot in as new adapter subclasses.
 2. **C# as ground truth** — every bug we fixed was traced back to "our code doesn't match C#". The decompiled source eliminated guesswork.
 3. **Data-driven design** — FBL tables, wire remap tables, LED style configs, segment display layouts are all data. Logic operates on data. New devices = new data, not new logic.
-4. **Test suite (4475 tests)** — catches regressions immediately. Every fix includes tests. Mock USB devices for protocol testing.
+4. **Test suite (4646 tests)** — catches regressions immediately. Every fix includes tests. Mock USB devices for protocol testing.
 5. **`trcc report` diagnostic** — users paste one command output and we get VID:PID, PM, FBL, resolution, raw handshake bytes, permissions, SELinux status. Eliminates back-and-forth.
 6. **GoF patterns applied pragmatically** — Facade (controllers), Flyweight+Strategy (segment displays), Template Method (protocol handshakes), Memento (LED config), Observer (metrics), Command (dispatchers). Each pattern solved a real problem, not applied for theory.
 
@@ -366,7 +382,8 @@ Current FBL table (16 entries, full C# parity):
 - **v4.0** — Adapters restructure, domain data consolidation, setup wizard, SELinux support
 - **v5.0** — Full C# feature parity audit (35 items), video fit-mode, all LED wire remaps, JPEG encoding for large displays
 - **v6.0** — GoF refactoring (-1203 lines), CLI dispatchers, metrics observer, LED test harness, circulate fix, FBL table completion
-- **v6.6** — LCD preview stream (direct IPC frame read from GUI daemon, steady-fps WebSocket, no poll thread), overlay metrics loop for standalone themes, video playback background thread, API spec + Flutter remote guide, `on_frame_sent` callback on DeviceService, 4494 tests
+- **v7.0** — GoF file renames (13 files → `{pattern}_{name}.py`), SOLID refactoring (ISP/LSP/DIP/SRP/OCP), explicit click dependency, API DRY extraction, 4646 tests
+- **v6.6** — LCD preview stream (direct IPC frame read from GUI daemon, steady-fps WebSocket, no poll thread), overlay metrics loop for standalone themes, video playback background thread, API spec + Flutter remote guide, `on_frame_sent` callback on DeviceService, MetricsMediator, 4496 tests
 - **v6.5** — IPC daemon (GUI-as-server, CLI auto-routes through Unix socket), info module decoupling, video background save fix, 4440 tests
 - **v6.3–v6.4** — Codebase minimization, DRY refactoring, test suite expansion (2509→4440 tests, 39→54 files, 76% coverage)
 - **v6.2** — REST API static files, `trcc api` command, LY protocol integration, HiDPI fix, DRY refactoring (3 duplications eliminated, Strategy pattern), 2509 tests

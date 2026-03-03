@@ -1,5 +1,76 @@
 # Changelog
 
+## v7.0.4
+
+### API DRY Refactoring
+- **Refactored**: Extracted `require_connected()` into `api/models.py` — eliminated 4 duplicated dispatcher guard patterns across `display.py`, `led.py`, `themes.py`
+- **Removed**: Unused `HTTPException` import from `led.py`
+- 4646 tests across 54 files
+
+## v7.0.3
+
+### Explicit Click Dependency
+- **Fixed**: `ModuleNotFoundError: No module named 'click'` on CachyOS — we import `click.exceptions` directly but only declared `typer` (transitive dep). Some install methods don't resolve transitive deps
+- **Added**: `click` as explicit dependency in `pyproject.toml` and all 5 distro packaging files (Arch, RPM, DEB, Gentoo)
+- Addresses #50
+- 4646 tests across 54 files
+
+## v7.0.2
+
+### SOLID Device Architecture
+- **ISP**: Split `DeviceProtocol` god interface into `LCDMixin` (send_image, send_pil) + `LEDMixin` (send_led_data) — LCD callers no longer see LED methods and vice versa
+- **LSP**: Removed `LedProtocol.send_image()` returning False and `DeviceProtocol.send_led_data()` default — no more lying interfaces
+- **DIP**: Injected protocol factory into `DeviceService` via `get_protocol` param + `_get_proto()` method — no more hardcoded imports
+- **SRP**: Moved `detect_lcd_resolution()` from `DeviceService` to `ScsiDevice.detect_resolution()` — SCSI-specific code in SCSI adapter
+- **OCP**: Added `@DeviceProtocolFactory.register()` decorator for self-registering protocols — new protocols don't edit the factory class
+- 4646 tests across 54 files
+
+## v7.0.1
+
+### GoF File Renames
+- **Renamed**: 13 files in `adapters/device/` to `{pattern}_{name}.py` format:
+  - `factory.py` → `abstract_factory.py`
+  - `frame.py` → `template_method_device.py`
+  - `hid.py` → `template_method_hid.py`
+  - `scsi.py` → `adapter_scsi.py`
+  - `bulk.py` → `adapter_bulk.py` (+ `_template_method_bulk.py` base)
+  - `ly.py` → `adapter_ly.py`
+  - `led.py` → `adapter_led.py`
+  - `led_kvm.py` → `adapter_led_kvm.py`
+  - `lcd.py` → `facade_lcd.py`
+  - `detector.py` → `registry_detector.py`
+  - `led_segment.py` → `strategy_segment.py`
+  - `hr10.py` → `adapter_hr10.py`
+- 4646 tests across 54 files
+
+## v7.0.0
+
+### Major Architecture Overhaul
+- GoF file renames (v7.0.1) + SOLID refactoring (v7.0.2) — complete device protocol architecture cleanup
+- Every adapter file named by its primary design pattern
+- Protocol interfaces properly segregated (ISP), no lying defaults (LSP), factory self-registers (OCP)
+- 4646 tests across 54 files
+
+## v6.6.3
+
+### Metrics Mediator + CPU Optimization
+- **Added**: `MetricsMediator` — single timer for all sensor polling, replaces per-widget timers
+- **Added**: Persistent USB send worker thread (reused across frames, idle timeout 30s)
+- **Added**: Preview throttle (4 FPS) to reduce PIL→QPixmap conversions
+- **Fixed**: LCD blink bug — identity check was skipping sends when overlay cache hit
+- **Added**: `on_frame_sent` callback on `DeviceService` for frame capture (API preview)
+- 4496 tests across 54 files
+
+## v6.6.1
+
+### LCD Preview Stream + API Video Control
+- **Added**: WebSocket `/display/preview/stream` — steady-fps JPEG stream of LCD frame
+- **Added**: Direct IPC frame read from GUI daemon (no poll thread)
+- **Added**: Video playback background thread for standalone API mode
+- **Added**: Overlay metrics loop for standalone themes
+- **Added**: API spec doc + Flutter remote guide
+- 4494 tests across 54 files
+
 ## v6.5.2
 
 ### Video Background Save Fix
