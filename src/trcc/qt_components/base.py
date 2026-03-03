@@ -1,5 +1,5 @@
 """
-Base widget classes for PyQt6 TRCC components.
+Base widget classes for PySide6 TRCC components.
 
 Provides common functionality:
 - BasePanel: delegate pattern, resource loading

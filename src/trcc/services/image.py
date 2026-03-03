@@ -1,6 +1,6 @@
 """Image processing service — RGB565, JPEG, rotation, brightness.
 
-Pure Python (PIL + numpy), no Qt or GUI dependencies.
+Pure Python (PIL), no Qt or GUI dependencies.  numpy for RGB565 encoding only.
 Absorbed from controllers.py: image_to_rgb565(), apply_rotation(),
 _apply_brightness(), byte_order_for().
 """

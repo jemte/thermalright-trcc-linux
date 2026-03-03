@@ -23,7 +23,7 @@ Usage:
     trcc-test         # Test display with color cycle
 """
 
-__version__ = "1.0.0"
+__version__ = "7.0.5"
 __author__ = "TRCC Linux Contributors"
 
 # Core exports
