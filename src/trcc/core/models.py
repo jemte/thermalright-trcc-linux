@@ -1172,7 +1172,7 @@ class SensorInfo:
 # Time formats matching Windows TRCC (UCXiTongXianShiSub.cs)
 TIME_FORMATS: Dict[int, str] = {
     0: "%H:%M",       # 24-hour (14:58)
-    1: "%-I:%M %p",   # 12-hour with AM/PM, no leading zero (2:58 PM)
+    1: "%-I:%M",      # 12-hour, no leading zero, no AM/PM (2:58)
     2: "%H:%M",       # 24-hour (same as mode 0 in Windows)
 }
 

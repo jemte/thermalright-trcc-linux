@@ -50,6 +50,7 @@ class DisplayService:
 
         # State
         self.current_image: Any | None = None  # Native surface (QImage or PIL)
+        self._clean_background: Any | None = None  # Original bg before overlay
         self.current_theme_path: Path | None = None
         self.auto_send = True
         self.rotation = 0         # directionB: 0, 90, 180, 270
@@ -190,10 +191,12 @@ class DisplayService:
         # Set current_image from result or from video first frame
         if result.get('image'):
             self.current_image = result['image']
+            self._clean_background = result['image']
         elif result.get('is_animated'):
             first_frame = self.media.get_frame(0)
             if first_frame:
                 self.current_image = first_frame
+                self._clean_background = first_frame
 
         # Build pre-baked cache for animated themes
         if result.get('is_animated') and self.media.has_frames:
@@ -221,6 +224,7 @@ class DisplayService:
                   type(first_frame).__name__ if first_frame else None)
         if first_frame:
             self.current_image = first_frame
+            self._clean_background = first_frame
         result['image'] = self.current_image
 
         # Build pre-baked cache for cloud video themes
@@ -233,11 +237,19 @@ class DisplayService:
 
     def apply_mask(self, mask_dir: Path) -> Any | None:
         """Apply a mask overlay on top of current content."""
+        # Restore clean background so old mask isn't baked in
+        if self._clean_background is not None:
+            self.current_image = self._clean_background
+        elif not self.current_image:
+            self.current_image = ImageService.solid_color(0, 0, 0, *self.lcd_size)
+
         self._mask_source_dir = self._loader.apply_mask(
             mask_dir, self.working_dir, self.lcd_size)
 
-        if not self.current_image:
-            self.current_image = ImageService.solid_color(0, 0, 0, *self.lcd_size)
+        # Invalidate pre-baked video cache (old mask baked in)
+        self._cache = None
+        if self.media.has_frames:
+            self._build_video_cache()
 
         return self.render_overlay()
 
@@ -252,6 +264,7 @@ class DisplayService:
         """Load and resize a static image to LCD dimensions."""
         try:
             self.current_image = ImageService.open_and_resize(path, *self.lcd_size)
+            self._clean_background = self.current_image
         except Exception as e:
             log.error("Failed to load image: %s", e)
 
@@ -276,14 +289,13 @@ class DisplayService:
 
     def render_overlay(self) -> Any | None:
         """Force-render overlay (for live editing). Returns image or None."""
-        if not self.current_image:
-            log.debug("render_overlay: no current_image, creating black bg")
+        # Use clean background (no old overlay baked in)
+        bg = self._clean_background or self.current_image
+        if not bg:
+            log.debug("render_overlay: no background, creating black bg")
             self._create_black_background()
-        log.debug("render_overlay: current_image type=%s bg=%s",
-                  type(self.current_image).__name__ if self.current_image else None,
-                  type(self.overlay.background).__name__ if self.overlay.background else None)
-        image = self.overlay.render(self.current_image, force=True)
-        log.debug("render_overlay: result type=%s", type(image).__name__)
+            bg = self.current_image
+        image = self.overlay.render(bg, force=True)
         return self._apply_adjustments(image)
 
     def _apply_adjustments(self, image: Any) -> Any:

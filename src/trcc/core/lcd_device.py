@@ -535,7 +535,12 @@ class LCDDevice(Device):
         }
 
     def load_mask_standalone(self, mask_path: str) -> dict:
-        """Load mask overlay and send composited image (CLI standalone)."""
+        """Load mask overlay and send composited image.
+
+        Used by both CLI and GUI. When display service exists (GUI),
+        uses current theme background and existing overlay. When
+        standalone (CLI), creates fresh overlay with black background.
+        """
         from ..services import ImageService, OverlayService
 
         if not os.path.exists(mask_path):
@@ -553,15 +558,30 @@ class LCDDevice(Device):
         else:
             mask_file = p
 
-        overlay = OverlayService(w, h)
         r = ImageService._r()
         mask_img = r.convert_to_rgba(r.open_image(mask_file))
-        overlay.set_mask(mask_img)
 
-        bg = ImageService.solid_color(0, 0, 0, w, h)
-        overlay.set_background(bg)
-        overlay.enabled = True
-        result_img = overlay.render()
+        # Use existing overlay service (GUI) or create fresh one (CLI)
+        if self._display_svc:
+            ovl = self._display_svc.overlay
+            ovl.set_theme_mask(None)
+            ovl.set_mask(mask_img)
+            ovl.enabled = True
+            # Use current theme bg, fall back to black
+            bg = self._display_svc._clean_background or \
+                self._display_svc.current_image or \
+                ImageService.solid_color(0, 0, 0, w, h)
+            self._display_svc.current_image = bg
+            # Invalidate video cache (old mask baked in)
+            self._display_svc._cache = None
+            result_img = self._display_svc.render_overlay()
+        else:
+            ovl = OverlayService(w, h)
+            ovl.set_mask(mask_img)
+            bg = ImageService.solid_color(0, 0, 0, w, h)
+            ovl.set_background(bg)
+            ovl.enabled = True
+            result_img = ovl.render()
 
         if self.frame:
             self.frame.send(result_img)

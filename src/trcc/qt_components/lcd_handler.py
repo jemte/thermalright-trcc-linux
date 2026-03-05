@@ -248,7 +248,7 @@ class LCDHandler:
         """Apply mask overlay on top of current content."""
         if mask_info.path:
             mask_dir = Path(mask_info.path)
-            result = self._lcd.overlay.apply_mask_dir(mask_dir)
+            result = self._lcd.load_mask_standalone(str(mask_dir))
             image = result.get('image')
             if image:
                 self._w['preview'].set_image(image)

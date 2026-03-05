@@ -67,7 +67,7 @@ SUB_METRICS = {
     5: {1: 'RPM', 2: 'PWM%', 3: 'Temp', 4: 'Speed'},
 }
 
-TIME_FORMATS = {0: 'HH:mm', 1: 'hh:mm AM/PM'}
+TIME_FORMATS = {0: 'HH:mm', 1: 'hh:mm'}
 DATE_FORMATS = {1: 'yyyy/MM/dd', 2: 'dd/MM/yyyy', 3: 'MM/dd', 4: 'dd/MM'}
 
 # Background images per mode (60x60 icons)
@@ -201,7 +201,7 @@ class OverlayElementWidget(QWidget):
                 # Windows: label1+label3 hidden, only label2 visible
                 from datetime import datetime
                 if self.config.mode_sub == 1:
-                    text = datetime.now().strftime('%-I:%M %p')
+                    text = datetime.now().strftime('%-I:%M')
                 else:
                     text = datetime.now().strftime('%H:%M')
                 painter.setPen(QColor(color_str))

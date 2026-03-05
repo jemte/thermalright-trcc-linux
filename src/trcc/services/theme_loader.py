@@ -198,6 +198,7 @@ class ThemeLoader:
         if not mask_dir or not mask_dir.exists():
             return None
 
+        self._overlay.set_theme_mask(None)
         _copy_flat_files(mask_dir, working_dir)
 
         wd = ThemeDir(working_dir)
