@@ -1,8 +1,8 @@
 """Tests for LCDDevice (core/lcd_device.py) + CLI display wrappers (_display.py).
 
 Fixtures build mock services and inject them into LCDDevice. Tests verify
-capability classes (FrameOps, DisplaySettings, OverlayOps) return correct
-result dicts, and CLI wrappers print/exit correctly.
+LCDDevice methods return correct result dicts, and CLI wrappers
+print/exit correctly.
 """
 from __future__ import annotations
 
