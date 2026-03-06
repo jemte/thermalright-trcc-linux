@@ -112,7 +112,7 @@ class TestGetService:
         svc.select.assert_called_once_with(dev)
 
     def test_no_path_saved_device_not_in_list(self):
-        """Saved device path not found — select is never called."""
+        """Saved device path not found — falls back to first device."""
         dev = _make_detected_device(path="/dev/sg0")
         svc = _make_mock_service(devices=[dev], selected=None)
 
@@ -121,10 +121,10 @@ class TestGetService:
              patch("trcc.cli._device.discover_resolution"):
             _get_service()
 
-        svc.select.assert_not_called()
+        svc.select.assert_called_once_with(dev)
 
-    def test_no_path_no_saved_device_does_not_select(self):
-        """No path, no saved device — select never called."""
+    def test_no_path_no_saved_device_selects_first(self):
+        """No path, no saved device — selects first device."""
         dev = _make_detected_device()
         svc = _make_mock_service(devices=[dev], selected=None)
 
@@ -133,7 +133,7 @@ class TestGetService:
              patch("trcc.cli._device.discover_resolution"):
             _get_service()
 
-        svc.select.assert_not_called()
+        svc.select.assert_called_once_with(dev)
 
     def test_already_selected_skips_saved_lookup(self):
         """When svc.selected is already set, saved-device lookup is skipped."""

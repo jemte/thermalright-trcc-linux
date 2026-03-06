@@ -229,6 +229,7 @@ class LCDHandler:
         self._load_theme_overlay_config(path)
 
         if persist and self._device_key:
+            log.info("Saving theme_path: %s (key=%s)", path, self._device_key)
             Settings.save_device_setting(self._device_key, 'theme_path', str(path))
 
     def select_cloud_theme(self, theme_info: Any) -> None:

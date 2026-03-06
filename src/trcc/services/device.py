@@ -73,10 +73,6 @@ class DeviceService:
             log.debug("  %s [%04X:%04X] %s res=%s",
                       d.name, d.vid, d.pid, d.protocol, d.resolution)
 
-        # Auto-select first device
-        if self._devices and not self._selected:
-            self._selected = self._devices[0]
-
         return self._devices
 
     @staticmethod

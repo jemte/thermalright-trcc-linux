@@ -28,13 +28,17 @@ def _get_service(device_path: Optional[str] = None):
         elif svc.devices:
             svc.select(svc.devices[0])
     elif not svc.selected:
-        # Fall back to saved selection
+        # Fall back to saved selection, then first device
         from trcc.conf import Settings
         saved = Settings.get_selected_device()
+        matched = False
         if saved:
             match = next((d for d in svc.devices if d.path == saved), None)
             if match:
                 svc.select(match)
+                matched = True
+        if not matched and svc.devices:
+            svc.select(svc.devices[0])
 
     # Discover resolution + FBL via handshake if not yet known
     dev = svc.selected
