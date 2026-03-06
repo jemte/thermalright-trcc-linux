@@ -232,30 +232,31 @@ class DeviceInfo:
         return f"{self.resolution[0]}x{self.resolution[1]}"
 
     @property
+    def profile(self) -> 'DeviceProfile':
+        """Device profile derived from FBL code."""
+        return get_profile(self.fbl_code) if self.fbl_code is not None else _DEFAULT_PROFILE
+
+    @property
     def use_jpeg(self) -> bool:
         """Whether this device uses JPEG encoding.
 
-        Computed from protocol + fbl_code — no mutable state, no propagation.
-        C# FormCZTVInit: bulk PM=32 (FBL=100) → myDeviceMode=4 (RGB565).
-        All other bulk PMs → myDeviceMode=2 (JPEG).
-        LY devices always JPEG.  SCSI/HID default RGB565.
+        Bulk/LY: JPEG unless FBL is RGB565-only (e.g. FBL 100).
+        HID: JPEG if profile says so. SCSI: always RGB565.
         """
         if self.protocol in ('bulk', 'ly'):
             return self.fbl_code not in BULK_RGB565_FBLS
-        return False
+        return self.profile.jpeg if self.protocol == 'hid' else False
 
     @property
     def encoding_params(self) -> tuple:
         """Encoding params for ImageService.encode_for_device().
 
         Returns (protocol, resolution, fbl, use_jpeg).
-        Resolution (0,0) means handshake hasn't set it yet — fall back to
-        fbl_to_resolution(fbl_code) or default (320, 320).
         """
         res = self.resolution
         fbl = self.fbl_code
         if res == (0, 0):
-            res = fbl_to_resolution(fbl) if fbl is not None else (320, 320)
+            res = self.profile.resolution
         return (self.protocol, res, fbl, self.use_jpeg)
 
 
