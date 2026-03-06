@@ -347,18 +347,17 @@ class LCDDevice(Device):
             self._compose()
         else:
             self.theme: ThemeOps | None = None
-            self.overlay: OverlayOps | None = None
 
-        # frame, video, settings point to self — methods are on LCDDevice
+        # frame, video, overlay, settings point to self — methods on LCDDevice
         self.frame: LCDDevice = self  # type: ignore[assignment]
         self.video: LCDDevice = self  # type: ignore[assignment]
+        self.overlay: LCDDevice = self  # type: ignore[assignment]
         self.settings: LCDDevice = self  # type: ignore[assignment]
 
     def _compose(self) -> None:
         """Build capability sub-objects from services."""
         self.theme = ThemeOps(self._display_svc, self._theme_svc)
-        self.overlay = OverlayOps(self._display_svc)
-        # frame ops are inlined on LCDDevice — no FrameOps instance needed
+        # overlay + frame ops are inlined on LCDDevice
 
     def _build_services(self, device_svc: Any) -> None:
         """Wire up all services from a DeviceService."""
@@ -764,37 +763,85 @@ class LCDDevice(Device):
     def video_has_frames(self) -> bool:
         return self.has_frames
 
-    # ── Overlay convenience (GUI calls these directly on device) ──
+    # ── Overlay ops (compositing, metrics, masks) ──────────────
+
+    def enable(self, on: bool) -> dict:
+        self._display_svc.overlay.enabled = on
+        return {"success": True, "enabled": on,
+                "message": f"Overlay: {'on' if on else 'off'}"}
+
+    def set_config(self, config: dict) -> dict:
+        self._display_svc.overlay.set_config(config)
+        return {"success": True, "message": f"Overlay config: {len(config)} elements"}
+
+    def set_background(self, image: Any) -> dict:
+        self._display_svc.overlay.set_background(image)
+        return {"success": True, "message": "Overlay background set"}
+
+    def set_mask(self, image: Any,
+                 position: tuple[int, int] | None = None) -> dict:
+        self._display_svc.overlay.set_theme_mask(image, position)
+        return {"success": True, "message": "Mask set"}
+
+    def set_mask_visible(self, visible: bool) -> dict:
+        self._display_svc.overlay.set_mask_visible(visible)
+        return {"success": True,
+                "message": f"Mask: {'visible' if visible else 'hidden'}"}
+
+    def set_temp_unit(self, unit: int) -> dict:
+        self._display_svc.overlay.set_temp_unit(unit)
+        return {"success": True, "message": f"Temp unit: {'F' if unit else 'C'}"}
+
+    def update_metrics(self, metrics: Any) -> dict:
+        self._display_svc.overlay.update_metrics(metrics)
+        return {"success": True}
+
+    def has_changed(self, metrics: Any) -> bool:
+        return self._display_svc.overlay.would_change(metrics)
+
+    def render(self) -> dict:
+        image = self._display_svc.render_overlay()
+        return {"success": True, "image": image}
+
+    def apply_mask_dir(self, mask_dir: Any) -> dict:
+        image = self._display_svc.apply_mask(Path(mask_dir))
+        return {"success": True, "image": image,
+                "message": f"Mask: {Path(mask_dir).name}"}
+
+    def rebuild_video_cache(self, metrics: Any) -> dict:
+        self._display_svc.rebuild_video_cache_metrics(metrics)
+        return {"success": True}
+
+    @property
+    def enabled(self) -> bool:
+        return self._display_svc.overlay.enabled if self._display_svc else False
+
+    @property
+    def service(self) -> Any:
+        """Direct OverlayService access (for flash_skip_index etc.)."""
+        return self._display_svc.overlay if self._display_svc else None
+
+    # ── Overlay convenience aliases ───────────────────────────────
 
     def set_overlay_temp_unit(self, unit: int) -> dict:
-        if self.overlay:
-            return self.overlay.set_temp_unit(unit)
-        return {"success": False, "error": "No overlay"}
+        return self.set_temp_unit(unit)
 
     @property
     def is_overlay_enabled(self) -> bool:
-        return self.overlay.enabled if self.overlay else False
+        return self.enabled
 
     def enable_overlay(self, on: bool) -> dict:
-        if self.overlay:
-            return self.overlay.enable(on)
-        return {"success": False, "error": "No overlay"}
+        return self.enable(on)
 
     def set_overlay_background(self, image: Any) -> dict:
-        if self.overlay:
-            return self.overlay.set_background(image)
-        return {"success": False, "error": "No overlay"}
+        return self.set_background(image)
 
     def set_overlay_mask(self, mask: Any,
                          position: tuple[int, int] | None = None) -> dict:
-        if self.overlay:
-            return self.overlay.set_mask(mask, position)
-        return {"success": False, "error": "No overlay"}
+        return self.set_mask(mask, position)
 
     def set_overlay_mask_visible(self, visible: bool) -> dict:
-        if self.overlay:
-            return self.overlay.set_mask_visible(visible)
-        return {"success": False, "error": "No overlay"}
+        return self.set_mask_visible(visible)
 
     # ── Lifecycle ──────────────────────────────────────────────────
 
