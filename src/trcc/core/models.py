@@ -1218,40 +1218,93 @@ LOCALE_TO_LANG: dict[str, str] = {
     'ja': 'r',       # Japanese
 }
 
-# FBL → Resolution mapping (from FormCZTV.cs lines 811-821)
-# FBL (Frame Buffer Layout) byte determines LCD resolution.
+# =============================================================================
+# Device Profile — single source of truth for all FBL-derived properties.
+# Replaces FBL_TO_RESOLUTION, JPEG_MODE_FBLS, BULK_RGB565_FBLS,
+# byte_order_for(), _SQUARE_NO_ROTATE.
+# =============================================================================
+
+
+@dataclass(frozen=True)
+class DeviceProfile:
+    """Everything needed to talk to a device, derived from its FBL code.
+
+    One lookup replaces 5 scattered constants/functions.
+    """
+    width: int
+    height: int
+    jpeg: bool = False           # JPEG encoding (vs RGB565)
+    big_endian: bool = False     # RGB565 byte order (> vs <)
+    rotate: bool = False         # Pre-rotate 90° CW for non-square portrait panels
+
+    @property
+    def resolution(self) -> tuple[int, int]:
+        return (self.width, self.height)
+
+    @property
+    def byte_order(self) -> str:
+        return '>' if self.big_endian else '<'
+
+
+# fmt: off
+FBL_PROFILES: dict[int, DeviceProfile] = {
+    #          W      H     jpeg    BE      rotate
+    36:  DeviceProfile(240,  240),
+    37:  DeviceProfile(240,  240),
+    50:  DeviceProfile(320,  240,  rotate=True),
+    51:  DeviceProfile(320,  240,  big_endian=True, rotate=True),   # SPIMode=2
+    53:  DeviceProfile(320,  240,  big_endian=True, rotate=True),   # SPIMode=2
+    54:  DeviceProfile(360,  360,  jpeg=True),
+    58:  DeviceProfile(320,  240,  rotate=True),
+    64:  DeviceProfile(640,  480,  rotate=True),
+    72:  DeviceProfile(480,  480),
+    100: DeviceProfile(320,  320,  big_endian=True),
+    101: DeviceProfile(320,  320,  big_endian=True),
+    102: DeviceProfile(320,  320,  big_endian=True),
+    114: DeviceProfile(1600, 720,  jpeg=True, rotate=True),
+    128: DeviceProfile(1280, 480,  jpeg=True, rotate=True),
+    192: DeviceProfile(1920, 462,  jpeg=True, rotate=True),
+    224: DeviceProfile(854,  480,  jpeg=True, rotate=True),
+}
+# fmt: on
+
+_DEFAULT_PROFILE = DeviceProfile(320, 320, big_endian=True)
+
+
+def get_profile(fbl: int, pm: int = 0) -> DeviceProfile:
+    """Get device profile for an FBL code.
+
+    For FBL 224/192, PM disambiguates the resolution (same encoding props).
+    """
+    profile = FBL_PROFILES.get(fbl, _DEFAULT_PROFILE)
+    if fbl == 224:
+        w, h = _FBL_224_BY_PM.get(pm, (854, 480))
+        return DeviceProfile(w, h, jpeg=profile.jpeg,
+                             big_endian=profile.big_endian, rotate=profile.rotate)
+    if fbl == 192:
+        w, h = _FBL_192_BY_PM.get(pm, (1920, 462))
+        return DeviceProfile(w, h, jpeg=profile.jpeg,
+                             big_endian=profile.big_endian, rotate=profile.rotate)
+    return profile
+
+
+# --- Backward compatibility aliases (remove after migration) ---
+
 FBL_TO_RESOLUTION: dict[int, tuple[int, int]] = {
-    36:  (240, 240),
-    37:  (240, 240),
-    50:  (320, 240),
-    51:  (320, 240),
-    54:  (360, 360),
-    53:  (320, 240),
-    58:  (320, 240),
-    64:  (640, 480),
-    72:  (480, 480),
-    100: (320, 320),
-    101: (320, 320),
-    102: (320, 320),
-    114: (1600, 720),
-    128: (1280, 480),
-    192: (1920, 462),
-    224: (854, 480),
+    fbl: p.resolution for fbl, p in FBL_PROFILES.items()
 }
 
-# FBL values that trigger JPEG encoding for HID Type 2 (C# myDeviceMode == 2).
-# C# FormCZTV: these resolutions use ImageToJpg() instead of ImageTo565().
-# Header byte[6] = 0x00 (JPEG) vs 0x01 (RGB565), with actual width/height.
-JPEG_MODE_FBLS: frozenset[int] = frozenset({54, 114, 128, 192, 224})
+JPEG_MODE_FBLS: frozenset[int] = frozenset(
+    fbl for fbl, p in FBL_PROFILES.items() if p.jpeg
+)
 
-# Bulk FBL values that use RGB565 instead of JPEG (C# myDeviceMode == 4).
-# C# FormCZTVInit: PM=32 → myDeviceMode=4 → ImageTo565() with cmd=3 header.
-# All other bulk PMs use myDeviceMode=2 → ImageToJpg() with cmd=2 header.
-BULK_RGB565_FBLS: frozenset[int] = frozenset({100})  # PM=32 → FBL=100 → 320x320
+BULK_RGB565_FBLS: frozenset[int] = frozenset(
+    fbl for fbl, p in FBL_PROFILES.items() if not p.jpeg and p.big_endian
+)
 
 # Reverse lookup: resolution → PM/FBL (first match wins)
 RESOLUTION_TO_PM: dict[tuple[int, int], int] = {
-    res: fbl for fbl, res in FBL_TO_RESOLUTION.items()
+    p.resolution: fbl for fbl, p in FBL_PROFILES.items()
     if fbl not in (37, 101, 102, 224)
 }
 
@@ -1304,19 +1357,8 @@ _PM_SUB_TO_FBL: dict[tuple[int, int], int] = {
 
 
 def fbl_to_resolution(fbl: int, pm: int = 0) -> tuple[int, int]:
-    """Map FBL byte to (width, height).
-
-    Used by all protocols: SCSI (poll byte[0] = FBL directly),
-    HID (PM → pm_to_fbl → FBL), and Bulk (PM → pm_to_fbl → FBL).
-
-    For FBL 224 and 192, the PM byte disambiguates the actual resolution.
-    Returns (320, 320) as default if FBL is unknown.
-    """
-    if fbl == 224:
-        return _FBL_224_BY_PM.get(pm, (854, 480))
-    if fbl == 192:
-        return _FBL_192_BY_PM.get(pm, (1920, 462))
-    return FBL_TO_RESOLUTION.get(fbl, (320, 320))
+    """Map FBL byte to (width, height). Delegates to get_profile()."""
+    return get_profile(fbl, pm).resolution
 
 
 def pm_to_fbl(pm: int, sub: int = 0) -> int:
