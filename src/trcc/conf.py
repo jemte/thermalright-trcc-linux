@@ -238,6 +238,18 @@ class Settings:
     # --- Public static methods (device config, format prefs, etc.) ---
 
     @staticmethod
+    def get_install_info() -> dict:
+        """Get install method and distro. Returns {} if not yet recorded."""
+        return load_config().get('install_info', {})
+
+    @staticmethod
+    def save_install_info(method: str, distro: str):
+        """Persist how trcc-linux was installed and on which distro."""
+        config = load_config()
+        config['install_info'] = {'method': method, 'distro': distro}
+        save_config(config)
+
+    @staticmethod
     def get_selected_device() -> Optional[str]:
         """Get CLI-selected device path (e.g. '/dev/sg0'). Returns None if unset."""
         return load_config().get('selected_device')

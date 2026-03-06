@@ -132,15 +132,29 @@ _GITHUB_LATEST = (
 )
 
 
-def _check_latest_version() -> str | None:
-    """Fetch the latest version from GitHub releases. Returns version string or None."""
+def _check_latest_release() -> tuple[str, dict[str, str]] | None:
+    """Fetch latest GitHub release. Returns (version, {ext: download_url}) or None."""
     from urllib.request import Request
     try:
         req = Request(_GITHUB_LATEST, headers={'Accept': 'application/vnd.github+json'})
         with urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read())
             tag = data.get('tag_name', '')
-            return tag.lstrip('v') if tag else None
+            ver = tag.lstrip('v') if tag else None
+            if not ver:
+                return None
+            # Map file extensions to download URLs
+            assets: dict[str, str] = {}
+            for asset in data.get('assets', []):
+                name = asset.get('name', '')
+                url = asset.get('browser_download_url', '')
+                if name.endswith('.pkg.tar.zst'):
+                    assets['pacman'] = url
+                elif name.endswith('.rpm'):
+                    assets['dnf'] = url
+                elif name.endswith('.deb'):
+                    assets['apt'] = url
+            return ver, assets
     except Exception:
         return None
 
@@ -148,6 +162,18 @@ def _check_latest_version() -> str | None:
 def _parse_version(v: str) -> tuple[int, ...]:
     """Parse '3.0.9' into (3, 0, 9) for comparison."""
     return tuple(int(x) for x in v.split('.'))
+
+
+def _detect_distro() -> str:
+    """Detect the Linux distro ID (e.g. 'fedora', 'arch', 'ubuntu')."""
+    try:
+        with open('/etc/os-release') as f:
+            for line in f:
+                if line.startswith('ID='):
+                    return line.strip().split('=', 1)[1].strip('"')
+    except OSError:
+        pass
+    return 'unknown'
 
 
 def _detect_install_method() -> str:
@@ -173,6 +199,19 @@ def _detect_install_method() -> str:
     return 'pip'  # fallback
 
 
+def _get_install_info() -> tuple[str, str]:
+    """Get install method and distro. Detects and saves on first call."""
+    from ..conf import Settings
+    info = Settings.get_install_info()
+    if info:
+        return info['method'], info['distro']
+    method = _detect_install_method()
+    distro = _detect_distro()
+    Settings.save_install_info(method, distro)
+    log.info("Recorded install info: method=%s, distro=%s", method, distro)
+    return method, distro
+
+
 class UCAbout(BasePanel):
     """
     Control Center panel matching Windows UCAbout.
@@ -193,7 +232,7 @@ class UCAbout(BasePanel):
     startup_changed = Signal(bool)       # auto-start enabled
     hdd_toggle_changed = Signal(bool)    # HDD info enabled
     refresh_changed = Signal(int)        # refresh interval (seconds)
-    _update_available = Signal(str)      # latest version string
+    _update_available = Signal(str, dict) # (version, {mgr: download_url})
     _upgrade_finished = Signal(bool)     # True=success, False=failure
 
     def __init__(self, parent=None):
@@ -314,7 +353,7 @@ class UCAbout(BasePanel):
         self._update_available.connect(self._on_update_result)
         self._upgrade_finished.connect(self._on_upgrade_done)
         self._latest_version: str | None = None
-        self._install_method = _detect_install_method()
+        self._install_method, self._distro = _get_install_info()
 
         # Check GitHub for updates in background
         Thread(target=self._check_for_update, daemon=True).start()
@@ -422,17 +461,7 @@ class UCAbout(BasePanel):
 
     # --- Software update ---
 
-    _RELEASE_DL = (
-        'https://github.com/Lexonight1/thermalright-trcc-linux'
-        '/releases/download/v{ver}/'
-    )
-    # Package filename templates per manager
-    _PKG_TEMPLATES: dict[str, str] = {
-        'pacman': 'trcc-linux-{ver}-1-any.pkg.tar.zst',
-        'dnf':    'trcc-linux-{ver}-1.fc43.noarch.rpm',
-        'apt':    'trcc-linux_{ver}-1_all.deb',
-    }
-    # Install commands per manager (pkexec provides the sudo prompt)
+    # Install commands per package manager (pkexec provides the sudo prompt)
     _PKG_INSTALL: dict[str, list[str]] = {
         'pacman': ['pkexec', 'pacman', '-U', '--noconfirm'],
         'dnf':    ['pkexec', 'dnf', 'install', '-y'],
@@ -441,15 +470,17 @@ class UCAbout(BasePanel):
 
     def _check_for_update(self):
         """Background thread: query GitHub releases and emit result via signal."""
-        latest = _check_latest_version()
-        if latest:
-            self._update_available.emit(latest)
+        result = _check_latest_release()
+        if result:
+            ver, assets = result
+            self._update_available.emit(ver, assets)
 
-    def _on_update_result(self, latest: str):
+    def _on_update_result(self, latest: str, assets: dict[str, str]):
         """Handle version check result (runs on main thread via signal)."""
         from trcc.__version__ import __version__
         if _parse_version(latest) > _parse_version(__version__):
             self._latest_version = latest
+            self._pkg_assets = assets
             self._update_tooltip = f"Version {latest} available — click to update"
             self._update_overlay.show()
             log.info("Update available: %s → %s", __version__, latest)
@@ -477,10 +508,14 @@ class UCAbout(BasePanel):
         elif method == 'pip':
             cmd = [sys.executable, '-m', 'pip', 'install',
                    '--upgrade', 'trcc-linux']
-        elif method in self._PKG_TEMPLATES:
+        elif method in self._PKG_INSTALL:
             # Download package from GitHub release, install via pkexec
-            filename = self._PKG_TEMPLATES[method].format(ver=ver)
-            url = self._RELEASE_DL.format(ver=ver) + filename
+            url = getattr(self, '_pkg_assets', {}).get(method)
+            if not url:
+                log.error("No %s package in release assets", method)
+                self._upgrade_finished.emit(False)
+                return
+            filename = url.rsplit('/', 1)[-1]
             pkg_path = Path(tempfile.gettempdir()) / filename
             try:
                 from urllib.request import urlretrieve
