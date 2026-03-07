@@ -19,7 +19,7 @@
 
 #### Creational — Object creation mechanisms
 - **Singleton**: Ensures a class has only one instance and provides a global access point to it. Used: `conf.settings` — app-wide state (resolution, language, preferences). Widgets read from singleton, never store their own copies
-- **Factory Method**: Defines an interface for creating an object, but lets subclasses decide which class to instantiate. Used: `factory.py` builds protocol-specific device adapters (CLI, GUI, or API)
+- **Factory Method**: Defines an interface for creating an object, but lets subclasses decide which class to instantiate. Used: `abstract_factory.py` builds protocol-specific device adapters (CLI, GUI, or API)
 - **Abstract Factory**: Provides an interface for creating families of related or dependent objects without specifying their concrete classes
 - **Builder**: Separates the construction of a complex object from its representation, allowing the same construction process to create different representations
 - **Prototype**: Specifies the kinds of objects to create using a prototypical instance, and creates new objects by copying this prototype
@@ -237,7 +237,7 @@ When adding GUI assets:
 - **Delegate pattern**: Settings tab communicates via `invoke_delegate(CMD_*, data)` to main window
 - **`_update_selected(**fields)`**: Single entry point for all element property changes (color, position, font, format, text)
 
-## GoF Refactoring (COMPLETE — v6.0.0 through v7.0.10, 4157 tests passing)
+## GoF Refactoring (COMPLETE — v6.0.0 through v7.0.10)
 
 ### All Phases
 - **Phase 1: Segment Display Collapse** — `led_segment.py` 1109→687 lines (-422, 38%). Properties→class attrs, 4 encode methods→unified `_encode_digits()` + `_encode_7seg()`, LF12 delegates to LF8. Flyweight + Strategy.
@@ -248,10 +248,10 @@ When adding GUI assets:
 - **Total**: 24 files changed, -1203 net lines.
 
 ### v6.0.1 Extensions
-- **CLI Dispatchers**: `LEDDispatcher` + `DisplayDispatcher` — Command pattern. Single authority for LED/LCD operations. Return result dicts, never print. CLI functions are thin wrappers.
+- **CLI Dispatchers** (deleted in v7.0.6): `LEDDispatcher` + `DisplayDispatcher` were Command pattern wrappers — replaced by `LCDDevice`/`LEDDevice` direct methods.
 - **Metrics Observer**: `UCLedControl.update_metrics()` — panel dispatches to style-specific update methods internally. `qt_app_mvc._poll_sensors()` reduced from 15 lines to 2. Observer pattern.
 - **ANSI Preview**: `--preview` flag on all LCD/LED CLI commands renders true-color terminal art. `ImageService.to_ansi()` for stills, `to_ansi_cursor_home()` for video.
-- **LED Visual Test Harness**: `tests/test_led_panel_visual.py` — standalone Qt app for testing all 12 LED styles with live metrics, device buttons, index overlay, and signal wiring.
+- **LED Visual Test Harness**: `tests/qt_components/test_led_visual.py` — standalone Qt app for testing all 12 LED styles with live metrics, device buttons, index overlay, and signal wiring.
 
 ### v6.1.5: Portrait Cloud Directory Switching
 - **Non-square displays (e.g. 1280x480 Trofeo Vision) mounted vertically** were loading cloud backgrounds/masks from the landscape directory (`1280480/`) instead of the portrait directory (`4801280/`).
@@ -290,19 +290,16 @@ When adding GUI assets:
 - **Font pixel sizing**: `QFont.setPixelSize(size)` — PIL callers pass pixel sizes, Qt `QFont(family, size)` interprets as points. Must use `setPixelSize()`.
 - **Test infrastructure**: `conftest.py` helpers `make_test_surface()`, `surface_size()`, `get_pixel()` — all tests use native renderer surfaces
 - **PIL boundary conversion**: PIL Images entering the system converted once via `renderer.from_pil()`, then flow as QImage throughout
-- 4157 tests passing, ruff clean, pyright clean
 
 ### v7.0.6: SOLID Device ABCs — Replace Controller Layer
 - **Device ABC** (`core/ports.py`): 4 methods (connect, connected, device_info, cleanup). Minimal contract for all devices.
-- **LCDDevice** (`core/lcd_device.py`): Composed capabilities — ThemeOps, VideoOps, OverlayOps, FrameOps, DisplaySettings. Each capability delegates to services.
+- **LCDDevice** (`core/lcd_device.py`): Direct methods (capability classes inlined in v8.0.0). Delegates to services.
 - **LEDDevice** (`core/led_device.py`): Direct methods — set_color, set_mode, tick, zone/segment ops. Delegates to LEDService.
 - **ControllerBuilder** (`core/builder.py`): Fluent builder, returns concrete `LCDDevice`/`LEDDevice` types (not `Device` ABC).
 - **TRCCApp** (`qt_components/trcc_app.py`): Thin QMainWindow shell (C# Form1 equivalent). Handlers dict, one per device.
 - **LCDHandler** (`qt_components/lcd_handler.py`): One per LCD device (C# FormCZTV equivalent). Owns LCDDevice, timers, state.
 - **CLI slimmed**: `_display.py` and `_led.py` are thin print wrappers — `_connect_or_fail()` → call device method → print result.
 - **Deleted**: `core/controllers.py` (LCDDeviceController + LEDDeviceController), backward compat aliases (DisplayDispatcher, LEDDispatcher), 197 dead tests.
-- **Test rewrites**: `cli/test_display.py`, `cli/test_led.py`, `qt_components/test_trcc_app.py`, `test_architecture.py`, `services/test_led.py` — all use proper pytest fixtures.
-- 4157 tests passing, ruff clean, pyright clean
 
 ### v7.0.7–v7.0.10: Bug Fixes, Cloud Parity, CI Package Deps
 - **Cloud theme resolution parity**: All 32 C# v2.1.2 resolutions added to `theme_cloud.py` RESOLUTION_URLS and `tools/pack_theme_archives.py` — landscape, portrait, u/l split variants. Full match of `FormCZTV` `GifDirectoryWeb*`/`GifWebDir*` constants.
@@ -310,7 +307,6 @@ When adding GUI assets:
 - **`tools/check_pkg_deps.py`**: NEW tool — queries Arch, Fedora, Debian repos to verify which PyPI deps have native packages vs need bundling. Found: Arch missing `python-uvicorn` (must bundle via pip), Fedora/Debian all available.
 - **CodeQL fix**: Stack trace exposure in `api/display.py` preview endpoint (CWE-209). Wrapped `_encode_frame` in try/except.
 - **Bulk RGB565 encoding fix**: v7.0.10 corrected bulk protocol encoding.
-- 4157 tests passing, ruff clean, pyright clean
 
 ### v7.1.0–v7.1.1: Bulk FBL Bug, Theme Persist, System Install Fix
 - **Bulk/LY FBL bug (#54)**: `BulkDevice.handshake()` and `LyDevice.handshake()` returned `model_id=PM` (raw handshake byte) instead of `model_id=FBL` (lookup code). GUI stored PM as `fbl_code` → `DeviceInfo.use_jpeg` computed wrong encoding. PM=32 bulk devices got JPEG encoding when they need RGB565 → scrambled display. Fixed: both now return `pm_to_fbl(pm, sub)`.
@@ -319,7 +315,6 @@ When adding GUI assets:
 - **Log noise**: Removed per-frame DEBUG logs (~30/sec) from display, device, image services and factory — was rotating out useful INFO messages within seconds of video playback.
 - **PermissionError on system-wide installs (#51)**: `_find_data_dir()`, `get_web_dir()`, `get_web_masks_dir()` fell back to read-only package path (`/usr/lib/python3.x/.../trcc/data/`) when no themes existed. Cloud theme `mkdir` crashed. Fixed: fallback is now `USER_DATA_DIR` (`~/.trcc/data/`), always user-writable.
 - **CodeQL alert**: Restructured preview endpoint exception handling to prevent stack trace flow analysis false positive (CWE-209).
-- 4157 tests passing, ruff clean, pyright clean
 
 ### v7.1.2–v7.1.4: CLI Device Selection, Software Update System
 - **CLI auto-select fix**: `_get_service()` falls back to first detected device when saved device path doesn't match. Removed premature auto-select from `DeviceService.scan()` — selection is caller's responsibility.
@@ -327,15 +322,13 @@ When adding GUI assets:
 - **Install info in config**: `config.json` stores `install_info.method` and `install_info.distro` — detected once, read forever. No runtime guessing after first launch.
 - **GitHub release assets**: Package download URLs come from the release JSON (no hardcoded filenames). Handles Fedora version changes automatically.
 - **CodeQL fix**: Restructured preview endpoint try/except to satisfy flow analysis (CWE-209).
-- 4157 tests passing, ruff clean, pyright clean
 
 ### v7.1.5: Brightness Persist, Overlay Restore, Test Warnings
 - **Brightness not persisting across restarts**: `_restore_brightness` called `DisplaySettings.set_brightness(percent)` which re-persisted the percent value (100) as `brightness_level`, overwriting the saved level (3). Next restart mapped 100 via `{1:25, 2:50, 3:100}.get(100, 50)` → 50% fallback. Fixed: restore now sets `DisplayService.brightness` directly, bypassing `DisplaySettings` persist side-effect. Also added `_update_ldd_icon()` after `apply_device_config()` so brightness button icon reflects restored level.
 - **Stale overlay on custom theme restart (#58)**: Overlay config in `config.json` is per-device, not per-theme. Switching from official theme (with overlay) to custom theme (without) left stale overlay saved. On restart, custom theme loaded then `_restore_overlay` applied the old overlay. Fixed: `_load_theme_overlay_config` now clears and persists `enabled: False` when theme has no overlay config.
 - **Test warnings eliminated**: QMouseEvent deprecated 5-arg constructor → 6-arg (added `globalPos`). Unclosed PIL `Image.open()` in `_load_mask_into` → context manager. Unclosed `HTTPError` in test mocks → explicit `.close()`. Unclosed `Image.open()` in `test_dc_writer` → context manager. pyusb `_pack_` filter fixed (`usb` → `usb.*`).
-- 4157 tests passing, 0 warnings, ruff clean, pyright clean
 
-### v8.0.0: Hexagonal Purification + CPU Optimization (-684 lines, 34%→9% CPU)
+### v8.0.0: Hexagonal Purification + CPU Optimization (-684 lines, 48%→6% CPU with MP4)
 - **Hexagonal violations fixed**: `led_segment.py`, `color.py`, `paths.py` moved from `adapters/` → `core/`. Lazy-import `DataManager` in `services/display.py` (no adapter imports at module level in services).
 - **Double sensor polling eliminated**: `UCInfoModule` and `UCActivitySidebar` had their own polling timers AND MetricsMediator subscriptions — double work. Removed redundant timers; MetricsMediator is now the single polling authority.
 - **Preview skip when minimized**: `LCDHandler` accepts `is_visible_fn` from `TRCCApp`. Video tick and overlay render skip `set_image()` when window is minimized — no QImage scaling or QPixmap conversion for invisible widgets.
@@ -345,7 +338,7 @@ When adding GUI assets:
 - **DeviceProfile table**: Replaces scattered encoding logic with a single data-driven lookup.
 - **LED segment data consolidated**: `core/led_segment.py` now owns all segment display data (was in `adapters/device/led_segment.py`).
 - **data_repository.py DRY**: -139 lines of duplicated archive extraction logic.
-- 48 files changed, -684 net lines, 4159 tests passing, ruff clean, pyright clean
+- 48 files changed, -684 net lines
 
 ### v8.0.2: Test Restructuring — Hexagonal Directory Layout
 - **Test directory mirrors source**: 53 test files reorganized from flat `tests/` into subdirectories matching `src/trcc/` hexagonal layers: `tests/{core,services,adapters/{device,infra,system},cli,api,qt_components}/`. Cross-cutting tests (architecture, integration, memory, conf) stay at `tests/` root.
@@ -444,7 +437,7 @@ Current FBL table (16 entries, full C# parity):
 1. **Hexagonal architecture** — CLI, GUI, and API all adapt to the same core services. Adding the API took hours, not weeks. Device protocols slot in as new adapter subclasses.
 2. **C# as ground truth** — every bug we fixed was traced back to "our code doesn't match C#". The decompiled source eliminated guesswork.
 3. **Data-driven design** — FBL tables, wire remap tables, LED style configs, segment display layouts are all data. Logic operates on data. New devices = new data, not new logic.
-4. **Test suite (4157 tests)** — catches regressions immediately. Every fix includes tests. Mock USB devices for protocol testing.
+4. **Test suite (4022 tests)** — catches regressions immediately. Every fix includes tests. Mock USB devices for protocol testing.
 5. **`trcc report` diagnostic** — users paste one command output and we get VID:PID, PM, FBL, resolution, raw handshake bytes, permissions, SELinux status. Eliminates back-and-forth.
 6. **GoF patterns applied pragmatically** — Facade (controllers), Flyweight+Strategy (segment displays), Template Method (protocol handshakes), Memento (LED config), Observer (metrics), Command (dispatchers). Each pattern solved a real problem, not applied for theory.
 
@@ -456,19 +449,19 @@ Current FBL table (16 entries, full C# parity):
 5. **State not propagated** — handshake discovers resolution/FBL but the value never reaches the encoding layer. Multiple fixes for "fbl not propagated from handshake."
 6. **Linux-specific USB issues** — kernel driver detach, SELinux blocking, polkit for udev rules, UsrMerge symlink differences, XFCE session not "active" in logind.
 
-### Version Evolution (v1.0 → v6.6.1)
+### Version Evolution (v1.0 → v8.0)
 - **v1.x** (17 releases) — Basic GUI, SCSI protocol, theme loading, bug-fixing spree
 - **v2.0** — Module rename/restructure, HR10 LED backend, PM/FBL unification
-- **v3.0** — Hexagonal architecture, services layer, CLI (Typer), REST API, 2081→2166 tests
+- **v3.0** — Hexagonal architecture, services layer, CLI (Typer), REST API
 - **v4.0** — Adapters restructure, domain data consolidation, setup wizard, SELinux support
 - **v5.0** — Full C# feature parity audit (35 items), video fit-mode, all LED wire remaps, JPEG encoding for large displays
 - **v6.0** — GoF refactoring (-1203 lines), CLI dispatchers, metrics observer, LED test harness, circulate fix, FBL table completion
-- **v7.0** — GoF file renames (13 files → `{pattern}_{name}.py`), SOLID refactoring (ISP/LSP/DIP/SRP/OCP), explicit click dependency, API DRY extraction, QtRenderer migration (eliminate PIL from hot path), SOLID Device ABCs (LCDDevice/LEDDevice replace controller layer), cloud theme resolution parity (all 32 C# resolutions), CI distro package dep fixes, 4157 tests
-- **v6.6** — LCD preview stream (direct IPC frame read from GUI daemon, steady-fps WebSocket, no poll thread), overlay metrics loop for standalone themes, video playback background thread, API spec + Flutter remote guide, `on_frame_sent` callback on DeviceService, MetricsMediator, 4496 tests
-- **v6.5** — IPC daemon (GUI-as-server, CLI auto-routes through Unix socket), info module decoupling, video background save fix, 4440 tests
-- **v6.3–v6.4** — Codebase minimization, DRY refactoring, test suite expansion (2509→4440 tests, 39→54 files, 76% coverage)
-- **v6.2** — REST API static files, `trcc api` command, LY protocol integration, HiDPI fix, DRY refactoring (3 duplications eliminated, Strategy pattern), 2509 tests
-- **v6.1** — REST API full CLI parity (35 endpoints), full wire remap audit (3 styles fixed), LY protocol, TLS, portrait cloud dirs, 2439 tests
+- **v6.1–v6.2** — REST API full CLI parity (42 endpoints), full wire remap audit (3 styles fixed), LY protocol, TLS, portrait cloud dirs, HiDPI fix
+- **v6.3–v6.4** — Codebase minimization, DRY refactoring, test suite expansion
+- **v6.5** — IPC daemon (GUI-as-server, CLI auto-routes through Unix socket)
+- **v6.6** — LCD preview stream (WebSocket), overlay metrics loop, video playback background thread, MetricsMediator
+- **v7.0** — GoF file renames, SOLID refactoring (ISP/LSP/DIP/SRP/OCP), QtRenderer (eliminate PIL from hot path), SOLID Device ABCs (LCDDevice/LEDDevice replace controller layer), cloud theme resolution parity (all 32 C# resolutions), CI distro package dep fixes
+- **v8.0** — Hexagonal purification, CPU optimization (-684 lines, 48%→6% CPU), capability classes inlined, DeviceProfile table, test restructuring (hexagonal directory layout)
 
 ### Applying This to TR-VISION HOME
 The next project controls Thermalright water-cooling LED screens. What carries forward:
