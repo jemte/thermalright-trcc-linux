@@ -1,5 +1,20 @@
 # Changelog
 
+## v8.0.1
+
+### Bug Fixes
+- **Fixed**: Theme save missing mask, double overlay, stale state — `load_mask_standalone()` now wires `_mask_source_dir` on DisplayService
+- **Fixed**: Saved config.json had `mask: null` — theme reload lost overlay
+- **Fixed**: Save was passing overlay-composited image as `00.png` (double overlay on reload)
+
+### Architecture
+- **Hexagonal purity (v8.0.0)**: Dependencies point inward only (adapters → services → core). No fallback imports in services. Composition roots wire concrete adapters.
+- **Capability classes inlined**: ThemeOps, VideoOps, OverlayOps, FrameOps, DisplaySettings dissolved into LCDDevice directly
+- **DeviceProfile table**: Replaces scattered encoding logic with single data-driven lookup
+- **CPU optimization**: 34% → 9% idle CPU — eliminated double sensor polling, invisible widget updates, bulk video pre-encoding
+- **Test restructuring (v8.0.2)**: 53 test files reorganized into hexagonal directories (`tests/{core,services,adapters/{device,infra,system},cli,api,qt_components}/`). Merged duplicates, dissolved `hid_testing/`, deleted 22 mock-wiring tests.
+- 4022 tests across 53 files in 9 directories
+
 ## v7.1.1
 
 ### Bug Fixes
