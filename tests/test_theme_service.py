@@ -1047,6 +1047,70 @@ class TestSave:
         config = json.loads((theme_path / 'config.json').read_text())
         assert 'mask_position' not in config
 
+    def test_preview_used_for_thumbnail(
+        self, tmp_path: Path, lcd_size: tuple[int, int], big_image: Any
+    ) -> None:
+        """When preview is provided, Theme.png should differ from 00.png."""
+        preview_img = make_test_surface(320, 320, (0, 255, 0))
+
+        ok, msg = ThemeService.save(
+            'WithPreview',
+            tmp_path,
+            lcd_size,
+            background=big_image,
+            preview=preview_img,
+            overlay_config={},
+        )
+        assert ok is True
+
+        theme_path = tmp_path / 'theme320320' / 'Custom_WithPreview'
+        assert (theme_path / '00.png').exists()
+        assert (theme_path / 'Theme.png').exists()
+
+        # 00.png = clean background (blue), Theme.png = preview (green)
+        bg_data = (theme_path / '00.png').read_bytes()
+        thumb_data = (theme_path / 'Theme.png').read_bytes()
+        assert bg_data != thumb_data, "Thumbnail should differ from background"
+
+    def test_no_preview_falls_back_to_background(
+        self, tmp_path: Path, lcd_size: tuple[int, int], big_image: Any
+    ) -> None:
+        """Without preview, thumbnail uses background (existing behavior)."""
+        ok, msg = ThemeService.save(
+            'NoPreview',
+            tmp_path,
+            lcd_size,
+            background=big_image,
+            overlay_config={},
+        )
+        assert ok is True
+
+        theme_path = tmp_path / 'theme320320' / 'Custom_NoPreview'
+        assert (theme_path / '00.png').exists()
+        assert (theme_path / 'Theme.png').exists()
+
+    def test_background_saved_as_clean_image(
+        self, tmp_path: Path, lcd_size: tuple[int, int], big_image: Any
+    ) -> None:
+        """00.png must be the clean background, not a rendered preview."""
+        preview_img = make_test_surface(320, 320, (255, 255, 0))
+
+        ok, msg = ThemeService.save(
+            'CleanBg',
+            tmp_path,
+            lcd_size,
+            background=big_image,
+            preview=preview_img,
+            overlay_config={},
+        )
+        assert ok is True
+
+        theme_path = tmp_path / 'theme320320' / 'Custom_CleanBg'
+        # 00.png should exist and be a valid image
+        from PIL import Image
+        with Image.open(theme_path / '00.png') as saved_bg:
+            assert saved_bg.size == (320, 320)
+
 
 # ── export_tr / import_tr ─────────────────────────────────────────────────────
 

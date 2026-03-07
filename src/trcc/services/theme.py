@@ -291,6 +291,7 @@ class ThemeService:
         lcd_size: tuple[int, int],
         *,
         background: Any,
+        preview: Any | None = None,
         overlay_config: dict,
         mask: Any | None = None,
         mask_source: Path | None = None,
@@ -313,12 +314,13 @@ class ThemeService:
             theme_path.mkdir(parents=True, exist_ok=True)
             td = ThemeDir(theme_path)
 
-            # Thumbnail from rendered preview
+            # Thumbnail from rendered preview (with overlay)
             from .image import ImageService
             r = ImageService._r()
-            src_w, src_h = r.surface_size(background)
+            thumb_src = preview or background
+            src_w, src_h = r.surface_size(thumb_src)
             scale = min(120 / src_w, 120 / src_h, 1.0)
-            thumb = r.resize(r.copy_surface(background),
+            thumb = r.resize(r.copy_surface(thumb_src),
                              max(1, int(src_w * scale)),
                              max(1, int(src_h * scale)))
             thumb.save(str(td.preview))

@@ -216,6 +216,10 @@ class DisplayService:
         result = self._loader.load_cloud_theme(theme, self.working_dir)
         log.debug("load_cloud_theme: loader result keys=%s", list(result.keys()))
 
+        # Wire up state from loader result
+        self._mask_source_dir = result.get('mask_source_dir')
+        self.current_theme_path = result.get('theme_path')
+
         # Convert PIL frames → native renderer surfaces
         self._convert_media_frames()
         log.debug("load_cloud_theme: frames converted, count=%d",
@@ -471,7 +475,7 @@ class DisplayService:
             data_dir = Path(USER_DATA_DIR)
         ok, msg = ThemePersistence.save(
             name, data_dir, self.lcd_size,
-            current_image=self.current_image,
+            current_image=self._clean_background or self.current_image,
             overlay=self.overlay,
             mask_source_dir=self._mask_source_dir,
             media_source_path=self.media.source_path,

@@ -267,6 +267,8 @@ class LCDDevice(Device):
             ovl.set_theme_mask(None)
             ovl.set_mask(mask_img, position)
             ovl.enabled = True
+            # Track mask source for theme save
+            self._display_svc._mask_source_dir = p if p.is_dir() else p.parent
             # Use current theme bg, fall back to black
             bg = self._display_svc._clean_background or \
                 self._display_svc.current_image or \

@@ -31,13 +31,15 @@ class ThemePersistence:
         if not current_image:
             return False, "No image to save"
 
+        # Render overlay for thumbnail; save clean bg as 00.png
         rendered = overlay.render(current_image)
         mask_img, mask_pos = overlay.get_mask()
         overlay_config = overlay.config
 
         return ThemeService.save(
             name, data_dir, lcd_size,
-            background=rendered,
+            background=current_image,
+            preview=rendered,
             overlay_config=overlay_config,
             mask=mask_img,
             mask_source=mask_source_dir,

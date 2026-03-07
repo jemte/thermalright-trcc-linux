@@ -378,7 +378,7 @@ This section documents the full journey of building TRCC Linux from scratch, int
 Thermalright sells CPU coolers and AIO liquid coolers with built-in LCD displays and LED segment displays. The only software to control them (TRCC) is Windows-only, closed-source, with no Linux support. Linux users who bought these coolers had no way to use their displays.
 
 ### The Approach: Reverse Engineering Windows C#
-The Windows TRCC app was decompiled (ILSpy/dnSpy → `/home/ignorant/Downloads/TRCCCAPEN/TRCC_decompiled/`). Every protocol, frame format, handshake sequence, and encoding detail was traced from the C# source. Key decompiled files:
+The Windows TRCC app was decompiled (ILSpy/dnSpy → `/home/ignorant/Downloads/v2.1.2_decompiled/`). Every protocol, frame format, handshake sequence, and encoding detail was traced from the C# source. Key decompiled files:
 
 - **FormCZTV.cs** — LCD display control (themes, video, resolution, frame encoding)
 - **FormLED.cs** — LED segment display control (12 styles, zone carousel, color modes)
