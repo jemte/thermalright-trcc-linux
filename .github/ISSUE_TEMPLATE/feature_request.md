@@ -1,20 +1,35 @@
 ---
 name: Feature request
 about: Suggest an idea for this project
-title: ''
-labels: ''
+title: "[FEATURE] "
+labels: enhancement
 assignees: ''
 
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+**Which interface does this affect?**
+
+- [ ] GUI (desktop app)
+- [ ] CLI (`trcc` commands)
+- [ ] REST API (`trcc serve`)
+- [ ] All / not sure
+
+**Device (if relevant)**
+
+Which device model are you using? (e.g. Frozen Vision V2, AX120 Digital)
+
+**Is your feature request related to a problem?**
+
+A clear description of the problem. E.g. "I wish I could ..."
 
 **Describe the solution you'd like**
-A clear and concise description of what you want to happen.
+
+What you want to happen.
 
 **Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
+
+Any workarounds or alternative approaches you've tried.
 
 **Additional context**
-Add any other context or screenshots about the feature request here.
+
+Screenshots, mockups, or links to related issues.

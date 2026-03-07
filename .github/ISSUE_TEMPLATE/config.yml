@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Installation help
+    url: https://github.com/Lexonight1/thermalright-trcc-linux/blob/main/doc/INSTALL_GUIDE.md
+    about: Check the install guide before opening an issue
+  - name: Supported devices
+    url: https://github.com/Lexonight1/thermalright-trcc-linux/blob/main/doc/SUPPORTED_DEVICES.md
+    about: See the full list of supported devices and USB IDs

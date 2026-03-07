@@ -1,3 +1,4 @@
+---
 name: Security report
 about: File a security issue for high/critical findings from automated scans or responsible disclosure
 title: '[SECURITY] {{summary}}'
