@@ -5,7 +5,7 @@
 ### Layer Map
 - **Models** (`core/models.py`): Pure dataclasses, enums, domain constants — zero logic, zero I/O, zero framework deps
 - **Services** (`services/`): Core hexagon — all business logic, pure Python. `ImageService` is a thin facade delegating to the active `Renderer` (QtRenderer by default). `OverlayService` uses injected Renderer for compositing/text.
-- **Devices** (`core/lcd_device.py`, `core/led_device.py`): `LCDDevice(Device)` with composed capabilities (ThemeOps, VideoOps, OverlayOps, FrameOps, DisplaySettings) + `LEDDevice(Device)` with direct methods. Delegate to services, return result dicts. No business logic.
+- **Devices** (`core/lcd_device.py`, `core/led_device.py`): `LCDDevice(Device)` with direct methods (capabilities inlined) + `LEDDevice(Device)` with direct methods. Delegate to services, return result dicts. No business logic.
 - **Builder** (`core/builder.py`): `ControllerBuilder` — fluent builder, assembles devices with DI, returns `LCDDevice`/`LEDDevice`.
 - **Views** (`qt_components/`): PySide6 GUI adapter. `TRCCApp` (thin shell) + `LCDHandler`/`LEDHandler` (one per device).
 - **CLI** (`cli/`): Typer CLI adapter (package: `__init__.py` + 6 submodules). Thin presentation wrappers over `LCDDevice`/`LEDDevice` — connect, call device method, print result.
@@ -334,6 +334,18 @@ When adding GUI assets:
 - **Stale overlay on custom theme restart (#58)**: Overlay config in `config.json` is per-device, not per-theme. Switching from official theme (with overlay) to custom theme (without) left stale overlay saved. On restart, custom theme loaded then `_restore_overlay` applied the old overlay. Fixed: `_load_theme_overlay_config` now clears and persists `enabled: False` when theme has no overlay config.
 - **Test warnings eliminated**: QMouseEvent deprecated 5-arg constructor → 6-arg (added `globalPos`). Unclosed PIL `Image.open()` in `_load_mask_into` → context manager. Unclosed `HTTPError` in test mocks → explicit `.close()`. Unclosed `Image.open()` in `test_dc_writer` → context manager. pyusb `_pack_` filter fixed (`usb` → `usb.*`).
 - 4157 tests passing, 0 warnings, ruff clean, pyright clean
+
+### v8.0.0: Hexagonal Purification + CPU Optimization (-684 lines, 34%→9% CPU)
+- **Hexagonal violations fixed**: `led_segment.py`, `color.py`, `paths.py` moved from `adapters/` → `core/`. Lazy-import `DataManager` in `services/display.py` (no adapter imports at module level in services).
+- **Double sensor polling eliminated**: `UCInfoModule` and `UCActivitySidebar` had their own polling timers AND MetricsMediator subscriptions — double work. Removed redundant timers; MetricsMediator is now the single polling authority.
+- **Preview skip when minimized**: `LCDHandler` accepts `is_visible_fn` from `TRCCApp`. Video tick and overlay render skip `set_image()` when window is minimized — no QImage scaling or QPixmap conversion for invisible widgets.
+- **QMovie visibility management**: Cloud theme GIF thumbnails (`CloudThemeThumbnail._movie`) created but NOT started. `UCThemeWeb.showEvent()`/`hideEvent()` start/stop all QMovies — zero CPU when cloud panel not visible.
+- **VideoFrameCache rewrite**: Replaced bulk `_build_layer4()` with lazy per-frame `_ensure_frame()` — only encodes current frame on access, caches last result. Matches C# `FormCZTV.Timer_event` approach.
+- **Capability classes inlined**: `ThemeOps`, `VideoOps`, `OverlayOps`, `FrameOps`, `DisplaySettings` dissolved into `LCDDevice` directly — unnecessary indirection removed.
+- **DeviceProfile table**: Replaces scattered encoding logic with a single data-driven lookup.
+- **LED segment data consolidated**: `core/led_segment.py` now owns all segment display data (was in `adapters/device/led_segment.py`).
+- **data_repository.py DRY**: -139 lines of duplicated archive extraction logic.
+- 48 files changed, -684 net lines, 4159 tests passing, ruff clean, pyright clean
 
 ### Future Work
 - Test consolidation (parametrize, merge tiny classes)
