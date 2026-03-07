@@ -240,14 +240,12 @@ def display_preview() -> Response:
 
     try:
         data = _encode_frame(frame, fmt='PNG')
-        if data is None:
-            raise HTTPException(status_code=503, detail="Frame encode failed")
-        return Response(content=data, media_type="image/png")
-    except HTTPException:
-        raise
     except Exception:
         log.debug("Preview encode failed", exc_info=True)
         raise HTTPException(status_code=503, detail="Frame encode failed")
+    if data is None:
+        raise HTTPException(status_code=503, detail="Frame encode failed")
+    return Response(content=data, media_type="image/png")
 
 
 @router.websocket("/preview/stream")
