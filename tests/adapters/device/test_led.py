@@ -10,8 +10,7 @@ from unittest.mock import call, patch
 
 import pytest
 
-# _patch_hid_sleep and make_mock_transport live in hid_testing/conftest.py
-from tests.hid_testing.conftest import make_mock_transport as _make_mock_transport
+from tests.adapters.device.conftest import make_mock_transport as _make_mock_transport
 from trcc.adapters.device.hid import (
     DEFAULT_TIMEOUT_MS,
     EP_READ_01,

@@ -8,8 +8,7 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
-# _patch_hid_sleep and _make_mock_transport live in hid_testing/conftest.py
-from tests.hid_testing.conftest import make_mock_transport as _make_mock_transport
+from tests.adapters.device.conftest import make_mock_transport as _make_mock_transport
 from trcc.adapters.device.hid import (
     DELAY_FRAME_TYPE2_S,
     DELAY_POST_INIT_S,
