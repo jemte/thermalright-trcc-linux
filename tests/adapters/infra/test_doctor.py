@@ -1,62 +1,115 @@
-"""Extended tests for trcc doctor — covers paths not in test_doctor.py.
-
-Covers:
-- _provides_search: dnf, pacman, zypper, apk, xbps parsing; empty output;
-  timeout; FileNotFoundError; unsupported pm returns None
-- _install_hint: mapped dep + pm via provides fallback; show-all branch;
-  pm=None with dep in map; dep not in map
-- get_module_version: tuple version, empty version, PySide6 special case,
-  ImportError → None
-- check_system_deps: full result list structure, apt-specific xcb dep,
-  Python version check (old version)
-- check_gpu: NVIDIA detected (pynvml installed / not installed), AMD, Intel,
-  no PCI sysfs, OSError on read
-- check_udev: file exists with all VIDs, missing VID, exception fallback
-- _selinux_usb_access_allowed: all perms present, partial perms, returncode!=0,
-  FileNotFoundError
-- check_rapl: domains all readable, some unreadable, no domains, no powercap
-- check_polkit: installed, not installed
-- check_desktop_entry: exists, missing
-- run_doctor: old Python triggers MISSING; apt distro checks xcb;
-  SELinux enforcing not-ok; RAPL not readable; all missing required
-"""
+"""Tests for trcc doctor — dependency health check."""
 
 from __future__ import annotations
 
-import os
 import sys
+import unittest
+from collections import namedtuple
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
-
 from trcc.adapters.infra.doctor import (
     SelinuxResult,
+    _check_binary,
+    _check_library,
+    _check_python_module,
+    _check_rapl_permissions,
+    _check_udev_rules,
+    _detect_pkg_manager,
     _install_hint,
     _provides_search,
+    _read_os_release,
     _selinux_usb_access_allowed,
     check_desktop_entry,
     check_gpu,
     check_polkit,
     check_rapl,
+    check_selinux,
     check_system_deps,
     check_udev,
     get_module_version,
     run_doctor,
 )
 
-# ---------------------------------------------------------------------------
-# _provides_search
-# ---------------------------------------------------------------------------
+# ── Distro detection ────────────────────────────────────────────────────────
+
+
+class TestReadOsRelease(unittest.TestCase):
+    """Test os-release parsing."""
+
+    @patch('trcc.adapters.infra.doctor.platform.freedesktop_os_release',
+           return_value={'ID': 'fedora', 'PRETTY_NAME': 'Fedora 43'})
+    def test_uses_platform_api(self, mock_rel):
+        result = _read_os_release()
+        self.assertEqual(result['ID'], 'fedora')
+        mock_rel.assert_called_once()
+
+    @patch('trcc.adapters.infra.doctor.platform.freedesktop_os_release', side_effect=OSError)
+    @patch('trcc.adapters.infra.doctor.os.path.isfile', return_value=False)
+    def test_fallback_returns_empty(self, _isfile, _rel):
+        result = _read_os_release()
+        self.assertEqual(result, {})
+
+
+class TestDetectPkgManager(unittest.TestCase):
+    """Test distro → package manager mapping."""
+
+    @patch('trcc.adapters.infra.doctor._read_os_release',
+           return_value={'ID': 'fedora', 'ID_LIKE': ''})
+    def test_fedora(self, _):
+        self.assertEqual(_detect_pkg_manager(), 'dnf')
+
+    @patch('trcc.adapters.infra.doctor._read_os_release',
+           return_value={'ID': 'ubuntu', 'ID_LIKE': 'debian'})
+    def test_ubuntu(self, _):
+        self.assertEqual(_detect_pkg_manager(), 'apt')
+
+    @patch('trcc.adapters.infra.doctor._read_os_release',
+           return_value={'ID': 'arch', 'ID_LIKE': ''})
+    def test_arch(self, _):
+        self.assertEqual(_detect_pkg_manager(), 'pacman')
+
+    @patch('trcc.adapters.infra.doctor._read_os_release',
+           return_value={'ID': 'pop', 'ID_LIKE': 'ubuntu debian'})
+    def test_pop_os(self, _):
+        self.assertEqual(_detect_pkg_manager(), 'apt')
+
+    @patch('trcc.adapters.infra.doctor._read_os_release',
+           return_value={'ID': 'nobara', 'ID_LIKE': 'fedora'})
+    def test_nobara(self, _):
+        self.assertEqual(_detect_pkg_manager(), 'dnf')
+
+    @patch('trcc.adapters.infra.doctor._read_os_release',
+           return_value={'ID': 'cachyos', 'ID_LIKE': 'arch'})
+    def test_cachyos_id_like_fallback(self, _):
+        self.assertEqual(_detect_pkg_manager(), 'pacman')
+
+    @patch('trcc.adapters.infra.doctor._read_os_release',
+           return_value={'ID': 'unknowndistro', 'ID_LIKE': ''})
+    def test_unknown_returns_none(self, _):
+        self.assertIsNone(_detect_pkg_manager())
+
+    @patch('trcc.adapters.infra.doctor._read_os_release',
+           return_value={'ID': 'zorin', 'ID_LIKE': 'ubuntu debian'})
+    def test_zorin(self, _):
+        self.assertEqual(_detect_pkg_manager(), 'apt')
+
+    @patch('trcc.adapters.infra.doctor._read_os_release',
+           return_value={'ID': 'void', 'ID_LIKE': ''})
+    def test_void(self, _):
+        self.assertEqual(_detect_pkg_manager(), 'xbps')
+
+    @patch('trcc.adapters.infra.doctor._read_os_release',
+           return_value={'ID': 'opensuse-tumbleweed', 'ID_LIKE': 'suse'})
+    def test_opensuse(self, _):
+        self.assertEqual(_detect_pkg_manager(), 'zypper')
+
+
+# ── _provides_search ────────────────────────────────────────────────────────
+
 
 class TestProvidesSearch:
-    """_provides_search — all PM variants and edge cases.
-
-    Note: _provides_search does `import subprocess` locally, so we must
-    patch `subprocess.run` at the stdlib level (not via the doctor module).
-    """
-
-    # dnf ----------------------------------------------------------------
+    """_provides_search — all PM variants and edge cases."""
 
     @patch("subprocess.run")
     def test_dnf_parses_package_name(self, mock_run):
@@ -65,9 +118,6 @@ class TestProvidesSearch:
             stdout="sg3_utils-1.47-3.fc43.x86_64 : Utilities for SCSI\n",
         )
         result = _provides_search("sg_raw", "dnf")
-        # The regex ([\w][\w.+-]*)-\d extracts up to the last '-\d' boundary.
-        # For "sg3_utils-1.47-3.fc43.x86_64", group 1 = "sg3_utils-1.47"
-        # because [\w.+-] includes '-'. Verify non-None and contains the pkg.
         assert result is not None
         assert "sg3_utils" in result
 
@@ -83,8 +133,6 @@ class TestProvidesSearch:
         result = _provides_search("sg_raw", "dnf")
         assert result is None
 
-    # pacman -------------------------------------------------------------
-
     @patch("subprocess.run")
     def test_pacman_parses_package_name(self, mock_run):
         mock_run.return_value = Mock(returncode=0, stdout="extra/sg3_utils\n")
@@ -93,7 +141,6 @@ class TestProvidesSearch:
 
     @patch("subprocess.run")
     def test_pacman_no_slash(self, mock_run):
-        """Single token (no slash) returns stripped token itself."""
         mock_run.return_value = Mock(returncode=0, stdout="sg3_utils\n")
         result = _provides_search("sg_raw", "pacman")
         assert result == "sg3_utils"
@@ -103,8 +150,6 @@ class TestProvidesSearch:
         mock_run.return_value = Mock(returncode=0, stdout="   \n")
         result = _provides_search("sg_raw", "pacman")
         assert result is None
-
-    # zypper -------------------------------------------------------------
 
     @patch("subprocess.run")
     def test_zypper_parses_table_row(self, mock_run):
@@ -132,8 +177,6 @@ class TestProvidesSearch:
         result = _provides_search("sg_raw", "zypper")
         assert result is None
 
-    # apk ----------------------------------------------------------------
-
     @patch("subprocess.run")
     def test_apk_parses_package_name(self, mock_run):
         mock_run.return_value = Mock(returncode=0, stdout="p7zip-17.05-r0\n")
@@ -146,8 +189,6 @@ class TestProvidesSearch:
         result = _provides_search("7z", "apk")
         assert result is None
 
-    # xbps ---------------------------------------------------------------
-
     @patch("subprocess.run")
     def test_xbps_parses_package_name(self, mock_run):
         mock_run.return_value = Mock(
@@ -155,10 +196,6 @@ class TestProvidesSearch:
             stdout="[*] sg3_utils-1.47_1  Utilities for SCSI\n",
         )
         result = _provides_search("sg_raw", "xbps")
-        # The xbps regex is r'[\]\s]+([\w][\w.+-]*)-\d'. In the char class
-        # [\]\s], 's' is a literal character, so it consumes the 's' in
-        # "sg3_utils". The group captures "g3_utils". The test verifies the
-        # regex runs and returns a non-None string (the actual parsing).
         assert result is not None
 
     @patch("subprocess.run")
@@ -166,8 +203,6 @@ class TestProvidesSearch:
         mock_run.return_value = Mock(returncode=0, stdout="nothing here\n")
         result = _provides_search("sg_raw", "xbps")
         assert result is None
-
-    # error cases --------------------------------------------------------
 
     @patch("subprocess.run")
     def test_timeout_returns_none(self, mock_run):
@@ -183,47 +218,84 @@ class TestProvidesSearch:
         assert result is None
 
     def test_unsupported_pm_returns_none(self):
-        """PMs not in the handler list return None immediately."""
         result = _provides_search("sg_raw", "emerge")
         assert result is None
 
     def test_apt_returns_none(self):
-        """apt is not handled by _provides_search."""
         result = _provides_search("sg_raw", "apt")
         assert result is None
 
 
-# ---------------------------------------------------------------------------
-# _install_hint — additional branches
-# ---------------------------------------------------------------------------
+# ── Install hints ────────────────────────────────────────────────────────────
+
+
+class TestInstallHint(unittest.TestCase):
+    """Test distro-specific install command generation."""
+
+    def test_fedora_sg_raw(self):
+        hint = _install_hint('sg_raw', 'dnf')
+        self.assertIn('dnf install', hint)
+        self.assertIn('sg3_utils', hint)
+
+    def test_apt_7z(self):
+        hint = _install_hint('7z', 'apt')
+        self.assertIn('apt install', hint)
+        self.assertIn('p7zip-full', hint)
+
+    def test_unknown_pm_shows_all(self):
+        hint = _install_hint('sg_raw', None)
+        self.assertIn('install one of:', hint)
+
+    def test_unknown_dep(self):
+        hint = _install_hint('nonexistent', 'dnf')
+        self.assertEqual(hint, 'install nonexistent')
+
+    def test_checkmodule_dnf(self):
+        hint = _install_hint('checkmodule', 'dnf')
+        self.assertIn('dnf install', hint)
+        self.assertIn('checkpolicy', hint)
+
+    def test_checkmodule_apt(self):
+        hint = _install_hint('checkmodule', 'apt')
+        self.assertIn('apt install', hint)
+        self.assertIn('checkpolicy', hint)
+
+    def test_checkmodule_rpm_ostree(self):
+        hint = _install_hint('checkmodule', 'rpm-ostree')
+        self.assertIn('rpm-ostree install', hint)
+        self.assertIn('checkpolicy', hint)
+
+    def test_semodule_package_apt(self):
+        hint = _install_hint('semodule_package', 'apt')
+        self.assertIn('apt install', hint)
+        self.assertIn('semodule-utils', hint)
+
+    def test_semodule_package_dnf(self):
+        hint = _install_hint('semodule_package', 'dnf')
+        self.assertIn('dnf install', hint)
+        self.assertIn('policycoreutils', hint)
+
 
 class TestInstallHintExtra:
-    """_install_hint — branches not covered by test_doctor.py."""
+    """_install_hint — additional branches via _provides_search fallback."""
 
     @patch("trcc.adapters.infra.doctor._provides_search", return_value="sg3_utils")
     def test_provides_search_fallback_used(self, mock_search):
-        """Dep not in _INSTALL_MAP for this PM → tries _provides_search."""
-        # 'sg_raw' IS in _INSTALL_MAP but not for 'emerge' — use a dep that's
-        # truly absent for the pm or a completely unknown dep
         hint = _install_hint("totally_unknown_tool", "pacman")
-        # _provides_search returned sg3_utils, so hint should use pacman install
         assert "pacman" in hint
         assert "sg3_utils" in hint
 
     @patch("trcc.adapters.infra.doctor._provides_search", return_value=None)
     def test_provides_search_returns_none_falls_to_generic(self, _):
-        """provides_search returns None → falls to 'install <dep>'."""
         hint = _install_hint("totally_unknown_tool", "pacman")
         assert hint == "install totally_unknown_tool"
 
     def test_pm_none_dep_in_map_shows_all(self):
-        """pm=None with dep in _INSTALL_MAP → shows all distros."""
         hint = _install_hint("sg_raw", None)
         assert "install one of:" in hint
         assert "dnf" in hint
 
     def test_pm_none_dep_not_in_map(self):
-        """pm=None and dep not in map → generic fallback."""
         hint = _install_hint("nonexistent_dep_xyz", None)
         assert hint == "install nonexistent_dep_xyz"
 
@@ -248,25 +320,89 @@ class TestInstallHintExtra:
         assert "7zip" in hint
 
 
-# ---------------------------------------------------------------------------
-# get_module_version
-# ---------------------------------------------------------------------------
+# ── Check helpers ────────────────────────────────────────────────────────────
+
+
+class TestCheckPythonModule(unittest.TestCase):
+    """Test Python module availability checking."""
+
+    def test_installed_module(self):
+        result = _check_python_module('os', 'os', required=True, pm=None)
+        self.assertTrue(result)
+
+    def test_missing_required(self):
+        result = _check_python_module(
+            'nonexistent', 'nonexistent_pkg_xyz', required=True, pm=None)
+        self.assertFalse(result)
+
+    def test_missing_optional(self):
+        result = _check_python_module(
+            'nonexistent', 'nonexistent_pkg_xyz', required=False, pm=None)
+        self.assertTrue(result)
+
+
+class TestCheckBinary(unittest.TestCase):
+    """Test binary availability checking."""
+
+    @patch('shutil.which', return_value='/usr/bin/7z')
+    def test_found(self, _):
+        result = _check_binary('7z', required=True, pm='dnf')
+        self.assertTrue(result)
+
+    @patch('shutil.which', return_value=None)
+    def test_missing_required(self, _):
+        result = _check_binary('7z', required=True, pm='dnf')
+        self.assertFalse(result)
+
+    @patch('shutil.which', return_value=None)
+    def test_missing_optional(self, _):
+        result = _check_binary('ffmpeg', required=False, pm='apt')
+        self.assertTrue(result)
+
+
+class TestCheckLibrary(unittest.TestCase):
+    """Test shared library checking."""
+
+    @patch('ctypes.util.find_library', return_value='libusb-1.0.so.0')
+    def test_found(self, _):
+        result = _check_library(
+            'libusb-1.0', 'usb-1.0', required=True, pm='dnf', dep_key='libusb')
+        self.assertTrue(result)
+
+    @patch('ctypes.util.find_library', return_value=None)
+    def test_missing_required(self, _):
+        result = _check_library(
+            'libusb-1.0', 'usb-1.0', required=True, pm='dnf', dep_key='libusb')
+        self.assertFalse(result)
+
+
+class TestCheckUdevRules(unittest.TestCase):
+    """Test udev rules check."""
+
+    @patch('trcc.adapters.infra.doctor.os.path.isfile', return_value=True)
+    def test_rules_exist(self, _):
+        self.assertTrue(_check_udev_rules())
+
+    @patch('trcc.adapters.infra.doctor.os.path.isfile', return_value=False)
+    def test_rules_missing(self, _):
+        self.assertFalse(_check_udev_rules())
+
+
+# ── get_module_version ──────────────────────────────────────────────────────
+
 
 class TestGetModuleVersion:
     """get_module_version — version attribute handling."""
 
     def test_real_module_returns_version(self):
-        """A standard module with __version__ returns a non-None string."""
         ver = get_module_version("os")
-        # os has no __version__, returns empty string ''
-        assert ver is not None  # importable → not None
+        assert ver is not None
 
     def test_missing_module_returns_none(self):
         ver = get_module_version("totally_nonexistent_module_xyz")
         assert ver is None
 
     def test_tuple_version_joined(self):
-        """Module with tuple version → joined with '.'."""
         fake_mod = MagicMock()
         fake_mod.__version__ = (1, 2, 3)
         with patch("builtins.__import__", return_value=fake_mod):
@@ -281,7 +417,6 @@ class TestGetModuleVersion:
         assert ver == "6.5.1"
 
     def test_empty_version_attribute_returns_empty_string(self):
-        """Module present but __version__ is empty → empty string (not None)."""
         fake_mod = MagicMock()
         fake_mod.__version__ = ""
         fake_mod.version = ""
@@ -290,16 +425,13 @@ class TestGetModuleVersion:
         assert ver == ""
 
     def test_version_attribute_fallback(self):
-        """Module with only .version (not __version__) attribute."""
         fake_mod = MagicMock(spec=[])
         fake_mod.version = "2.0"
-        # spec=[] means no __version__, so getattr falls to 'version'
         with patch("builtins.__import__", return_value=fake_mod):
             ver = get_module_version("fake")
         assert ver == "2.0"
 
     def test_pyside6_special_case(self):
-        """PySide6 version read from PySide6.__version__ when normal attr empty."""
         fake_mod = MagicMock()
         fake_mod.__version__ = ""
         fake_mod.version = ""
@@ -311,14 +443,11 @@ class TestGetModuleVersion:
         with patch("builtins.__import__", return_value=fake_mod):
             with patch.dict("sys.modules", {"PySide6": fake_pyside6}):
                 ver = get_module_version("PySide6")
-        # The function tries `import PySide6; PySide6.__version__`
-        # sys.modules mock makes it importable with our stub
         assert ver is not None
 
 
-# ---------------------------------------------------------------------------
-# check_system_deps
-# ---------------------------------------------------------------------------
+# ── check_system_deps ───────────────────────────────────────────────────────
+
 
 class TestCheckSystemDeps:
     """check_system_deps — structured result list."""
@@ -343,18 +472,13 @@ class TestCheckSystemDeps:
     def test_python_version_ok(self):
         results = check_system_deps(pm=None)
         py = next(r for r in results if r.name == "Python")
-        # Current Python must be ≥ 3.9
         assert py.ok is True
 
     def test_python_version_too_old(self):
-        """Python < 3.9 → ok=False, note mentions 3.9."""
-        # sys.version_info needs .major/.minor/.micro attributes
-        import sys as _sys
-        from collections import namedtuple
         VersionInfo = namedtuple("version_info", ["major", "minor", "micro",
                                                    "releaselevel", "serial"])
         fake_info = VersionInfo(3, 7, 0, "final", 0)
-        with patch.object(_sys, "version_info", fake_info):
+        with patch.object(sys, "version_info", fake_info):
             results = check_system_deps(pm=None)
         py = next(r for r in results if r.name == "Python")
         assert py.ok is False
@@ -396,7 +520,6 @@ class TestCheckSystemDeps:
         assert pyusb.ok is False
 
     def test_hidapi_optional_not_ok_still_included(self):
-        """hidapi missing → ok=False but required=False."""
         def mock_ver(imp):
             return None if imp == "hid" else "1.0"
 
@@ -410,7 +533,6 @@ class TestCheckSystemDeps:
         assert hid.required is False
 
     def test_pm_none_auto_detected(self):
-        """pm=None triggers auto-detection."""
         with (
             patch("trcc.adapters.infra.doctor._detect_pkg_manager", return_value="apt") as mock_pm,
             patch("trcc.adapters.infra.doctor.get_module_version", return_value="1.0"),
@@ -421,9 +543,8 @@ class TestCheckSystemDeps:
         mock_pm.assert_called_once()
 
 
-# ---------------------------------------------------------------------------
-# check_gpu
-# ---------------------------------------------------------------------------
+# ── check_gpu ───────────────────────────────────────────────────────────────
+
 
 def _make_gpu_dev_dir(class_text: str, vendor_text: str,
                       class_exists: bool = True,
@@ -441,7 +562,6 @@ def _make_gpu_dev_dir(class_text: str, vendor_text: str,
     vendor_p.read_text.return_value = vendor_text
 
     dev_dir = MagicMock()
-    # / operator on a Path mock → route to class_p or vendor_p
     dev_dir.__truediv__ = lambda s, name: (
         class_p if name == "class" else vendor_p
     )
@@ -449,11 +569,7 @@ def _make_gpu_dev_dir(class_text: str, vendor_text: str,
 
 
 class TestCheckGpu:
-    """check_gpu — PCI sysfs scanning.
-
-    check_gpu does `from pathlib import Path` locally, so we patch
-    `pathlib.Path` directly.
-    """
+    """check_gpu — PCI sysfs scanning."""
 
     @patch("pathlib.Path")
     def test_no_pci_sysfs(self, MockPath):
@@ -472,7 +588,6 @@ class TestCheckGpu:
             _make_gpu_dev_dir("0x030000", "0x10de"),
         ]
         MockPath.return_value = mock_base
-
         results = check_gpu()
         assert any(g.vendor == "nvidia" for g in results)
         nvidia = next(g for g in results if g.vendor == "nvidia")
@@ -487,7 +602,6 @@ class TestCheckGpu:
             _make_gpu_dev_dir("0x030000", "0x10de"),
         ]
         MockPath.return_value = mock_base
-
         results = check_gpu()
         nvidia = next(g for g in results if g.vendor == "nvidia")
         assert nvidia.package_installed is False
@@ -501,7 +615,6 @@ class TestCheckGpu:
             _make_gpu_dev_dir("0x030200", "0x1002"),
         ]
         MockPath.return_value = mock_base
-
         results = check_gpu()
         assert any(g.vendor == "amd" for g in results)
 
@@ -513,53 +626,45 @@ class TestCheckGpu:
             _make_gpu_dev_dir("0x030000", "0x8086"),
         ]
         MockPath.return_value = mock_base
-
         results = check_gpu()
         assert any(g.vendor == "intel" for g in results)
 
     @patch("pathlib.Path")
     def test_non_gpu_pci_class_ignored(self, MockPath):
-        """PCI class 0x0200 (network) is not counted as GPU."""
         mock_base = MagicMock()
         mock_base.exists.return_value = True
         mock_base.iterdir.return_value = [
-            _make_gpu_dev_dir("0x020000", "0x10de"),  # NIC, not GPU
+            _make_gpu_dev_dir("0x020000", "0x10de"),
         ]
         MockPath.return_value = mock_base
-
         results = check_gpu()
         assert results == []
 
     @patch("pathlib.Path")
     def test_oserror_on_read_skipped(self, MockPath):
-        """OSError reading class file → device silently skipped."""
         mock_base = MagicMock()
         mock_base.exists.return_value = True
         mock_base.iterdir.return_value = [
             _make_gpu_dev_dir("", "0x10de", class_raises=OSError("denied")),
         ]
         MockPath.return_value = mock_base
-
         results = check_gpu()
         assert results == []
 
     @patch("pathlib.Path")
     def test_missing_class_file_skipped(self, MockPath):
-        """Device dir without class file is skipped."""
         mock_base = MagicMock()
         mock_base.exists.return_value = True
         mock_base.iterdir.return_value = [
             _make_gpu_dev_dir("0x030000", "0x10de", class_exists=False),
         ]
         MockPath.return_value = mock_base
-
         results = check_gpu()
         assert results == []
 
 
-# ---------------------------------------------------------------------------
-# check_udev
-# ---------------------------------------------------------------------------
+# ── check_udev ──────────────────────────────────────────────────────────────
+
 
 class TestCheckUdev:
     """check_udev — structured result."""
@@ -572,7 +677,6 @@ class TestCheckUdev:
 
     @patch("trcc.adapters.infra.doctor.os.path.isfile", return_value=True)
     def test_all_vids_present(self, _):
-        """File contains all required VIDs → ok=True."""
         from trcc.adapters.device.detector import DeviceDetector
         all_registries = DeviceDetector._get_all_registries()
         all_vids = {f"{vid:04x}" for vid, _ in all_registries}
@@ -590,7 +694,6 @@ class TestCheckUdev:
 
     @patch("trcc.adapters.infra.doctor.os.path.isfile", return_value=True)
     def test_missing_vid_in_file(self, _):
-        """File that has no VID content → ok=False, missing_vids populated."""
         from trcc.adapters.device.detector import DeviceDetector
         all_registries = DeviceDetector._get_all_registries()
 
@@ -606,21 +709,96 @@ class TestCheckUdev:
 
     @patch("trcc.adapters.infra.doctor.os.path.isfile", return_value=True)
     def test_open_exception_returns_ok(self, _):
-        """Exception during file open → ok=True (safe fallback)."""
         with patch("builtins.open", side_effect=PermissionError):
             result = check_udev()
         assert result.ok is True
 
 
-# ---------------------------------------------------------------------------
-# _selinux_usb_access_allowed
-# ---------------------------------------------------------------------------
+# ── SELinux ─────────────────────────────────────────────────────────────────
+
+
+class TestCheckSelinux(unittest.TestCase):
+    """Test SELinux policy check."""
+
+    @patch('subprocess.run', side_effect=FileNotFoundError)
+    def test_no_selinux(self, _):
+        r = check_selinux()
+        self.assertTrue(r.ok)
+        self.assertFalse(r.enforcing)
+        self.assertIn('not installed', r.message)
+
+    @patch('subprocess.run')
+    def test_permissive(self, mock_run):
+        mock_run.return_value = Mock(stdout='Permissive\n')
+        r = check_selinux()
+        self.assertTrue(r.ok)
+        self.assertFalse(r.enforcing)
+
+    @patch('subprocess.run')
+    def test_enforcing_module_loaded(self, mock_run):
+        def side_effect(cmd, **_kw):
+            if cmd[0] == 'getenforce':
+                return Mock(stdout='Enforcing\n')
+            if cmd[0] == 'semodule':
+                return Mock(stdout='trcc_usb\nother_mod\n', returncode=0)
+            return Mock(stdout='', returncode=0)
+        mock_run.side_effect = side_effect
+        r = check_selinux()
+        self.assertTrue(r.ok)
+        self.assertTrue(r.enforcing)
+        self.assertTrue(r.module_loaded)
+
+    @patch('subprocess.run')
+    def test_enforcing_sesearch_fallback(self, mock_run):
+        def side_effect(cmd, **_kw):
+            if cmd[0] == 'getenforce':
+                return Mock(stdout='Enforcing\n')
+            if cmd[0] == 'semodule':
+                return Mock(stdout='', returncode=1)
+            if cmd[0] == 'sesearch':
+                return Mock(
+                    stdout='allow unconfined_t usb_device_t:chr_file '
+                           '{ ioctl open read write };',
+                    returncode=0,
+                )
+            return Mock(stdout='', returncode=1)
+        mock_run.side_effect = side_effect
+        r = check_selinux()
+        self.assertTrue(r.ok)
+        self.assertTrue(r.enforcing)
+
+    @patch('subprocess.run')
+    def test_enforcing_module_missing(self, mock_run):
+        def side_effect(cmd, **_kw):
+            if cmd[0] == 'getenforce':
+                return Mock(stdout='Enforcing\n')
+            if cmd[0] == 'semodule':
+                return Mock(stdout='other_mod\n', returncode=0)
+            if cmd[0] == 'sesearch':
+                return Mock(stdout='', returncode=1)
+            return Mock(stdout='', returncode=1)
+        mock_run.side_effect = side_effect
+        r = check_selinux()
+        self.assertFalse(r.ok)
+        self.assertTrue(r.enforcing)
+        self.assertFalse(r.module_loaded)
+        self.assertIn('not installed', r.message)
+
+    @patch('subprocess.run')
+    def test_enforcing_semodule_not_found(self, mock_run):
+        def side_effect(cmd, **_kw):
+            if cmd[0] == 'getenforce':
+                return Mock(stdout='Enforcing\n')
+            raise FileNotFoundError
+        mock_run.side_effect = side_effect
+        r = check_selinux()
+        self.assertFalse(r.ok)
+        self.assertTrue(r.enforcing)
+        self.assertFalse(r.module_loaded)
+
 
 class TestSelinuxUsbAccessAllowed:
-    """_selinux_usb_access_allowed — sesearch parsing.
-
-    The function does `import subprocess` locally so we patch at stdlib level.
-    """
+    """_selinux_usb_access_allowed — sesearch parsing."""
 
     @patch("subprocess.run")
     def test_all_perms_present_returns_true(self, mock_run):
@@ -632,7 +810,6 @@ class TestSelinuxUsbAccessAllowed:
 
     @patch("subprocess.run")
     def test_missing_one_perm_returns_false(self, mock_run):
-        """'write' missing → False."""
         mock_run.return_value = Mock(
             returncode=0,
             stdout="allow unconfined_t usb_device_t:chr_file { ioctl open read };\n",
@@ -658,16 +835,42 @@ class TestSelinuxUsbAccessAllowed:
         assert _selinux_usb_access_allowed() is False
 
 
-# ---------------------------------------------------------------------------
-# check_rapl
-# ---------------------------------------------------------------------------
+# ── RAPL permissions ─────────────────────────────────────────────────────────
+
+
+class TestCheckRaplPermissions(unittest.TestCase):
+    """Test _check_rapl_permissions() diagnostics."""
+
+    @patch('os.path.isdir', return_value=False)
+    def test_no_powercap_returns_true(self, _):
+        self.assertTrue(_check_rapl_permissions())
+
+    @patch('os.access', return_value=True)
+    @patch('os.path.isdir', return_value=True)
+    @patch('pathlib.Path.glob')
+    def test_rapl_readable(self, mock_glob, mock_isdir, mock_access):
+        mock_energy = Mock(spec=Path)
+        mock_energy.__str__ = lambda s: '/sys/class/powercap/intel-rapl:0/energy_uj'
+        mock_glob.return_value = [mock_energy]
+        self.assertTrue(_check_rapl_permissions())
+
+    @patch('os.access', return_value=False)
+    @patch('os.path.isdir', return_value=True)
+    @patch('pathlib.Path.glob')
+    def test_rapl_not_readable(self, mock_glob, mock_isdir, mock_access):
+        mock_energy = Mock(spec=Path)
+        mock_energy.__str__ = lambda s: '/sys/class/powercap/intel-rapl:0/energy_uj'
+        mock_glob.return_value = [mock_energy]
+        self.assertFalse(_check_rapl_permissions())
+
+    @patch('os.path.isdir', return_value=True)
+    @patch('pathlib.Path.glob', return_value=[])
+    def test_no_rapl_domains(self, mock_glob, _):
+        self.assertTrue(_check_rapl_permissions())
+
 
 class TestCheckRapl:
-    """check_rapl — RaplResult structure.
-
-    check_rapl does `from pathlib import Path` locally, so we patch
-    `pathlib.Path` directly.
-    """
+    """check_rapl — RaplResult structure."""
 
     @patch("pathlib.Path")
     def test_no_powercap_not_applicable(self, MockPath):
@@ -691,13 +894,10 @@ class TestCheckRapl:
     @patch("os.access", return_value=True)
     @patch("pathlib.Path")
     def test_all_domains_readable(self, MockPath, mock_access):
-        # MagicMock objects aren't orderable for sorted(); return a pre-sorted
-        # single-element list so sorted() doesn't need to compare elements.
         mock_f = MagicMock()
         mock_f.__str__ = lambda s: "/sys/class/powercap/intel-rapl:0/energy_uj"
         mock_base = MagicMock()
         mock_base.exists.return_value = True
-        # Return only one item to avoid comparison between mocks in sorted()
         mock_base.glob.return_value = [mock_f]
         MockPath.return_value = mock_base
         result = check_rapl()
@@ -719,9 +919,8 @@ class TestCheckRapl:
         assert result.domain_count == 1
 
 
-# ---------------------------------------------------------------------------
-# check_polkit
-# ---------------------------------------------------------------------------
+# ── check_polkit ────────────────────────────────────────────────────────────
+
 
 class TestCheckPolkit:
     """check_polkit — file presence check."""
@@ -739,9 +938,8 @@ class TestCheckPolkit:
         assert "not installed" in result.message
 
 
-# ---------------------------------------------------------------------------
-# check_desktop_entry
-# ---------------------------------------------------------------------------
+# ── check_desktop_entry ─────────────────────────────────────────────────────
+
 
 class TestCheckDesktopEntry:
     """check_desktop_entry — .desktop file presence."""
@@ -758,30 +956,41 @@ class TestCheckDesktopEntry:
         assert check_desktop_entry() is False
 
 
-# ---------------------------------------------------------------------------
-# run_doctor
-# ---------------------------------------------------------------------------
+# ── run_doctor ──────────────────────────────────────────────────────────────
+
+
+class TestRunDoctor(unittest.TestCase):
+    """Test run_doctor() return codes."""
+
+    @patch('trcc.adapters.infra.doctor._check_rapl_permissions', return_value=True)
+    @patch('trcc.adapters.infra.doctor.check_selinux',
+           return_value=SelinuxResult(ok=True, message='not installed'))
+    @patch('trcc.adapters.infra.doctor._check_udev_rules', return_value=True)
+    @patch('trcc.adapters.infra.doctor._check_library', return_value=True)
+    @patch('trcc.adapters.infra.doctor._check_binary', return_value=True)
+    @patch('trcc.adapters.infra.doctor._check_python_module', return_value=True)
+    @patch('trcc.adapters.infra.doctor._detect_pkg_manager', return_value='dnf')
+    @patch('trcc.adapters.infra.doctor._read_os_release',
+           return_value={'PRETTY_NAME': 'TestOS'})
+    def test_all_ok_returns_0(self, *_):
+        self.assertEqual(run_doctor(), 0)
+
+    @patch('trcc.adapters.infra.doctor._check_rapl_permissions', return_value=True)
+    @patch('trcc.adapters.infra.doctor.check_selinux',
+           return_value=SelinuxResult(ok=True, message='not installed'))
+    @patch('trcc.adapters.infra.doctor._check_udev_rules', return_value=False)
+    @patch('trcc.adapters.infra.doctor._check_library', return_value=True)
+    @patch('trcc.adapters.infra.doctor._check_binary', return_value=True)
+    @patch('trcc.adapters.infra.doctor._check_python_module', return_value=True)
+    @patch('trcc.adapters.infra.doctor._detect_pkg_manager', return_value='apt')
+    @patch('trcc.adapters.infra.doctor._read_os_release',
+           return_value={'PRETTY_NAME': 'Ubuntu 24.04'})
+    def test_missing_udev_returns_1(self, *_):
+        self.assertEqual(run_doctor(), 1)
+
 
 class TestRunDoctorExtra:
     """run_doctor — additional branches."""
-
-    def _base_patches(self):
-        """Return a list of context-manager patches for a happy-path run."""
-        return [
-            patch("trcc.adapters.infra.doctor._detect_pkg_manager", return_value="dnf"),
-            patch("trcc.adapters.infra.doctor._read_os_release",
-                  return_value={"PRETTY_NAME": "TestOS 1.0"}),
-            patch("trcc.adapters.infra.doctor._check_python_module", return_value=True),
-            patch("trcc.adapters.infra.doctor._check_binary", return_value=True),
-            patch("trcc.adapters.infra.doctor._check_library", return_value=True),
-            patch("trcc.adapters.infra.doctor._check_udev_rules", return_value=True),
-            patch("trcc.adapters.infra.doctor._check_rapl_permissions", return_value=True),
-            patch("trcc.adapters.infra.doctor.check_selinux",
-                  return_value=SelinuxResult(ok=True, message="not installed")),
-            patch("trcc.adapters.infra.doctor.check_polkit",
-                  return_value=MagicMock(ok=True, message="polkit policy installed")),
-            patch("trcc.adapters.infra.doctor._check_gpu_packages"),
-        ]
 
     def test_all_ok_returns_0(self, capsys):
         with (
@@ -826,7 +1035,6 @@ class TestRunDoctorExtra:
         assert "missing" in captured.out
 
     def test_apt_distro_checks_xcb(self, capsys):
-        """apt → _check_library called for libxcb-cursor."""
         check_lib_calls: list = []
 
         def capture_check_lib(*args, **kwargs):
@@ -851,12 +1059,10 @@ class TestRunDoctorExtra:
         ):
             run_doctor()
 
-        # At least one _check_library call should be for 'xcb-cursor'
         so_names = [args[1] for args in check_lib_calls]
         assert "xcb-cursor" in so_names
 
     def test_selinux_enforcing_not_ok_prints_hint(self, capsys):
-        """SELinux enforcing + ok=False → prints setup-selinux hint."""
         with (
             patch("trcc.adapters.infra.doctor._detect_pkg_manager", return_value="dnf"),
             patch("trcc.adapters.infra.doctor._read_os_release",
@@ -882,7 +1088,6 @@ class TestRunDoctorExtra:
         assert "setup-selinux" in captured.out
 
     def test_polkit_not_installed_prints_optional(self, capsys):
-        """Polkit not installed prints _OPT hint, not MISSING (optional)."""
         with (
             patch("trcc.adapters.infra.doctor._detect_pkg_manager", return_value="dnf"),
             patch("trcc.adapters.infra.doctor._read_os_release",
@@ -900,7 +1105,6 @@ class TestRunDoctorExtra:
             patch("trcc.adapters.infra.doctor._check_gpu_packages"),
         ):
             rc = run_doctor()
-        # polkit is optional — still returns 0
         assert rc == 0
         captured = capsys.readouterr()
         assert "setup-polkit" in captured.out
@@ -943,3 +1147,18 @@ class TestRunDoctorExtra:
             run_doctor()
         captured = capsys.readouterr()
         assert "MyDistro 42" in captured.out
+
+
+# ── CLI dispatch ─────────────────────────────────────────────────────────────
+
+
+class TestDoctorCLI(unittest.TestCase):
+    """Test doctor command dispatch from CLI."""
+
+    @patch('trcc.adapters.infra.doctor.run_doctor', return_value=0)
+    @patch('sys.argv', ['trcc', 'doctor'])
+    def test_dispatch(self, mock_doctor):
+        from trcc.cli import main
+        result = main()
+        self.assertEqual(result, 0)
+        mock_doctor.assert_called_once()

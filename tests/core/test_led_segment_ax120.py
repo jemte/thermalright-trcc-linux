@@ -946,6 +946,7 @@ class TestLEDServiceSegmentMode:
         svc.update_metrics(HardwareMetrics(cpu_temp=55))
         svc._update_segment_mask()
         mask = svc._segment_mask
+        assert mask is not None
 
         sent = []
 

@@ -1,4 +1,4 @@
-"""Shared fixtures for all HID device tests."""
+"""Shared fixtures for device adapter tests (includes HID testing setup)."""
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -11,7 +11,7 @@ from trcc.adapters.device.hid import UsbTransport
 
 @pytest.fixture(autouse=True)
 def _enable_hid_for_tests():
-    """Auto-enable HID testing for every test in hid_testing/."""
+    """Auto-enable HID testing for every test in adapters/device/."""
     enable_hid_testing()
 
 

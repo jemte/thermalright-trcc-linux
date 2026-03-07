@@ -3,8 +3,7 @@
 Tier 0: Environment — disable live IPC daemon (tests must never route through GUI)
 Tier 1: Data factories — DeviceInfo, mock devices, native renderer surfaces
 Tier 2: Filesystem — isolated config dirs, theme dirs, temp PNGs
-Tier 3: Service — pre-wired LED/Display dispatchers
-Tier 4: Qt — session-scoped QApplication (offscreen)
+Tier 3: Qt — session-scoped QApplication (offscreen)
 """
 from __future__ import annotations
 
@@ -15,13 +14,17 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from PIL import Image
+from PySide6.QtWidgets import QApplication
 
 from trcc.adapters.render.qt import QtRenderer
 from trcc.core.models import DeviceInfo
 from trcc.services.image import ImageService
 
-# ── Renderer initialization (once per test session) ─────────────────────
-# Services no longer auto-create a renderer — tests must set it explicitly.
+# ── Qt + Renderer initialization (once per test session) ────────────────
+# QApplication must exist before QtRenderer — QFontDatabase.addApplicationFont
+# segfaults without one. Create it once at module level for all tests.
+os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+_app = QApplication.instance() or QApplication([])
 ImageService.set_renderer(QtRenderer())
 
 # =========================================================================
@@ -183,75 +186,20 @@ def png_factory(tmp_path):
 
 
 # =========================================================================
-# Tier 3: Service fixtures
-# =========================================================================
-
-@pytest.fixture
-def led_dispatcher():
-    """LEDDevice with fully mocked service — no hardware."""
-    from trcc.core.led_device import LEDDevice
-
-    svc = MagicMock()
-    svc.state = MagicMock()
-    svc.state.global_on = True
-    svc.state.brightness = 100
-    svc.state.color = (255, 0, 0)
-    svc.state.zones = [MagicMock() for _ in range(4)]
-    svc.state.segment_on = [True] * 8
-    svc.tick.return_value = [(255, 0, 0)] * 64
-    svc.apply_mask.return_value = [(255, 0, 0)] * 64
-    svc.has_protocol = True
-
-    dev = LEDDevice(svc=svc)
-    dev._device = MagicMock()
-    return dev
-
-
-@pytest.fixture
-def display_dispatcher():
-    """LCDDevice with fully mocked services — no hardware."""
-    from trcc.core.lcd_device import LCDDevice
-
-    device_svc = MagicMock()
-    device_svc.selected = MagicMock()
-    device_svc.selected.resolution = (320, 320)
-    device_svc.send_pil.return_value = True
-
-    display_svc = MagicMock()
-    display_svc.lcd_width = 320
-    display_svc.lcd_height = 320
-    display_svc.auto_send = True
-    display_svc.current_image = None
-    display_svc.current_theme_path = None
-
-    theme_svc = MagicMock()
-
-    lcd = LCDDevice(
-        device_svc=device_svc,
-        display_svc=display_svc,
-        theme_svc=theme_svc,
-    )
-    return lcd
-
-
-# =========================================================================
-# Tier 4: Qt fixture
+# Tier 3: Qt fixture
 # =========================================================================
 
 @pytest.fixture(scope="session")
 def qapp():
-    """Session-scoped QApplication for all GUI tests (offscreen)."""
-    os.environ["QT_QPA_PLATFORM"] = "offscreen"
-    try:
-        from PySide6.QtWidgets import QApplication
-        app = QApplication.instance() or QApplication([])
-        return app
-    except ImportError:
-        pytest.skip("PySide6 not available")
+    """Session-scoped QApplication for all GUI tests (offscreen).
+
+    Reuses the module-level _app created at conftest import time.
+    """
+    return _app
 
 
 # =========================================================================
-# Legacy factory functions (backward compat — 3 callers)
+# Legacy factory functions — used by test_cli.py and test_integration.py
 # =========================================================================
 
 def make_device_info(
@@ -263,34 +211,15 @@ def make_device_info(
     resolution: tuple[int, int] = (320, 320),
     **kw,
 ) -> DeviceInfo:
-    """Legacy: prefer device_info fixture. Used by test_cli, test_controllers."""
+    """Create DeviceInfo with sensible defaults. Used by test_cli."""
     return DeviceInfo(
         name=name, path=path, vid=vid, pid=pid,
         protocol=protocol, resolution=resolution, **kw,
     )
 
 
-def make_mock_device(
-    path: str = "/dev/sg0",
-    name: str = "LCD",
-    vid: int = 0x87CD,
-    pid: int = 0x70DB,
-    protocol: str = "scsi",
-) -> MagicMock:
-    """Legacy: prefer mock_device fixture."""
-    dev = MagicMock()
-    dev.scsi_device = path
-    dev.product_name = name
-    dev.vid = vid
-    dev.pid = pid
-    dev.protocol = protocol
-    dev.usb_path = "1-2"
-    dev.vendor_name = "Thermalright"
-    return dev
-
-
 def make_mock_service(device: DeviceInfo | None = None) -> MagicMock:
-    """Legacy: prefer mock_service fixture. Used by test_cli."""
+    """Create mock DeviceService with pre-selected device. Used by test_cli."""
     svc = MagicMock()
     dev = device or make_device_info()
     svc.selected = dev
@@ -300,13 +229,6 @@ def make_mock_service(device: DeviceInfo | None = None) -> MagicMock:
     return svc
 
 
-def make_test_image(
-    w: int = 320, h: int = 320, color: tuple[int, ...] = (128, 0, 0),
-) -> Any:
-    """Legacy: prefer test_image fixture. Used by test_controllers."""
-    return make_test_surface(w, h, color)
-
-
 def save_test_png(path: str, w: int = 320, h: int = 320) -> None:
-    """Legacy: prefer png_factory fixture. Used by test_integration."""
-    make_test_image(w, h).save(path, "PNG")
+    """Write a minimal PNG at path. Used by test_integration."""
+    make_test_surface(w, h).save(path, "PNG")
