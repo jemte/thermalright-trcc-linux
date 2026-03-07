@@ -14,7 +14,7 @@
       in {
         packages.default = python.pkgs.buildPythonApplication {
           pname = "trcc-linux";
-          version = "6.3.3";
+          version = "8.0.1";
           pyproject = true;
 
           src = ./.;
@@ -27,6 +27,7 @@
             numpy
             psutil
             pyusb
+            click
             typer
             fastapi
             uvicorn
@@ -76,7 +77,7 @@
         devShells.default = pkgs.mkShell {
           packages = [
             (python.withPackages (ps: with ps; [
-              pyside6 pillow numpy psutil pyusb typer fastapi uvicorn
+              pyside6 pillow numpy psutil pyusb click typer fastapi uvicorn
               pytest pytest-cov ruff
             ]))
             pkgs.p7zip

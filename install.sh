@@ -24,8 +24,8 @@ REAL_USER="${SUDO_USER:-$USER}"
 REAL_HOME="$(getent passwd "$REAL_USER" | cut -d: -f6)"
 DESKTOP_FILE="$REAL_HOME/.local/share/applications/trcc.desktop"
 AUTOSTART_FILE="$REAL_HOME/.config/autostart/trcc.desktop"
-CONFIG_DIR="$REAL_HOME/.config/trcc"
-LEGACY_CONFIG_DIR="$REAL_HOME/.trcc"
+CONFIG_DIR="$REAL_HOME/.trcc"
+LEGACY_CONFIG_DIR="$REAL_HOME/.config/trcc"
 VENV_DIR="$REAL_HOME/trcc-env"
 
 USE_VENV=false
