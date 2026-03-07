@@ -1,6 +1,6 @@
 # Testers Wanted
 
-TRCC Linux supports many Thermalright devices, but I only own SCSI-based coolers (`87CD:70DB`). Most HID and LED devices have been implemented from reverse-engineering the Windows TRCC 2.0.3 source — they need real hardware validation.
+TRCC Linux supports many Thermalright devices, but I only own SCSI-based coolers (`87CD:70DB`). Most HID and LED devices have been implemented from reverse-engineering the Windows TRCC 2.1.2 source — they need real hardware validation.
 
 If you have a device listed below, testing takes about 2 minutes. Your help directly improves support for everyone on Linux.
 

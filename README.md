@@ -1,7 +1,5 @@
 # TRCC Linux
 
-> **Heads up:** I rip this down and up everyday — if it doesn't work, use an [older version](https://github.com/Lexonight1/thermalright-trcc-linux/releases).
-
 [![GitHub Release](https://img.shields.io/github/v/release/Lexonight1/thermalright-trcc-linux?color=green&logo=github)](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest)
 [![PyPI](https://img.shields.io/pypi/v/trcc-linux)](https://pypi.org/project/trcc-linux/)
 [![GitHub Downloads](https://img.shields.io/github/downloads/Lexonight1/thermalright-trcc-linux/total?color=blue&logo=github&label=downloads)](https://github.com/Lexonight1/thermalright-trcc-linux/releases)
@@ -10,7 +8,7 @@
 [![Platform](https://img.shields.io/badge/platform-Linux-FCC624?logo=linux&logoColor=black)](https://github.com/Lexonight1/thermalright-trcc-linux)
 
 [![CI](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/ci.yml/badge.svg)](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-4014_passed-brightgreen.svg)](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-4021_passed-brightgreen.svg)](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-69%25-brightgreen.svg)](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://python.org)
 [![Code Style](https://img.shields.io/badge/code_style-ruff-D7FF64?logo=ruff&logoColor=black)](https://docs.astral.sh/ruff/)
@@ -41,9 +39,9 @@
 
 > Huge thanks to **[@javisaman](https://github.com/javisaman)**, **[@Xentrino](https://github.com/Xentrino)**, **[@loosethoughts19-hash](https://github.com/loosethoughts19-hash)**, **[@Mr-Renegade](https://github.com/Mr-Renegade)**, and **[@Reborn627](https://github.com/Reborn627)** for the beers — you guys are legends.
 
-Native Linux port of the Thermalright LCD Control Center (Windows TRCC 2.0.3). Control and customize the LCD displays and LED segment displays on Thermalright CPU coolers, AIO pump heads, and fan hubs — entirely from Linux. One less reason to keep Micro$lop Window$ around.
+Native Linux port of the Thermalright LCD Control Center (Windows TRCC 2.1.2). Control and customize the LCD displays and LED segment displays on Thermalright CPU coolers, AIO pump heads, and fan hubs — entirely from Linux.
 
-> **This project wouldn't exist without our testers.** I only own one device. Every supported device in this list works because someone plugged it in, ran `trcc report`, and told me what broke. 25+ testers across 6 countries helped us go from "SCSI only" to full C# feature parity with 5 USB protocols, 16 FBL resolutions, and 12 LED styles. Open source at its best — see [Contributors](#contributors) below.
+> **This project wouldn't exist without our testers.** I only own one device. Every supported device in this list works because someone plugged it in, ran `trcc report`, and told me what broke. 29 testers helped us go from "SCSI only" to full C# feature parity with 6 USB protocols, 16 FBL resolutions, and 12 LED styles. Open source at its best — see [Contributors](#contributors) below.
 
 > Unofficial community project, not affiliated with Thermalright. Built with [Claude](https://claude.ai) (AI) for protocol reverse engineering and code generation, guided by human architecture decisions and logical assessment.
 
@@ -59,17 +57,17 @@ Run `trcc report` and [paste the output in an issue](https://github.com/Lexonigh
 |----------|-------------|
 | **GUI** | Full PySide6 desktop app — theme browser, video player, overlay editor, LED control panel |
 | **CLI** | 50 commands — `trcc gui`, `trcc send`, `trcc video`, `trcc led-color`, `trcc screencast`, and more |
-| **REST API** | 42 endpoints — control everything remotely, build integrations, or use the upcoming Android app |
+| **REST API** | 43 endpoints — control everything remotely, build integrations, automate your setup |
 | **Themes** | Local, cloud, and masks — carousel mode, export/import as `.tr` files, 5 starters + 120 masks per resolution |
 | **Media** | Video/GIF playback, video trimmer, image cropper, screen cast (X11 + Wayland) |
 | **Overlay Editor** | Text, sensors, date/time overlays — font picker, dynamic scaling, color picker |
 | **Hardware Sensors** | 77+ sensors — CPU/GPU temp, fan speed, power, usage — customizable dashboard |
 | **LED Control** | 12 LED styles, zone carousel, breathing/rainbow/static/wave modes, per-zone color |
-| **Display** | 15 resolutions (240x240 to 1920x462), 0/90/180/270 rotation, 3 brightness levels |
+| **Display** | 16 resolutions (240x240 to 1920x462), 0/90/180/270 rotation, 3 brightness levels |
 | **Multi-device** | Per-device config, auto-detect, multi-device with device selection |
 | **Security** | udev rules, polkit policy, SELinux support, no root required after setup |
 
-**Under the hood**: 106 source files, ~38K lines of Python, 4021 tests across 56 test files. Hexagonal architecture with strict dependency injection — GUI, CLI, and API all talk to the same core services. 6 USB protocols reverse-engineered from the Windows C# app.
+**Under the hood**: 106 source files, ~38K lines of Python, 4021 tests across 56 test files in 9 directories. Hexagonal architecture with strict dependency injection — GUI, CLI, and API all talk to the same core services. 6 USB protocols reverse-engineered from the Windows C# app.
 
 ## Supported Devices
 
@@ -250,7 +248,7 @@ trcc serve --tls              # HTTPS with auto-generated self-signed cert
 trcc serve --host 0.0.0.0     # Listen on all interfaces (LAN access)
 ```
 
-42 endpoints covering devices, display, LED, themes, and system metrics. Use `trcc api` to list all endpoints.
+43 endpoints covering devices, display, LED, themes, and system metrics. Use `trcc api` to list all endpoints.
 
 ```bash
 # Examples with curl
@@ -293,8 +291,8 @@ src/trcc/
 ├── services/       # Business logic — pure Python, no framework deps
 ├── adapters/       # USB device protocols (SCSI, HID, Bulk, LY, LED)
 ├── qt_components/  # PySide6 GUI (themes, video, overlay, LED, sensors)
-├── cli/            # Typer CLI — 50 commands across 7 modules
-├── api/            # FastAPI REST API — 42 endpoints across 7 modules
+├── cli/            # Typer CLI — 50 commands across 8 modules
+├── api/            # FastAPI REST API — 43 endpoints across 7 modules
 ├── conf.py         # Settings singleton
 └── assets/         # GUI images, desktop entry, polkit policy, systemd service
 ```
@@ -316,7 +314,6 @@ src/trcc/
 
 A big thanks to everyone who has contributed invaluable reports to this project:
 
-- **[Zeltergiest](https://github.com/Zeltergiest)** — Trofeo Vision 360 HID Type 2 testing, detailed bug reports & enhancement suggestions
 - **[Xentrino](https://github.com/Xentrino)** — Peerless Assassin 120 Digital ARGB White LED testing across 15+ versions
 - **[hexskrew](https://github.com/hexskrew)** — Assassin X 120R Digital ARGB HID testing & GUI layout feedback
 - **[javisaman](https://github.com/javisaman)** — Phantom Spirit 120 Digital EVO LED testing & GPU phase validation
@@ -351,7 +348,7 @@ A big thanks to everyone who has contributed invaluable reports to this project:
 
 Thanks to everyone who took a moment to star this project — it means the world.
 
-**[alessa-lara](https://github.com/alessa-lara)** · **[ArcaneCoder404](https://github.com/ArcaneCoder404)** · **[BrunoLeguizamon05](https://github.com/BrunoLeguizamon05)** · **[cancos1](https://github.com/cancos1)** · **[codeflitting](https://github.com/codeflitting)** · **[dabombUSA](https://github.com/dabombUSA)** · **[damachine](https://github.com/damachine)** · **[emaspa](https://github.com/emaspa)** · **[honjow](https://github.com/honjow)** · **[jezzaw007](https://github.com/jezzaw007)** · **[jhlasnik](https://github.com/jhlasnik)** · **[jmo808](https://github.com/jmo808)** · **[ligmaSec](https://github.com/ligmaSec)** · **[mgaruccio](https://github.com/mgaruccio)** · **[michael-spinelli](https://github.com/michael-spinelli)** · **[nathanielhernandez](https://github.com/nathanielhernandez)** · **[oddajpierscien](https://github.com/oddajpierscien)** · **[Pikarz](https://github.com/Pikarz)** · **[Rehaell](https://github.com/Rehaell)** · **[rslater](https://github.com/rslater)** · **[Smokemic](https://github.com/Smokemic)** · **[spiritofjon](https://github.com/spiritofjon)** · **[Vydon](https://github.com/Vydon)** · **[Xentrino](https://github.com/Xentrino)** · **[Ziusz](https://github.com/Ziusz)**
+**[alessa-lara](https://github.com/alessa-lara)** · **[ArcaneCoder404](https://github.com/ArcaneCoder404)** · **[betolink](https://github.com/betolink)** · **[BrunoLeguizamon05](https://github.com/BrunoLeguizamon05)** · **[cancos1](https://github.com/cancos1)** · **[codeflitting](https://github.com/codeflitting)** · **[dabombUSA](https://github.com/dabombUSA)** · **[damachine](https://github.com/damachine)** · **[emaspa](https://github.com/emaspa)** · **[honjow](https://github.com/honjow)** · **[jezzaw007](https://github.com/jezzaw007)** · **[jhlasnik](https://github.com/jhlasnik)** · **[jmo808](https://github.com/jmo808)** · **[ligmaSec](https://github.com/ligmaSec)** · **[mgaruccio](https://github.com/mgaruccio)** · **[michael-spinelli](https://github.com/michael-spinelli)** · **[nathanielhernandez](https://github.com/nathanielhernandez)** · **[oddajpierscien](https://github.com/oddajpierscien)** · **[Pikarz](https://github.com/Pikarz)** · **[Rehaell](https://github.com/Rehaell)** · **[rslater](https://github.com/rslater)** · **[Smokemic](https://github.com/Smokemic)** · **[spiritofjon](https://github.com/spiritofjon)** · **[Vydon](https://github.com/Vydon)** · **[Xentrino](https://github.com/Xentrino)** · **[Ziusz](https://github.com/Ziusz)**
 
 ## Faulkers
 

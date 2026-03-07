@@ -251,7 +251,7 @@ For most devices, PM=FBL (the PM byte is the FBL directly). These PM values map 
 
 ### All Supported Theme Resolutions
 
-Theme data is bundled for all 15 resolutions. If a resolution's archive isn't included in the install, it downloads automatically from GitHub on first use.
+Theme data is bundled for all 16 resolutions. If a resolution's archive isn't included in the install, it downloads automatically from GitHub on first use.
 
 | Resolution | Source FBLs | Notes |
 |------------|-------------|-------|

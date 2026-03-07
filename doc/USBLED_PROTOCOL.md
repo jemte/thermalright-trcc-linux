@@ -1,6 +1,6 @@
 # FormLED.cs — HID LED Protocol Reference
 
-Reverse-engineered from `FormLED.cs`, `UCDevice.cs`, and `UCScreenLED.cs` (TRCC 2.0.3, .NET/ILSpy decompilation). This covers the **HID LED protocol** used by RGB LED devices (VID:PID `0416:8001`).
+Reverse-engineered from `FormLED.cs`, `UCDevice.cs`, and `UCScreenLED.cs` (TRCC 2.1.2, .NET/ILSpy decompilation). This covers the **HID LED protocol** used by RGB LED devices (VID:PID `0416:8001`).
 
 For SCSI LCD devices, see [USBLCD_PROTOCOL.md](USBLCD_PROTOCOL.md).
 For HID LCD devices, see [USBLCDNEW_PROTOCOL.md](USBLCDNEW_PROTOCOL.md).

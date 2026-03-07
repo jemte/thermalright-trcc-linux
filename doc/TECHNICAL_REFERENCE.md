@@ -89,7 +89,7 @@ Theme archives for all 15 LCD resolutions are tracked in git. On first use, `ens
 
 ```
 src/trcc/data/
-├── Theme240240.7z          # All 15 resolutions bundled
+├── Theme240240.7z          # All 16 resolutions bundled
 ├── Theme240320.7z
 ├── Theme320320.7z
 ├── Theme360360.7z
