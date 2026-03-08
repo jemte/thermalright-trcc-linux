@@ -1283,7 +1283,7 @@ class TestReport:
             report()
 
         out = capsys.readouterr().out
-        assert "github.com" in out
+        assert "https://github.com/Lexonight1/thermalright-trcc-linux/issues/new" in out
 
 
 # ===========================================================================
@@ -1989,4 +1989,4 @@ class TestReportDiagnosticOutput:
         lines = out.strip().splitlines()
         # GitHub URL is in the last few lines
         tail = "\n".join(lines[-3:])
-        assert "github.com" in tail
+        assert "https://github.com/Lexonight1/thermalright-trcc-linux/issues/new" in tail
