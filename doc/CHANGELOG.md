@@ -1,5 +1,19 @@
 # Changelog
 
+## v8.2.0
+
+### Security
+- **Fixed**: Path traversal in `/display/overlay` — `dc_path` now validated against `USER_DATA_DIR` with null byte + `..` prevention
+- **Fixed**: Stack trace leakage in `/themes/import` — exceptions no longer expose internal paths or tracebacks to clients
+- **Fixed**: Theme ID injection in `/themes/web/{theme_id}/download` — regex-validated alphanumeric only
+- **Fixed**: Unsanitized download filename in update handler — `Path.name` strips traversal attempts
+- **Fixed**: `shlex.split()` for subprocess commands in CLI system module (prevents shell injection)
+- **Fixed**: PYTHONPATH ordering in sudo re-exec — site-packages first, dev clone last (#47)
+- **Added**: Dedicated security test suite (`tests/api/test_api_security.py`) — 18 tests covering path traversal, info leakage, upload limits, input validation
+
+### Improvements
+- **Added**: Release trigger words (`patch`, `minor`, `major`) in CLAUDE.md for streamlined release workflow
+
 ## v8.1.1
 
 ### Bug Fixes

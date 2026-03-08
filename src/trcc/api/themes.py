@@ -122,6 +122,11 @@ def download_web_theme(
 
     Optionally sends its first frame to the LCD device if ``send=True``.
     """
+    import re
+
+    # Validate theme_id — alphanumeric only, no path traversal
+    if not re.fullmatch(r'[a-zA-Z0-9_\-]+', theme_id):
+        raise HTTPException(status_code=400, detail="Invalid theme ID")
     from trcc.adapters.infra.data_repository import DataManager
     from trcc.adapters.infra.theme_cloud import CloudThemeDownloader
     from trcc.api import _display_dispatcher
@@ -316,11 +321,13 @@ async def import_theme(file: UploadFile) -> dict:
         )
         ok, result = theme_svc.import_tr(Path(tmp_path), data_dir, (w, h))
         if not ok:
-            raise HTTPException(status_code=400, detail=str(result))
-        return {"success": True, "message": f"Theme imported from {file.filename}"}
+            log.warning("Theme import failed: %s", result)
+            raise HTTPException(status_code=400, detail="Theme import failed")
+        return {"success": True, "message": "Theme imported successfully"}
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        log.exception("Theme import error")
+        raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         Path(tmp_path).unlink(missing_ok=True)

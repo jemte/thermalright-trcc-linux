@@ -535,8 +535,14 @@ class UCAbout(BasePanel):
                 log.error("No %s package in release assets", method)
                 self._upgrade_finished.emit(False)
                 return
-            filename = url.rsplit('/', 1)[-1]
-            pkg_path = Path(tempfile.gettempdir()) / filename
+            raw_name = url.rsplit('/', 1)[-1]
+            # Sanitize: strip path separators, reject traversal attempts
+            filename = Path(raw_name).name
+            if not filename or '..' in filename:
+                log.error("Unsafe filename in release URL: %s", raw_name)
+                self._upgrade_finished.emit(False)
+                return
+            pkg_path = Path(tempfile.mkdtemp(prefix='trcc_pkg_')) / filename
             try:
                 from urllib.request import urlretrieve
                 log.info("Downloading %s", url)

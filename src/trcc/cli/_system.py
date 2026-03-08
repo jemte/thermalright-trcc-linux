@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import site
 import subprocess
 import sys
@@ -664,7 +665,7 @@ def run_setup(auto_yes: bool = False) -> int:
     for cmd in missing_required:
         if _confirm(f"Install? -> {cmd}", auto_yes):
             print(f"    -> {cmd}")
-            result = subprocess.run(cmd.split())
+            result = subprocess.run(shlex.split(cmd))
             if result.returncode == 0:
                 actions.append(f"Installed: {cmd}")
             else:
@@ -674,7 +675,7 @@ def run_setup(auto_yes: bool = False) -> int:
     for cmd in missing_optional:
         if _confirm(f"Install? -> {cmd}", auto_yes):
             print(f"    -> {cmd}")
-            result = subprocess.run(cmd.split())
+            result = subprocess.run(shlex.split(cmd))
             if result.returncode == 0:
                 actions.append(f"Installed: {cmd}")
 

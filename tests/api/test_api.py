@@ -1463,8 +1463,23 @@ class TestDisplayErrorPaths(unittest.TestCase):
 
     def test_overlay_no_device_returns_409(self) -> None:
         api_module._display_dispatcher = None
-        resp = self.client.post("/display/overlay?dc_path=/tmp/nope.dc")
+        from trcc.core.paths import USER_DATA_DIR
+        safe_path = f"{USER_DATA_DIR}/nope.dc"
+        resp = self.client.post(f"/display/overlay?dc_path={safe_path}")
         self.assertEqual(resp.status_code, 409)
+
+    def test_overlay_path_traversal_returns_400(self) -> None:
+        """dc_path outside data directory must be rejected."""
+        resp = self.client.post("/display/overlay?dc_path=/etc/passwd")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Invalid", resp.json()["detail"])
+
+    def test_overlay_relative_traversal_returns_400(self) -> None:
+        """dc_path with .. traversal must be rejected."""
+        from trcc.core.paths import USER_DATA_DIR
+        traversal = f"{USER_DATA_DIR}/../../etc/passwd"
+        resp = self.client.post(f"/display/overlay?dc_path={traversal}")
+        self.assertEqual(resp.status_code, 400)
 
     def test_mask_too_large_returns_413(self) -> None:
         big = io.BytesIO(b"\x00" * (11 * 1024 * 1024))
@@ -1641,6 +1656,23 @@ class TestThemeEdgeCases(unittest.TestCase):
                 files={"file": ("x.tr", io.BytesIO(b"junk"), "application/octet-stream")},
             )
         self.assertEqual(resp.status_code, 400)
+        # Error message must not leak internal details
+        self.assertEqual(resp.json()["detail"], "Theme import failed")
+
+    def test_import_theme_exception_no_stack_trace(self) -> None:
+        """Internal exceptions must not leak tracebacks to API clients."""
+        with patch("trcc.api.themes.ThemeService.import_tr",
+                   side_effect=RuntimeError("/home/user/.trcc/data/secret")), \
+             patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_td:
+            mock_td.return_value = MagicMock(path="/tmp", __str__=lambda s: "/tmp")
+            resp = self.client.post(
+                "/themes/import",
+                files={"file": ("x.tr", io.BytesIO(b"junk"), "application/octet-stream")},
+            )
+        self.assertEqual(resp.status_code, 500)
+        # Must not contain the internal path
+        self.assertNotIn("/home/user", resp.json()["detail"])
+        self.assertEqual(resp.json()["detail"], "Internal server error")
 
     def test_save_theme_empty_config_returns_500(self) -> None:
         with patch("trcc.conf.load_config", return_value={}):
