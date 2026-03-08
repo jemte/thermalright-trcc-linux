@@ -122,6 +122,7 @@ Every piece of data has exactly ONE owner. Violations = bugs.
 - **Thread safety**: Use Qt signals to communicate from background threads to GUI — never `QTimer.singleShot` from non-main threads
 - **Tests**: `pytest` with `PYTHONPATH=src`; 4021 tests across 56 files in 9 directories mirroring `src/trcc/` hexagonal layers (`tests/{core,services,adapters/{device,infra,system},cli,api,qt_components}/`). Cross-cutting tests at `tests/` root. When refactoring changes mock targets, use `conftest.py` fixtures/helpers — never update 50+ individual test mock paths inline. Shared mock helpers go in conftest.
 - **Linting**: `ruff check .` + `pyright` must pass before any commit (0 errors, 0 warnings)
+- **Security**: Zero tolerance for CodeQL / OWASP findings — see **Security** section below
 - **Assets**: All GUI asset access goes through `Assets` class (`qt_components/assets.py`). Auto-appends `.png` for base names. Never manually build asset paths with `f"{name}.png"`.
 - **Language**: Single source of truth is `settings.lang` (in `conf.py`). Widgets call `Assets.get_localized(name, settings.lang)` — never store `self._lang`.
 - **Domain data**: Static mappings (VID/PID tables, format strings, resolution maps, sensor categories) belong in `core/models.py`. If you're defining a `dict` literal or `list` constant that maps domain concepts, it goes in models.
@@ -181,6 +182,45 @@ When adding GUI assets:
 2. **Reference by base name** — `Assets.get('MY_ASSET')` auto-resolves `.png`
 3. **Add class constant** if used in multiple places — `MY_ASSET = 'filename.png'` in `Assets`
 4. **Localized variants** — name them `{base}{lang}.png` (e.g., `P0CZTVen.png`), use `Assets.get_localized()`
+
+## Security
+
+Zero tolerance for security issues. Fix properly within hexagonal/SOLID architecture — never suppress with shortcuts.
+
+### Principles
+- **Fix at the boundary, keep core pure** — all input validation happens in adapter layers (API, CLI). Core services and domain models trust their inputs because adapters already validated them.
+- **No suppression comments** — no `# nosec`, no `# type: ignore` for security findings, no `# noqa` to silence security rules. Fix the root cause.
+- **CodeQL must stay clean** — every push runs CodeQL. Zero open alerts. False positives get fixed (write better code that doesn't trigger them), not dismissed.
+
+### Subprocess & Command Injection
+- **Never interpolate user input into shell commands** — use `subprocess.run([...], shell=False)` with argument lists, never f-strings or `.format()` into shell strings
+- **`pkexec` calls** — pass exact command + args as list, never construct shell strings for privilege escalation
+- **System metric commands** — hardcoded command lists only, no user-controlled arguments
+
+### API (FastAPI) — The Network Boundary
+- **Validate all path parameters** — theme names, file paths, device IDs. Reject path traversal (`..`, absolute paths)
+- **No stack traces in responses** — catch exceptions, return structured error responses. Never expose internal paths, file locations, or Python tracebacks to API clients
+- **Structured error responses** — `{"error": "descriptive message"}` with appropriate HTTP status codes
+- **Type-safe endpoints** — use Pydantic models / FastAPI path/query parameter types for automatic validation
+
+### File System & Path Safety
+- **Zip extraction** — validate every member path before extracting. Reject entries containing `..` or absolute paths (zip slip prevention)
+- **Theme/mask paths** — resolve to canonical path with `.resolve()`, verify the result is under the expected data directory before reading/writing
+- **Config files** — `json.load()` with try/except for `JSONDecodeError` and `KeyError`. Malformed `~/.trcc/config.json` must never crash the app — fall back to defaults
+- **Temp files** — use `tempfile.mkstemp()` or `tempfile.TemporaryDirectory()`, never predictable paths in `/tmp`
+
+### USB Device I/O
+- **Bounds-check device responses** — validate handshake byte lengths before indexing. A malformed HID report must not cause `IndexError` or buffer overread
+- **Timeout all USB operations** — never block indefinitely waiting for device response
+- **Graceful degradation** — device returning garbage data = log warning + disconnect, never crash
+
+### Downloads & Network
+- **Pin download URLs to known GitHub repo** — `https://github.com/Lexonight1/thermalright-trcc-linux/` prefix only. Never follow redirects to arbitrary hosts
+- **Validate downloaded content** — check expected file structure after extraction, don't blindly trust archive contents
+
+### Tests
+- **Use exact values** — full URLs, complete paths, specific strings. Never partial substring checks that trigger static analysis warnings (e.g., `"github.com" in url` → use full URL match)
+- **No `# nosec` in tests either** — tests are code too, and CodeQL scans them
 
 ## Known Issues
 - `pyusb 1.3.1` uses deprecated `_pack_` in ctypes (Python 3.14) — suppressed in pytest config until upstream fix

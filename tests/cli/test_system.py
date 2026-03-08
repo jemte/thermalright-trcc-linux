@@ -121,6 +121,41 @@ class TestSudoReexec:
         out = capsys.readouterr().out
         assert "Root required" in out or "sudo" in out.lower()
 
+    def test_site_packages_before_trcc_pkg_in_pythonpath(self, capsys):
+        """Site-packages must come before trcc_pkg to prevent dev clones
+        from shadowing pip-installed packages under sudo."""
+        captured_env = {}
+
+        def fake_run(cmd, **kwargs):
+            for c in cmd:
+                if c.startswith("PYTHONPATH="):
+                    captured_env["pythonpath"] = c[len("PYTHONPATH="):]
+            return _completed(0)
+
+        with patch("trcc.cli._system.subprocess.run", side_effect=fake_run), \
+             patch("site.getsitepackages", return_value=["/usr/lib/python3"]), \
+             patch("site.getusersitepackages", return_value="/home/user/.local"):
+            _sudo_reexec("setup-udev")
+
+        pp = captured_env["pythonpath"]
+        import os as _os
+        parts = pp.split(_os.pathsep)
+        # System and user site-packages must appear before the trcc package root
+        assert parts[0] == "/usr/lib/python3"
+        assert parts[1] == "/home/user/.local"
+        # trcc_pkg is last
+        assert len(parts) == 3
+
+    def test_nonzero_exit_prints_fallback_instructions(self, capsys):
+        with patch("trcc.cli._system.subprocess.run", return_value=_completed(1)), \
+             patch("site.getsitepackages", return_value=["/usr/lib"]), \
+             patch("site.getusersitepackages", return_value="/home/user"):
+            _sudo_reexec("setup-udev")
+
+        out = capsys.readouterr().out
+        assert "sudo re-exec failed" in out
+        assert "sudo trcc setup-udev" in out
+
 
 # ===========================================================================
 # TestSudoRun

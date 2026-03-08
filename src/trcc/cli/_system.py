@@ -15,12 +15,17 @@ def _sudo_reexec(subcommand):
 
     sudo strips user site-packages (~/.local/lib), so we include both
     the trcc package root and all site-packages where dependencies live.
+
+    PYTHONPATH order: system site-packages first, then user site-packages,
+    then the trcc package root last. This ensures pip-installed dependencies
+    take priority over dev clones that might shadow them.
     """
-    # __file__ is trcc/cli/_system.py — 3 levels up to reach src/ (PYTHONPATH root)
-    trcc_pkg = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    paths = [trcc_pkg]
+    paths: list[str] = []
     paths.extend(site.getsitepackages())
     paths.append(site.getusersitepackages())
+    # trcc package root last — prevents dev clones from shadowing pip installs
+    trcc_pkg = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    paths.append(trcc_pkg)
     pythonpath = os.pathsep.join(paths)
     cmd = [
         "sudo", "env", f"PYTHONPATH={pythonpath}",
@@ -28,6 +33,10 @@ def _sudo_reexec(subcommand):
     ]
     print("Root required — requesting sudo...")
     result = subprocess.run(cmd)
+    if result.returncode != 0:
+        print(f"\n  sudo re-exec failed (exit {result.returncode}).")
+        print(f"  Try running directly:  sudo trcc {subcommand}")
+        print(f"  Or with full path:     sudo {sys.executable} -m trcc.cli {subcommand}")
     return result.returncode
 
 
