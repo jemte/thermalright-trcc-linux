@@ -96,14 +96,15 @@ class LEDHandler:
 
     def show(self, device: DeviceInfo):
         """Initialize LED device and start animation."""
+        model = device.model or ''
         if self._led is None:
             from ..adapters.device.factory import DeviceProtocolFactory
             self._led = LEDDevice(
                 get_protocol=DeviceProtocolFactory.get_protocol)
             self._connect_signals()
+            log.debug("LED: created LEDDevice, signals wired")
 
         from ..services.led import LEDService
-        model = device.model or ''
         led_style = device.led_style_id or LEDService.resolve_style_id(model)
 
         self._led.initialize(device, led_style)
@@ -123,8 +124,11 @@ class LEDHandler:
 
         self._active = True
         self._timer.start(150)
+        log.info("LED: show model=%s style=%d, tick timer started (150ms)",
+                 model, led_style)
 
     def stop(self):
+        log.info("LED: stop (active=%s)", self._active)
         self._timer.stop()
         self._active = False
         if self._led:
@@ -132,6 +136,7 @@ class LEDHandler:
             self._led.cleanup()
 
     def cleanup(self):
+        log.info("LED: cleanup")
         self._timer.stop()
         if self._led:
             self._led.save_config()
@@ -139,6 +144,7 @@ class LEDHandler:
 
     def set_temp_unit(self, unit: str):
         if self._led:
+            log.debug("LED: temp_unit=%s", unit)
             self._led.set_seg_temp_unit(unit)
 
     def _sync_ui_from_state(self):
@@ -153,6 +159,7 @@ class LEDHandler:
             self._panel.load_zone_state(
                 0, state.mode.value, state.color, state.brightness,
                 state.global_on)
+        log.debug("LED: synced UI from state (zones=%d)", len(state.zones))
 
     def _connect_signals(self):
         if not self._led:
@@ -185,6 +192,7 @@ class LEDHandler:
     def _on_mode_changed(self, mode):
         if not self._led:
             return
+        log.debug("LED: mode=%s", mode)
         self._led.update_mode(mode)
         if self._led.state.zones:
             self._led.update_zone_mode(self._panel.selected_zone, mode)
@@ -193,6 +201,7 @@ class LEDHandler:
     def _on_color_changed(self, r, g, b):
         if not self._led:
             return
+        log.debug("LED: color=(%d,%d,%d)", r, g, b)
         self._led.update_color(r, g, b)
         if self._led.state.zones:
             self._led.update_zone_color(self._panel.selected_zone, r, g, b)
@@ -200,21 +209,26 @@ class LEDHandler:
     def _on_brightness_changed(self, val):
         if not self._led:
             return
+        log.debug("LED: brightness=%d", val)
         self._led.update_brightness(val)
         if self._led.state.zones:
             self._led.update_zone_brightness(self._panel.selected_zone, val)
 
     def _on_global_toggled(self, on):
         if self._led:
+            log.debug("LED: global_on=%s", on)
             self._led.update_global_on(on)
 
     def _on_segment_clicked(self, idx):
         if self._led and 0 <= idx < len(self._led.state.segment_on):
-            self._led.update_segment(idx, not self._led.state.segment_on[idx])
+            new_state = not self._led.state.segment_on[idx]
+            log.debug("LED: segment[%d]=%s", idx, new_state)
+            self._led.update_segment(idx, new_state)
 
     def _on_zone_selected(self, zone_index):
         if not self._led or not self._led.state.zones:
             return
+        log.debug("LED: zone_selected=%d", zone_index)
         self._led.update_selected_zone(zone_index)
         zones = self._led.state.zones
         if 0 <= zone_index < len(zones):
@@ -224,38 +238,47 @@ class LEDHandler:
 
     def _on_zone_toggled(self, zi, on):
         if self._led:
+            log.debug("LED: zone[%d]=%s", zi, on)
             self._led.update_zone_on(zi, on)
 
     def _on_carousel_changed(self, on):
         if self._led:
+            log.debug("LED: carousel=%s", on)
             self._led.update_zone_sync(on)
 
     def _on_carousel_zone_changed(self, zi, sel):
         if self._led:
+            log.debug("LED: carousel_zone[%d]=%s", zi, sel)
             self._led.update_zone_sync_zone(zi, sel)
 
     def _on_carousel_interval_changed(self, secs):
         if self._led:
+            log.debug("LED: carousel_interval=%ds", secs)
             self._led.update_zone_sync_interval(secs)
 
     def _on_clock_format_changed(self, is_24h):
         if self._led:
+            log.debug("LED: clock_24h=%s", is_24h)
             self._led.update_clock_format(is_24h)
 
     def _on_week_start_changed(self, is_sun):
         if self._led:
+            log.debug("LED: week_start_sunday=%s", is_sun)
             self._led.update_week_start(is_sun)
 
     def _on_disk_index_changed(self, idx):
         if self._led:
+            log.debug("LED: disk_index=%d", idx)
             self._led.update_disk_index(idx)
 
     def _on_memory_ratio_changed(self, ratio):
         if self._led:
+            log.debug("LED: memory_ratio=%d", ratio)
             self._led.update_memory_ratio(ratio)
 
     def _on_test_mode_changed(self, on):
         if self._led:
+            log.debug("LED: test_mode=%s", on)
             self._led.update_test_mode(on)
 
     # -- Tick (animation + send + periodic save) ----------------------
@@ -273,6 +296,7 @@ class LEDHandler:
             if self._save_counter >= self._SAVE_INTERVAL:
                 self._save_counter = 0
                 self._led.save_config()
+                log.debug("LED: periodic config save")
         except Exception:
             log.exception("LED tick error")
 
