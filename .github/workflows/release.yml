@@ -82,6 +82,9 @@ jobs:
           mkdir -p "$PKG"
           python3 -m installer --destdir="$PKG" --prefix=/usr "$WHL"
 
+          # Fix shebangs to /usr/bin/python (build container may differ)
+          sed -i "1s|^#\!.*/python[0-9.]*|#!/usr/bin/python|" "$PKG"/usr/bin/trcc*
+
           install -Dm644 /src/packaging/udev/99-trcc-lcd.rules "$PKG/etc/udev/rules.d/99-trcc-lcd.rules"
           install -Dm644 /src/packaging/modprobe/trcc-lcd.conf "$PKG/etc/modprobe.d/trcc-lcd.conf"
           install -Dm644 /src/packaging/modprobe/trcc-sg.conf "$PKG/etc/modules-load.d/trcc-sg.conf"
@@ -156,6 +159,9 @@ jobs:
           mkdir -p "$PKG/DEBIAN"
           python3 -m installer --destdir="$PKG" --prefix=/usr "$WHL"
 
+          # Fix shebangs to /usr/bin/python (build container may differ)
+          sed -i "1s|^#\!.*/python[0-9.]*|#!/usr/bin/python|" "$PKG"/usr/bin/trcc*
+
           install -Dm644 /src/packaging/udev/99-trcc-lcd.rules "$PKG/lib/udev/rules.d/99-trcc-lcd.rules"
           install -Dm644 /src/packaging/modprobe/trcc-lcd.conf "$PKG/etc/modprobe.d/trcc-lcd.conf"
           install -Dm644 /src/packaging/modprobe/trcc-sg.conf "$PKG/etc/modules-load.d/trcc-sg.conf"
@@ -203,6 +209,9 @@ jobs:
           PKG=/tmp/pkg-root
           mkdir -p "$PKG/usr"
           python -m installer --destdir="$PKG" --prefix=/usr "$WHL"
+
+          # Fix shebangs to /usr/bin/python (build container may differ)
+          sed -i "1s|^#\!.*/python[0-9.]*|#!/usr/bin/python|" "$PKG"/usr/bin/trcc*
 
           # Bundle uvicorn (not in official Arch repos)
           pip install --root="$PKG" --prefix=/usr --no-deps uvicorn
