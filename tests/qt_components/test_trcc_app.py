@@ -912,63 +912,60 @@ class TestLEDHandler:
         mock_led.tick.assert_called_once()
         handler._panel.set_led_colors.assert_called_once_with(display_colors)
 
-    def _make_handler_with_svc(self, handler, zones=None, **state_kw):
-        """Set up handler with mock LEDDevice + mock LEDService."""
+    def _make_handler_with_led(self, handler, zones=None, **state_kw):
+        """Set up handler with mock LEDDevice."""
         mock_led = MagicMock()
-        mock_svc = MagicMock()
-        mock_svc.state = _make_mock_led_state(zones=zones, **state_kw)
+        mock_led.state = _make_mock_led_state(zones=zones, **state_kw)
         if zones is not None:
-            mock_svc.state.zones = zones
-        mock_led.service = mock_svc
+            mock_led.state.zones = zones
         handler._led = mock_led
-        return mock_led, mock_svc
+        return mock_led
 
     def test_on_mode_changed_no_led(self, handler):
         """_on_mode_changed with no LED port is a no-op."""
         handler._on_mode_changed(0)  # Should not raise
 
-    def test_on_mode_changed_sets_global(self, handler):
-        _, mock_svc = self._make_handler_with_svc(handler)
+    def test_on_mode_changed_calls_update(self, handler):
+        mock_led = self._make_handler_with_led(handler)
         handler._on_mode_changed(2)
-        mock_svc.set_mode.assert_called_once_with(LEDMode(2))
+        mock_led.update_mode.assert_called_once_with(2)
 
     def test_on_mode_changed_sets_zone_when_zones(self, handler):
         zones = [LEDZoneState(), LEDZoneState()]
-        _, mock_svc = self._make_handler_with_svc(handler, zones=zones)
+        mock_led = self._make_handler_with_led(handler, zones=zones)
         handler._panel.selected_zone = 1
         handler._on_mode_changed(3)
-        mock_svc.set_zone_mode.assert_called_once_with(1, LEDMode(3))
+        mock_led.update_zone_mode.assert_called_once_with(1, 3)
 
     def test_on_color_changed_no_led(self, handler):
         handler._on_color_changed(255, 0, 0)  # Should not raise
 
-    def test_on_color_changed_sets_global(self, handler):
-        _, mock_svc = self._make_handler_with_svc(handler)
+    def test_on_color_changed_calls_update(self, handler):
+        mock_led = self._make_handler_with_led(handler)
         handler._on_color_changed(0, 128, 255)
-        mock_svc.set_color.assert_called_once_with(0, 128, 255)
+        mock_led.update_color.assert_called_once_with(0, 128, 255)
 
     def test_on_color_changed_no_immediate_send(self, handler):
         """GUI color change must NOT tick/send — timer handles it (C# pattern)."""
-        mock_led, mock_svc = self._make_handler_with_svc(handler)
+        mock_led = self._make_handler_with_led(handler)
         handler._on_color_changed(255, 0, 0)
         mock_led.tick.assert_not_called()
-        mock_svc.send_colors.assert_not_called()
 
     def test_on_color_changed_sets_zone_when_zones(self, handler):
         zones = [LEDZoneState(), LEDZoneState()]
-        _, mock_svc = self._make_handler_with_svc(handler, zones=zones)
+        mock_led = self._make_handler_with_led(handler, zones=zones)
         handler._panel.selected_zone = 1
         handler._on_color_changed(10, 20, 30)
-        mock_svc.set_color.assert_called_once_with(10, 20, 30)
-        mock_svc.set_zone_color.assert_called_once_with(1, 10, 20, 30)
+        mock_led.update_color.assert_called_once_with(10, 20, 30)
+        mock_led.update_zone_color.assert_called_once_with(1, 10, 20, 30)
 
     def test_on_brightness_changed_no_led(self, handler):
         handler._on_brightness_changed(50)  # Should not raise
 
-    def test_on_brightness_changed_sets_global(self, handler):
-        _, mock_svc = self._make_handler_with_svc(handler)
+    def test_on_brightness_changed_calls_update(self, handler):
+        mock_led = self._make_handler_with_led(handler)
         handler._on_brightness_changed(80)
-        mock_svc.set_brightness.assert_called_once_with(80)
+        mock_led.update_brightness.assert_called_once_with(80)
 
     def test_on_zone_selected_no_led(self, handler):
         handler._on_zone_selected(0)  # Should not raise
@@ -976,22 +973,23 @@ class TestLEDHandler:
     def test_on_zone_selected_loads_zone_state(self, handler):
         z0 = LEDZoneState(mode=LEDMode.COLORFUL, color=(10, 20, 30), brightness=50, on=False)
         z1 = LEDZoneState(mode=LEDMode.RAINBOW, color=(40, 50, 60), brightness=70, on=True)
-        _, mock_svc = self._make_handler_with_svc(handler, zones=[z0, z1])
-        mock_svc.state.zones = [z0, z1]
+        mock_led = self._make_handler_with_led(handler, zones=[z0, z1])
+        mock_led.state.zones = [z0, z1]
         handler._on_zone_selected(1)
+        mock_led.update_selected_zone.assert_called_once_with(1)
         handler._panel.load_zone_state.assert_called_once_with(
             1, LEDMode.RAINBOW.value, (40, 50, 60), 70, True
         )
 
     def test_on_zone_selected_no_zones_no_op(self, handler):
-        _, mock_svc = self._make_handler_with_svc(handler)
-        mock_svc.state.zones = []
+        mock_led = self._make_handler_with_led(handler)
+        mock_led.state.zones = []
         handler._on_zone_selected(0)
         handler._panel.load_zone_state.assert_not_called()
 
     def test_tick_saves_config_periodically(self, handler):
         """Config is saved every _SAVE_INTERVAL ticks."""
-        mock_led, _ = self._make_handler_with_svc(handler)
+        mock_led = self._make_handler_with_led(handler)
         mock_led.tick.return_value = {'display_colors': [(255, 0, 0)]}
         handler._active = True
         handler._save_counter = handler._SAVE_INTERVAL - 1
@@ -1000,7 +998,7 @@ class TestLEDHandler:
 
     def test_tick_error_does_not_crash(self, handler):
         """LED tick exceptions are caught and logged."""
-        mock_led, _ = self._make_handler_with_svc(handler)
+        mock_led = self._make_handler_with_led(handler)
         mock_led.tick.side_effect = RuntimeError("USB error")
         handler._active = True
         handler._on_tick()  # Should not raise

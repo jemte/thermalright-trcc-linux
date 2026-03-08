@@ -33,7 +33,7 @@ from ..adapters.system.sensors import SensorEnumerator
 from ..conf import Settings, settings
 from ..core.builder import ControllerBuilder
 from ..core.led_device import LEDDevice
-from ..core.models import DeviceInfo, LEDMode
+from ..core.models import DeviceInfo
 from .assets import Assets
 from .base import create_image_button, set_background_pixmap
 from .constants import Colors, Layout, Sizes, Styles
@@ -180,102 +180,83 @@ class LEDHandler:
     # -- GUI signal handlers (state-only, timer sends) ----------------
     # C# pattern: FormLED event handlers set rgbR1/myLedMode/etc.
     # MyTimer_Event picks them up next tick → SendHidVal.
-
-    def _svc(self):
-        """Return LEDService or None."""
-        return self._led.service if self._led else None
+    # All handlers call LEDDevice.update_*() (state-only, no tick/send).
 
     def _on_mode_changed(self, mode):
-        svc = self._svc()
-        if not svc:
+        if not self._led:
             return
-        resolved = LEDMode(mode) if isinstance(mode, int) else mode
-        svc.set_mode(resolved)
-        if svc.state.zones:
-            svc.set_zone_mode(self._panel.selected_zone, resolved)
+        self._led.update_mode(mode)
+        if self._led.state.zones:
+            self._led.update_zone_mode(self._panel.selected_zone, mode)
         self._save_counter = self._SAVE_INTERVAL  # force save next tick
 
     def _on_color_changed(self, r, g, b):
-        svc = self._svc()
-        if not svc:
+        if not self._led:
             return
-        svc.set_color(r, g, b)
-        if svc.state.zones:
-            svc.set_zone_color(self._panel.selected_zone, r, g, b)
+        self._led.update_color(r, g, b)
+        if self._led.state.zones:
+            self._led.update_zone_color(self._panel.selected_zone, r, g, b)
 
     def _on_brightness_changed(self, val):
-        svc = self._svc()
-        if not svc:
+        if not self._led:
             return
-        svc.set_brightness(val)
-        if svc.state.zones:
-            svc.set_zone_brightness(self._panel.selected_zone, val)
+        self._led.update_brightness(val)
+        if self._led.state.zones:
+            self._led.update_zone_brightness(self._panel.selected_zone, val)
 
     def _on_global_toggled(self, on):
-        svc = self._svc()
-        if svc:
-            svc.toggle_global(on)
+        if self._led:
+            self._led.update_global_on(on)
 
     def _on_segment_clicked(self, idx):
-        svc = self._svc()
-        if svc and 0 <= idx < len(svc.state.segment_on):
-            svc.toggle_segment(idx, not svc.state.segment_on[idx])
+        if self._led and 0 <= idx < len(self._led.state.segment_on):
+            self._led.update_segment(idx, not self._led.state.segment_on[idx])
 
     def _on_zone_selected(self, zone_index):
-        svc = self._svc()
-        if not svc or not svc.state.zones:
+        if not self._led or not self._led.state.zones:
             return
-        svc.set_selected_zone(zone_index)
-        zones = svc.state.zones
+        self._led.update_selected_zone(zone_index)
+        zones = self._led.state.zones
         if 0 <= zone_index < len(zones):
             z = zones[zone_index]
             self._panel.load_zone_state(
                 zone_index, z.mode.value, z.color, z.brightness, z.on)
 
     def _on_zone_toggled(self, zi, on):
-        svc = self._svc()
-        if svc:
-            svc.toggle_zone(zi, on)
+        if self._led:
+            self._led.update_zone_on(zi, on)
 
     def _on_carousel_changed(self, on):
-        svc = self._svc()
-        if svc:
-            svc.set_zone_sync(on)
+        if self._led:
+            self._led.update_zone_sync(on)
 
     def _on_carousel_zone_changed(self, zi, sel):
-        svc = self._svc()
-        if svc:
-            svc.set_zone_sync_zone(zi, sel)
+        if self._led:
+            self._led.update_zone_sync_zone(zi, sel)
 
     def _on_carousel_interval_changed(self, secs):
-        svc = self._svc()
-        if svc:
-            svc.set_zone_sync_interval(secs)
+        if self._led:
+            self._led.update_zone_sync_interval(secs)
 
     def _on_clock_format_changed(self, is_24h):
-        svc = self._svc()
-        if svc:
-            svc.set_clock_format(is_24h)
+        if self._led:
+            self._led.update_clock_format(is_24h)
 
     def _on_week_start_changed(self, is_sun):
-        svc = self._svc()
-        if svc:
-            svc.set_week_start(is_sun)
+        if self._led:
+            self._led.update_week_start(is_sun)
 
     def _on_disk_index_changed(self, idx):
-        svc = self._svc()
-        if svc:
-            svc.set_disk_index(idx)
+        if self._led:
+            self._led.update_disk_index(idx)
 
     def _on_memory_ratio_changed(self, ratio):
-        svc = self._svc()
-        if svc:
-            svc.set_memory_ratio(ratio)
+        if self._led:
+            self._led.update_memory_ratio(ratio)
 
     def _on_test_mode_changed(self, on):
-        svc = self._svc()
-        if svc:
-            svc.set_test_mode(on)
+        if self._led:
+            self._led.update_test_mode(on)
 
     # -- Tick (animation + send + periodic save) ----------------------
 

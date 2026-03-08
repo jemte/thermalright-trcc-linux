@@ -170,7 +170,85 @@ class LEDDevice(Device):
                     "error": f"Segment {index} out of range (valid: 0–{n - 1})"}
         return None
 
-    # ── Global operations ──────────────────────────────────────────
+    # ── State-only mutators (GUI path — timer handles send) ───────
+    # C# pattern: FormLED event handlers set rgbR1/myLedMode/etc.,
+    # MyTimer_Event picks them up next tick → SendHidVal.
+
+    def update_color(self, r: int, g: int, b: int) -> None:
+        """Set color without tick/send (GUI — timer handles it)."""
+        self._svc.set_color(r, g, b)
+
+    def update_mode(self, mode: LEDMode | int) -> None:
+        """Set mode without tick/send (GUI — timer handles it)."""
+        resolved = LEDMode(mode) if isinstance(mode, int) else mode
+        self._svc.set_mode(resolved)
+
+    def update_brightness(self, level: int) -> None:
+        """Set brightness without tick/send (GUI — timer handles it)."""
+        self._svc.set_brightness(max(0, min(100, level)))
+
+    def update_global_on(self, on: bool) -> None:
+        """Set global on/off without tick/send (GUI — timer handles it)."""
+        self._svc.toggle_global(on)
+
+    def update_segment(self, index: int, on: bool) -> None:
+        """Toggle segment without tick/send (GUI — timer handles it)."""
+        self._svc.toggle_segment(index, on)
+
+    def update_zone_color(self, zone: int, r: int, g: int, b: int) -> None:
+        """Set zone color without tick/send (GUI — timer handles it)."""
+        self._svc.set_zone_color(zone, r, g, b)
+
+    def update_zone_mode(self, zone: int, mode: LEDMode | int) -> None:
+        """Set zone mode without tick/send (GUI — timer handles it)."""
+        resolved = LEDMode(mode) if isinstance(mode, int) else mode
+        self._svc.set_zone_mode(zone, resolved)
+
+    def update_zone_brightness(self, zone: int, level: int) -> None:
+        """Set zone brightness without tick/send (GUI — timer handles it)."""
+        self._svc.set_zone_brightness(zone, max(0, min(100, level)))
+
+    def update_zone_on(self, zone: int, on: bool) -> None:
+        """Toggle zone without tick/send (GUI — timer handles it)."""
+        self._svc.toggle_zone(zone, on)
+
+    def update_zone_sync(self, enabled: bool) -> None:
+        """Set zone sync without tick/send (GUI — timer handles it)."""
+        self._svc.set_zone_sync(enabled)
+
+    def update_zone_sync_zone(self, zone: int, selected: bool) -> None:
+        """Set zone sync zone without tick/send (GUI — timer handles it)."""
+        self._svc.set_zone_sync_zone(zone, selected)
+
+    def update_zone_sync_interval(self, seconds: int) -> None:
+        """Set zone sync interval without tick/send (GUI — timer handles it)."""
+        self._svc.set_zone_sync_interval(seconds)
+
+    def update_clock_format(self, is_24h: bool) -> None:
+        """Set clock format without tick/send (GUI — timer handles it)."""
+        self._svc.set_clock_format(is_24h)
+
+    def update_week_start(self, is_sunday: bool) -> None:
+        """Set week start without tick/send (GUI — timer handles it)."""
+        self._svc.set_week_start(is_sunday)
+
+    def update_disk_index(self, index: int) -> None:
+        """Set disk index without tick/send (GUI — timer handles it)."""
+        self._svc.set_disk_index(index)
+
+    def update_memory_ratio(self, ratio: int) -> None:
+        """Set memory ratio without tick/send (GUI — timer handles it)."""
+        self._svc.set_memory_ratio(ratio)
+
+    def update_test_mode(self, enabled: bool) -> None:
+        """Set test mode without tick/send (GUI — timer handles it)."""
+        self._svc.set_test_mode(enabled)
+
+    def update_selected_zone(self, zone: int) -> None:
+        """Set selected zone without tick/send (GUI — timer handles it)."""
+        self._svc.set_selected_zone(zone)
+
+    # ── Global operations (CLI/API — immediate tick/send/save) ────
 
     def set_color(self, r: int, g: int, b: int) -> dict:
         self._svc.set_mode(LEDMode.STATIC)
