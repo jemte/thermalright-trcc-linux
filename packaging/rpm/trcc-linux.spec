@@ -3,7 +3,7 @@
 %global srcname trcc-linux
 
 Name:           trcc-linux
-Version:        8.1.6
+Version:        8.1.7
 Release:        1%{?dist}
 Summary:        Thermalright LCD/LED Control Center for Linux
 

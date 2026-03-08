@@ -33,7 +33,7 @@ from ..adapters.system.sensors import SensorEnumerator
 from ..conf import Settings, settings
 from ..core.builder import ControllerBuilder
 from ..core.led_device import LEDDevice
-from ..core.models import DeviceInfo
+from ..core.models import DeviceInfo, LEDMode
 from .assets import Assets
 from .base import create_image_button, set_background_pixmap
 from .constants import Colors, Layout, Sizes, Styles
@@ -63,8 +63,13 @@ class LEDHandler:
     """Mediator for LED device control.
 
     Owns LEDDevice lifecycle, animation timer, sensor polling,
-    and signal wiring. No callbacks — uses result dicts from LEDDevice.
+    and signal wiring.  GUI signal handlers update state only —
+    the 150 ms tick timer handles animation + USB send (C# pattern:
+    FormLED.MyTimer_Event does all work, color/mode changes just
+    set variables for the next tick).
     """
+
+    _SAVE_INTERVAL = 20  # save config every N ticks (~3 s)
 
     def __init__(self, panel: UCLedControl, on_temp_unit_changed):
         self._panel = panel
@@ -72,6 +77,7 @@ class LEDHandler:
         self._led: LEDDevice | None = None
         self._active = False
         self._style_id = 0
+        self._save_counter = 0
 
         self._timer = QTimer(panel)
         self._timer.timeout.connect(self._on_tick)
@@ -122,11 +128,13 @@ class LEDHandler:
         self._timer.stop()
         self._active = False
         if self._led:
+            self._led.save_config()
             self._led.cleanup()
 
     def cleanup(self):
         self._timer.stop()
         if self._led:
+            self._led.save_config()
             self._led.cleanup()
 
     def set_temp_unit(self, unit: str):
@@ -149,74 +157,143 @@ class LEDHandler:
     def _connect_signals(self):
         if not self._led:
             return
-        led = self._led
         panel = self._panel
 
         panel.mode_changed.connect(self._on_mode_changed)
         panel.color_changed.connect(self._on_color_changed)
         panel.brightness_changed.connect(self._on_brightness_changed)
-        panel.global_toggled.connect(lambda on: led.toggle_global(on))
-        panel.segment_clicked.connect(
-            lambda idx: led.toggle_segment(idx, not led.state.segment_on[idx]))
+        panel.global_toggled.connect(self._on_global_toggled)
+        panel.segment_clicked.connect(self._on_segment_clicked)
         panel.zone_selected.connect(self._on_zone_selected)
-        panel.zone_toggled.connect(lambda zi, on: led.toggle_zone(zi, on))
-        panel.carousel_changed.connect(lambda on: led.set_zone_sync(on))
-        panel.carousel_zone_changed.connect(
-            lambda zi, sel: led.set_zone_sync_zone(zi, sel))
+        panel.zone_toggled.connect(self._on_zone_toggled)
+        panel.carousel_changed.connect(self._on_carousel_changed)
+        panel.carousel_zone_changed.connect(self._on_carousel_zone_changed)
         panel.carousel_interval_changed.connect(
-            lambda secs: led.set_zone_sync_interval(secs))
-        panel.clock_format_changed.connect(
-            lambda is_24h: led.set_clock_format(is_24h))
-        panel.week_start_changed.connect(
-            lambda is_sun: led.set_week_start(is_sun))
+            self._on_carousel_interval_changed)
+        panel.clock_format_changed.connect(self._on_clock_format_changed)
+        panel.week_start_changed.connect(self._on_week_start_changed)
         panel.temp_unit_changed.connect(self._on_temp_unit_changed)
-        panel.disk_index_changed.connect(lambda idx: led.set_disk_index(idx))
-        panel.memory_ratio_changed.connect(
-            lambda ratio: led.set_memory_ratio(ratio))
-        panel.test_mode_changed.connect(lambda on: led.set_test_mode(on))
+        panel.disk_index_changed.connect(self._on_disk_index_changed)
+        panel.memory_ratio_changed.connect(self._on_memory_ratio_changed)
+        panel.test_mode_changed.connect(self._on_test_mode_changed)
+
+    # -- GUI signal handlers (state-only, timer sends) ----------------
+    # C# pattern: FormLED event handlers set rgbR1/myLedMode/etc.
+    # MyTimer_Event picks them up next tick → SendHidVal.
+
+    def _svc(self):
+        """Return LEDService or None."""
+        return self._led.service if self._led else None
 
     def _on_mode_changed(self, mode):
-        led = self._led
-        if not led:
+        svc = self._svc()
+        if not svc:
             return
-        led.set_mode(mode)
-        if led.state.zones:
-            led.set_zone_mode(self._panel.selected_zone, mode)
+        resolved = LEDMode(mode) if isinstance(mode, int) else mode
+        svc.set_mode(resolved)
+        if svc.state.zones:
+            svc.set_zone_mode(self._panel.selected_zone, resolved)
+        self._save_counter = self._SAVE_INTERVAL  # force save next tick
 
     def _on_color_changed(self, r, g, b):
-        led = self._led
-        if not led:
+        svc = self._svc()
+        if not svc:
             return
-        led.set_color(r, g, b)
-        if led.state.zones:
-            led.set_zone_color(self._panel.selected_zone, r, g, b)
+        svc.set_color(r, g, b)
+        if svc.state.zones:
+            svc.set_zone_color(self._panel.selected_zone, r, g, b)
 
     def _on_brightness_changed(self, val):
-        led = self._led
-        if not led:
+        svc = self._svc()
+        if not svc:
             return
-        led.set_brightness(val)
-        if led.state.zones:
-            led.set_zone_brightness(self._panel.selected_zone, val)
+        svc.set_brightness(val)
+        if svc.state.zones:
+            svc.set_zone_brightness(self._panel.selected_zone, val)
+
+    def _on_global_toggled(self, on):
+        svc = self._svc()
+        if svc:
+            svc.toggle_global(on)
+
+    def _on_segment_clicked(self, idx):
+        svc = self._svc()
+        if svc and 0 <= idx < len(svc.state.segment_on):
+            svc.toggle_segment(idx, not svc.state.segment_on[idx])
 
     def _on_zone_selected(self, zone_index):
-        led = self._led
-        if not led or not led.state.zones:
+        svc = self._svc()
+        if not svc or not svc.state.zones:
             return
-        led.set_selected_zone(zone_index)
-        zones = led.state.zones
+        svc.set_selected_zone(zone_index)
+        zones = svc.state.zones
         if 0 <= zone_index < len(zones):
             z = zones[zone_index]
             self._panel.load_zone_state(
                 zone_index, z.mode.value, z.color, z.brightness, z.on)
 
+    def _on_zone_toggled(self, zi, on):
+        svc = self._svc()
+        if svc:
+            svc.toggle_zone(zi, on)
+
+    def _on_carousel_changed(self, on):
+        svc = self._svc()
+        if svc:
+            svc.set_zone_sync(on)
+
+    def _on_carousel_zone_changed(self, zi, sel):
+        svc = self._svc()
+        if svc:
+            svc.set_zone_sync_zone(zi, sel)
+
+    def _on_carousel_interval_changed(self, secs):
+        svc = self._svc()
+        if svc:
+            svc.set_zone_sync_interval(secs)
+
+    def _on_clock_format_changed(self, is_24h):
+        svc = self._svc()
+        if svc:
+            svc.set_clock_format(is_24h)
+
+    def _on_week_start_changed(self, is_sun):
+        svc = self._svc()
+        if svc:
+            svc.set_week_start(is_sun)
+
+    def _on_disk_index_changed(self, idx):
+        svc = self._svc()
+        if svc:
+            svc.set_disk_index(idx)
+
+    def _on_memory_ratio_changed(self, ratio):
+        svc = self._svc()
+        if svc:
+            svc.set_memory_ratio(ratio)
+
+    def _on_test_mode_changed(self, on):
+        svc = self._svc()
+        if svc:
+            svc.set_test_mode(on)
+
+    # -- Tick (animation + send + periodic save) ----------------------
+
     def _on_tick(self):
         if not (self._led and self._active):
             return
-        result = self._led.tick()
-        display_colors = result.get('display_colors')
-        if display_colors is not None:
-            self._panel.set_led_colors(display_colors)
+        try:
+            result = self._led.tick()
+            display_colors = result.get('display_colors')
+            if display_colors is not None:
+                self._panel.set_led_colors(display_colors)
+            # Periodic config save (~every 3 s)
+            self._save_counter += 1
+            if self._save_counter >= self._SAVE_INTERVAL:
+                self._save_counter = 0
+                self._led.save_config()
+        except Exception:
+            log.exception("LED tick error")
 
     def update_from_metrics(self, metrics) -> None:
         if not self._led:
@@ -1475,6 +1552,10 @@ class TRCCApp(QMainWindow):
         if not self._device_timer.isActive():
             self._device_timer.start(5000)
             self._on_device_poll()
+        # Safety: restart LED tick timer if it stopped while hidden
+        if self._led.active and not self._led._timer.isActive():
+            log.warning("LED tick timer was stopped while hidden — restarting")
+            self._led._timer.start(150)
 
     def mousePressEvent(self, event):
         if self._decorated or event.button() != Qt.MouseButton.LeftButton:
