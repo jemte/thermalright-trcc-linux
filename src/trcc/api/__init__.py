@@ -34,8 +34,10 @@ from trcc.adapters.device.led import probe_led_model
 from trcc.adapters.infra.dc_config import DcConfig
 from trcc.adapters.infra.dc_parser import load_config_json
 from trcc.adapters.render.qt import QtRenderer
+from trcc.adapters.system.sensors import SensorEnumerator
 from trcc.services import DeviceService, MediaService, OverlayService
 from trcc.services.image import ImageService
+from trcc.services.system import SystemService, set_instance
 
 log = logging.getLogger(__name__)
 
@@ -57,10 +59,13 @@ _device_svc = DeviceService(
     get_protocol_info=DeviceProtocolFactory.get_protocol_info,
 )
 
+# System service (composition root — adapter wired here)
+_system_svc = SystemService(enumerator=SensorEnumerator())
+set_instance(_system_svc)
+
 # Lazy-initialized devices (set when device is selected)
 _display_dispatcher = None  # LCDDevice | None
 _led_dispatcher = None      # LEDDevice | None
-_system_svc = None          # SystemService | None
 
 # Last frame sent to LCD — updated by display/theme endpoints for preview
 _current_image = None  # QImage | PIL Image | None
@@ -177,10 +182,8 @@ def start_overlay_loop(
     stop_event = _overlay_stop_event
 
     def _loop() -> None:
-        from trcc.services.system import get_all_metrics
-
         while not stop_event.is_set():
-            metrics = get_all_metrics()
+            metrics = _system_svc.all_metrics
             if overlay.would_change(metrics):
                 overlay.update_metrics(metrics)
                 frame = overlay.render(metrics=metrics)

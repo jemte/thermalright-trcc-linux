@@ -143,9 +143,12 @@ def test_image():
 # Tier 2: Filesystem fixtures
 # =========================================================================
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def tmp_config(tmp_path, monkeypatch):
-    """Isolated config dir — patches CONFIG_DIR/CONFIG_PATH to tmp_path."""
+    """Isolated config dir — patches CONFIG_DIR/CONFIG_PATH to tmp_path.
+
+    Autouse: no test should ever read from or write to the real ~/.trcc/config.json.
+    """
     config_dir = str(tmp_path / "trcc")
     config_path = str(tmp_path / "trcc" / "config.json")
     handshake_path = str(tmp_path / "trcc" / "last_handshake.json")

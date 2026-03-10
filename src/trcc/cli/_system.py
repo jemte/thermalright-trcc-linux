@@ -69,8 +69,10 @@ def show_info(*, preview: bool = False, metric: str | None = None):
         metric: Filter to a group — cpu, gpu, mem, disk, net, fan, time.
     """
     try:
+        from trcc.cli import _ensure_system
         from trcc.services.system import format_metric, get_all_metrics
 
+        _ensure_system()
         metrics = get_all_metrics()
 
         if preview:

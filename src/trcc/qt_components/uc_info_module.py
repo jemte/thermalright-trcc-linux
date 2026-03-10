@@ -5,11 +5,9 @@ Shows 4 sensor boxes (CPU temp, GPU temp, CPU%, GPU%) above the preview.
 Matches Windows TRCC Information Module functionality.
 """
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
-
-from ..services.system import get_cached_metrics
 
 # Default sensors: (metric_key, label, color)
 DEFAULT_SENSORS = [
@@ -62,9 +60,7 @@ class UCInfoModule(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._temp_unit = '\u00b0C'
-        self._sensor_boxes = {}
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self._update_values)
+        self._sensor_boxes: dict = {}
 
         # Dark background via palette
         palette = self.palette()
@@ -93,22 +89,8 @@ class UCInfoModule(QWidget):
         """Accept pre-polled metrics from MetricsMediator."""
         self._apply_metrics(metrics)
 
-    def start_updates(self, interval_ms=1000):
-        """Start periodic sensor updates (standalone use)."""
-        self._update_values()
-        self._timer.start(interval_ms)
-
-    def stop_updates(self):
-        """Stop sensor updates."""
-        self._timer.stop()
-
-    def _update_values(self):
-        """Update all sensor values from system_info (standalone timer)."""
-        try:
-            metrics = get_cached_metrics()
-            self._apply_metrics(metrics)
-        except Exception:
-            pass
+    def stop_updates(self) -> None:
+        """No-op — retained for cleanup compatibility."""
 
     def _apply_metrics(self, metrics) -> None:
         """Apply metrics data to sensor display boxes."""

@@ -12,14 +12,8 @@ router = APIRouter(prefix="/system", tags=["system"])
 
 
 def _get_system_svc():
-    """Get or create the shared SystemService instance."""
+    """Get the shared SystemService instance (initialized in api/__init__.py)."""
     import trcc.api as api
-    from trcc.services import SystemService
-
-    if api._system_svc is None:
-        from trcc.adapters.system.sensors import SensorEnumerator
-
-        api._system_svc = SystemService(enumerator=SensorEnumerator())
     return api._system_svc
 
 

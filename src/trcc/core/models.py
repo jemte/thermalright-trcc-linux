@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum, IntEnum, auto
 from pathlib import Path
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
@@ -1691,4 +1692,55 @@ CATEGORY_COLORS: dict[int, str] = {
     5: '#FA6401',     # Network: Red-orange
     6: '#E02020',     # Fan: Red
 }
+
+
+# =============================================================================
+# Metric formatting — single source of truth (matches Windows TRCC)
+# =============================================================================
+
+
+def format_metric(metric: str, value: float, time_format: int = 0,
+                  date_format: int = 0, temp_unit: int = 0) -> str:
+    """Format a metric value for display (matches Windows TRCC)."""
+    if metric == 'date':
+        now = datetime.now()
+        fmt = DATE_FORMATS.get(date_format, DATE_FORMATS[0])
+        return now.strftime(fmt)
+    elif metric == 'time':
+        now = datetime.now()
+        fmt = TIME_FORMATS.get(time_format, TIME_FORMATS[0])
+        return now.strftime(fmt)
+    elif metric == 'weekday':
+        now = datetime.now()
+        return WEEKDAYS[now.weekday()]
+    elif metric == 'day_of_week':
+        return WEEKDAYS[int(value)]
+    elif metric.startswith('time_') or metric.startswith('date_'):
+        return f"{int(value):02d}"
+    elif 'temp' in metric:
+        suffix = "°F" if temp_unit == 1 else "°C"
+        return f"{value:.0f}{suffix}"
+    elif 'percent' in metric or 'usage' in metric or 'activity' in metric:
+        return f"{value:.0f}%"
+    elif 'freq' in metric or 'clock' in metric:
+        if value >= 1000:
+            return f"{value/1000:.1f}GHz"
+        return f"{value:.0f}MHz"
+    elif metric in ('disk_read', 'disk_write'):
+        return f"{value:.1f}MB/s"
+    elif metric in ('net_up', 'net_down'):
+        if value >= 1024:
+            return f"{value/1024:.1f}MB/s"
+        return f"{value:.0f}KB/s"
+    elif metric in ('net_total_up', 'net_total_down'):
+        if value >= 1024:
+            return f"{value/1024:.1f}GB"
+        return f"{value:.0f}MB"
+    elif metric.startswith('fan_'):
+        return f"{value:.0f}RPM"
+    elif metric == 'mem_available':
+        if value >= 1024:
+            return f"{value/1024:.1f}GB"
+        return f"{value:.0f}MB"
+    return f"{value:.1f}"
 

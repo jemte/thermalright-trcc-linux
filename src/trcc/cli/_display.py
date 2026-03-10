@@ -313,10 +313,15 @@ def load_mask(mask_path, *, device=None, preview=False):
 def render_overlay(dc_path, *, device=None, send=False, output=None,
                    preview=False):
     """Render overlay from DC config file."""
+    from trcc.cli import _ensure_system
+    from trcc.services.system import get_all_metrics
+
     lcd, rc = _connect_or_fail(device)
     if rc:
         return rc
-    result = lcd.render_overlay_from_dc(dc_path, send=send, output=output)
+    _ensure_system()
+    result = lcd.render_overlay_from_dc(
+        dc_path, send=send, output=output, metrics=get_all_metrics())
     if not result["success"]:
         print(f"Error: {result['error']}")
         return 1

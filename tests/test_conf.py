@@ -119,10 +119,10 @@ class TestMigrateConfig:
 
     def test_no_op_when_version_matches(self, tmp_config):
         from trcc.__version__ import __version__
-        save_config({"config_version": __version__, "devices": {"0:1234_5678": {}}})
+        save_config({"config_version": __version__, "devices": {"0": {"vid_pid": "1234_5678"}}})
         _migrate_config()
         cfg = load_config()
-        assert cfg["devices"] == {"0:1234_5678": {}}
+        assert cfg["devices"] == {"0": {"vid_pid": "1234_5678"}}
 
     def test_first_run_sets_version_no_clear(self, tmp_config):
         """No saved_version (fresh install) — just sets config_version."""
@@ -135,7 +135,7 @@ class TestMigrateConfig:
         from trcc.__version__ import __version__
         save_config({
             "config_version": "0.0.1",
-            "devices": {"0:1234_5678": {"theme": "dark"}},
+            "devices": {"0": {"vid_pid": "1234_5678", "theme": "dark"}},
             "resolution": [480, 480],
             "selected_device": "/dev/sg0",
             "installed_resolutions": {"320320": True},
@@ -306,18 +306,24 @@ class TestSettingsDeviceConfig:
     """Device config, selected device, and format prefs."""
 
     def test_device_config_key(self):
-        assert Settings.device_config_key(0, 0x87CD, 0x70DB) == "0:87cd_70db"
-        assert Settings.device_config_key(1, 0x0416, 0x5302) == "1:0416_5302"
+        assert Settings.device_config_key(0, 0x87CD, 0x70DB) == "0"
+        assert Settings.device_config_key(1, 0x0416, 0x5302) == "1"
+
+    def test_device_config_key_caches_vid_pid(self):
+        Settings.device_config_key(0, 0x87CD, 0x70DB)
+        assert Settings._vid_pid_cache["0"] == "87cd_70db"
 
     def test_get_device_config_empty(self, tmp_config):
-        assert Settings.get_device_config("0:87cd_70db") == {}
+        assert Settings.get_device_config("0") == {}
 
     def test_save_and_get_device_setting(self, tmp_config):
-        key = "0:87cd_70db"
+        key = Settings.device_config_key(0, 0x87CD, 0x70DB)
         Settings.save_device_setting(key, "theme", "dark")
         Settings.save_device_setting(key, "rotation", 90)
         cfg = Settings.get_device_config(key)
-        assert cfg == {"theme": "dark", "rotation": 90}
+        assert cfg["theme"] == "dark"
+        assert cfg["rotation"] == 90
+        assert cfg["vid_pid"] == "87cd_70db"
 
     def test_get_selected_device_none(self, tmp_config):
         assert Settings.get_selected_device() is None

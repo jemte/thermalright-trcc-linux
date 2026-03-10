@@ -122,8 +122,11 @@ async def render_overlay(dc_path: str, send: bool = True) -> dict:
     if not safe_path.startswith(allowed_dir + os.sep) and safe_path != allowed_dir:
         raise HTTPException(status_code=400, detail="Invalid overlay path")
 
+    import trcc.api as api
+
     lcd = _get_display()
-    result = lcd.render_overlay_from_dc(safe_path, send=send)
+    result = lcd.render_overlay_from_dc(
+        safe_path, send=send, metrics=api._system_svc.all_metrics)
     return dispatch_result(result)
 
 

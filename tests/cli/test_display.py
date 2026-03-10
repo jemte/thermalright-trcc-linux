@@ -279,7 +279,7 @@ class TestFrameOps:
 
 class TestDisplaySettings:
     def test_set_brightness_level_1(self, lcd, mock_display_svc):
-        with patch(_SETTINGS_KEY, return_value="0:0402_3922"), \
+        with patch(_SETTINGS_KEY, return_value="0"), \
              patch(_SETTINGS_SAVE):
             result = lcd.settings.set_brightness(1)
 
@@ -288,7 +288,7 @@ class TestDisplaySettings:
         mock_display_svc.set_brightness.assert_called_once_with(25)
 
     def test_set_brightness_level_2(self, lcd, mock_display_svc):
-        with patch(_SETTINGS_KEY, return_value="0:0402_3922"), \
+        with patch(_SETTINGS_KEY, return_value="0"), \
              patch(_SETTINGS_SAVE):
             result = lcd.settings.set_brightness(2)
 
@@ -297,7 +297,7 @@ class TestDisplaySettings:
         mock_display_svc.set_brightness.assert_called_once_with(50)
 
     def test_set_brightness_level_3(self, lcd, mock_display_svc):
-        with patch(_SETTINGS_KEY, return_value="0:0402_3922"), \
+        with patch(_SETTINGS_KEY, return_value="0"), \
              patch(_SETTINGS_SAVE):
             result = lcd.settings.set_brightness(3)
 
@@ -305,7 +305,7 @@ class TestDisplaySettings:
         assert "100%" in result["message"]
 
     def test_set_brightness_percent_50(self, lcd, mock_display_svc):
-        with patch(_SETTINGS_KEY, return_value="0:0402_3922"), \
+        with patch(_SETTINGS_KEY, return_value="0"), \
              patch(_SETTINGS_SAVE):
             result = lcd.settings.set_brightness(50)
 
@@ -321,12 +321,12 @@ class TestDisplaySettings:
         assert result["success"] is False
 
     def test_set_brightness_persists(self, lcd):
-        with patch(_SETTINGS_KEY, return_value="0:0402_3922") as mk, \
+        with patch(_SETTINGS_KEY, return_value="0") as mk, \
              patch(_SETTINGS_SAVE) as ms:
             lcd.settings.set_brightness(2)
 
         mk.assert_called_once_with(0, 0x0402, 0x3922)
-        ms.assert_called_once_with("0:0402_3922", "brightness_level", 2)
+        ms.assert_called_once_with("0", "brightness_level", 2)
 
     def test_set_rotation_0(self, lcd):
         with patch(_SETTINGS_KEY, return_value="k"), \
@@ -736,7 +736,7 @@ class TestCLISettingCommands:
     def test_set_brightness_cli_valid_1(self, mock_connect):
         from trcc.cli._display import set_brightness
 
-        with patch(_SETTINGS_KEY, return_value="0:0402_3922"), \
+        with patch(_SETTINGS_KEY, return_value="0"), \
              patch(_SETTINGS_SAVE):
             rc = set_brightness(1)
         assert rc == 0
@@ -744,7 +744,7 @@ class TestCLISettingCommands:
     def test_set_brightness_cli_valid_2(self, mock_connect):
         from trcc.cli._display import set_brightness
 
-        with patch(_SETTINGS_KEY, return_value="0:0402_3922"), \
+        with patch(_SETTINGS_KEY, return_value="0"), \
              patch(_SETTINGS_SAVE):
             rc = set_brightness(2)
         assert rc == 0
@@ -752,7 +752,7 @@ class TestCLISettingCommands:
     def test_set_brightness_cli_valid_3(self, mock_connect):
         from trcc.cli._display import set_brightness
 
-        with patch(_SETTINGS_KEY, return_value="0:0402_3922"), \
+        with patch(_SETTINGS_KEY, return_value="0"), \
              patch(_SETTINGS_SAVE):
             rc = set_brightness(3)
         assert rc == 0
@@ -776,7 +776,7 @@ class TestCLISettingCommands:
     def test_set_rotation_cli_valid_0(self, mock_connect):
         from trcc.cli._display import set_rotation
 
-        with patch(_SETTINGS_KEY, return_value="0:0402_3922"), \
+        with patch(_SETTINGS_KEY, return_value="0"), \
              patch(_SETTINGS_SAVE):
             rc = set_rotation(0)
         assert rc == 0
@@ -784,7 +784,7 @@ class TestCLISettingCommands:
     def test_set_rotation_cli_valid_90(self, mock_connect):
         from trcc.cli._display import set_rotation
 
-        with patch(_SETTINGS_KEY, return_value="0:0402_3922"), \
+        with patch(_SETTINGS_KEY, return_value="0"), \
              patch(_SETTINGS_SAVE):
             rc = set_rotation(90)
         assert rc == 0
@@ -792,7 +792,7 @@ class TestCLISettingCommands:
     def test_set_rotation_cli_valid_180(self, mock_connect):
         from trcc.cli._display import set_rotation
 
-        with patch(_SETTINGS_KEY, return_value="0:0402_3922"), \
+        with patch(_SETTINGS_KEY, return_value="0"), \
              patch(_SETTINGS_SAVE):
             rc = set_rotation(180)
         assert rc == 0
@@ -800,7 +800,7 @@ class TestCLISettingCommands:
     def test_set_rotation_cli_valid_270(self, mock_connect):
         from trcc.cli._display import set_rotation
 
-        with patch(_SETTINGS_KEY, return_value="0:0402_3922"), \
+        with patch(_SETTINGS_KEY, return_value="0"), \
              patch(_SETTINGS_SAVE):
             rc = set_rotation(270)
         assert rc == 0
@@ -815,7 +815,7 @@ class TestCLISettingCommands:
     def test_set_split_mode_cli_valid(self, mock_connect):
         from trcc.cli._display import set_split_mode
 
-        with patch(_SETTINGS_KEY, return_value="0:0402_3922"), \
+        with patch(_SETTINGS_KEY, return_value="0"), \
              patch(_SETTINGS_SAVE):
             rc = set_split_mode(0)
         assert rc == 0
@@ -1040,7 +1040,7 @@ class TestCLIResume:
              patch(_DISC_RES), \
              patch(_SETTINGS_CLS) as mock_settings, \
              patch(_TIME):
-            mock_settings.device_config_key.return_value = "0:0402_3922"
+            mock_settings.device_config_key.return_value = "0"
             mock_settings.get_device_config.return_value = {}
             rc = resume()
 

@@ -7,12 +7,11 @@ Matches Windows TRCC right-side Activity panel.
 
 import logging
 
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
 
 from ..core.models import OverlayElementConfig, OverlayMode
-from ..services.system import get_cached_metrics
 
 log = logging.getLogger(__name__)
 
@@ -165,10 +164,7 @@ class UCActivitySidebar(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self._sensor_items = []  # all SensorItem widgets
-        self._update_timer = QTimer(self)
-        self._update_timer.timeout.connect(self._update_values)
-
+        self._sensor_items: list = []
         self._setup_ui()
 
     def _setup_ui(self):
@@ -241,20 +237,5 @@ class UCActivitySidebar(QWidget):
         except Exception as e:
             log.error("Activity sidebar update error: %s", e)
 
-    def start_updates(self, interval_ms=1000):
-        """Start periodic sensor value updates (standalone use)."""
-        self._update_values()
-        self._update_timer.start(interval_ms)
-
-    def stop_updates(self):
-        """Stop sensor value updates."""
-        self._update_timer.stop()
-
-    def _update_values(self):
-        """Update all sensor values from system_info (standalone timer)."""
-        try:
-            metrics = get_cached_metrics()
-            for item in self._sensor_items:
-                item.update_value(metrics)
-        except Exception as e:
-            log.error("Activity sidebar update error: %s", e)
+    def stop_updates(self) -> None:
+        """No-op — retained for cleanup compatibility."""

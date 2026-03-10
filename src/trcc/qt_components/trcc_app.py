@@ -708,9 +708,12 @@ class TRCCApp(QMainWindow):
         self.uc_about.setGeometry(*Layout.FORM_CONTAINER)
         self.uc_about.setVisible(False)
 
-        # Sensor enumerator
+        # System service (composition root — adapter import here is correct)
+        from ..services.system import SystemService, set_instance
         self._system_sensors = SensorEnumerator()
-        self._system_sensors.discover()
+        self._system_svc = SystemService(enumerator=self._system_sensors)
+        self._system_svc.discover()
+        set_instance(self._system_svc)
 
         # System info dashboard
         self.uc_system_info = UCSystemInfo(self._system_sensors, parent=central)
@@ -1518,7 +1521,8 @@ class TRCCApp(QMainWindow):
 
     def _setup_mediator(self):
         from .metrics_mediator import MetricsMediator
-        self._mediator = MetricsMediator(self)
+        self._mediator = MetricsMediator(
+            self, metrics_fn=lambda: self._system_svc.all_metrics)
         self._mediator.subscribe(
             self._on_overlay_tick, period=1,
             guard=lambda: (

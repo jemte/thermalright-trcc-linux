@@ -545,9 +545,8 @@ class TestThemeOperations(unittest.TestCase):
                                 json={"name": "Theme001", "resolution": "bad"})
         self.assertEqual(resp.status_code, 400)
 
-    @patch('trcc.conf.settings')
-    def test_save_theme(self, mock_settings):
-        mock_settings.load_config.return_value = {"some": "config"}
+    @patch('trcc.conf.load_config', return_value={"some": "config"})
+    def test_save_theme(self, mock_load):
         resp = self.client.post("/themes/save", json={"name": "MyTheme"})
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["name"], "MyTheme")
@@ -569,9 +568,10 @@ class TestSystemEndpoints(unittest.TestCase):
     def setUp(self):
         configure_auth(None)
         self.client = TestClient(app)
+        self._saved_system_svc = api_module._system_svc
 
     def tearDown(self):
-        api_module._system_svc = None
+        api_module._system_svc = self._saved_system_svc
 
     def test_get_metrics(self):
         from trcc.core.models import HardwareMetrics
@@ -981,27 +981,24 @@ class TestOverlayLoop(unittest.TestCase):
         self.assertIsNone(api_module._overlay_thread)
         self.assertIsNone(api_module._overlay_stop_event)
 
-    @patch('trcc.services.system.get_all_metrics')
     @patch('trcc.api._device_svc')
-    def test_start_overlay_loop_runs(self, mock_svc, mock_metrics):
-        """start_overlay_loop() starts a daemon thread that renders."""
-        import time
-
+    def test_start_overlay_loop_runs(self, mock_svc):
+        """start_overlay_loop() starts a daemon thread, stop cleans up."""
         from trcc.core.models import HardwareMetrics
 
-        mock_metrics.return_value = HardwareMetrics()
+        mock_system = MagicMock()
+        mock_system.all_metrics = HardwareMetrics()
+        api_module._system_svc = mock_system
         mock_svc.send_pil.return_value = True
 
         bg = Image.new('RGB', (320, 320), 'black')
 
-        # Use a non-existent DC path — overlay will load empty config
         ok = api_module.start_overlay_loop(bg, "/nonexistent/config1.dc", 320, 320)
         self.assertTrue(ok)
         self.assertIsNotNone(api_module._overlay_thread)
         self.assertTrue(api_module._overlay_thread.is_alive())
 
-        # Let it run briefly then stop
-        time.sleep(0.1)
+        # stop_overlay_loop sets the event and joins with timeout — no sleep needed
         api_module.stop_overlay_loop()
         self.assertIsNone(api_module._overlay_thread)
 
@@ -1838,9 +1835,10 @@ class TestSystemEdgeCases(unittest.TestCase):
     def setUp(self) -> None:
         configure_auth(None)
         self.client = TestClient(app)
+        self._saved_system_svc = api_module._system_svc
 
     def tearDown(self) -> None:
-        api_module._system_svc = None
+        api_module._system_svc = self._saved_system_svc
 
     def _mock_svc_with_metrics(self, **kw):
         from trcc.core.models import HardwareMetrics
@@ -1914,16 +1912,12 @@ class TestSystemEdgeCases(unittest.TestCase):
         self.assertIn("cpu_temp", data)
         self.assertEqual(data["cpu_temp"], 72.5)
 
-    def test_system_svc_lazily_created(self) -> None:
-        api_module._system_svc = None
-        with patch("trcc.services.SystemService") as mock_cls:
-            mock_inst = MagicMock()
-            from trcc.core.models import HardwareMetrics
-            mock_inst.all_metrics = HardwareMetrics()
-            mock_cls.return_value = mock_inst
-            resp = self.client.get("/system/metrics")
+    def test_system_svc_initialized_at_module_level(self) -> None:
+        """SystemService is wired at API module level (composition root)."""
+        self._mock_svc_with_metrics(cpu_temp=55.0)
+        resp = self.client.get("/system/metrics")
         self.assertEqual(resp.status_code, 200)
-        mock_cls.assert_called_once()
+        self.assertEqual(resp.json()["cpu_temp"], 55.0)
 
 
 # ── Static mount edge cases ──────────────────────────────────────────────────
@@ -2020,9 +2014,16 @@ class TestDisplayHappyPaths(unittest.TestCase):
         self.mock_lcd.resolution = (320, 320)
         self.mock_lcd.device_path = "/dev/sg0"
         api_module._display_dispatcher = self.mock_lcd
+        self._saved_system_svc = api_module._system_svc
+        if api_module._system_svc is None:
+            from trcc.core.models import HardwareMetrics
+            mock_sys = MagicMock()
+            mock_sys.all_metrics = HardwareMetrics()
+            api_module._system_svc = mock_sys
 
     def tearDown(self) -> None:
         api_module._display_dispatcher = None
+        api_module._system_svc = self._saved_system_svc
 
     @patch('trcc.api.stop_overlay_loop')
     @patch('trcc.api.stop_video_playback')

@@ -349,23 +349,23 @@ class TestResolutionInstalled(unittest.TestCase):
 
 
 class TestDeviceConfigKey(unittest.TestCase):
-    """Test device_config_key formatting."""
+    """Test device_config_key formatting — index-only key, vid_pid cached."""
 
     def test_format(self):
         key = Settings.device_config_key(0, 0x87CD, 0x70DB)
-        self.assertEqual(key, '0:87cd_70db')
+        self.assertEqual(key, '0')
 
     def test_format_with_index(self):
         key = Settings.device_config_key(2, 0x0402, 0x3922)
-        self.assertEqual(key, '2:0402_3922')
+        self.assertEqual(key, '2')
 
-    def test_zero_padded(self):
-        key = Settings.device_config_key(0, 0x0001, 0x0002)
-        self.assertEqual(key, '0:0001_0002')
+    def test_caches_vid_pid(self):
+        Settings.device_config_key(0, 0x0001, 0x0002)
+        self.assertEqual(Settings._vid_pid_cache['0'], '0001_0002')
 
 
 class TestPerDeviceConfig(unittest.TestCase):
-    """Test per-device config save/load."""
+    """Test per-device config save/load — keys are index-only with vid_pid inside."""
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
@@ -376,6 +376,9 @@ class TestPerDeviceConfig(unittest.TestCase):
         ]
         for p in self.patches:
             p.start()
+        # Populate vid_pid cache (normally done by device_config_key callers)
+        Settings.device_config_key(0, 0x87CD, 0x70DB)
+        Settings.device_config_key(1, 0x0402, 0x3922)
 
     def tearDown(self):
         for p in self.patches:
@@ -384,30 +387,31 @@ class TestPerDeviceConfig(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_get_missing_device_returns_empty(self):
-        self.assertEqual(Settings.get_device_config('0:87cd_70db'), {})
+        self.assertEqual(Settings.get_device_config('0'), {})
 
     def test_save_and_get(self):
-        Settings.save_device_setting('0:87cd_70db', 'brightness_level', 3)
-        cfg = Settings.get_device_config('0:87cd_70db')
+        Settings.save_device_setting('0', 'brightness_level', 3)
+        cfg = Settings.get_device_config('0')
         self.assertEqual(cfg['brightness_level'], 3)
+        self.assertEqual(cfg['vid_pid'], '87cd_70db')
 
     def test_multiple_settings_same_device(self):
-        Settings.save_device_setting('0:87cd_70db', 'brightness_level', 2)
-        Settings.save_device_setting('0:87cd_70db', 'rotation', 90)
-        cfg = Settings.get_device_config('0:87cd_70db')
+        Settings.save_device_setting('0', 'brightness_level', 2)
+        Settings.save_device_setting('0', 'rotation', 90)
+        cfg = Settings.get_device_config('0')
         self.assertEqual(cfg['brightness_level'], 2)
         self.assertEqual(cfg['rotation'], 90)
 
     def test_multiple_devices_independent(self):
-        Settings.save_device_setting('0:87cd_70db', 'brightness_level', 1)
-        Settings.save_device_setting('1:0402_3922', 'brightness_level', 3)
-        self.assertEqual(Settings.get_device_config('0:87cd_70db')['brightness_level'], 1)
-        self.assertEqual(Settings.get_device_config('1:0402_3922')['brightness_level'], 3)
+        Settings.save_device_setting('0', 'brightness_level', 1)
+        Settings.save_device_setting('1', 'brightness_level', 3)
+        self.assertEqual(Settings.get_device_config('0')['brightness_level'], 1)
+        self.assertEqual(Settings.get_device_config('1')['brightness_level'], 3)
 
     def test_save_complex_value(self):
         carousel = {'enabled': True, 'interval': 5, 'themes': ['Theme1', 'Theme3']}
-        Settings.save_device_setting('0:87cd_70db', 'carousel', carousel)
-        cfg = Settings.get_device_config('0:87cd_70db')
+        Settings.save_device_setting('0', 'carousel', carousel)
+        cfg = Settings.get_device_config('0')
         self.assertEqual(cfg['carousel']['enabled'], True)
         self.assertEqual(cfg['carousel']['themes'], ['Theme1', 'Theme3'])
 
@@ -416,27 +420,27 @@ class TestPerDeviceConfig(unittest.TestCase):
             'enabled': True,
             'config': {'time_0': {'x': 10, 'y': 10, 'metric': 'time'}},
         }
-        Settings.save_device_setting('0:87cd_70db', 'overlay', overlay)
-        cfg = Settings.get_device_config('0:87cd_70db')
+        Settings.save_device_setting('0', 'overlay', overlay)
+        cfg = Settings.get_device_config('0')
         self.assertTrue(cfg['overlay']['enabled'])
         self.assertIn('time_0', cfg['overlay']['config'])
 
     def test_overwrite_setting(self):
-        Settings.save_device_setting('0:87cd_70db', 'rotation', 0)
-        Settings.save_device_setting('0:87cd_70db', 'rotation', 180)
-        self.assertEqual(Settings.get_device_config('0:87cd_70db')['rotation'], 180)
+        Settings.save_device_setting('0', 'rotation', 0)
+        Settings.save_device_setting('0', 'rotation', 180)
+        self.assertEqual(Settings.get_device_config('0')['rotation'], 180)
 
     def test_device_config_preserves_global(self):
         Settings._save_temp_unit(1)
-        Settings.save_device_setting('0:87cd_70db', 'brightness_level', 2)
+        Settings.save_device_setting('0', 'brightness_level', 2)
         self.assertEqual(Settings._get_saved_temp_unit(), 1)
 
     def test_config_json_structure(self):
-        """Verify the on-disk JSON structure matches documentation."""
+        """Verify the on-disk JSON structure — index keys with vid_pid inside."""
         Settings._save_resolution(480, 480)
         Settings._save_temp_unit(1)
-        Settings.save_device_setting('0:87cd_70db', 'theme_path', '/some/path')
-        Settings.save_device_setting('0:87cd_70db', 'brightness_level', 2)
+        Settings.save_device_setting('0', 'theme_path', '/some/path')
+        Settings.save_device_setting('0', 'brightness_level', 2)
 
         with open(self.config_path) as f:
             raw = json.load(f)
@@ -444,8 +448,30 @@ class TestPerDeviceConfig(unittest.TestCase):
         self.assertEqual(raw['resolution'], [480, 480])
         self.assertEqual(raw['temp_unit'], 1)
         self.assertIn('devices', raw)
-        self.assertIn('0:87cd_70db', raw['devices'])
-        self.assertEqual(raw['devices']['0:87cd_70db']['theme_path'], '/some/path')
+        self.assertIn('0', raw['devices'])
+        self.assertEqual(raw['devices']['0']['vid_pid'], '87cd_70db')
+        self.assertEqual(raw['devices']['0']['theme_path'], '/some/path')
+
+    def test_migrate_old_format(self):
+        """Old '0:vid_pid' keys auto-migrate to '0' with vid_pid inside."""
+        old_config = {
+            'devices': {
+                '0:0402_3922': {'brightness_level': 1, 'rotation': 90},
+                '1:87cd_70db': {'brightness_level': 3},
+            }
+        }
+        with open(self.config_path, 'w') as f:
+            json.dump(old_config, f)
+
+        from trcc.conf import load_config
+        config = load_config()
+        devs = config['devices']
+        self.assertIn('0', devs)
+        self.assertIn('1', devs)
+        self.assertNotIn('0:0402_3922', devs)
+        self.assertEqual(devs['0']['vid_pid'], '0402_3922')
+        self.assertEqual(devs['0']['brightness_level'], 1)
+        self.assertEqual(devs['1']['vid_pid'], '87cd_70db')
 
 
 # -- DataManager.extract_7z ------------------------------------------------

@@ -336,7 +336,7 @@ class TestRestoreDeviceSettings(unittest.TestCase):
         disp = MagicMock()
         lcd = _make_lcd(device_svc=svc, display_svc=disp)
         with patch('trcc.conf.Settings.device_config_key',
-                   return_value="0:0402_3922"), \
+                   return_value="0"), \
              patch('trcc.conf.Settings.get_device_config',
                    return_value={'brightness_level': 1, 'rotation': 90}):
             lcd.restore_device_settings()

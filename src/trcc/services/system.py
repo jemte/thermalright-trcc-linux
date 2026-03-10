@@ -17,7 +17,8 @@ import time
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from ..core.models import DATE_FORMATS, TIME_FORMATS, WEEKDAYS, HardwareMetrics
+from ..core.models import HardwareMetrics
+from ..core.models import format_metric as _format_metric
 
 if TYPE_CHECKING:
     from ..core.models import SensorInfo
@@ -293,48 +294,9 @@ class SystemService:
     @staticmethod
     def format_metric(metric: str, value: float, time_format: int = 0,
                       date_format: int = 0, temp_unit: int = 0) -> str:
-        """Format a metric value for display (matches Windows TRCC)."""
-        if metric == 'date':
-            now = datetime.now()
-            fmt = DATE_FORMATS.get(date_format, DATE_FORMATS[0])
-            return now.strftime(fmt)
-        elif metric == 'time':
-            now = datetime.now()
-            fmt = TIME_FORMATS.get(time_format, TIME_FORMATS[0])
-            return now.strftime(fmt)
-        elif metric == 'weekday':
-            now = datetime.now()
-            return WEEKDAYS[now.weekday()]
-        elif metric == 'day_of_week':
-            return WEEKDAYS[int(value)]
-        elif metric.startswith('time_') or metric.startswith('date_'):
-            return f"{int(value):02d}"
-        elif 'temp' in metric:
-            suffix = "°F" if temp_unit == 1 else "°C"
-            return f"{value:.0f}{suffix}"
-        elif 'percent' in metric or 'usage' in metric or 'activity' in metric:
-            return f"{value:.0f}%"
-        elif 'freq' in metric or 'clock' in metric:
-            if value >= 1000:
-                return f"{value/1000:.1f}GHz"
-            return f"{value:.0f}MHz"
-        elif metric in ('disk_read', 'disk_write'):
-            return f"{value:.1f}MB/s"
-        elif metric in ('net_up', 'net_down'):
-            if value >= 1024:
-                return f"{value/1024:.1f}MB/s"
-            return f"{value:.0f}KB/s"
-        elif metric in ('net_total_up', 'net_total_down'):
-            if value >= 1024:
-                return f"{value/1024:.1f}GB"
-            return f"{value:.0f}MB"
-        elif metric.startswith('fan_'):
-            return f"{value:.0f}RPM"
-        elif metric == 'mem_available':
-            if value >= 1024:
-                return f"{value/1024:.1f}GB"
-            return f"{value:.0f}MB"
-        return f"{value:.1f}"
+        """Format a metric value for display. Delegates to core.models."""
+        return _format_metric(metric, value, time_format=time_format,
+                              date_format=date_format, temp_unit=temp_unit)
 
     # ── Utilities ─────────────────────────────────────────────────────
 
@@ -500,29 +462,42 @@ class SystemService:
 
 
 # ── Module-level convenience API ─────────────────────────────────────────────
-# Lazy singleton + short aliases — replaces adapters/system/info.py shim.
+# Explicit singleton — composition roots call set_instance() at startup.
 
 _instance: SystemService | None = None
 
 
-# ── Composition root (adapter import allowed — this is a convenience factory) ──
+def set_instance(svc: SystemService) -> None:
+    """Set the module-level SystemService singleton.
 
-def _get_instance() -> SystemService:
-    global _instance
+    Called by composition roots (GUI, CLI, API) after building the service
+    with injected dependencies.  Replaces the old ``_get_instance()`` which
+    violated hexagonal architecture by importing from adapters.
+    """
+    global _instance  # noqa: PLW0603
+    _instance = svc
+
+
+def get_instance() -> SystemService:
+    """Return the module-level SystemService singleton.
+
+    Raises RuntimeError if ``set_instance()`` has not been called yet.
+    """
     if _instance is None:
-        from ..adapters.system.sensors import SensorEnumerator
-        _instance = SystemService(enumerator=SensorEnumerator())
+        raise RuntimeError(
+            "SystemService not initialized. "
+            "Call set_instance() from a composition root.")
     return _instance
 
 
 def get_all_metrics() -> HardwareMetrics:
-    """Get all hardware metrics (lazy singleton)."""
-    return _get_instance().all_metrics
+    """Get all hardware metrics."""
+    return get_instance().all_metrics
 
 
 def set_poll_interval(seconds: float) -> None:
     """Set background sensor poll interval (user's data refresh setting)."""
-    _get_instance().set_poll_interval(seconds)
+    get_instance().set_poll_interval(seconds)
 
 
 def get_cached_metrics(max_age: float = 0.5) -> HardwareMetrics:
@@ -547,5 +522,5 @@ _cached_metrics_time: float = 0.0
 
 def format_metric(key: str, value: float, **kwargs: Any) -> str:
     """Format a single metric value for display."""
-    return SystemService.format_metric(key, value, **kwargs)
+    return _format_metric(key, value, **kwargs)
 

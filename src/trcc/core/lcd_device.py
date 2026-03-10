@@ -235,10 +235,15 @@ class LCDDevice(Device):
     # ── Standalone operations (CLI overlay/mask without GUI) ──────
 
     def render_overlay_from_dc(self, dc_path: str, *, send: bool = False,
-                               output: str | None = None) -> dict:
-        """Render overlay from DC config file (CLI standalone)."""
+                               output: str | None = None,
+                               metrics: Any = None) -> dict:
+        """Render overlay from DC config file (CLI standalone).
+
+        Args:
+            metrics: Pre-polled HardwareMetrics. Caller must provide
+                     (injected from composition root).
+        """
         from ..services import ImageService, OverlayService
-        from ..services.system import get_all_metrics
 
         if not os.path.exists(dc_path):
             return {"success": False, "error": f"Path not found: {dc_path}"}
@@ -253,8 +258,8 @@ class LCDDevice(Device):
         dc_file = p / "config1.dc" if p.is_dir() else p
         display_opts = overlay.load_from_dc(dc_file)
 
-        metrics = get_all_metrics()
-        overlay.update_metrics(metrics)
+        if metrics is not None:
+            overlay.update_metrics(metrics)
         overlay.enabled = True
 
         bg = ImageService.solid_color(0, 0, 0, w, h)

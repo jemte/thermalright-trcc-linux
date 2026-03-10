@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from .ports import Renderer
 
 if TYPE_CHECKING:
+    from ..services.system import SystemService
     from .lcd_device import LCDDevice
     from .led_device import LEDDevice
 
@@ -124,6 +125,13 @@ class ControllerBuilder:
             lcd.initialize(self._data_dir)
 
         return lcd
+
+    def build_system(self) -> SystemService:
+        """Build and return a SystemService with injected enumerator."""
+        from ..adapters.system.sensors import SensorEnumerator
+        from ..services.system import SystemService
+
+        return SystemService(enumerator=SensorEnumerator())
 
     def build_led(self) -> LEDDevice:
         """Build and return a LEDDevice.

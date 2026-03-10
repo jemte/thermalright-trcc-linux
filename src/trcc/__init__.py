@@ -34,7 +34,8 @@ from trcc.adapters.infra.dc_parser import dc_to_overlay_config, parse_dc_file
 
 # Animation
 from trcc.adapters.infra.media_player import VideoDecoder
-from trcc.services.system import format_metric, get_all_metrics
+from trcc.core.models import format_metric
+from trcc.services.system import get_all_metrics
 
 __all__ = [
     # Version

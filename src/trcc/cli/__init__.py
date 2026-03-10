@@ -33,6 +33,15 @@ def _ensure_renderer() -> None:
         ImageService.set_renderer(QtRenderer())
 
 
+def _ensure_system() -> None:
+    """Initialize SystemService singleton for CLI (once)."""
+    from trcc.services.system import _instance
+    if _instance is None:
+        from trcc.core.builder import ControllerBuilder
+        from trcc.services.system import set_instance
+        set_instance(ControllerBuilder().build_system())
+
+
 def _cli_handler(func):
     """Decorator: catches Exception, prints error, returns 1."""
     @functools.wraps(func)

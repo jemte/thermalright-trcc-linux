@@ -13,8 +13,8 @@ from ..core.models import (
     HARDWARE_METRICS,
     OverlayElementConfig,
     OverlayMode,
+    format_metric,
 )
-from ..services.system import format_metric
 from .assets import Assets
 from .constants import Colors, Sizes
 

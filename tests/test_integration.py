@@ -172,21 +172,21 @@ class TestCLISendPipeline(unittest.TestCase):
 class TestCLIResumePipeline(unittest.TestCase):
     """CLI resume() → DeviceService.detect → load config → ImageService → send."""
 
+    @patch("trcc.services.device.DeviceService.send_pil_async")
     @patch("trcc.adapters.device.factory.DeviceProtocolFactory.get_protocol")
     @patch("trcc.adapters.device.detector.DeviceDetector.detect")
     @patch("trcc.conf.Settings.get_device_config")
     @patch("trcc.conf.Settings.device_config_key")
     def test_resume_with_saved_theme(self, mock_key, mock_cfg, mock_detect,
-                                     mock_get_protocol):
-        """resume() sends last theme with brightness and rotation applied."""
+                                     mock_get_protocol, mock_send_async):
+        """resume() loads last theme, applies settings, and sends to device."""
         from trcc.cli import resume
         from trcc.core.models import HandshakeResult
 
         mock_detect.return_value = [_make_device()]
-        mock_key.return_value = "0:87cd_70db"
+        mock_key.return_value = "0"
 
         mock_protocol = MagicMock()
-        mock_protocol.send_image.return_value = True
         mock_protocol.handshake.return_value = HandshakeResult(
             resolution=(320, 320))
         mock_get_protocol.return_value = mock_protocol
@@ -201,10 +201,11 @@ class TestCLIResumePipeline(unittest.TestCase):
 
             result = resume()
             self.assertEqual(result, 0)
-            mock_protocol.send_image.assert_called_once()
-            # Verify RGB565 frame was sent
-            data = mock_protocol.send_image.call_args[0][0]
-            self.assertEqual(len(data), 320 * 320 * 2)
+            # send_pil_async is called synchronously by lcd.send() —
+            # no race condition with background worker thread
+            mock_send_async.assert_called_once()
+            image = mock_send_async.call_args[0][0]
+            self.assertIsNotNone(image)
 
     @patch("trcc.adapters.device.detector.DeviceDetector.detect")
     def test_resume_no_devices(self, mock_detect):
@@ -222,7 +223,7 @@ class TestCLIResumePipeline(unittest.TestCase):
         from trcc.cli import resume
 
         mock_detect.return_value = [_make_device()]
-        mock_key.return_value = "0:87cd_70db"
+        mock_key.return_value = "0"
         mock_cfg.return_value = {}  # no theme_path
 
         result = resume()

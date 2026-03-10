@@ -122,19 +122,19 @@ Pre-built packages are available for every major distro. No pip, no venv, no PEP
 
 **Fedora / openSUSE / Nobara:**
 ```bash
-sudo dnf install https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux-8.2.7-1.fc43.noarch.rpm
+sudo dnf install https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux-8.2.9-1.fc43.noarch.rpm
 ```
 
 **Ubuntu / Debian / Mint / Pop!_OS / Zorin:**
 ```bash
-curl -LO https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux_8.2.7-1_all.deb
-sudo dpkg -i trcc-linux_8.2.7-1_all.deb
+curl -LO https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux_8.2.9-1_all.deb
+sudo dpkg -i trcc-linux_8.2.9-1_all.deb
 sudo apt-get install -f    # pulls in any missing dependencies
 ```
 
 **Arch / CachyOS / Manjaro / EndeavourOS / Garuda:**
 ```bash
-sudo pacman -U https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux-8.2.7-1-any.pkg.tar.zst
+sudo pacman -U https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux-8.2.9-1-any.pkg.tar.zst
 ```
 
 **NixOS** — add to your `flake.nix` inputs:

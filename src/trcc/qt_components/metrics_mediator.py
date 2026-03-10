@@ -13,7 +13,6 @@ from dataclasses import dataclass
 from PySide6.QtCore import QObject, QTimer
 
 from ..core.models import HardwareMetrics
-from ..services.system import get_all_metrics
 
 log = logging.getLogger(__name__)
 
@@ -43,8 +42,14 @@ class MetricsMediator(QObject):
         mediator.ensure_running()
     """
 
-    def __init__(self, parent: QObject) -> None:
+    def __init__(self, parent: QObject,
+                 metrics_fn: Callable[[], HardwareMetrics] | None = None) -> None:
         super().__init__(parent)
+        if metrics_fn is None:
+            raise RuntimeError(
+                "MetricsMediator requires a metrics_fn. "
+                "Pass SystemService.all_metrics from a composition root.")
+        self._metrics_fn = metrics_fn
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
         self._subs: list[_Subscription] = []
@@ -122,7 +127,7 @@ class MetricsMediator(QObject):
         if not active:
             return
         try:
-            metrics = get_all_metrics()
+            metrics = self._metrics_fn()
         except Exception:
             return
         from ..conf import settings

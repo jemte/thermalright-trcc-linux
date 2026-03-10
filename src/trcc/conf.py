@@ -16,8 +16,8 @@ Usage:
     settings.lang           # Language suffix ('en', 'd', 'e', 'f', 'p', 'r', 'x', '', 'tc')
 
     # Static settings operations
-    Settings.device_config_key(0, 0x87cd, 0x70db)
-    Settings.get_device_config(key)
+    Settings.device_config_key(0, 0x87cd, 0x70db)  # returns "0"
+    Settings.get_device_config(key)  # {"vid_pid": "87cd_70db", ...}
     Settings.save_device_setting(key, 'theme', 'dark')
 
     # Low-level config access (module-level)
@@ -78,14 +78,44 @@ def _migrate_old_config() -> None:
     log.info("Migrated config from %s to %s", old_dir, CONFIG_DIR)
 
 
+def _migrate_device_keys(config: dict) -> bool:
+    """Migrate device keys from '0:vid_pid' to '0' with vid_pid inside dict.
+
+    Old format: {"devices": {"0:0402_3922": {"brightness_level": 3}}}
+    New format: {"devices": {"0": {"vid_pid": "0402_3922", "brightness_level": 3}}}
+
+    Returns True if migration was performed.
+    """
+    devices = config.get('devices')
+    if not devices or not isinstance(devices, dict):
+        return False
+    migrated = {}
+    changed = False
+    for key, value in devices.items():
+        if ':' in key:
+            index, vid_pid = key.split(':', 1)
+            if isinstance(value, dict):
+                value['vid_pid'] = vid_pid
+            migrated[index] = value
+            changed = True
+        else:
+            migrated[key] = value
+    if changed:
+        config['devices'] = migrated
+    return changed
+
+
 def load_config() -> dict:
     """Load user config from disk. Returns empty dict on missing/corrupt file."""
     _migrate_old_config()
     try:
         with open(CONFIG_PATH, 'r') as f:
-            return json.load(f)
+            config = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         return {}
+    if _migrate_device_keys(config):
+        save_config(config)
+    return config
 
 
 def save_config(config: dict):
@@ -258,10 +288,19 @@ class Settings:
         config['selected_device'] = device_path
         save_config(config)
 
+    # Cache vid_pid per index so save_device_setting can store it automatically
+    _vid_pid_cache: dict[str, str] = {}
+
     @staticmethod
     def device_config_key(index: int, vid: int, pid: int) -> str:
-        """Build per-device config key, e.g. '0:87cd_70db'."""
-        return f"{index}:{vid:04x}_{pid:04x}"
+        """Build per-device config key (index only).
+
+        Config format: {"devices": {"0": {"vid_pid": "0402_3922", ...}}}
+        The vid_pid is stored inside the device dict, not in the key.
+        """
+        key = str(index)
+        Settings._vid_pid_cache[key] = f"{vid:04x}_{pid:04x}"
+        return key
 
     @staticmethod
     def get_device_config(key: str) -> dict:
@@ -274,6 +313,9 @@ class Settings:
         config = load_config()
         devices = config.setdefault('devices', {})
         dev_cfg = devices.setdefault(key, {})
+        # Store vid_pid on first write (from device_config_key cache)
+        if 'vid_pid' not in dev_cfg and key in Settings._vid_pid_cache:
+            dev_cfg['vid_pid'] = Settings._vid_pid_cache[key]
         dev_cfg[setting] = value
         save_config(config)
 
