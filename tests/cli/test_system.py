@@ -821,7 +821,7 @@ class TestInstallDesktop:
         home = tmp_path / "home"
         home.mkdir()
 
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("trcc.cli._system.subprocess.run", return_value=_completed(0)), \
              patch("shutil.copy2"), \
              patch("trcc.cli._system.Path.exists", return_value=True):
@@ -837,7 +837,7 @@ class TestInstallDesktop:
         def fake_copy2(src, dst):
             copied.append((str(src), str(dst)))
 
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("trcc.cli._system.subprocess.run", return_value=_completed(0)), \
              patch("shutil.copy2", side_effect=fake_copy2):
             # Patch desktop_src.exists() → True
@@ -857,7 +857,7 @@ class TestInstallDesktop:
             # desktop_src doesn't exist; icon_src doesn't exist either
             return False
 
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("trcc.cli._system.subprocess.run", return_value=_completed(0)), \
              patch("shutil.copy2"):
 
@@ -883,7 +883,7 @@ class TestInstallDesktop:
 
         icon_calls = []
 
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("trcc.cli._system.subprocess.run",
                    side_effect=lambda cmd, **kw: icon_calls.append(cmd) or _completed(0)):
             # All Path.exists() → True so both desktop and icons are "present"
@@ -907,7 +907,7 @@ class TestInstallDesktop:
             # desktop src is first call, then each icon check
             return call_count[0] == 1
 
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("trcc.cli._system.subprocess.run", return_value=_completed(0)), \
              patch("shutil.copy2"), \
              patch.object(Path, "mkdir"):
@@ -921,7 +921,7 @@ class TestInstallDesktop:
         home = tmp_path / "home"
         home.mkdir()
 
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("trcc.cli._system.subprocess.run", return_value=_completed(0)), \
              patch("shutil.copy2"), \
              patch.object(Path, "exists", return_value=False), \
@@ -1109,7 +1109,7 @@ class TestUninstall:
         save_config({"install_info": {"method": "pip", "distro": "ubuntu"}})
         home = tmp_config / "home"
         home.mkdir()
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("os.geteuid", return_value=0), \
              patch("os.path.exists", return_value=False), \
              patch("trcc.cli._system.subprocess.run", return_value=_completed(0)), \
@@ -1124,7 +1124,7 @@ class TestUninstall:
         home.mkdir()
         calls = []
 
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("os.geteuid", return_value=0), \
              patch("os.path.exists", return_value=False), \
              patch("trcc.cli._system.subprocess.run",
@@ -1142,7 +1142,7 @@ class TestUninstall:
         home.mkdir()
         calls = []
 
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("os.geteuid", return_value=0), \
              patch("os.path.exists", return_value=False), \
              patch("trcc.cli._system.subprocess.run",
@@ -1160,7 +1160,7 @@ class TestUninstall:
         home.mkdir()
         calls = []
 
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("os.geteuid", return_value=0), \
              patch("os.path.exists", return_value=False), \
              patch("trcc.cli._system.subprocess.run",
@@ -1178,7 +1178,7 @@ class TestUninstall:
         home.mkdir()
         calls = []
 
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("os.geteuid", return_value=1000), \
              patch("os.path.exists", side_effect=lambda p: "/etc/udev" in str(p)), \
              patch("trcc.cli._system.subprocess.run",
@@ -1196,7 +1196,7 @@ class TestUninstall:
         home.mkdir()
         removed_paths = []
 
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("os.geteuid", return_value=0), \
              patch("os.path.exists", side_effect=lambda p: "/etc/udev" in str(p)), \
              patch("os.remove", side_effect=lambda p: removed_paths.append(p)), \
@@ -1221,7 +1221,7 @@ class TestUninstall:
                 return False
             return real_os_path_exists(p)
 
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("os.geteuid", return_value=0), \
              patch("os.path.exists", side_effect=selective_exists), \
              patch("shutil.rmtree", side_effect=lambda p, **kw: removed.append(str(p))), \
@@ -1239,7 +1239,7 @@ class TestUninstall:
         home = tmp_config / "home"
         home.mkdir()
 
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("os.geteuid", return_value=0), \
              patch("os.path.exists", return_value=False), \
              patch("trcc.cli._system.subprocess.run", return_value=_completed(0)), \
@@ -1257,7 +1257,7 @@ class TestUninstall:
         calls = []
         udev_rule = "/etc/udev/rules.d/99-trcc-lcd.rules"
 
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("os.geteuid", return_value=0), \
              patch("os.path.exists", side_effect=lambda p: str(p) == udev_rule), \
              patch("os.remove", return_value=None), \
@@ -1276,7 +1276,7 @@ class TestUninstall:
         home = tmp_config / "home"
         home.mkdir()
 
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("os.geteuid", return_value=0), \
              patch("os.path.exists", return_value=False), \
              patch("trcc.cli._system.subprocess.run", return_value=_completed(0)), \
@@ -1300,7 +1300,7 @@ class TestUninstall:
         home = tmp_config / "home"
         home.mkdir()
 
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("os.geteuid", return_value=0), \
              patch("os.path.exists", return_value=False), \
              patch("trcc.cli._system.subprocess.run", return_value=_completed(0)):
@@ -1315,7 +1315,7 @@ class TestUninstall:
         home = tmp_config / "home"
         home.mkdir()
 
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("os.geteuid", return_value=0), \
              patch("os.path.exists", return_value=False), \
              patch("trcc.cli._system.subprocess.run", return_value=_completed(0)):
@@ -1331,7 +1331,7 @@ class TestUninstall:
         home.mkdir()
         calls = []
 
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("os.geteuid", return_value=0), \
              patch("os.path.exists", return_value=False), \
              patch("trcc.cli._system.subprocess.run",
@@ -1349,7 +1349,7 @@ class TestUninstall:
         calls = []
 
         # _is_externally_managed is tested separately in TestIsExternallyManaged
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("os.geteuid", return_value=0), \
              patch("os.path.exists", return_value=False), \
              patch("trcc.cli._system.subprocess.run",
@@ -1369,7 +1369,7 @@ class TestUninstall:
         home.mkdir()
         calls = []
 
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("os.geteuid", return_value=0), \
              patch("os.path.exists", return_value=False), \
              patch("trcc.cli._system.subprocess.run",
@@ -1394,7 +1394,7 @@ class TestUninstall:
         import os as _os
         real_exists = _os.path.exists
 
-        with patch("trcc.cli._system.Path.home", return_value=home), \
+        with patch("trcc.cli._system._real_user_home", return_value=home), \
              patch("os.geteuid", return_value=0), \
              patch("os.path.exists",
                    side_effect=lambda p: False if str(p).startswith(("/etc", "/usr")) else real_exists(p)), \

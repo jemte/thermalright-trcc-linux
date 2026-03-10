@@ -12,6 +12,20 @@ from pathlib import Path
 from trcc.cli import _cli_handler
 
 
+def _real_user_home() -> Path:
+    """Return the real (non-root) user's home directory.
+
+    Under sudo, ``Path.home()`` returns ``/root/``.  Check ``SUDO_USER``
+    first so that desktop entries and icons land in the actual user's
+    ``~/.local/`` instead of root's.
+    """
+    sudo_user = os.environ.get("SUDO_USER")
+    if sudo_user and sudo_user != "root":
+        import pwd
+        return Path(pwd.getpwnam(sudo_user).pw_dir)
+    return Path.home()
+
+
 def _sudo_reexec(subcommand):
     """Re-exec `trcc <subcommand>` as root via sudo with correct PYTHONPATH.
 
@@ -378,7 +392,7 @@ def install_desktop():
     Reads the shipped .desktop file from the package assets directory.
     Works from both pip install and git clone.
     """
-    home = Path.home()
+    home = _real_user_home()
     app_dir = home / ".local" / "share" / "applications"
 
     # Package root: __file__ is trcc/cli/_system.py — parent.parent = trcc/
@@ -404,7 +418,7 @@ def install_desktop():
 
     # Install icons to XDG hicolor theme
     installed_icon = False
-    for size in [256, 128, 64, 48]:
+    for size in [256, 128, 64, 48, 32, 24, 16]:
         icon_src = icon_pkg_dir / f"trcc_{size}x{size}.png"
         if icon_src.exists():
             icon_dir = home / ".local" / "share" / "icons" / "hicolor" / f"{size}x{size}" / "apps"
@@ -526,7 +540,7 @@ def uninstall(*, yes: bool = False):
     # Clear resolution markers before wiping config dir
     Settings.clear_installed_resolutions()
 
-    home = Path.home()
+    home = _real_user_home()
 
     # Files that require root to remove
     root_files = [
@@ -610,7 +624,7 @@ def uninstall(*, yes: bool = False):
         subprocess.run(pip_cmd, check=False)
 
     # Clean stale shadow binary from old pip/pipx installs
-    stale_bin = Path.home() / ".local" / "bin" / "trcc"
+    stale_bin = _real_user_home() / ".local" / "bin" / "trcc"
     if stale_bin.exists():
         stale_bin.unlink()
         print(f"Removed stale binary: {stale_bin}")

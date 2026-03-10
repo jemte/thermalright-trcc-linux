@@ -57,9 +57,14 @@ src_install() {
 	insinto /etc/modules-load.d
 	doins packaging/modprobe/trcc-sg.conf
 
-	# desktop entry
+	# desktop entry + icons
 	insinto /usr/share/applications
 	doins src/trcc/assets/trcc-linux.desktop
+	local size
+	for size in 256 128 64 48 32 24 16; do
+		insinto "/usr/share/icons/hicolor/${size}x${size}/apps"
+		newins "src/trcc/assets/icons/trcc_${size}x${size}.png" trcc.png
+	done
 
 	# polkit policy
 	insinto /usr/share/polkit-1/actions

@@ -76,6 +76,10 @@ install -Dm644 packaging/modprobe/trcc-sg.conf \
     %{buildroot}%{_modulesloaddir}/trcc-sg.conf
 install -Dm644 src/trcc/assets/trcc-linux.desktop \
     %{buildroot}%{_datadir}/applications/trcc-linux.desktop
+for size in 256 128 64 48 32 24 16; do
+    install -Dm644 "src/trcc/assets/icons/trcc_${size}x${size}.png" \
+        "%{buildroot}%{_datadir}/icons/hicolor/${size}x${size}/apps/trcc.png"
+done
 install -Dm644 src/trcc/assets/com.github.lexonight1.trcc.policy \
     %{buildroot}%{_datadir}/polkit-1/actions/com.github.lexonight1.trcc.policy
 install -Dm644 src/trcc/assets/trcc-quirk-fix.service \
@@ -109,6 +113,7 @@ udevadm control --reload-rules 2>/dev/null || :
 %{_modprobedir}/trcc-lcd.conf
 %{_modulesloaddir}/trcc-sg.conf
 %{_datadir}/applications/trcc-linux.desktop
+%{_datadir}/icons/hicolor/*/apps/trcc.png
 %{_datadir}/polkit-1/actions/com.github.lexonight1.trcc.policy
 %{_unitdir}/trcc-quirk-fix.service
 %if 0%{?fedora}
