@@ -622,18 +622,9 @@ trcc gui
 
 **Optional desktop shortcut** (launches from your app menu):
 ```bash
-mkdir -p ~/.local/share/applications
-cat > ~/.local/share/applications/trcc.desktop << 'EOF'
-[Desktop Entry]
-Name=TRCC LCD Control
-Comment=Thermalright LCD Control Center
-Exec=bash -c 'source ~/trcc-env/bin/activate && trcc gui'
-Icon=preferences-desktop-display
-Terminal=false
-Type=Application
-Categories=Utility;System;
-EOF
+trcc setup
 ```
+Say `y` when it asks about the desktop entry — it installs the `.desktop` file and TRCC icon to your app menu.
 
 **Optional: Wayland screen capture** (for screen cast / eyedropper features):
 ```bash
@@ -886,23 +877,10 @@ fish_add_path ~/.local/bin
 So you can launch TRCC from your app menu instead of typing a command:
 
 ```bash
-mkdir -p ~/.local/share/applications
-cat > ~/.local/share/applications/trcc.desktop << 'EOF'
-[Desktop Entry]
-Name=TRCC LCD Control
-Comment=Thermalright LCD Control Center
-Exec=trcc gui
-Icon=preferences-desktop-display
-Terminal=false
-Type=Application
-Categories=Utility;System;
-EOF
+trcc setup
 ```
 
-> **Using a venv?** Change the `Exec` line to:
-> ```
-> Exec=bash -c 'source ~/trcc-env/bin/activate && trcc gui'
-> ```
+Say `y` when it asks about the desktop entry — it installs the `.desktop` file and TRCC icon to your app menu.
 
 ---
 
