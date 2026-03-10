@@ -26,9 +26,18 @@ import typer
 # =========================================================================
 
 def _ensure_renderer() -> None:
-    """Initialize ImageService renderer for CLI (once)."""
+    """Initialize ImageService renderer for CLI (once).
+
+    QtRenderer requires a QApplication/QCoreApplication to exist
+    (for QFontDatabase, QImage, etc.). Create one if needed.
+    """
     from trcc.services.image import ImageService
     if ImageService._renderer is None:
+        import os
+        os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+        from PySide6.QtWidgets import QApplication
+        if QApplication.instance() is None:
+            QApplication([])
         from trcc.adapters.render.qt import QtRenderer
         ImageService.set_renderer(QtRenderer())
 
@@ -707,6 +716,40 @@ def _cmd_doctor() -> int:
     """Check dependencies, libraries, and permissions."""
     from trcc.adapters.infra.doctor import run_doctor
     return run_doctor()
+
+
+@app.command("perf")
+def _cmd_perf(
+    device: Annotated[bool, typer.Option(
+        "--device", "-d", help="Benchmark connected hardware (USB I/O latency, FPS)",
+    )] = False,
+) -> int:
+    """Run CPU + memory performance benchmarks."""
+    _ensure_renderer()
+
+    if device:
+        from trcc.ipc import IPCClient
+        from trcc.services.perf import run_device_benchmarks
+
+        gui_running = IPCClient.available()
+        if gui_running:
+            print("GUI daemon detected — pausing display refresh...")
+        print("Running device I/O benchmarks (this takes ~10s)...")
+        report = run_device_benchmarks()
+        if gui_running:
+            print("GUI display refresh resumed.")
+        if not report.has_data:
+            print("No devices found. Connect a device and try again.")
+            return 1
+    else:
+        from trcc.services.perf import run_benchmarks
+
+        print("Running performance benchmarks...")
+        report = run_benchmarks()
+
+    for line in report.format_report():
+        print(line)
+    return 0 if report.all_passed else 1
 
 
 @app.command("setup")

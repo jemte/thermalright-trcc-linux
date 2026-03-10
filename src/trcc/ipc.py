@@ -178,6 +178,10 @@ class IPCServer:
         if domain == "display":
             if method == "get_frame":
                 return self._get_frame()
+            if method == "pause":
+                return self._pause_display()
+            if method == "resume":
+                return self._resume_display()
             route = _DISPLAY_ROUTES.get(method)
             if not route:
                 return {"success": False, "error": f"Unknown command: {cmd}"}
@@ -195,6 +199,22 @@ class IPCServer:
             return _sanitize(getattr(self._led, method)(*args, **kwargs))
 
         return {"success": False, "error": f"Unknown domain: {domain}"}
+
+    def _pause_display(self) -> dict:
+        """Pause LCD frame sending (for exclusive device access)."""
+        if not self._display or not self._display.connected:
+            return {"success": True, "message": "No LCD connected"}
+        self._display.auto_send = False
+        log.info("IPC: display paused (auto_send=False)")
+        return {"success": True, "message": "Display paused"}
+
+    def _resume_display(self) -> dict:
+        """Resume LCD frame sending after pause."""
+        if not self._display or not self._display.connected:
+            return {"success": True, "message": "No LCD connected"}
+        self._display.auto_send = True
+        log.info("IPC: display resumed (auto_send=True)")
+        return {"success": True, "message": "Display resumed"}
 
     def _get_frame(self) -> dict:
         """Return the current LCD frame as base64 JPEG."""

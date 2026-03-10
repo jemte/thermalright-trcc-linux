@@ -4,6 +4,7 @@ Tier 0: Environment — disable live IPC daemon (tests must never route through 
 Tier 1: Data factories — DeviceInfo, mock devices, native renderer surfaces
 Tier 2: Filesystem — isolated config dirs, theme dirs, temp PNGs
 Tier 3: Qt — session-scoped QApplication (offscreen)
+Tier 4: Performance report — Valgrind-style summary for CPU + memory tests
 """
 from __future__ import annotations
 
@@ -18,7 +19,29 @@ from PySide6.QtWidgets import QApplication
 
 from trcc.adapters.render.qt import QtRenderer
 from trcc.core.models import DeviceInfo
+
+# ═══════════════════════════════════════════════════════════════════════
+# Performance report — Valgrind-style summary for test_cpu.py / test_memory.py
+# Uses PerfReport from core/perf.py (domain object, hexagonal)
+# ═══════════════════════════════════════════════════════════════════════
+from trcc.core.perf import PerfReport
 from trcc.services.image import ImageService
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Register the perf report collector."""
+    config._perf_report = PerfReport()  # type: ignore[attr-defined]
+
+
+def pytest_terminal_summary(
+    terminalreporter: Any, exitstatus: int, config: pytest.Config,
+) -> None:
+    """Print Valgrind-style performance summary after test run."""
+    report: PerfReport = getattr(config, '_perf_report', None)  # type: ignore[assignment]
+    if report and report.has_data:
+        tw = terminalreporter._tw
+        for line in report.format_report():
+            tw.line(line)
 
 # ── Qt + Renderer initialization (once per test session) ────────────────
 # QApplication must exist before QtRenderer — QFontDatabase.addApplicationFont

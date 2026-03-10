@@ -63,3 +63,21 @@ def get_report() -> dict:
     rpt = DebugReport()
     rpt.collect()
     return {"report": str(rpt)}
+
+
+@router.get("/perf")
+def get_perf() -> dict:
+    """Run CPU + memory performance benchmarks."""
+    from trcc.services.perf import run_benchmarks
+
+    report = run_benchmarks()
+    return report.to_dict()
+
+
+@router.get("/perf/device")
+def get_perf_device() -> dict:
+    """Benchmark connected hardware (USB handshake, frame latency, FPS)."""
+    from trcc.services.perf import run_device_benchmarks
+
+    report = run_device_benchmarks()
+    return report.to_dict()

@@ -1,5 +1,16 @@
 # Changelog
 
+## v8.2.10
+
+### Features
+- **Device benchmarks**: `trcc perf --device` / `trcc perf -d` — benchmark connected LCD/LED hardware (USB handshake, frame encode, send latency, sustained FPS)
+- **IPC pause/resume**: Device benchmarks automatically pause the GUI daemon's display refresh for exclusive USB access, resume on completion (even on crash via `try/finally`)
+- **API endpoint**: `GET /system/perf/device` — device I/O benchmarks via REST API
+
+### Internal
+- **Tests**: Added 74 tests for device benchmarks (`tests/core/test_perf.py`, `tests/services/test_perf.py`, CLI + API integration) — 4741 total tests
+- **Domain**: `PerfReport` extended with `device` section (record, serialize, format as Valgrind-style terminal report)
+
 ## v8.2.5
 
 ### Internal

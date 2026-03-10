@@ -2240,3 +2240,75 @@ class TestReportDiagnosticOutput:
         # GitHub URL is in the last few lines
         tail = "\n".join(lines[-3:])
         assert "https://github.com/Lexonight1/thermalright-trcc-linux/issues/new" in tail
+
+
+# ===========================================================================
+# TestPerfCommand
+# ===========================================================================
+
+class TestPerfCommand:
+    """trcc perf — software and device benchmarks."""
+
+    def test_perf_software_only(self, capsys):
+        """trcc perf (no --device) runs software benchmarks."""
+        from trcc.core.perf import PerfReport
+
+        mock_report = PerfReport()
+        mock_report.record_cpu("test_bench", 0.001, 0.01)
+
+        with patch("trcc.services.perf.run_benchmarks", return_value=mock_report), \
+             patch("trcc.cli._ensure_renderer"):
+            from trcc.cli import _cmd_perf
+            rc = _cmd_perf(device=False)
+
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "test_bench" in out
+
+    def test_perf_device_no_devices(self, capsys):
+        """trcc perf --device with no devices prints error."""
+        from trcc.core.perf import PerfReport
+
+        with patch("trcc.services.perf.run_device_benchmarks",
+                    return_value=PerfReport()), \
+             patch("trcc.cli._ensure_renderer"):
+            from trcc.cli import _cmd_perf
+            rc = _cmd_perf(device=True)
+
+        assert rc == 1
+        out = capsys.readouterr().out
+        assert "No devices found" in out
+
+    def test_perf_device_with_results(self, capsys):
+        """trcc perf --device with device data prints report."""
+        from trcc.core.perf import PerfReport
+
+        report = PerfReport()
+        report.record_device("LCD handshake", 0.5, 2.0)
+        report.record_device("LCD send frame", 0.02, 0.1)
+
+        with patch("trcc.services.perf.run_device_benchmarks",
+                    return_value=report), \
+             patch("trcc.cli._ensure_renderer"):
+            from trcc.cli import _cmd_perf
+            rc = _cmd_perf(device=True)
+
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "DEVICE I/O" in out
+        assert "LCD handshake" in out
+
+    def test_perf_device_failure_returns_1(self, capsys):
+        """trcc perf --device with failing benchmark returns exit 1."""
+        from trcc.core.perf import PerfReport
+
+        report = PerfReport()
+        report.record_device("slow_handshake", 5.0, 2.0)
+
+        with patch("trcc.services.perf.run_device_benchmarks",
+                    return_value=report), \
+             patch("trcc.cli._ensure_renderer"):
+            from trcc.cli import _cmd_perf
+            rc = _cmd_perf(device=True)
+
+        assert rc == 1

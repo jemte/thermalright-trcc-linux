@@ -94,7 +94,7 @@ class TestImageLifecycle:
         gc.collect()
         assert ref() is None, "PIL Image was not reclaimed after del + gc.collect()"
 
-    def test_repeated_open_resize_bounded_memory(self, lcd_png):
+    def test_repeated_open_resize_bounded_memory(self, lcd_png, request):
         """50 open/resize cycles do not accumulate unbounded memory."""
         tracemalloc.start()
         # Warm up
@@ -113,8 +113,9 @@ class TestImageLifecycle:
         tracemalloc.stop()
 
         growth = peak_after - peak_before
-        # 320x320 RGB = ~300KB. Allow 2MB for transient allocator overhead.
-        assert growth < 2_000_000, f"Memory grew {growth:,} bytes over 50 cycles"
+        limit = 2_000_000
+        request.config._perf_report.record_mem("open_and_resize x50", growth, limit)
+        assert growth < limit, f"Memory grew {growth:,} bytes over 50 cycles"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -222,7 +223,7 @@ class TestOverlayRenderCycles:
         assert ref_bg() is None, "Background not released after clear()"
         assert ref_mask() is None, "Mask not released after clear()"
 
-    def test_repeated_render_bounded_memory(self, overlay_svc):
+    def test_repeated_render_bounded_memory(self, overlay_svc, request):
         """50 render cycles with varying metrics stay within memory bounds."""
         bg = Image.new("RGB", (320, 320), (50, 50, 50))
         overlay_svc.set_background(bg)
@@ -244,8 +245,9 @@ class TestOverlayRenderCycles:
         tracemalloc.stop()
 
         growth = peak_after - peak_before
-        # 320x320 RGBA = ~400KB. Allow 2MB for caching + renderer internals.
-        assert growth < 2_000_000, f"Memory grew {growth:,} bytes over 50 renders"
+        limit = 2_000_000
+        request.config._perf_report.record_mem("overlay render x50", growth, limit)
+        assert growth < limit, f"Memory grew {growth:,} bytes over 50 renders"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -266,7 +268,7 @@ class TestThemeImageCycles:
         # Raw image with no other references should be dead
         assert ref_raw() is None, "Raw Image.open() result was not released"
 
-    def test_repeated_theme_load_bounded(self, lcd_png):
+    def test_repeated_theme_load_bounded(self, lcd_png, request):
         """20 open_and_resize cycles stay within memory bounds."""
         tracemalloc.start()
         img = ImageService.open_and_resize(lcd_png, 320, 320)
@@ -283,7 +285,9 @@ class TestThemeImageCycles:
         tracemalloc.stop()
 
         growth = peak_after - peak_before
-        assert growth < 2_000_000, f"Memory grew {growth:,} bytes over 20 loads"
+        limit = 2_000_000
+        request.config._perf_report.record_mem("theme load x20", growth, limit)
+        assert growth < limit, f"Memory grew {growth:,} bytes over 20 loads"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -293,7 +297,7 @@ class TestThemeImageCycles:
 class TestLedTickLoop:
     """Verify LED tick loops do not accumulate per-tick objects."""
 
-    def test_tick_bounded_memory(self, led_svc):
+    def test_tick_bounded_memory(self, led_svc, request):
         """500 static-mode ticks stay within memory bounds."""
         led_svc.state.mode = LEDMode.STATIC
         tracemalloc.start()
@@ -310,10 +314,11 @@ class TestLedTickLoop:
         tracemalloc.stop()
 
         growth = peak_after - peak_before
-        # Tick returns transient list of tuples — should be near-zero growth.
-        assert growth < 500_000, f"Memory grew {growth:,} bytes over 500 ticks"
+        limit = 500_000
+        request.config._perf_report.record_mem("LED static tick x500", growth, limit)
+        assert growth < limit, f"Memory grew {growth:,} bytes over 500 ticks"
 
-    def test_breathing_tick_no_accumulation(self, led_svc):
+    def test_breathing_tick_no_accumulation(self, led_svc, request):
         """200 breathing-mode ticks (most complex timer) stay bounded."""
         led_svc.state.mode = LEDMode.BREATHING
         tracemalloc.start()
@@ -330,7 +335,9 @@ class TestLedTickLoop:
         tracemalloc.stop()
 
         growth = peak_after - peak_before
-        assert growth < 500_000, f"Memory grew {growth:,} bytes over 200 ticks"
+        limit = 500_000
+        request.config._perf_report.record_mem("LED breathing tick x200", growth, limit)
+        assert growth < limit, f"Memory grew {growth:,} bytes over 200 ticks"
 
     def test_tick_returns_fresh_list(self, led_svc):
         """Consecutive tick() calls return different list objects (transient)."""
@@ -429,3 +436,312 @@ class TestGarbageCollectability:
         gc.collect()
 
         assert len(gc.garbage) == garbage_before
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 8. Config Read/Write Cycles
+# ═══════════════════════════════════════════════════════════════════════
+
+class TestConfigCycles:
+    """Verify config load/save cycles do not leak memory."""
+
+    def test_repeated_load_save_bounded_memory(self, tmp_config, request):
+        """100 load/save cycles stay within memory bounds."""
+        from trcc.conf import load_config, save_config
+
+        tracemalloc.start()
+        # Warm up
+        save_config({"devices": {"0": {"vid_pid": "0402_3922", "brightness": 3}}})
+        load_config()
+        gc.collect()
+        _, peak_before = tracemalloc.get_traced_memory()
+
+        for i in range(100):
+            config = load_config()
+            config["devices"]["0"]["brightness"] = i % 4
+            save_config(config)
+
+        gc.collect()
+        _, peak_after = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        growth = peak_after - peak_before
+        limit = 500_000
+        request.config._perf_report.record_mem("config load/save x100", growth, limit)
+        assert growth < limit, f"Memory grew {growth:,} bytes over 100 config cycles"
+
+    def test_config_dict_reclaimable(self, tmp_config, request):
+        """Config dicts do not accumulate across repeated loads."""
+        from trcc.conf import load_config, save_config
+
+        save_config({"key": "value"})
+        tracemalloc.start()
+        gc.collect()
+        _, peak_before = tracemalloc.get_traced_memory()
+
+        for _ in range(50):
+            config = load_config()
+            del config
+
+        gc.collect()
+        _, peak_after = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        growth = peak_after - peak_before
+        limit = 500_000
+        request.config._perf_report.record_mem("config dict reclaimable x50", growth, limit)
+        assert growth < limit, f"Config dicts leaked {growth:,} bytes over 50 loads"
+
+    def test_migration_no_leak(self, tmp_config, request):
+        """Old->new format migration does not leak old dict."""
+        import json
+
+        from trcc.conf import CONFIG_PATH, load_config
+
+        # Write old format directly (bypass save_config to avoid migration)
+        os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
+        with open(CONFIG_PATH, 'w') as f:
+            json.dump({"devices": {"0:0402_3922": {"brightness": 2}}}, f)
+
+        tracemalloc.start()
+        gc.collect()
+        _, peak_before = tracemalloc.get_traced_memory()
+
+        # load_config triggers migration
+        config = load_config()
+        assert "0" in config["devices"]
+        del config
+
+        gc.collect()
+        _, peak_after = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        growth = peak_after - peak_before
+        limit = 500_000
+        request.config._perf_report.record_mem("config migration", growth, limit)
+        assert growth < limit, f"Migration leaked {growth:,} bytes"
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 9. DisplayService Long-Running Loops
+# ═══════════════════════════════════════════════════════════════════════
+
+class TestDisplayServiceCycles:
+    """Verify DisplayService render loops do not accumulate memory."""
+
+    @pytest.fixture()
+    def display_svc(self):
+        """DisplayService with mock device service and real overlay/media."""
+        mock_devices = MagicMock()
+        mock_devices.selected = None
+        overlay = OverlayService(320, 320, renderer=ImageService._r())
+        media = MediaService()
+        from trcc.services.display import DisplayService
+        svc = DisplayService(
+            devices=mock_devices,
+            overlay=overlay,
+            media=media,
+        )
+        return svc
+
+    def test_render_and_process_bounded_memory(self, display_svc, request):
+        """50 _render_and_process() cycles stay within memory bounds."""
+        bg = make_test_surface(320, 320, (100, 100, 100))
+        display_svc.current_image = bg
+        display_svc._clean_background = bg
+
+        tracemalloc.start()
+        display_svc._render_and_process()
+        gc.collect()
+        _, peak_before = tracemalloc.get_traced_memory()
+
+        for _ in range(50):
+            display_svc._render_and_process()
+
+        gc.collect()
+        _, peak_after = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        growth = peak_after - peak_before
+        limit = 2_000_000
+        request.config._perf_report.record_mem("display render x50", growth, limit)
+        assert growth < limit, f"Memory grew {growth:,} bytes over 50 renders"
+
+    def test_brightness_rotation_cycles_bounded(self, display_svc, request):
+        """50 brightness/rotation changes stay within memory bounds."""
+        bg = make_test_surface(320, 320, (50, 50, 50))
+        display_svc.current_image = bg
+        display_svc._clean_background = bg
+
+        tracemalloc.start()
+        display_svc.set_brightness(50)
+        gc.collect()
+        _, peak_before = tracemalloc.get_traced_memory()
+
+        for i in range(50):
+            display_svc.set_brightness(25 + (i % 75))
+            display_svc.set_rotation((i * 90) % 360)
+
+        gc.collect()
+        _, peak_after = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        growth = peak_after - peak_before
+        limit = 2_000_000
+        request.config._perf_report.record_mem("brightness/rotation x50", growth, limit)
+        assert growth < limit, f"Memory grew {growth:,} bytes over 50 adjustments"
+
+    def test_render_overlay_bounded_memory(self, display_svc, request):
+        """50 render_overlay() cycles with forced re-render stay bounded."""
+        bg = make_test_surface(320, 320, (80, 80, 80))
+        display_svc.current_image = bg
+        display_svc._clean_background = bg
+        display_svc.overlay.enabled = True
+
+        tracemalloc.start()
+        display_svc.render_overlay()
+        gc.collect()
+        _, peak_before = tracemalloc.get_traced_memory()
+
+        for _ in range(50):
+            display_svc.overlay._invalidate_cache()
+            display_svc.render_overlay()
+
+        gc.collect()
+        _, peak_after = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        growth = peak_after - peak_before
+        limit = 2_000_000
+        request.config._perf_report.record_mem("display overlay render x50", growth, limit)
+        assert growth < limit, f"Memory grew {growth:,} bytes over 50 overlay renders"
+
+    def test_video_tick_bounded_memory(self, display_svc, request):
+        """200 video_tick() calls with injected frames stay bounded."""
+        frames = [make_test_surface(320, 320, (i * 5, 0, 0)) for i in range(10)]
+        display_svc.media._frames = frames
+        display_svc.media._state.total_frames = 10
+        display_svc.media._state.fps = 30
+        display_svc.media.play()
+
+        tracemalloc.start()
+        for _ in range(10):
+            display_svc.video_tick()
+        gc.collect()
+        _, peak_before = tracemalloc.get_traced_memory()
+
+        for _ in range(200):
+            display_svc.video_tick()
+
+        gc.collect()
+        _, peak_after = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        growth = peak_after - peak_before
+        limit = 2_000_000
+        request.config._perf_report.record_mem("video tick x200", growth, limit)
+        assert growth < limit, f"Memory grew {growth:,} bytes over 200 ticks"
+
+    def test_display_service_no_uncollectable(self, display_svc):
+        """DisplayService create/use/delete produces no uncollectable cycles."""
+        gc.collect()
+        garbage_before = len(gc.garbage)
+
+        bg = make_test_surface(320, 320, (100, 100, 100))
+        display_svc.current_image = bg
+        display_svc._render_and_process()
+        display_svc.set_brightness(75)
+        display_svc.set_rotation(90)
+        del display_svc, bg
+        gc.collect()
+
+        assert len(gc.garbage) == garbage_before, (
+            f"Uncollectable objects: {len(gc.garbage) - garbage_before}")
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 10. Qt Widget Layer
+# ═══════════════════════════════════════════════════════════════════════
+
+class TestQtWidgetMemory:
+    """Verify Qt widgets release resources on destruction."""
+
+    @staticmethod
+    def _process() -> None:
+        from PySide6.QtWidgets import QApplication
+
+        app = QApplication.instance()
+        if app:
+            app.processEvents()
+
+    def test_base_panel_no_uncollectable(self):
+        """BasePanel subclass create/delete has no uncollectable cycles."""
+        from PySide6.QtWidgets import QLabel
+
+        from trcc.qt_components.base import BasePanel
+
+        class TestPanel(BasePanel):
+            def _setup_ui(self):
+                self._label = QLabel("test", self)
+
+        gc.collect()
+        garbage_before = len(gc.garbage)
+
+        panel = TestPanel()
+        panel.deleteLater()
+        self._process()
+        del panel
+        gc.collect()
+
+        assert len(gc.garbage) == garbage_before
+
+    def test_preview_widget_image_released(self):
+        """UCPreview releases its pixmap on destruction."""
+        from trcc.qt_components.uc_preview import UCPreview
+
+        preview = UCPreview()
+        # Set an image
+        img = make_test_surface(320, 320, (255, 0, 0))
+        r = ImageService._r()
+        pil = r.to_pil(img)
+        preview.set_image(pil)
+
+        ref = weakref.ref(pil)
+        del pil, img
+        preview.deleteLater()
+        self._process()
+        del preview
+        gc.collect()
+
+        # PIL image should be reclaimable (Qt pixmap is a copy)
+        assert ref() is None, "PIL image not released after preview destruction"
+
+    def test_repeated_set_image_bounded(self, request):
+        """50 set_image() calls on UCPreview stay within memory bounds."""
+        from trcc.qt_components.uc_preview import UCPreview
+
+        preview = UCPreview()
+        r = ImageService._r()
+
+        tracemalloc.start()
+        img = make_test_surface(320, 320, (0, 0, 0))
+        preview.set_image(r.to_pil(img))
+        gc.collect()
+        _, peak_before = tracemalloc.get_traced_memory()
+
+        for i in range(50):
+            img = make_test_surface(320, 320, (i * 5, 0, 0))
+            preview.set_image(r.to_pil(img))
+            del img
+
+        gc.collect()
+        _, peak_after = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        preview.deleteLater()
+        self._process()
+
+        growth = peak_after - peak_before
+        limit = 3_000_000
+        request.config._perf_report.record_mem("UCPreview set_image x50", growth, limit)
+        assert growth < limit, f"Memory grew {growth:,} bytes over 50 set_image calls"

@@ -2423,5 +2423,117 @@ class TestLEDHappyPaths(unittest.TestCase):
         self.assertEqual(resp.status_code, 400)
 
 
+class TestPerfEndpoints(unittest.TestCase):
+    """Performance benchmark API endpoints."""
+
+    def setUp(self) -> None:
+        configure_auth(None)
+        self.client = TestClient(app)
+
+    def test_perf_software(self) -> None:
+        """GET /system/perf returns software benchmark results."""
+        from trcc.core.perf import PerfReport
+        report = PerfReport()
+        report.record_cpu("test_op", 0.001, 0.01)
+
+        with patch("trcc.services.perf.run_benchmarks", return_value=report):
+            resp = self.client.get("/system/perf")
+
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("cpu", data)
+        self.assertEqual(len(data["cpu"]), 1)
+
+    def test_perf_device(self) -> None:
+        """GET /system/perf/device returns device benchmark results."""
+        from trcc.core.perf import PerfReport
+        report = PerfReport()
+        report.record_device("LCD handshake", 0.5, 2.0)
+
+        with patch("trcc.services.perf.run_device_benchmarks",
+                    return_value=report):
+            resp = self.client.get("/system/perf/device")
+
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("device", data)
+        self.assertEqual(len(data["device"]), 1)
+        self.assertEqual(data["device"][0]["label"], "LCD handshake")
+        self.assertEqual(data["summary"]["device_count"], 1)
+
+    def test_perf_device_no_devices(self) -> None:
+        """GET /system/perf/device with no devices returns empty."""
+        from trcc.core.perf import PerfReport
+
+        with patch("trcc.services.perf.run_device_benchmarks",
+                    return_value=PerfReport()):
+            resp = self.client.get("/system/perf/device")
+
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(len(data["device"]), 0)
+        self.assertEqual(data["summary"]["device_count"], 0)
+
+
+class TestIPCPauseResume(unittest.TestCase):
+    """IPC display.pause / display.resume for exclusive device access."""
+
+    def test_pause_sets_auto_send_false(self) -> None:
+        from trcc.ipc import IPCServer
+        mock_display = MagicMock()
+        mock_display.connected = True
+        mock_display.auto_send = True
+        server = IPCServer(mock_display, None)
+
+        result = server._pause_display()
+        self.assertTrue(result["success"])
+        self.assertFalse(mock_display.auto_send)
+
+    def test_resume_sets_auto_send_true(self) -> None:
+        from trcc.ipc import IPCServer
+        mock_display = MagicMock()
+        mock_display.connected = True
+        mock_display.auto_send = False
+        server = IPCServer(mock_display, None)
+
+        result = server._resume_display()
+        self.assertTrue(result["success"])
+        self.assertTrue(mock_display.auto_send)
+
+    def test_pause_no_display(self) -> None:
+        from trcc.ipc import IPCServer
+        server = IPCServer(None, None)
+
+        result = server._pause_display()
+        self.assertTrue(result["success"])
+
+    def test_resume_no_display(self) -> None:
+        from trcc.ipc import IPCServer
+        server = IPCServer(None, None)
+
+        result = server._resume_display()
+        self.assertTrue(result["success"])
+
+    def test_dispatch_pause(self) -> None:
+        from trcc.ipc import IPCServer
+        mock_display = MagicMock()
+        mock_display.connected = True
+        server = IPCServer(mock_display, None)
+
+        result = server._dispatch({"cmd": "display.pause"})
+        self.assertTrue(result["success"])
+        self.assertFalse(mock_display.auto_send)
+
+    def test_dispatch_resume(self) -> None:
+        from trcc.ipc import IPCServer
+        mock_display = MagicMock()
+        mock_display.connected = True
+        server = IPCServer(mock_display, None)
+
+        result = server._dispatch({"cmd": "display.resume"})
+        self.assertTrue(result["success"])
+        self.assertTrue(mock_display.auto_send)
+
+
 if __name__ == '__main__':
     unittest.main()
