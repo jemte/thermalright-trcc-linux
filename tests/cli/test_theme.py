@@ -84,6 +84,7 @@ _PATCH_SETTINGS_CLS = "trcc.conf.Settings"
 _PATCH_DATA_MANAGER = "trcc.adapters.infra.data_repository.DataManager"
 _PATCH_THEME_SVC = "trcc.services.ThemeService"
 _PATCH_IMAGE_SVC = "trcc.services.ImageService"
+_PATCH_LCD_FROM_SVC = "trcc.core.lcd_device.LCDDevice.from_service"
 _PATCH_PIL_IMAGE = "PIL.Image"
 _PATCH_GET_SERVICE = "trcc.cli._device._get_service"
 
@@ -312,8 +313,6 @@ class TestLoadTheme:
             img_svc = MagicMock()
             img_svc.open_and_resize.return_value = img
             img_svc.resize.return_value = img
-            img_svc.apply_brightness.return_value = img
-            img_svc.apply_rotation.return_value = img
             img_svc.to_ansi.return_value = "[ANSI]"
         if settings_mock is None:
             settings_mock = MagicMock()
@@ -325,11 +324,13 @@ class TestLoadTheme:
                 "brightness_level": 3,
                 "rotation": 0,
             }
+        mock_lcd = MagicMock()
+        mock_lcd.load_image.return_value = {"success": True, "image": img}
 
-        return svc, themes, img, img_svc, settings_mock, settings_cls
+        return svc, themes, img, img_svc, settings_mock, settings_cls, mock_lcd
 
     def test_exact_match_returns_0(self, capsys):
-        svc, themes, img, img_svc, sm, sc = self._patches()
+        svc, themes, img, img_svc, sm, sc, ml = self._patches()
         themes[0].name = "ExactTheme"
         theme_svc = MagicMock()
         theme_svc.return_value = theme_svc
@@ -344,7 +345,8 @@ class TestLoadTheme:
              patch(_PATCH_DATA_MANAGER), \
              patch(_PATCH_THEME_SVC, theme_svc), \
              patch(_PATCH_IMAGE_SVC, img_svc), \
-             patch(_PATCH_PIL_IMAGE, pil_mock):
+             patch(_PATCH_PIL_IMAGE, pil_mock), \
+             patch(_PATCH_LCD_FROM_SVC, return_value=ml):
             rc = load_theme("ExactTheme")
         assert rc == 0
         out = capsys.readouterr().out
@@ -352,7 +354,7 @@ class TestLoadTheme:
 
     def test_partial_match_found(self, capsys):
         t = _make_local_theme("SuperTheme")
-        svc, _, img, img_svc, sm, sc = self._patches(themes=[t])
+        svc, _, img, img_svc, sm, sc, ml = self._patches(themes=[t])
         sm.theme_dir = _make_theme_dir()
         theme_svc = MagicMock()
         theme_svc.return_value = theme_svc
@@ -365,7 +367,8 @@ class TestLoadTheme:
              patch(_PATCH_DATA_MANAGER), \
              patch(_PATCH_THEME_SVC, theme_svc), \
              patch(_PATCH_IMAGE_SVC, img_svc), \
-             patch(_PATCH_PIL_IMAGE, pil_mock):
+             patch(_PATCH_PIL_IMAGE, pil_mock), \
+             patch(_PATCH_LCD_FROM_SVC, return_value=ml):
             rc = load_theme("super")  # partial, case-insensitive
         assert rc == 0
 
@@ -460,7 +463,7 @@ class TestLoadTheme:
         assert "No themes" in capsys.readouterr().out
 
     def test_preview_calls_to_ansi(self, capsys):
-        svc, themes, img, img_svc, sm, sc = self._patches()
+        svc, themes, img, img_svc, sm, sc, ml = self._patches()
         themes[0].name = "PreviewTheme"
         theme_svc = MagicMock()
         theme_svc.return_value = theme_svc
@@ -473,14 +476,15 @@ class TestLoadTheme:
              patch(_PATCH_DATA_MANAGER), \
              patch(_PATCH_THEME_SVC, theme_svc), \
              patch(_PATCH_IMAGE_SVC, img_svc), \
-             patch(_PATCH_PIL_IMAGE, pil_mock):
+             patch(_PATCH_PIL_IMAGE, pil_mock), \
+             patch(_PATCH_LCD_FROM_SVC, return_value=ml):
             rc = load_theme("PreviewTheme", preview=True)
         assert rc == 0
         img_svc.to_ansi.assert_called_once()
         assert "[ANSI]" in capsys.readouterr().out
 
     def test_no_preview_skips_to_ansi(self, capsys):
-        svc, themes, img, img_svc, sm, sc = self._patches()
+        svc, themes, img, img_svc, sm, sc, ml = self._patches()
         themes[0].name = "Theme"
         theme_svc = MagicMock()
         theme_svc.return_value = theme_svc
@@ -493,13 +497,13 @@ class TestLoadTheme:
              patch(_PATCH_DATA_MANAGER), \
              patch(_PATCH_THEME_SVC, theme_svc), \
              patch(_PATCH_IMAGE_SVC, img_svc), \
-             patch(_PATCH_PIL_IMAGE, pil_mock):
+             patch(_PATCH_PIL_IMAGE, pil_mock), \
+             patch(_PATCH_LCD_FROM_SVC, return_value=ml):
             load_theme("Theme", preview=False)
         img_svc.to_ansi.assert_not_called()
 
-    def test_brightness_level_1_uses_25(self):
-        svc, themes, img, img_svc, sm, sc = self._patches()
-        sc.get_device_config.return_value = {"brightness_level": 1, "rotation": 0}
+    def test_restore_device_settings_called(self):
+        svc, themes, img, img_svc, sm, sc, ml = self._patches()
         themes[0].name = "T"
         theme_svc = MagicMock()
         theme_svc.return_value = theme_svc
@@ -512,12 +516,15 @@ class TestLoadTheme:
              patch(_PATCH_DATA_MANAGER), \
              patch(_PATCH_THEME_SVC, theme_svc), \
              patch(_PATCH_IMAGE_SVC, img_svc), \
-             patch(_PATCH_PIL_IMAGE, pil_mock):
+             patch(_PATCH_PIL_IMAGE, pil_mock), \
+             patch(_PATCH_LCD_FROM_SVC, return_value=ml):
             load_theme("T")
-        img_svc.apply_brightness.assert_called_once_with(img, 25)
+        ml.restore_device_settings.assert_called_once()
+        ml.load_image.assert_called_once()
+        ml.send.assert_called_once()
 
     def test_saves_theme_path_to_settings(self):
-        svc, themes, img, img_svc, sm, sc = self._patches()
+        svc, themes, img, img_svc, sm, sc, ml = self._patches()
         themes[0].name = "T"
         themes[0].path = Path("/themes/T")
         theme_svc = MagicMock()
@@ -531,7 +538,8 @@ class TestLoadTheme:
              patch(_PATCH_DATA_MANAGER), \
              patch(_PATCH_THEME_SVC, theme_svc), \
              patch(_PATCH_IMAGE_SVC, img_svc), \
-             patch(_PATCH_PIL_IMAGE, pil_mock):
+             patch(_PATCH_PIL_IMAGE, pil_mock), \
+             patch(_PATCH_LCD_FROM_SVC, return_value=ml):
             load_theme("T")
         sc.save_device_setting.assert_called_once()
         call_args = sc.save_device_setting.call_args[0]

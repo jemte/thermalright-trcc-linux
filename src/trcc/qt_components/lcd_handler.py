@@ -20,6 +20,7 @@ from PySide6.QtGui import QIcon
 from ..conf import Settings, settings
 from ..core.lcd_device import LCDDevice
 from ..core.models import (
+    DEFAULT_BRIGHTNESS_LEVEL,
     SPLIT_MODE_RESOLUTIONS,
     DeviceInfo,
     ThemeInfo,
@@ -57,7 +58,7 @@ class LCDHandler:
 
         # Per-device state
         self._device_key = ''
-        self._brightness_level = 2
+        self._brightness_level = DEFAULT_BRIGHTNESS_LEVEL
         self._split_mode = 0
         self._ldd_is_split = False
         self._background_active = False
@@ -103,7 +104,7 @@ class LCDHandler:
         self._restore_overlay(cfg)
 
     def _restore_brightness(self, cfg: dict) -> None:
-        self._brightness_level = cfg.get('brightness_level', 2)
+        self._brightness_level = cfg.get('brightness_level', DEFAULT_BRIGHTNESS_LEVEL)
         log.info("Restoring brightness: level=%d", self._brightness_level)
         self._lcd.settings.set_brightness(self._brightness_level)
 

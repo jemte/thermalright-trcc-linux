@@ -1306,6 +1306,11 @@ class SensorInfo:
 # Domain Constants (FBL/resolution mapping, display formats)
 # =============================================================================
 
+# LCD brightness levels (1-3) to percent (Windows TRCC button levels)
+BRIGHTNESS_LEVELS: Dict[int, int] = {1: 25, 2: 50, 3: 100}
+DEFAULT_BRIGHTNESS_LEVEL = 3  # 100%
+
+
 # Time formats matching Windows TRCC (UCXiTongXianShiSub.cs)
 TIME_FORMATS: Dict[int, str] = {
     0: "%H:%M",       # 24-hour (14:58)

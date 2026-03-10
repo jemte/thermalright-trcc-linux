@@ -113,7 +113,7 @@ class TestConstruction:
 
     def test_brightness_level_default(self):
         h = _make_handler()
-        assert h.brightness_level == 2
+        assert h.brightness_level == 3  # DEFAULT_BRIGHTNESS_LEVEL (100%)
 
     def test_split_mode_default(self):
         h = _make_handler()

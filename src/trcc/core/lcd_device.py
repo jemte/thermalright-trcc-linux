@@ -100,6 +100,17 @@ class LCDDevice(Device):
         )
         self._theme_svc = theme_svc
 
+    @classmethod
+    def from_service(cls, device_svc: Any, renderer: Any = None) -> LCDDevice:
+        """Create a fully-wired LCDDevice from an existing DeviceService.
+
+        Use when the caller already has a connected DeviceService (e.g. CLI
+        resume, API device select) and needs the full DisplayService pipeline.
+        """
+        lcd = cls(renderer=renderer)
+        lcd._build_services(device_svc)
+        return lcd
+
     # ── Device ABC ─────────────────────────────────────────────────
 
     def connect(self, detected: Any = None) -> dict:
@@ -422,9 +433,28 @@ class LCDDevice(Device):
             key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
             Settings.save_device_setting(key, field, value)
 
+    def restore_device_settings(self) -> None:
+        """Restore brightness + rotation from per-device config.
+
+        Called by adapters (CLI, API, GUI) after device selection so they
+        don't need to read config or convert brightness levels themselves.
+        """
+        from ..conf import Settings
+        from .models import DEFAULT_BRIGHTNESS_LEVEL
+        dev = self._device_svc.selected if self._device_svc else None
+        if not dev:
+            return
+        key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
+        cfg = Settings.get_device_config(key)
+        self.set_brightness(cfg.get('brightness_level', DEFAULT_BRIGHTNESS_LEVEL))
+        rotation = cfg.get('rotation', 0)
+        if rotation in (0, 90, 180, 270):
+            self.set_rotation(rotation)
+
     def set_brightness(self, level: int) -> dict:
-        if level in (1, 2, 3):
-            percent = {1: 25, 2: 50, 3: 100}[level]
+        from .models import BRIGHTNESS_LEVELS
+        if level in BRIGHTNESS_LEVELS:
+            percent = BRIGHTNESS_LEVELS[level]
         elif 0 <= level <= 100:
             percent = level
         else:
@@ -466,6 +496,35 @@ class LCDDevice(Device):
             self._theme_svc.load_local_themes((width, height))
         return {"success": True, "resolution": (width, height),
                 "message": f"Resolution: {width}x{height}"}
+
+    def load_last_theme(self) -> dict:
+        """Load the last-used theme from per-device config.
+
+        Reads theme_path, resolves to image file, loads through
+        DisplayService pipeline (brightness + rotation applied automatically).
+        """
+        from ..conf import Settings
+        dev = self._device_svc.selected if self._device_svc else None
+        if not dev:
+            return {"success": False, "error": "No device selected"}
+        key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
+        cfg = Settings.get_device_config(key)
+        theme_path = cfg.get("theme_path")
+        if not theme_path:
+            return {"success": False, "error": "No saved theme"}
+
+        image_path = None
+        if os.path.isdir(theme_path):
+            candidate = os.path.join(theme_path, "00.png")
+            if os.path.exists(candidate):
+                image_path = candidate
+        elif os.path.isfile(theme_path):
+            image_path = theme_path
+
+        if not image_path:
+            return {"success": False, "error": f"Theme not found: {theme_path}"}
+
+        return self.load_image(image_path)
 
     # ── Theme ops (loading, saving, import/export) ─────────────
 

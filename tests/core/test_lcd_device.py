@@ -311,5 +311,109 @@ class TestLCDDeviceOverlay(unittest.TestCase):
         self.assertTrue(result['success'])
 
 
+# =============================================================================
+# from_service / restore_device_settings / load_last_theme
+# =============================================================================
+
+
+class TestFromService(unittest.TestCase):
+    """LCDDevice.from_service() classmethod."""
+
+    def test_from_service_builds_services(self):
+        svc = MagicMock()
+        with patch.object(LCDDevice, '_build_services') as mock_build:
+            lcd = LCDDevice.from_service(svc)
+        mock_build.assert_called_once_with(svc)
+        self.assertIsInstance(lcd, LCDDevice)
+
+
+class TestRestoreDeviceSettings(unittest.TestCase):
+    """LCDDevice.restore_device_settings()."""
+
+    def test_restores_brightness_and_rotation(self):
+        dev = MagicMock(device_index=0, vid=0x0402, pid=0x3922)
+        svc = MagicMock(selected=dev)
+        disp = MagicMock()
+        lcd = _make_lcd(device_svc=svc, display_svc=disp)
+        with patch('trcc.conf.Settings.device_config_key',
+                   return_value="0:0402_3922"), \
+             patch('trcc.conf.Settings.get_device_config',
+                   return_value={'brightness_level': 1, 'rotation': 90}):
+            lcd.restore_device_settings()
+        # set_brightness calls DisplayService
+        self.assertEqual(disp.set_brightness.call_count, 1)
+        self.assertEqual(disp.set_rotation.call_count, 1)
+
+    def test_no_device_does_nothing(self):
+        lcd = _make_lcd(device_svc=MagicMock(selected=None))
+        lcd.restore_device_settings()  # should not raise
+
+
+class TestLoadLastTheme(unittest.TestCase):
+    """LCDDevice.load_last_theme()."""
+
+    def test_no_theme_path_returns_error(self):
+        dev = MagicMock(device_index=0, vid=0x0402, pid=0x3922)
+        svc = MagicMock(selected=dev)
+        lcd = _make_lcd(device_svc=svc)
+        with patch('trcc.conf.Settings.device_config_key',
+                   return_value="key"), \
+             patch('trcc.conf.Settings.get_device_config',
+                   return_value={}):
+            result = lcd.load_last_theme()
+        self.assertFalse(result['success'])
+        self.assertIn("No saved theme", result['error'])
+
+    def test_nonexistent_path_returns_error(self):
+        dev = MagicMock(device_index=0, vid=0x0402, pid=0x3922)
+        svc = MagicMock(selected=dev)
+        lcd = _make_lcd(device_svc=svc)
+        with patch('trcc.conf.Settings.device_config_key',
+                   return_value="key"), \
+             patch('trcc.conf.Settings.get_device_config',
+                   return_value={'theme_path': '/nonexistent/path'}):
+            result = lcd.load_last_theme()
+        self.assertFalse(result['success'])
+        self.assertIn("not found", result['error'])
+
+    def test_image_file_loads(self, ):
+        import tempfile
+        from pathlib import Path
+        dev = MagicMock(device_index=0, vid=0x0402, pid=0x3922)
+        svc = MagicMock(selected=dev)
+        disp = MagicMock()
+        disp.load_image_file.return_value = MagicMock()
+        lcd = _make_lcd(device_svc=svc, display_svc=disp)
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+            tmp = Path(f.name)
+        try:
+            with patch('trcc.conf.Settings.device_config_key',
+                       return_value="key"), \
+                 patch('trcc.conf.Settings.get_device_config',
+                       return_value={'theme_path': str(tmp)}):
+                result = lcd.load_last_theme()
+            self.assertTrue(result['success'])
+            disp.load_image_file.assert_called_once()
+        finally:
+            tmp.unlink(missing_ok=True)
+
+    def test_theme_dir_with_00_png(self):
+        import tempfile
+        from pathlib import Path
+        dev = MagicMock(device_index=0, vid=0x0402, pid=0x3922)
+        svc = MagicMock(selected=dev)
+        disp = MagicMock()
+        disp.load_image_file.return_value = MagicMock()
+        lcd = _make_lcd(device_svc=svc, display_svc=disp)
+        with tempfile.TemporaryDirectory() as td:
+            (Path(td) / "00.png").write_bytes(b"fake")
+            with patch('trcc.conf.Settings.device_config_key',
+                       return_value="key"), \
+                 patch('trcc.conf.Settings.get_device_config',
+                       return_value={'theme_path': td}):
+                result = lcd.load_last_theme()
+            self.assertTrue(result['success'])
+
+
 if __name__ == '__main__':
     unittest.main()

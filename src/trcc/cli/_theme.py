@@ -82,23 +82,19 @@ def load_theme(name, *, device=None, preview=False):
         return 0
 
     if match.background_path and match.background_path.exists():
-        img = ImageService.open_and_resize(match.background_path, w, h)
-
-        # Apply saved adjustments
-        key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
-        cfg = Settings.get_device_config(key)
-        brightness = {1: 25, 2: 50, 3: 100}.get(
-            cfg.get('brightness_level', 3), 100)
-        rotation = cfg.get('rotation', 0)
-        img = ImageService.apply_brightness(img, brightness)
-        img = ImageService.apply_rotation(img, rotation)
-
-        svc.send_pil(img, w, h)
+        from trcc.core.lcd_device import LCDDevice
+        lcd = LCDDevice.from_service(svc)
+        lcd.restore_device_settings()
+        result = lcd.load_image(match.background_path)
+        img = result.get("image")
+        if img:
+            lcd.send(img)
 
         # Save as last-used theme
+        key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
         Settings.save_device_setting(key, 'theme_path', str(match.path))
         print(f"Loaded '{match.name}' → {dev.path}")
-        if preview:
+        if preview and img:
             print(ImageService.to_ansi(img))
     else:
         print(f"Theme '{match.name}' has no background image.")

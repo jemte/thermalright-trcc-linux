@@ -983,6 +983,7 @@ _DEV_SVC_CLS = "trcc.services.DeviceService"
 _DISC_RES = "trcc.cli._device.discover_resolution"
 _SETTINGS_CLS = "trcc.conf.Settings"
 _IMG_SVC_CLS = "trcc.services.ImageService"
+_LCD_FROM_SVC = "trcc.core.lcd_device.LCDDevice.from_service"
 _TIME = "time.sleep"
 
 
@@ -1045,137 +1046,58 @@ class TestCLIResume:
 
         assert rc == 1
 
-    def test_resume_no_theme_path_skipped(self, scsi_device, capsys):
+    def test_resume_no_theme(self, scsi_device, capsys):
         from trcc.cli._display import resume
 
         mock_svc = MagicMock()
         mock_svc.detect.return_value = [scsi_device]
+        mock_lcd = MagicMock()
+        mock_lcd.load_last_theme.return_value = {
+            "success": False, "error": "No saved theme"}
 
         with patch(_DEV_SVC_CLS, return_value=mock_svc), \
              patch(_DISC_RES), \
-             patch(_SETTINGS_CLS) as mock_settings, \
+             patch(_LCD_FROM_SVC, return_value=mock_lcd), \
              patch(_TIME):
-            mock_settings.device_config_key.return_value = "0:0402_3922"
-            mock_settings.get_device_config.return_value = {}
             rc = resume()
 
         assert rc == 1
+        mock_lcd.restore_device_settings.assert_called_once()
         assert "No saved theme" in capsys.readouterr().out
 
-    def test_resume_theme_path_not_found(self, scsi_device, tmp_path, capsys):
+    def test_resume_success(self, scsi_device, capsys):
         from trcc.cli._display import resume
 
         mock_svc = MagicMock()
         mock_svc.detect.return_value = [scsi_device]
+        fake_img = MagicMock()
+        mock_lcd = MagicMock()
+        mock_lcd.load_last_theme.return_value = {
+            "success": True, "image": fake_img}
 
         with patch(_DEV_SVC_CLS, return_value=mock_svc), \
              patch(_DISC_RES), \
-             patch(_SETTINGS_CLS) as mock_settings, \
+             patch(_LCD_FROM_SVC, return_value=mock_lcd), \
              patch(_TIME):
-            mock_settings.device_config_key.return_value = "0:0402_3922"
-            mock_settings.get_device_config.return_value = {
-                "theme_path": "/nonexistent/theme"}
-            rc = resume()
-
-        assert rc == 1
-        assert "Theme not found" in capsys.readouterr().out
-
-    def test_resume_success_with_image_file(self, scsi_device, tmp_path,
-                                            capsys):
-        from trcc.cli._display import resume
-
-        img_file = tmp_path / "theme.png"
-        Image.new("RGB", (320, 320), (100, 100, 100)).save(str(img_file))
-
-        mock_svc = MagicMock()
-        mock_svc.detect.return_value = [scsi_device]
-
-        with patch(_DEV_SVC_CLS, return_value=mock_svc), \
-             patch(_DISC_RES), \
-             patch(_SETTINGS_CLS) as mock_settings, \
-             patch(f"{_IMG_SVC_CLS}.resize") as mock_resize, \
-             patch(f"{_IMG_SVC_CLS}.apply_brightness") as mock_brightness, \
-             patch(f"{_IMG_SVC_CLS}.apply_rotation") as mock_rotation, \
-             patch(_TIME):
-            mock_settings.device_config_key.return_value = "0:0402_3922"
-            mock_settings.get_device_config.return_value = {
-                "theme_path": str(img_file),
-                "brightness_level": 3,
-                "rotation": 0,
-            }
-            fake_img = MagicMock()
-            mock_resize.return_value = fake_img
-            mock_brightness.return_value = fake_img
-            mock_rotation.return_value = fake_img
-
             rc = resume()
 
         assert rc == 0
         assert "Resumed 1 device" in capsys.readouterr().out
-        mock_svc.send_pil.assert_called_once()
+        mock_lcd.restore_device_settings.assert_called_once()
+        mock_lcd.send.assert_called_once_with(fake_img)
 
-    def test_resume_success_with_theme_directory(self, scsi_device, tmp_path,
-                                                 capsys):
+    def test_resume_device_exception_continues(self, scsi_device, capsys):
         from trcc.cli._display import resume
-
-        theme_dir = tmp_path / "MyTheme"
-        theme_dir.mkdir()
-        Image.new("RGB", (320, 320), (50, 50, 50)).save(
-            str(theme_dir / "00.png"))
 
         mock_svc = MagicMock()
         mock_svc.detect.return_value = [scsi_device]
+        mock_lcd = MagicMock()
+        mock_lcd.load_last_theme.side_effect = OSError("USB error")
 
         with patch(_DEV_SVC_CLS, return_value=mock_svc), \
              patch(_DISC_RES), \
-             patch(_SETTINGS_CLS) as mock_settings, \
-             patch(f"{_IMG_SVC_CLS}.resize") as mock_resize, \
-             patch(f"{_IMG_SVC_CLS}.apply_brightness") as mock_brightness, \
-             patch(f"{_IMG_SVC_CLS}.apply_rotation") as mock_rotation, \
+             patch(_LCD_FROM_SVC, return_value=mock_lcd), \
              patch(_TIME):
-            mock_settings.device_config_key.return_value = "0:0402_3922"
-            mock_settings.get_device_config.return_value = {
-                "theme_path": str(theme_dir),
-                "brightness_level": 2,
-                "rotation": 90,
-            }
-            fake_img = MagicMock()
-            mock_resize.return_value = fake_img
-            mock_brightness.return_value = fake_img
-            mock_rotation.return_value = fake_img
-
-            rc = resume()
-
-        assert rc == 0
-        assert "Resumed 1 device" in capsys.readouterr().out
-
-    def test_resume_device_exception_continues(self, scsi_device, tmp_path,
-                                               capsys):
-        from trcc.cli._display import resume
-
-        img_file = tmp_path / "theme.png"
-        Image.new("RGB", (320, 320), (100, 100, 100)).save(str(img_file))
-
-        mock_svc = MagicMock()
-        mock_svc.detect.return_value = [scsi_device]
-        mock_svc.send_pil.side_effect = OSError("USB error")
-
-        with patch(_DEV_SVC_CLS, return_value=mock_svc), \
-             patch(_DISC_RES), \
-             patch(_SETTINGS_CLS) as mock_settings, \
-             patch(f"{_IMG_SVC_CLS}.resize") as mock_resize, \
-             patch(f"{_IMG_SVC_CLS}.apply_brightness") as mock_brightness, \
-             patch(f"{_IMG_SVC_CLS}.apply_rotation") as mock_rotation, \
-             patch(_TIME):
-            mock_settings.device_config_key.return_value = "0:0402_3922"
-            mock_settings.get_device_config.return_value = {
-                "theme_path": str(img_file),
-            }
-            fake_img = MagicMock()
-            mock_resize.return_value = fake_img
-            mock_brightness.return_value = fake_img
-            mock_rotation.return_value = fake_img
-
             rc = resume()
 
         assert rc == 1
@@ -1193,14 +1115,14 @@ class TestCLIResume:
 
         mock_svc = MagicMock()
         mock_svc.detect.side_effect = _detect
+        mock_lcd = MagicMock()
+        mock_lcd.load_last_theme.return_value = {
+            "success": False, "error": "No saved theme"}
 
         with patch(_DEV_SVC_CLS, return_value=mock_svc), \
              patch(_DISC_RES), \
-             patch(_SETTINGS_CLS) as mock_settings, \
+             patch(_LCD_FROM_SVC, return_value=mock_lcd), \
              patch(_TIME):
-            mock_settings.device_config_key.return_value = "0:0402_3922"
-            mock_settings.get_device_config.return_value = {}
-
             rc = resume()
 
         out = capsys.readouterr().out

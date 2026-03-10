@@ -117,11 +117,17 @@ def select_device(device_id: int) -> dict:
 
             from trcc.core.lcd_device import LCDDevice
 
-            api._display_dispatcher = LCDDevice(device_svc=_device_svc)
+            lcd = LCDDevice.from_service(_device_svc)
+            api._display_dispatcher = lcd
 
             w_res, h_res = dev.resolution or (320, 320)
             api.set_current_image(ImageService.solid_color(0, 0, 0, w_res, h_res))
-            _restore_last_theme(dev)
+
+            lcd.restore_device_settings()
+            result = lcd.load_last_theme()
+            if result.get("image"):
+                api.set_current_image(result["image"])
+                log.info("Restored last theme for preview")
 
     # Mount static file directories for this device's resolution
     w, h = dev.resolution or (0, 0)
@@ -130,47 +136,6 @@ def select_device(device_id: int) -> dict:
 
     return {"selected": dev.name, "resolution": dev.resolution}
 
-
-def _restore_last_theme(dev) -> None:
-    """Load saved theme image into _current_image (for preview/stream).
-
-    Mirrors CLI --last-one: reads theme_path from device config, opens
-    00.png, applies brightness + rotation. Does NOT re-send to device.
-    """
-    import os
-
-    from trcc.api import set_current_image
-    from trcc.conf import Settings
-
-    key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
-    cfg = Settings.get_device_config(key)
-    theme_path = cfg.get("theme_path")
-    if not theme_path:
-        return
-
-    image_path = None
-    if os.path.isdir(theme_path):
-        candidate = os.path.join(theme_path, "00.png")
-        if os.path.exists(candidate):
-            image_path = candidate
-    elif os.path.isfile(theme_path):
-        image_path = theme_path
-
-    if not image_path:
-        return
-
-    try:
-        w, h = dev.resolution
-        img = ImageService.open_and_resize(image_path, w, h)
-
-        brightness_pct = {1: 25, 2: 50, 3: 100}.get(cfg.get("brightness_level", 3), 100)
-        img = ImageService.apply_brightness(img, brightness_pct)
-        img = ImageService.apply_rotation(img, cfg.get("rotation", 0))
-
-        set_current_image(img)
-        log.info("Restored last theme for preview: %s", os.path.basename(theme_path))
-    except Exception as e:
-        log.debug("Could not restore last theme: %s", e)
 
 
 @router.get("/devices/{device_id}")

@@ -364,8 +364,8 @@ def resume():
     from trcc.adapters.device.detector import DeviceDetector
     from trcc.adapters.device.factory import DeviceProtocolFactory
     from trcc.adapters.device.led import probe_led_model
-    from trcc.conf import Settings
-    from trcc.services import DeviceService, ImageService
+    from trcc.core.lcd_device import LCDDevice
+    from trcc.services import DeviceService
 
     svc = DeviceService(
         detect_fn=DeviceDetector.detect,
@@ -396,40 +396,18 @@ def resume():
         if dev.resolution == (0, 0):
             continue
 
-        key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
-        cfg = Settings.get_device_config(key)
-        theme_path = cfg.get("theme_path")
-
-        if not theme_path:
-            print(f"  [{dev.product}] No saved theme, skipping")
-            continue
-
-        image_path = None
-        if os.path.isdir(theme_path):
-            candidate = os.path.join(theme_path, "00.png")
-            if os.path.exists(candidate):
-                image_path = candidate
-        elif os.path.isfile(theme_path):
-            image_path = theme_path
-
-        if not image_path:
-            print(f"  [{dev.product}] Theme not found: {theme_path}")
-            continue
-
         try:
-            w, h = dev.resolution
-            img = ImageService.open_and_resize(image_path, w, h)
-
-            brightness_level = cfg.get("brightness_level", 3)
-            brightness_pct = {1: 25, 2: 50, 3: 100}.get(brightness_level, 100)
-            img = ImageService.apply_brightness(img, brightness_pct)
-
-            rotation = cfg.get("rotation", 0)
-            img = ImageService.apply_rotation(img, rotation)
-
             svc.select(dev)
-            svc.send_pil(img, w, h)
-            print(f"  [{dev.product}] Sent: {os.path.basename(theme_path)}")
+            lcd = LCDDevice.from_service(svc)
+            lcd.restore_device_settings()
+            result = lcd.load_last_theme()
+            if not result.get("success"):
+                msg = result.get("error", "Unknown error")
+                print(f"  [{dev.product}] {msg}")
+                continue
+            img = result["image"]
+            lcd.send(img)
+            print(f"  [{dev.product}] Sent")
             sent += 1
         except Exception as e:
             print(f"  [{dev.product}] Error: {e}")

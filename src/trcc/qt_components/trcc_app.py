@@ -1403,7 +1403,8 @@ class TRCCApp(QMainWindow):
             level = (h.brightness_level % 3) + 1
             h.set_brightness(level)
             self._update_ldd_icon()
-            percent = {1: 25, 2: 50, 3: 100}[level]
+            from ..core.models import BRIGHTNESS_LEVELS
+            percent = BRIGHTNESS_LEVELS[level]
             self.uc_preview.set_status(
                 f"Brightness: L{level} ({percent}%)")
 
