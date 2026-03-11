@@ -518,28 +518,50 @@ class TestThemeOperations(unittest.TestCase):
         resp = self.client.post("/themes/load", json={"name": "Theme001"})
         self.assertEqual(resp.status_code, 409)
 
-    @patch('trcc.api.themes.ThemeService.discover_local')
-    @patch('trcc.adapters.infra.data_repository.ThemeDir.for_resolution',
-           return_value=MagicMock(__str__=lambda s: '/tmp/themes'))
-    def test_load_theme_not_found(self, mock_dir, mock_discover):
+    def test_load_theme_routes_through_dispatcher(self):
+        """POST /themes/load delegates to lcd.load_theme_by_name()."""
         mock_lcd = MagicMock()
         mock_lcd.connected = True
         mock_lcd.resolution = (320, 320)
+        mock_lcd.load_theme_by_name.return_value = {
+            "success": True, "message": "Theme: CyberPunk",
+        }
         api_module._display_dispatcher = mock_lcd
-        mock_discover.return_value = []
+
+        resp = self.client.post("/themes/load", json={"name": "CyberPunk"})
+        self.assertEqual(resp.status_code, 200)
+        mock_lcd.load_theme_by_name.assert_called_once_with("CyberPunk", 0, 0)
+
+    def test_load_theme_passes_resolution(self):
+        """Resolution from request body is forwarded to dispatcher."""
+        mock_lcd = MagicMock()
+        mock_lcd.connected = True
+        mock_lcd.resolution = (320, 320)
+        mock_lcd.load_theme_by_name.return_value = {"success": True}
+        api_module._display_dispatcher = mock_lcd
+
+        resp = self.client.post(
+            "/themes/load", json={"name": "Theme001", "resolution": "480x480"})
+        self.assertEqual(resp.status_code, 200)
+        mock_lcd.load_theme_by_name.assert_called_once_with("Theme001", 480, 480)
+
+    def test_load_theme_not_found(self):
+        mock_lcd = MagicMock()
+        mock_lcd.connected = True
+        mock_lcd.resolution = (320, 320)
+        mock_lcd.load_theme_by_name.return_value = {
+            "success": False, "error": "Theme 'NonExistent' not found",
+        }
+        api_module._display_dispatcher = mock_lcd
 
         resp = self.client.post("/themes/load", json={"name": "NonExistent"})
-        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(resp.status_code, 400)
 
-    @patch('trcc.api.themes.ThemeService.discover_local')
-    @patch('trcc.adapters.infra.data_repository.ThemeDir.for_resolution',
-           return_value=MagicMock(__str__=lambda s: '/tmp/themes'))
-    def test_load_theme_invalid_resolution(self, mock_dir, mock_discover):
+    def test_load_theme_invalid_resolution(self):
         mock_lcd = MagicMock()
         mock_lcd.connected = True
         mock_lcd.resolution = (320, 320)
         api_module._display_dispatcher = mock_lcd
-        mock_discover.return_value = []
 
         resp = self.client.post("/themes/load",
                                 json={"name": "Theme001", "resolution": "bad"})
@@ -806,40 +828,23 @@ class TestVideoPlaybackEndpoints(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         mock_media.toggle.assert_called_once()
 
-    @patch('trcc.api.start_video_playback', return_value=True)
-    @patch('trcc.api.stop_video_playback')
-    @patch('trcc.api.themes.ThemeService.discover_local')
-    @patch('trcc.adapters.infra.data_repository.ThemeDir.for_resolution',
-           return_value=MagicMock(__str__=lambda s: '/tmp/themes'))
-    def test_load_animated_theme_starts_video(self, mock_dir, mock_discover,
-                                               mock_stop, mock_start):
-        """Loading an animated theme starts background video playback."""
-        import tempfile
-        from pathlib import Path
-
+    def test_load_animated_theme_starts_video(self):
+        """Loading an animated theme routes through dispatcher and returns animated flag."""
         mock_lcd = MagicMock()
         mock_lcd.connected = True
         mock_lcd.resolution = (320, 320)
+        mock_lcd.load_theme_by_name.return_value = {
+            "success": True, "is_animated": True,
+            "message": "Theme: VideoTheme",
+        }
         api_module._display_dispatcher = mock_lcd
 
-        mock_theme = MagicMock()
-        mock_theme.name = "VideoTheme"
-        mock_theme.is_animated = True
-        mock_discover.return_value = [mock_theme]
-
-        # Create a temp dir with a fake video file
-        with tempfile.TemporaryDirectory() as tmpdir:
-            theme_path = Path(tmpdir) / "VideoTheme"
-            theme_path.mkdir()
-            (theme_path / "Theme.mp4").write_bytes(b"fake")
-            mock_dir.return_value = MagicMock(__str__=lambda s: tmpdir)
-
-            resp = self.client.post("/themes/load", json={"name": "VideoTheme"})
+        resp = self.client.post("/themes/load", json={"name": "VideoTheme"})
 
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
-        self.assertTrue(data.get("animated"))
-        mock_start.assert_called_once()
+        self.assertTrue(data.get("is_animated"))
+        mock_lcd.load_theme_by_name.assert_called_once_with("VideoTheme", 0, 0)
         api_module._display_dispatcher = None
 
     def test_display_route_stops_video_on_static_send(self):
@@ -892,81 +897,25 @@ class TestOverlayLoop(unittest.TestCase):
         self.client.post("/display/color", json={"hex": "ff0000"})
         mock_stop_overlay.assert_called_once()
 
-    @patch('trcc.api.start_overlay_loop', return_value=True)
-    @patch('trcc.api.stop_overlay_loop')
-    @patch('trcc.api.stop_video_playback')
-    @patch('trcc.api._device_svc')
-    @patch('trcc.api.themes.ThemeService.discover_local')
-    @patch('trcc.adapters.infra.data_repository.ThemeDir.for_resolution')
-    def test_load_static_theme_with_dc_starts_overlay(
-        self, mock_dir, mock_discover, mock_svc,
-        mock_stop_video, mock_stop_overlay, mock_start_overlay,
-    ):
-        """Loading a static theme with config1.dc starts overlay loop."""
-        import tempfile
-        from pathlib import Path
-
+    def test_load_theme_stops_video_and_overlay_before_dispatch(self):
+        """POST /themes/load stops running video/overlay before delegating to dispatcher."""
         mock_lcd = MagicMock()
         mock_lcd.connected = True
         mock_lcd.resolution = (320, 320)
+        mock_lcd.load_theme_by_name.return_value = {"success": True}
         api_module._display_dispatcher = mock_lcd
-        mock_svc.send_pil.return_value = True
 
-        mock_theme = MagicMock()
-        mock_theme.name = "StaticWithDC"
-        mock_theme.is_animated = False
-        mock_discover.return_value = [mock_theme]
+        # Simulate running overlay
+        api_module._overlay_stop_event = MagicMock()
+        api_module._overlay_thread = MagicMock()
+        api_module._overlay_thread.is_alive.return_value = False
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            theme_path = Path(tmpdir) / "StaticWithDC"
-            theme_path.mkdir()
-            # Create image + DC file
-            img = Image.new('RGB', (320, 320), 'blue')
-            img.save(str(theme_path / "01.png"))
-            (theme_path / "config1.dc").write_bytes(b"\x00" * 64)
-            mock_dir.return_value = MagicMock(__str__=lambda s: tmpdir)
-
-            resp = self.client.post("/themes/load", json={"name": "StaticWithDC"})
+        resp = self.client.post("/themes/load", json={"name": "AnyTheme"})
 
         self.assertEqual(resp.status_code, 200)
-        mock_start_overlay.assert_called_once()
-
-    @patch('trcc.api.start_overlay_loop', return_value=True)
-    @patch('trcc.api.stop_overlay_loop')
-    @patch('trcc.api.stop_video_playback')
-    @patch('trcc.api._device_svc')
-    @patch('trcc.api.themes.ThemeService.discover_local')
-    @patch('trcc.adapters.infra.data_repository.ThemeDir.for_resolution')
-    def test_load_static_theme_without_dc_no_overlay(
-        self, mock_dir, mock_discover, mock_svc,
-        mock_stop_video, mock_stop_overlay, mock_start_overlay,
-    ):
-        """Loading a static theme without DC config does NOT start overlay loop."""
-        import tempfile
-        from pathlib import Path
-
-        mock_lcd = MagicMock()
-        mock_lcd.connected = True
-        mock_lcd.resolution = (320, 320)
-        api_module._display_dispatcher = mock_lcd
-        mock_svc.send_pil.return_value = True
-
-        mock_theme = MagicMock()
-        mock_theme.name = "PlainTheme"
-        mock_theme.is_animated = False
-        mock_discover.return_value = [mock_theme]
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            theme_path = Path(tmpdir) / "PlainTheme"
-            theme_path.mkdir()
-            img = Image.new('RGB', (320, 320), 'red')
-            img.save(str(theme_path / "01.png"))
-            mock_dir.return_value = MagicMock(__str__=lambda s: tmpdir)
-
-            resp = self.client.post("/themes/load", json={"name": "PlainTheme"})
-
-        self.assertEqual(resp.status_code, 200)
-        mock_start_overlay.assert_not_called()
+        # Overlay was cleaned up
+        self.assertIsNone(api_module._overlay_svc)
+        api_module._display_dispatcher = None
 
     def test_stop_overlay_loop_cleans_up(self):
         """stop_overlay_loop() clears all overlay state."""
@@ -1676,99 +1625,34 @@ class TestThemeEdgeCases(unittest.TestCase):
             resp = self.client.post("/themes/save", json={"name": "Empty"})
         self.assertEqual(resp.status_code, 500)
 
-    def test_load_theme_sends_image_to_device(self) -> None:
+    def test_load_theme_success_delegates_to_dispatcher(self) -> None:
+        """API layer delegates to lcd.load_theme_by_name — thin adapter."""
         mock_lcd = MagicMock()
         mock_lcd.connected = True
         mock_lcd.resolution = (320, 320)
+        mock_lcd.load_theme_by_name.return_value = {
+            "success": True, "message": "Theme: Theme001",
+        }
         api_module._display_dispatcher = mock_lcd
 
-        mock_theme = MagicMock()
-        mock_theme.name = "Theme001"
-        mock_theme.config_path = None
-
-        with tempfile.TemporaryDirectory() as td:
-            theme_dir = Path(td) / "Theme001"
-            theme_dir.mkdir()
-            img_path = theme_dir / "01.png"
-            Image.new("RGB", (320, 320), "blue").save(img_path)
-
-            with patch("trcc.api.themes.ThemeService.discover_local", return_value=[mock_theme]), \
-                 patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_tdr, \
-                 patch.object(_device_svc, "send_pil", return_value=True):
-                mock_tdr.return_value = MagicMock(
-                    path=td,
-                    __str__=lambda s: td,
-                )
-                resp = self.client.post("/themes/load", json={"name": "Theme001"})
+        resp = self.client.post("/themes/load", json={"name": "Theme001"})
 
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.json()["theme"], "Theme001")
+        mock_lcd.load_theme_by_name.assert_called_once_with("Theme001", 0, 0)
 
-    def test_load_theme_send_failure_returns_500(self) -> None:
+    def test_load_theme_failure_returns_400(self) -> None:
+        """Dispatcher failure propagated as 400 via dispatch_result."""
         mock_lcd = MagicMock()
         mock_lcd.connected = True
         mock_lcd.resolution = (320, 320)
+        mock_lcd.load_theme_by_name.return_value = {
+            "success": False, "error": "No image file in theme",
+        }
         api_module._display_dispatcher = mock_lcd
 
-        mock_theme = MagicMock()
-        mock_theme.name = "BrokenTheme"
-        mock_theme.config_path = None
+        resp = self.client.post("/themes/load", json={"name": "Broken"})
 
-        with tempfile.TemporaryDirectory() as td:
-            theme_dir = Path(td) / "BrokenTheme"
-            theme_dir.mkdir()
-            Image.new("RGB", (100, 100)).save(theme_dir / "01.png")
-
-            with patch("trcc.api.themes.ThemeService.discover_local", return_value=[mock_theme]), \
-                 patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_tdr, \
-                 patch.object(_device_svc, "send_pil", return_value=False):
-                mock_tdr.return_value = MagicMock(path=td, __str__=lambda s: td)
-                resp = self.client.post("/themes/load", json={"name": "BrokenTheme"})
-
-        self.assertEqual(resp.status_code, 500)
-
-    def test_load_theme_no_image_file_returns_404(self) -> None:
-        mock_lcd = MagicMock()
-        mock_lcd.connected = True
-        mock_lcd.resolution = (320, 320)
-        api_module._display_dispatcher = mock_lcd
-
-        mock_theme = MagicMock()
-        mock_theme.name = "NoImages"
-        mock_theme.config_path = None
-
-        with tempfile.TemporaryDirectory() as td:
-            (Path(td) / "NoImages").mkdir()
-
-            with patch("trcc.api.themes.ThemeService.discover_local", return_value=[mock_theme]), \
-                 patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_tdr:
-                mock_tdr.return_value = MagicMock(path=td, __str__=lambda s: td)
-                resp = self.client.post("/themes/load", json={"name": "NoImages"})
-
-        self.assertEqual(resp.status_code, 404)
-
-    def test_load_theme_with_jpg_fallback(self) -> None:
-        mock_lcd = MagicMock()
-        mock_lcd.connected = True
-        mock_lcd.resolution = (320, 320)
-        api_module._display_dispatcher = mock_lcd
-
-        mock_theme = MagicMock()
-        mock_theme.name = "JpgTheme"
-        mock_theme.config_path = None
-
-        with tempfile.TemporaryDirectory() as td:
-            theme_dir = Path(td) / "JpgTheme"
-            theme_dir.mkdir()
-            Image.new("RGB", (320, 320)).save(theme_dir / "preview.jpg")
-
-            with patch("trcc.api.themes.ThemeService.discover_local", return_value=[mock_theme]), \
-                 patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_tdr, \
-                 patch.object(_device_svc, "send_pil", return_value=True):
-                mock_tdr.return_value = MagicMock(path=td, __str__=lambda s: td)
-                resp = self.client.post("/themes/load", json={"name": "JpgTheme"})
-
-        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.status_code, 400)
 
     def test_list_masks_with_dirs_having_theme_png(self) -> None:
         with tempfile.TemporaryDirectory() as td:

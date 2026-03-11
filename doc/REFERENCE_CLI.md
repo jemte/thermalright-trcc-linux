@@ -421,6 +421,8 @@ trcc serve --cert cert.pem --key key.pem  # custom TLS certificate
 | `--cert` | Path to custom TLS certificate (PEM) |
 | `--key` | Path to custom TLS private key (PEM) |
 
+**QR Code:** When the `qrcode` package is installed (`pip install qrcode`), a terminal QR code is printed at startup containing connection details (host, port, token, TLS) as compact JSON. Scan with the TRCC Remote app to connect instantly. When bound to `0.0.0.0` or `::`, the QR code auto-detects your LAN IP.
+
 ---
 
 ### `trcc api`

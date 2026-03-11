@@ -857,8 +857,33 @@ def _cmd_serve(
 
     scheme = "https" if ssl_kwargs else "http"
     print(f"Serving on {scheme}://{host}:{port}")
+    _print_serve_qr(host, port, token, bool(ssl_kwargs))
     uvicorn.run(api_app, host=host, port=port, **ssl_kwargs)
     return 0
+
+
+def _print_serve_qr(host: str, port: int, token: Optional[str], tls: bool) -> None:
+    """Print a terminal QR code with connection details for remote apps.
+
+    Presentation-only — delegates to ServerInfo (DTO) for payload and
+    adapters.infra.network for LAN IP detection.
+    """
+    try:
+        import qrcode  # pyright: ignore[reportMissingImports]
+    except ImportError:
+        return
+
+    from trcc.adapters.infra.network import get_lan_ip
+    from trcc.core.models import ServerInfo
+
+    display_host = get_lan_ip() if host in ("0.0.0.0", "::") else host
+    info = ServerInfo(host=display_host, port=port, token=token or "", tls=tls)
+
+    qr = qrcode.QRCode(error_correction=qrcode.ERROR_CORRECT_L, border=1)
+    qr.add_data(info.to_json())
+    qr.make(fit=True)
+    qr.print_ascii(invert=True)
+    print(f"Scan to connect: {display_host}:{port}")
 
 
 def _ensure_self_signed_cert() -> Optional[tuple[str, str]]:

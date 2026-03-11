@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "trcc-linux"
-version = "8.3.0"
+version = "8.3.1"
 description = "Linux implementation of Thermalright LCD Control Center"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -51,15 +51,19 @@ wayland = [
 hid = [
     "hidapi>=0.14.0",
 ]
+remote = [
+    "qrcode>=7.0",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "ruff>=0.4.0",
     "httpx>=0.24.0",
     "python-multipart>=0.0.6",
+    "types-qrcode>=7.0",
 ]
 all = [
-    "trcc-linux[nvidia,wayland,hid,dev]",
+    "trcc-linux[nvidia,wayland,hid,remote,dev]",
 ]
 
 [project.urls]

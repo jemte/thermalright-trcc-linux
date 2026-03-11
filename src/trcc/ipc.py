@@ -37,12 +37,14 @@ _NON_SERIALIZABLE = frozenset({"image", "colors"})
 # SOLID routing: display methods route through LCDDevice composed capabilities.
 # Format: "method_name" → ("capability", "method") or None for flat on device.
 _DISPLAY_ROUTES: dict[str, tuple[str, str]] = {
-    "send_image":     ("frame", "send_image"),
-    "send_color":     ("frame", "send_color"),
-    "reset":          ("frame", "reset"),
-    "set_brightness": ("settings", "set_brightness"),
-    "set_rotation":   ("settings", "set_rotation"),
-    "set_split_mode": ("settings", "set_split_mode"),
+    "send_image":           ("frame", "send_image"),
+    "send_color":           ("frame", "send_color"),
+    "reset":                ("frame", "reset"),
+    "set_brightness":       ("settings", "set_brightness"),
+    "set_rotation":         ("settings", "set_rotation"),
+    "set_split_mode":       ("settings", "set_split_mode"),
+    "load_theme_by_name":   ("theme", "load_theme_by_name"),
+    "load_mask_standalone":  ("overlay", "load_mask_standalone"),
 }
 
 # LED methods are flat on LEDDevice — whitelist only.

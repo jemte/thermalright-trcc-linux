@@ -12,6 +12,8 @@ trcc serve --host 0.0.0.0           # listen on all interfaces (use with --token
 
 Interactive docs available at `http://localhost:9876/docs` (Swagger UI) when the server is running.
 
+When the `qrcode` package is installed (`pip install qrcode`), startup prints a terminal QR code containing `{"host","port","token","tls"}` as compact JSON — scan with TRCC Remote to connect instantly.
+
 ---
 
 ## Table of Contents

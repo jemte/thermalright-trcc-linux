@@ -1744,3 +1744,26 @@ def format_metric(metric: str, value: float, time_format: int = 0,
         return f"{value:.0f}MB"
     return f"{value:.1f}"
 
+
+# =============================================================================
+# API Server DTOs
+# =============================================================================
+
+@dataclass(frozen=True)
+class ServerInfo:
+    """Connection details for a running TRCC API server."""
+    host: str
+    port: int
+    token: str
+    tls: bool
+
+    def to_json(self) -> str:
+        """Compact JSON payload for QR codes / remote apps."""
+        import json
+        return json.dumps({
+            "host": self.host,
+            "port": self.port,
+            "token": self.token,
+            "tls": self.tls,
+        }, separators=(",", ":"))
+

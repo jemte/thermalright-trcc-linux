@@ -3,6 +3,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from trcc.core.lcd_device import LCDDevice
 
 
@@ -413,6 +415,98 @@ class TestLoadLastTheme(unittest.TestCase):
                        return_value={'theme_path': td}):
                 result = lcd.load_last_theme()
             self.assertTrue(result['success'])
+
+
+# =============================================================================
+# load_theme_by_name — routes through discover + select
+# =============================================================================
+
+
+@pytest.fixture
+def lcd_with_mocks():
+    """LCDDevice with mock services, 320x320 resolution."""
+    svc = MagicMock()
+    svc.selected = MagicMock(resolution=(320, 320))
+    disp = MagicMock()
+    disp.lcd_width = 320
+    disp.lcd_height = 320
+    disp.load_local_theme.return_value = {
+        "image": MagicMock(), "is_animated": False,
+    }
+    disp.get_video_interval.return_value = 0
+    theme = MagicMock()
+    lcd = _make_lcd(device_svc=svc, display_svc=disp, theme_svc=theme)
+    return lcd
+
+
+class TestLoadThemeByName:
+    """LCDDevice.load_theme_by_name — core theme loading by name."""
+
+    @patch("trcc.services.ThemeService.discover_local")
+    @patch("trcc.core.models.ThemeDir.for_resolution")
+    def test_found_theme_calls_select(self, mock_for_res, mock_discover, lcd_with_mocks):
+        from trcc.core.models import ThemeInfo, ThemeType
+
+        theme = ThemeInfo(name="CyberPunk", theme_type=ThemeType.LOCAL)
+        mock_for_res.return_value = MagicMock(path="/tmp/themes", __str__=lambda s: "/tmp/themes")
+        mock_discover.return_value = [theme]
+
+        result = lcd_with_mocks.load_theme_by_name("CyberPunk")
+
+        assert result["success"] is True
+        lcd_with_mocks._theme_svc.select.assert_called_once_with(theme)
+
+    @patch("trcc.services.ThemeService.discover_local", return_value=[])
+    @patch("trcc.core.models.ThemeDir.for_resolution",
+           return_value=MagicMock(path="/tmp/themes", __str__=lambda s: "/tmp/themes"))
+    def test_not_found_returns_error(self, mock_for_res, mock_discover, lcd_with_mocks):
+        result = lcd_with_mocks.load_theme_by_name("NonExistent")
+
+        assert result["success"] is False
+        assert "not found" in result["error"]
+
+    @patch("trcc.services.ThemeService.discover_local")
+    @patch("trcc.core.models.ThemeDir.for_resolution")
+    def test_explicit_resolution_overrides_device(self, mock_for_res, mock_discover, lcd_with_mocks):
+        mock_for_res.return_value = MagicMock(path="/tmp/themes", __str__=lambda s: "/tmp/themes")
+        mock_discover.return_value = []
+
+        lcd_with_mocks.load_theme_by_name("Theme001", 480, 480)
+
+        mock_for_res.assert_called_once_with(480, 480)
+        mock_discover.assert_called_once()
+        # Second arg is the resolution tuple
+        assert mock_discover.call_args[0][1] == (480, 480)
+
+    @patch("trcc.services.ThemeService.discover_local")
+    @patch("trcc.core.models.ThemeDir.for_resolution")
+    def test_zero_resolution_uses_device_size(self, mock_for_res, mock_discover, lcd_with_mocks):
+        mock_for_res.return_value = MagicMock(path="/tmp/themes", __str__=lambda s: "/tmp/themes")
+        mock_discover.return_value = []
+
+        lcd_with_mocks.load_theme_by_name("Theme001", 0, 0)
+
+        # Should use device resolution (320, 320)
+        mock_for_res.assert_called_once_with(320, 320)
+
+
+# =============================================================================
+# IPC routes — load_theme_by_name and load_mask_standalone registered
+# =============================================================================
+
+
+class TestIPCDisplayRoutes:
+    """IPC _DISPLAY_ROUTES includes theme and mask methods."""
+
+    def test_load_theme_by_name_in_routes(self):
+        from trcc.ipc import _DISPLAY_ROUTES
+        assert "load_theme_by_name" in _DISPLAY_ROUTES
+        assert _DISPLAY_ROUTES["load_theme_by_name"] == ("theme", "load_theme_by_name")
+
+    def test_load_mask_standalone_in_routes(self):
+        from trcc.ipc import _DISPLAY_ROUTES
+        assert "load_mask_standalone" in _DISPLAY_ROUTES
+        assert _DISPLAY_ROUTES["load_mask_standalone"] == ("overlay", "load_mask_standalone")
 
 
 if __name__ == '__main__':

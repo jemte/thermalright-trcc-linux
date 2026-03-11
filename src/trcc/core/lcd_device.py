@@ -558,6 +558,29 @@ class LCDDevice(Device):
             "message": f"Theme: {theme.name}" if hasattr(theme, 'name') else "Theme loaded",
         }
 
+    def load_theme_by_name(self, name: str, width: int = 0, height: int = 0) -> dict:
+        """Load a theme by name and send to device.
+
+        Discovers themes for the given (or device) resolution, finds the
+        matching name, and routes through select() for full pipeline
+        (brightness, rotation, overlay, video).
+
+        Args:
+            name: Theme directory name (e.g. "003a", "Custom_MyTheme").
+            width: Resolution width (0 = use device resolution).
+            height: Resolution height (0 = use device resolution).
+        """
+        from ..services import ThemeService
+        from .models import ThemeDir as CoreThemeDir
+
+        w, h = (width, height) if width and height else self.lcd_size
+        theme_dir = Path(str(CoreThemeDir.for_resolution(w, h)))
+        themes = ThemeService.discover_local(theme_dir, (w, h))
+        match = next((t for t in themes if t.name == name), None)
+        if not match:
+            return {"success": False, "error": f"Theme '{name}' not found"}
+        return self.select(match)
+
     def load_local(self, resolution: tuple[int, int]) -> dict:
         themes = self._theme_svc.load_local_themes(resolution)
         return {"success": True, "themes": themes, "count": len(themes)}

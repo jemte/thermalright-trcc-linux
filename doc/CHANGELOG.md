@@ -1,5 +1,21 @@
 # Changelog
 
+## v8.3.1
+
+### Features
+- **QR code on `trcc serve`**: Terminal QR code at startup containing `{"host","port","token","tls"}` JSON — scan with TRCC Remote to connect instantly. Auto-detects LAN IP when listening on all interfaces. Requires optional `qrcode` package (`pip install trcc-linux[remote]`)
+- **`ServerInfo` DTO**: Frozen dataclass in `core/models.py` for QR code payload serialization
+- **`get_lan_ip()` adapter**: Network infrastructure adapter for LAN IP auto-detection (`adapters/infra/network.py`)
+
+### Bug Fixes
+- **Fixed**: `POST /themes/load` crashes API server — endpoint was calling services directly instead of routing through `LCDDevice` dispatcher. Now delegates to `lcd.load_theme_by_name()`, works in both standalone and IPC (GUI daemon) modes
+- **Fixed**: `POST /display/mask` returns "unknown command" in IPC mode — `load_mask_standalone` was missing from `_DISPLAY_ROUTES` in `ipc.py`
+- **Fixed**: `load_theme_by_name` IPC route missing — added to `_DISPLAY_ROUTES` for GUI daemon passthrough
+
+### Internal
+- **Tests**: Added 25 tests across 3 hexagonal layers — `TestServerInfo` (4), `TestGetLanIp` (2), `TestPrintServeQr` (7), `TestLoadThemeByName` (4), `TestIPCDisplayRoutes` (2), updated API theme tests (6)
+- **Architecture**: `POST /themes/load` reduced from ~70 lines of inline business logic to ~20-line thin adapter over `LCDDevice.load_theme_by_name()`
+
 ## v8.3.0
 
 ### Bug Fixes

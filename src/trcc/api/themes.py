@@ -33,22 +33,6 @@ def _parse_resolution(resolution: str) -> tuple[int, int]:
     return w, h
 
 
-def _find_video_file(theme_path):
-    """Find first video/animation file in a theme directory."""
-    from pathlib import Path
-
-    p = Path(theme_path)
-    # Check Theme.zt first (Thermalright animation format)
-    zt = p / 'Theme.zt'
-    if zt.exists():
-        return zt
-    # Then check for video files
-    for ext in ('.mp4', '.avi', '.mkv', '.webm', '.gif'):
-        matches = list(p.glob(f'*{ext}'))
-        if matches:
-            return matches[0]
-    return None
-
 
 def _preview_url(theme_name: str, theme_dir: str) -> str:
     """Resolve preview URL for a local theme — Theme.png or 00.png fallback."""
@@ -202,77 +186,26 @@ def list_masks(resolution: str = "320x320") -> list[MaskResponse]:
 
 @router.post("/load")
 def load_theme(body: ThemeLoadRequest) -> dict:
-    """Load a theme by name and send to device."""
-    from trcc.api import _display_dispatcher
+    """Load a theme by name and send to device.
+
+    Thin adapter — routes through LCDDevice.load_theme_by_name().
+    Works in both standalone and IPC (GUI daemon) modes.
+    """
+    from trcc.api import _display_dispatcher, stop_overlay_loop, stop_video_playback
+    from trcc.api.models import dispatch_result
 
     if not _display_dispatcher or not _display_dispatcher.connected:
         raise HTTPException(status_code=409, detail="No LCD device selected. POST /devices/{id}/select first.")
 
-    from pathlib import Path
-
-    from trcc.adapters.infra.data_repository import ThemeDir
-    from trcc.services import ImageService
-
-    lcd = _display_dispatcher
-    w, h = lcd.resolution  # type: ignore[union-attr]
-
-    # Resolve resolution from request or device
-    if body.resolution:
-        w, h = _parse_resolution(body.resolution)
-
-    theme_dir = Path(str(ThemeDir.for_resolution(w, h)))
-    themes = ThemeService.discover_local(theme_dir, (w, h))
-    match = next((t for t in themes if t.name == body.name), None)
-    if not match:
-        raise HTTPException(status_code=404, detail=f"Theme '{body.name}' not found")
-
-    from trcc.api import (
-        _device_svc,
-        start_overlay_loop,
-        start_video_playback,
-        stop_overlay_loop,
-        stop_video_playback,
-    )
-
-    # Stop any running video/overlay before loading a new theme
     stop_video_playback()
     stop_overlay_loop()
 
-    theme_path = theme_dir / match.name
+    w, h = 0, 0
+    if body.resolution:
+        w, h = _parse_resolution(body.resolution)
 
-    # Check for animated theme (video files)
-    video_file = _find_video_file(theme_path)
-    if match.is_animated and video_file:
-        ok = start_video_playback(str(video_file), w, h, loop=True)
-        if not ok:
-            raise HTTPException(status_code=500, detail="Failed to start video playback")
-        return {"success": True, "theme": body.name, "resolution": (w, h), "animated": True}
-
-    # Static theme — load first image and send
-    img_file = theme_path / "01.png"
-    if not img_file.exists():
-        img_file = next(theme_path.glob("*.png"), None)
-        if not img_file:
-            img_file = next(theme_path.glob("*.jpg"), None)
-    if not img_file:
-        raise HTTPException(status_code=404, detail=f"No image file in theme '{body.name}'")
-
-    img = ImageService.open_and_resize(img_file, w, h)
-
-    ok = _device_svc.send_pil(img, w, h)
-    if not ok:
-        raise HTTPException(status_code=500, detail="Send failed (device busy or error)")
-
-    # Start overlay metrics loop if theme has overlay config
-    from trcc.core.models import ThemeDir
-    td = ThemeDir(theme_path)
-    dc_path = td.dc if td.dc.exists() else None
-    if dc_path is None and td.json.exists():
-        dc_path = td.json  # config.json also triggers overlay
-    if dc_path:
-        start_overlay_loop(img, str(dc_path), w, h)
-
-    return {"success": True, "theme": body.name, "resolution": (w, h)}
+    result = _display_dispatcher.load_theme_by_name(body.name, w, h)
+    return dispatch_result(result)
 
 
 @router.post("/save")
