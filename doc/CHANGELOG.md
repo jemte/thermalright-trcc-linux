@@ -1,5 +1,10 @@
 # Changelog
 
+## v8.3.0
+
+### Bug Fixes
+- **Fixed**: Theme browsers (local, cloud, masks) empty on first run — `_update_theme_directories()` was only called on resolution change, but first run default (320x320) matched device so refresh never triggered. Now always refreshes after device configuration.
+
 ## v8.2.10
 
 ### Features
