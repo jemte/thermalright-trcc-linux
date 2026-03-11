@@ -728,10 +728,10 @@ def _cmd_perf(
     _ensure_renderer()
 
     if device:
-        from trcc.ipc import IPCClient
+        from trcc.core.instance import InstanceKind, find_active
         from trcc.services.perf import run_device_benchmarks
 
-        gui_running = IPCClient.available()
+        gui_running = find_active() == InstanceKind.GUI
         if gui_running:
             print("GUI daemon detected — pausing display refresh...")
         print("Running device I/O benchmarks (this takes ~10s)...")

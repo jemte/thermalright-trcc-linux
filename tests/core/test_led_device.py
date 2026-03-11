@@ -3,6 +3,7 @@
 import unittest
 from unittest.mock import MagicMock
 
+from trcc.core.instance import InstanceKind
 from trcc.core.led_device import LEDDevice
 from trcc.core.models import LEDMode
 
@@ -513,6 +514,93 @@ class TestInitialize(unittest.TestCase):
         self.assertTrue(result['success'])
         self.assertEqual(result['style'], 3)
         self.assertIs(led._device, device)
+
+
+# =============================================================================
+# Instance detection DI — proxy routing
+# =============================================================================
+
+
+class TestLEDDeviceProxyRouting(unittest.TestCase):
+    """LEDDevice.connect() routes through proxy when another instance active."""
+
+    def test_connect_routes_through_proxy_when_active(self):
+        """When find_active_fn returns an instance, connect() sets proxy."""
+        proxy = MagicMock()
+        proxy.connected = True
+        led = LEDDevice(
+            find_active_fn=lambda: InstanceKind.GUI,
+            proxy_factory_fn=lambda kind: proxy,
+        )
+        result = led.connect()
+        self.assertTrue(result["success"])
+        self.assertEqual(result["proxy"], InstanceKind.GUI)
+        self.assertIs(led._proxy, proxy)
+        self.assertTrue(led.connected)
+
+    def test_connect_direct_when_no_active_instance(self):
+        """When find_active_fn returns None, connect() goes direct USB."""
+        led = LEDDevice(
+            find_active_fn=lambda: None,
+            proxy_factory_fn=lambda kind: MagicMock(),
+        )
+        # Mock the adapter imports for direct path
+        from unittest.mock import patch
+        with patch.object(LEDDevice, 'connect', wraps=led.connect):
+            # Direct path will try USB — just verify proxy is not set
+            # by giving it a DeviceService with no LED devices
+            dev_svc = MagicMock()
+            dev_svc.devices = []  # No LED devices
+            led._device_svc = dev_svc
+            result = led.connect()
+        self.assertFalse(result["success"])
+        self.assertIsNone(led._proxy)
+
+    def test_proxy_forwards_set_color(self):
+        """@_forward_to_proxy decorator forwards calls to proxy."""
+        proxy = MagicMock()
+        proxy.connected = True
+        proxy.set_color.return_value = {"success": True, "message": "ok"}
+        led = LEDDevice(
+            find_active_fn=lambda: InstanceKind.GUI,
+            proxy_factory_fn=lambda kind: proxy,
+        )
+        led.connect()
+        result = led.set_color(255, 0, 0)
+        proxy.set_color.assert_called_once_with(255, 0, 0)
+        self.assertTrue(result["success"])
+
+    def test_proxy_forwards_off(self):
+        """@_forward_to_proxy decorator forwards off() to proxy."""
+        proxy = MagicMock()
+        proxy.connected = True
+        proxy.off.return_value = {"success": True, "message": "off"}
+        led = LEDDevice(
+            find_active_fn=lambda: InstanceKind.GUI,
+            proxy_factory_fn=lambda kind: proxy,
+        )
+        led.connect()
+        result = led.off()
+        proxy.off.assert_called_once()
+        self.assertTrue(result["success"])
+
+    def test_no_proxy_calls_local(self):
+        """Without proxy, methods call local service."""
+        led = _make_led()
+        result = led.set_color(255, 0, 0)
+        self.assertTrue(result["success"])
+        led._svc.set_color.assert_called_once_with(255, 0, 0)
+
+    def test_connected_via_proxy(self):
+        """connected property works through proxy."""
+        proxy = MagicMock()
+        proxy.connected = True
+        led = LEDDevice(
+            find_active_fn=lambda: InstanceKind.API,
+            proxy_factory_fn=lambda kind: proxy,
+        )
+        led.connect()
+        self.assertTrue(led.connected)
 
 
 if __name__ == '__main__':

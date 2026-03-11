@@ -575,7 +575,7 @@ class TestCLIHelpers:
         svc.selected = dev
 
         with patch(_DEV_SVC, return_value=svc), \
-             patch("trcc.ipc.IPCClient.available", return_value=False):
+             patch("trcc.core.instance.find_active", return_value=None):
             lcd, rc = _connect_or_fail()
 
         assert rc == 0
@@ -589,7 +589,7 @@ class TestCLIHelpers:
         svc.selected = None
 
         with patch(_DEV_SVC, return_value=svc), \
-             patch("trcc.ipc.IPCClient.available", return_value=False):
+             patch("trcc.core.instance.find_active", return_value=None):
             lcd, rc = _connect_or_fail()
 
         assert rc == 1

@@ -21,18 +21,22 @@ from trcc.core.models import parse_hex_color as _parse_hex
 def _connect_or_fail(device: str | None = None) -> tuple[LCDDevice, int]:
     """Create device, connect. Returns (device, exit_code).
 
-    When the GUI daemon is running and no explicit device path is given,
-    returns an IPC proxy that routes all commands through the daemon.
+    Composition root: injects instance detection (find_active) and proxy
+    factory so core routes through GUI/API if one is already running.
     """
-    if device is None:
-        from trcc.ipc import IPCClient, IPCDisplayProxy
-        if IPCClient.available():
-            return IPCDisplayProxy(), 0  # type: ignore[return-value]
-    lcd = LCDDevice()
+    from trcc.core.instance import find_active
+    from trcc.ipc import create_lcd_proxy
+
+    lcd = LCDDevice(
+        find_active_fn=find_active,
+        proxy_factory_fn=create_lcd_proxy,
+    )
     result = lcd.connect(device)
     if not result["success"]:
         print(result["error"])
         return lcd, 1
+    if result.get("proxy"):
+        print(f"Routing through {result['proxy'].value} instance")
     return lcd, 0
 
 

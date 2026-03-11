@@ -993,10 +993,12 @@ class TestIPCFrameSharing(unittest.TestCase):
         result = server._get_frame()
         self.assertFalse(result["success"])
 
+    @patch('trcc.core.instance.find_active')
     @patch('trcc.ipc.IPCClient')
-    def test_select_device_uses_ipc_when_daemon_available(self, mock_ipc):
+    def test_select_device_uses_ipc_when_daemon_available(self, mock_ipc, mock_find):
         """select_device() uses IPC proxies when GUI daemon is running."""
-        mock_ipc.available.return_value = True
+        from trcc.core.instance import InstanceKind
+        mock_find.return_value = InstanceKind.GUI
         mock_ipc.send.return_value = {
             "lcd": {"resolution": [320, 320], "path": "/dev/sg0"},
         }
@@ -1014,10 +1016,12 @@ class TestIPCFrameSharing(unittest.TestCase):
         api_module._display_dispatcher = None
         api_module._led_dispatcher = None
 
+    @patch('trcc.core.instance.find_active')
     @patch('trcc.ipc.IPCClient')
-    def test_select_device_ipc_syncs_resolution_from_daemon(self, mock_ipc):
+    def test_select_device_ipc_syncs_resolution_from_daemon(self, mock_ipc, mock_find):
         """select_device() syncs real resolution from daemon when device has (0,0)."""
-        mock_ipc.available.return_value = True
+        from trcc.core.instance import InstanceKind
+        mock_find.return_value = InstanceKind.GUI
         mock_ipc.send.return_value = {
             "lcd": {"resolution": [320, 320], "path": "/dev/sg0"},
         }

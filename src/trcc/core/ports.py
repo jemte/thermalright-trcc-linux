@@ -196,6 +196,16 @@ DcConfigFactory = Callable[..., Any]
 # Concrete: dc_parser.load_config_json
 LoadConfigJsonFn = Callable[[str], Any]
 
+# Type alias for instance detection callable.
+# Concrete: core.instance.find_active
+# Returns InstanceKind | None — who currently owns the device.
+FindActiveFn = Callable[[], Any]
+
+# Type alias for proxy factory callable.
+# Concrete: ipc.create_lcd_proxy / ipc.create_led_proxy
+# Takes InstanceKind, returns a proxy object (IPCDisplayProxy, APIDisplayProxy, etc.)
+ProxyFactoryFn = Callable[[Any], Any]
+
 # Type alias for theme export callable.
 # Concrete: dc_writer.export_theme
 ExportThemeFn = Callable[[str, str], None]

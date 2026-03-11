@@ -279,8 +279,9 @@ def run_benchmarks() -> PerfReport:
 def _ipc_pause() -> bool:
     """Pause the GUI daemon's display refresh via IPC. Returns True if paused."""
     try:
-        from ..ipc import IPCClient
-        if IPCClient.available():
+        from ..core.instance import InstanceKind, find_active
+        if find_active() == InstanceKind.GUI:
+            from ..ipc import IPCClient
             IPCClient.send("display.pause")
             return True
     except Exception:
@@ -291,8 +292,9 @@ def _ipc_pause() -> bool:
 def _ipc_resume() -> None:
     """Resume the GUI daemon's display refresh via IPC."""
     try:
-        from ..ipc import IPCClient
-        if IPCClient.available():
+        from ..core.instance import InstanceKind, find_active
+        if find_active() == InstanceKind.GUI:
+            from ..ipc import IPCClient
             IPCClient.send("display.resume")
     except Exception:
         pass

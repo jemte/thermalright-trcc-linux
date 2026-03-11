@@ -43,6 +43,8 @@ class LCDDevice(Device):
         renderer: Any = None,
         dc_config_cls: Any = None,
         load_config_json_fn: Any = None,
+        find_active_fn: Any = None,
+        proxy_factory_fn: Any = None,
     ) -> None:
         self._device_svc = device_svc
         self._display_svc = display_svc
@@ -50,6 +52,9 @@ class LCDDevice(Device):
         self._renderer = renderer
         self._dc_config_cls = dc_config_cls
         self._load_config_json_fn = load_config_json_fn
+        self._find_active_fn = find_active_fn
+        self._proxy_factory_fn = proxy_factory_fn
+        self._proxy: Any = None  # Set when routing through another instance
 
         # All capability accessors point to self — methods are on LCDDevice
         self.theme: LCDDevice = self  # type: ignore[assignment]
@@ -114,14 +119,33 @@ class LCDDevice(Device):
     # ── Device ABC ─────────────────────────────────────────────────
 
     def connect(self, detected: Any = None) -> dict:
-        """Connect to LCD device. Handshakes, fills DeviceInfo from models.
+        """Connect to LCD device — or route through active instance.
+
+        If find_active_fn and proxy_factory_fn are injected and another
+        trcc instance owns the device, delegates all future method calls
+        to the proxy. Otherwise connects to USB directly.
 
         Args:
             detected: DetectedDevice, device_path str, or None for auto-detect.
 
         Returns:
-            {"success": bool, "resolution": (w, h), "device_path": str}
+            {"success": bool, "resolution": (w, h), "device_path": str,
+             "proxy": InstanceKind | None}
         """
+        # Check if another instance already owns the device
+        if detected is None and self._find_active_fn and self._proxy_factory_fn:
+            active = self._find_active_fn()
+            if active is not None:
+                proxy = self._proxy_factory_fn(active)
+                self._set_proxy(proxy)
+                log.info("Routing through %s instance", active.value)
+                return {
+                    "success": True,
+                    "proxy": active,
+                    "resolution": getattr(self._proxy, 'resolution', (0, 0)),
+                    "device_path": getattr(self._proxy, 'device_path', ''),
+                }
+
         from ..adapters.device.detector import DeviceDetector
         from ..adapters.device.factory import DeviceProtocolFactory
         from ..adapters.device.led import probe_led_model
@@ -154,12 +178,23 @@ class LCDDevice(Device):
 
     @property
     def connected(self) -> bool:
+        if self._proxy is not None:
+            return getattr(self._proxy, 'connected', True)
         return (self._device_svc is not None
                 and self._device_svc.selected is not None)
 
     @property
     def device_info(self) -> Any:
         return self._device_svc.selected if self._device_svc else None
+
+    def _set_proxy(self, proxy: Any) -> None:
+        """Route all capability accessors through proxy."""
+        self._proxy = proxy
+        self.theme = proxy  # type: ignore[assignment]
+        self.frame = proxy  # type: ignore[assignment]
+        self.video = proxy  # type: ignore[assignment]
+        self.overlay = proxy  # type: ignore[assignment]
+        self.settings = proxy  # type: ignore[assignment]
 
     def cleanup(self) -> None:
         if self._display_svc:
@@ -559,17 +594,18 @@ class LCDDevice(Device):
         }
 
     def load_theme_by_name(self, name: str, width: int = 0, height: int = 0) -> dict:
-        """Load a theme by name and send to device.
+        """Load a theme by name, send to device, persist as last-used.
 
-        Discovers themes for the given (or device) resolution, finds the
-        matching name, and routes through select() for full pipeline
-        (brightness, rotation, overlay, video).
+        Full pipeline matching GUI/CLI behavior:
+        1. Discover themes for resolution → find by name
+        2. select() → DisplayService processes (brightness, rotation)
+        3. Send static image to device (video themes return for caller to loop)
+        4. Persist theme_path to per-device config
 
-        Args:
-            name: Theme directory name (e.g. "003a", "Custom_MyTheme").
-            width: Resolution width (0 = use device resolution).
-            height: Resolution height (0 = use device resolution).
+        Returns dict with: success, image, is_animated, interval,
+        theme_path (Path), config_path (Path|None for overlay dc).
         """
+        from ..conf import Settings
         from ..services import ThemeService
         from .models import ThemeDir as CoreThemeDir
 
@@ -579,7 +615,30 @@ class LCDDevice(Device):
         match = next((t for t in themes if t.name == name), None)
         if not match:
             return {"success": False, "error": f"Theme '{name}' not found"}
-        return self.select(match)
+
+        result = self.select(match)
+        if not result.get("success"):
+            return result
+
+        image = result.get("image")
+        is_animated = result.get("is_animated", False)
+
+        # Send static image to device (matches GUI/CLI behavior)
+        if image and not is_animated:
+            self.send(image)
+
+        # Include theme paths for caller to handle overlay/persist
+        result["theme_path"] = match.path
+        result["config_path"] = match.config_path
+
+        # Persist as last-used theme
+        dev = self._device_svc.selected if self._device_svc else None
+        if dev and match.path:
+            key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
+            Settings.save_device_setting(key, 'theme_path', str(match.path))
+            Settings.save_device_setting(key, 'mask_path', '')
+
+        return result
 
     def load_local(self, resolution: tuple[int, int]) -> dict:
         themes = self._theme_svc.load_local_themes(resolution)

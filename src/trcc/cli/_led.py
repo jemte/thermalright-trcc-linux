@@ -16,18 +16,23 @@ from trcc.core.models import parse_hex_color as _parse_hex
 def _connect_or_fail() -> tuple[LEDDevice, int]:
     """Create device, connect. Returns (device, exit_code).
 
-    When the GUI daemon is running, returns an IPC proxy that routes
-    all commands through the daemon.
+    Composition root: injects instance detection (find_active) and proxy
+    factory so core routes through GUI/API if one is already running.
     """
-    from trcc.ipc import IPCClient, IPCLEDProxy
-    if IPCClient.available():
-        return IPCLEDProxy(), 0  # type: ignore[return-value]
-    led = LEDDevice()
+    from trcc.core.instance import find_active
+    from trcc.ipc import create_led_proxy
+
+    led = LEDDevice(
+        find_active_fn=find_active,
+        proxy_factory_fn=create_led_proxy,
+    )
     result = led.connect()
     if not result["success"]:
         print("No LED device found.")
         return led, 1
-    if result.get("status"):
+    if result.get("proxy"):
+        print(f"Routing through {result['proxy'].value} instance")
+    elif result.get("status"):
         print(result["status"])
     return led, 0
 

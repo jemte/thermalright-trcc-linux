@@ -1,11 +1,15 @@
-"""IPC server (GUI daemon) and client (CLI) for single-device-owner pattern.
+"""IPC server/client and API proxies for single-device-owner pattern.
 
-When the GUI is running, it owns all USB device access.  CLI commands
-detect the running GUI and route through a Unix domain socket instead
-of touching USB directly.  When no GUI is running, CLI falls back to
-direct USB access (current behavior).
+When another trcc instance owns the device, callers route through it
+instead of touching USB directly. Two proxy types:
 
-Protocol: newline-delimited JSON over Unix domain socket.
+  - IPC proxies (IPCDisplayProxy, IPCLEDProxy) — Unix domain socket to GUI
+  - API proxies (APIDisplayProxy, APILEDProxy) — HTTP to ``trcc serve``
+
+Detection: ``core.instance.find_active()`` checks GUI socket, then API
+health endpoint, returns InstanceKind or None.
+
+Protocol (IPC):
   Request:  {"cmd": "display.send_color", "args": [255, 0, 0], "kwargs": {}}\n
   Response: {"success": true, "message": "..."}\n
 """
@@ -373,3 +377,177 @@ class IPCLEDProxy:
         def _proxy(*args: Any, **kwargs: Any) -> dict:
             return IPCClient.send(f"led.{name}", list(args), kwargs)
         return _proxy
+
+
+# =========================================================================
+# API Proxy — returned when ``trcc serve`` is the active instance
+# =========================================================================
+
+class _APIClient:
+    """Minimal HTTP client for routing through a running API server."""
+
+    def __init__(self, port: int | None = None) -> None:
+        from .core.instance import DEFAULT_API_PORT
+        self._port = port or DEFAULT_API_PORT
+
+    def _request(self, method: str, path: str,
+                 body: dict | None = None) -> dict:
+        """Send HTTP request, return parsed JSON response."""
+        import http.client
+
+        try:
+            conn = http.client.HTTPConnection("127.0.0.1", self._port,
+                                              timeout=10)
+            headers = {"Content-Type": "application/json"}
+            payload = json.dumps(body).encode() if body else None
+            conn.request(method, path, body=payload, headers=headers)
+            resp = conn.getresponse()
+            data = resp.read().decode()
+            conn.close()
+            if resp.status >= 400:
+                result = json.loads(data) if data else {}
+                detail = result.get("detail", data)
+                return {"success": False, "error": detail}
+            return {"success": True, **json.loads(data)} if data else {"success": True}
+        except (OSError, json.JSONDecodeError) as e:
+            return {"success": False, "error": f"API connection failed: {e}"}
+
+
+# Method → (HTTP method, URL path, body builder)
+# Body builder receives (*args, **kwargs) and returns a JSON dict or None.
+_LCD_ROUTES: dict[str, tuple[str, str, Any]] = {
+    "send_color":           ("POST", "/display/color",
+                             lambda r, g, b: {"hex": f"{r:02x}{g:02x}{b:02x}"}),
+    "set_brightness":       ("POST", "/display/brightness",
+                             lambda level: {"level": level}),
+    "set_rotation":         ("POST", "/display/rotation",
+                             lambda angle: {"angle": angle}),
+    "set_split_mode":       ("POST", "/display/split",
+                             lambda mode: {"mode": mode}),
+    "reset":                ("POST", "/display/reset", lambda: None),
+    "load_theme_by_name":   ("POST", "/themes/load",
+                             lambda name, w=0, h=0: {
+                                 "name": name,
+                                 **({"resolution": f"{w}x{h}"} if w and h else {}),
+                             }),
+    "load_mask_standalone":  ("POST", "/display/mask",
+                              lambda path: {"path": path}),
+}
+
+_LED_ROUTES: dict[str, tuple[str, str, Any]] = {
+    "set_color":        ("POST", "/led/color",
+                         lambda r, g, b: {"hex": f"{r:02x}{g:02x}{b:02x}"}),
+    "set_mode":         ("POST", "/led/mode", lambda mode: {"mode": mode}),
+    "set_brightness":   ("POST", "/led/brightness",
+                         lambda level: {"level": level}),
+    "off":              ("POST", "/led/off", lambda: None),
+    "set_sensor_source": ("POST", "/led/sensor",
+                          lambda source: {"source": source}),
+    "set_clock_format":  ("POST", "/led/clock",
+                          lambda is_24h: {"is_24h": is_24h}),
+    "set_temp_unit":     ("POST", "/led/temp-unit",
+                          lambda unit: {"unit": unit}),
+}
+
+
+# =========================================================================
+# Proxy factories — injected into core devices via DI
+# =========================================================================
+
+def create_lcd_proxy(kind: Any) -> IPCDisplayProxy | APIDisplayProxy:
+    """Create an LCD proxy for the given InstanceKind.
+
+    Injected into LCDDevice as proxy_factory_fn. Core calls this when
+    find_active() detects another running instance.
+    """
+    from trcc.core.instance import InstanceKind
+
+    if kind == InstanceKind.GUI:
+        return IPCDisplayProxy()
+    return APIDisplayProxy()
+
+
+def create_led_proxy(kind: Any) -> IPCLEDProxy | APILEDProxy:
+    """Create an LED proxy for the given InstanceKind.
+
+    Injected into LEDDevice as proxy_factory_fn. Core calls this when
+    find_active() detects another running instance.
+    """
+    from trcc.core.instance import InstanceKind
+
+    if kind == InstanceKind.GUI:
+        return IPCLEDProxy()
+    return APILEDProxy()
+
+
+class APIDisplayProxy:
+    """Proxy that routes LCDDevice method calls through HTTP API."""
+
+    connected = True
+
+    def __init__(self, port: int | None = None) -> None:
+        self._client = _APIClient(port)
+
+    @property
+    def device_path(self) -> str | None:
+        result = self._client._request("GET", "/display/status")
+        return result.get("device_path")
+
+    @property
+    def resolution(self) -> tuple[int, int]:
+        result = self._client._request("GET", "/display/status")
+        r = result.get("resolution", [0, 0])
+        return (r[0], r[1]) if isinstance(r, list) else r
+
+    def __getattr__(self, name: str) -> Any:
+        if name.startswith("_"):
+            raise AttributeError(name)
+
+        route = _LCD_ROUTES.get(name)
+        if route:
+            method, path, body_fn = route
+
+            def _proxy(*args: Any, **kwargs: Any) -> dict:
+                body = body_fn(*args, **kwargs) if body_fn else None
+                return self._client._request(method, path, body)
+            return _proxy
+
+        # Fallback: unknown method
+        def _noop(*args: Any, **kwargs: Any) -> dict:
+            return {"success": False,
+                    "error": f"Method '{name}' not available via API proxy"}
+        return _noop
+
+
+class APILEDProxy:
+    """Proxy that routes LEDDevice method calls through HTTP API."""
+
+    connected = True
+
+    def __init__(self, port: int | None = None) -> None:
+        self._client = _APIClient(port)
+
+    @property
+    def status(self) -> str | None:
+        result = self._client._request("GET", "/led/status")
+        if result.get("connected"):
+            return "Connected (via API server)"
+        return None
+
+    def __getattr__(self, name: str) -> Any:
+        if name.startswith("_"):
+            raise AttributeError(name)
+
+        route = _LED_ROUTES.get(name)
+        if route:
+            method, path, body_fn = route
+
+            def _proxy(*args: Any, **kwargs: Any) -> dict:
+                body = body_fn(*args, **kwargs) if body_fn else None
+                return self._client._request(method, path, body)
+            return _proxy
+
+        def _noop(*args: Any, **kwargs: Any) -> dict:
+            return {"success": False,
+                    "error": f"Method '{name}' not available via API proxy"}
+        return _noop

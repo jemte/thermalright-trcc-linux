@@ -1,5 +1,18 @@
 # Changelog
 
+## v8.3.2
+
+### Features
+- **Bidirectional instance detection with DI**: Any trcc instance (CLI, API) automatically detects if another instance (GUI or API) is already running and routes commands through it instead of touching USB directly. Uses dependency injection — `find_active_fn` and `proxy_factory_fn` injected into `LCDDevice`/`LEDDevice` by composition roots
+- **`InstanceKind` enum + `find_active()`**: Pure core module (`core/instance.py`) for instance detection — checks GUI IPC socket > API health endpoint > None. Priority: GUI > API
+- **Proxy factory functions**: `create_lcd_proxy(kind)` and `create_led_proxy(kind)` in `ipc.py` return correct proxy type (IPC for GUI, HTTP for API)
+- **`@_forward_to_proxy` decorator**: Transparent method forwarding on `LEDDevice` — 13 public methods auto-forward to proxy when connected through another instance
+
+### Internal
+- **Eliminated `IPCClient.available()`** from all `src/` code — replaced with `find_active()` everywhere (CLI, API, perf benchmarks)
+- **Composition root wiring**: CLI `_display.py`/`_led.py` and API `devices.py` inject `find_active` + proxy factories into core devices
+- **Tests**: 4784 total (+25 new) — `TestInstanceKind` (2), `TestFindActive` (4), `TestCreateLcdProxy` (2), `TestCreateLedProxy` (2), `TestLCDDeviceProxyRouting` (5), `TestLEDDeviceProxyRouting` (6), updated API/CLI instance detection tests (4)
+
 ## v8.3.1
 
 ### Features

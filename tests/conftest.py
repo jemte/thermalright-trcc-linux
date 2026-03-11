@@ -86,12 +86,14 @@ def get_pixel(surface: Any, x: int, y: int) -> tuple[int, ...]:
 
 @pytest.fixture(autouse=True)
 def _no_ipc():
-    """Prevent tests from routing through a live GUI IPC daemon.
+    """Prevent tests from routing through a live GUI/API instance.
 
-    When the GUI is running, IPCClient.available() returns True and CLI
-    functions short-circuit to IPC proxies, bypassing mocked services.
+    When the GUI or API is running, find_active() returns an InstanceKind
+    and core routes through proxies, bypassing mocked services.
+    Patch both the core detection and legacy IPCClient.available().
     """
-    with patch("trcc.ipc.IPCClient.available", return_value=False):
+    with patch("trcc.core.instance.find_active", return_value=None), \
+         patch("trcc.ipc.IPCClient.available", return_value=False):
         yield
 
 # =========================================================================

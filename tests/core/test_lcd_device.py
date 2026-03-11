@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from trcc.core.instance import InstanceKind
 from trcc.core.lcd_device import LCDDevice
 
 
@@ -426,7 +427,9 @@ class TestLoadLastTheme(unittest.TestCase):
 def lcd_with_mocks():
     """LCDDevice with mock services, 320x320 resolution."""
     svc = MagicMock()
-    svc.selected = MagicMock(resolution=(320, 320))
+    svc.selected = MagicMock(
+        resolution=(320, 320), device_index=0, vid=0x0402, pid=0x3922,
+    )
     disp = MagicMock()
     disp.lcd_width = 320
     disp.lcd_height = 320
@@ -489,6 +492,132 @@ class TestLoadThemeByName:
         # Should use device resolution (320, 320)
         mock_for_res.assert_called_once_with(320, 320)
 
+    @patch("trcc.conf.Settings.save_device_setting")
+    @patch("trcc.conf.Settings.device_config_key", return_value="0")
+    @patch("trcc.services.ThemeService.discover_local")
+    @patch("trcc.core.models.ThemeDir.for_resolution")
+    def test_sends_static_image_to_device(
+        self, mock_for_res, mock_discover, mock_key, mock_save, lcd_with_mocks,
+    ):
+        """Static theme image is sent to device after select()."""
+        from pathlib import Path
+
+        from trcc.core.models import ThemeInfo, ThemeType
+
+        fake_image = MagicMock()
+        theme = ThemeInfo(
+            name="Static001", theme_type=ThemeType.LOCAL,
+            path=Path("/tmp/themes/Static001"),
+        )
+        mock_for_res.return_value = MagicMock(
+            path="/tmp/themes", __str__=lambda s: "/tmp/themes")
+        mock_discover.return_value = [theme]
+        lcd_with_mocks._display_svc.load_local_theme.return_value = {
+            "image": fake_image, "is_animated": False,
+        }
+
+        result = lcd_with_mocks.load_theme_by_name("Static001")
+
+        assert result["success"] is True
+        # send_pil_async called (via LCDDevice.send → device_svc.send_pil_async)
+        lcd_with_mocks._device_svc.send_pil_async.assert_called_once()
+
+    @patch("trcc.conf.Settings.save_device_setting")
+    @patch("trcc.conf.Settings.device_config_key", return_value="0")
+    @patch("trcc.services.ThemeService.discover_local")
+    @patch("trcc.core.models.ThemeDir.for_resolution")
+    def test_does_not_send_animated_theme(
+        self, mock_for_res, mock_discover, mock_key, mock_save, lcd_with_mocks,
+    ):
+        """Animated themes return image but don't call send (caller loops)."""
+        from pathlib import Path
+
+        from trcc.core.models import ThemeInfo, ThemeType
+
+        theme = ThemeInfo(
+            name="Video001", theme_type=ThemeType.LOCAL,
+            path=Path("/tmp/themes/Video001"),
+        )
+        mock_for_res.return_value = MagicMock(
+            path="/tmp/themes", __str__=lambda s: "/tmp/themes")
+        mock_discover.return_value = [theme]
+        lcd_with_mocks._display_svc.load_local_theme.return_value = {
+            "image": MagicMock(), "is_animated": True,
+        }
+
+        result = lcd_with_mocks.load_theme_by_name("Video001")
+
+        assert result["success"] is True
+        assert result["is_animated"] is True
+        # send_pil_async NOT called — caller handles video loop
+        lcd_with_mocks._device_svc.send_pil_async.assert_not_called()
+
+    @patch("trcc.conf.Settings.save_device_setting")
+    @patch("trcc.conf.Settings.device_config_key", return_value="0")
+    @patch("trcc.services.ThemeService.discover_local")
+    @patch("trcc.core.models.ThemeDir.for_resolution")
+    def test_persists_theme_path(
+        self, mock_for_res, mock_discover, mock_key, mock_save, lcd_with_mocks,
+    ):
+        """Theme path saved to per-device config, mask cleared."""
+        from pathlib import Path
+
+        from trcc.core.models import ThemeInfo, ThemeType
+
+        theme = ThemeInfo(
+            name="Saved001", theme_type=ThemeType.LOCAL,
+            path=Path("/tmp/themes/Saved001"),
+        )
+        mock_for_res.return_value = MagicMock(
+            path="/tmp/themes", __str__=lambda s: "/tmp/themes")
+        mock_discover.return_value = [theme]
+        lcd_with_mocks._display_svc.load_local_theme.return_value = {
+            "image": MagicMock(), "is_animated": False,
+        }
+
+        lcd_with_mocks.load_theme_by_name("Saved001")
+
+        # theme_path persisted, mask_path cleared
+        calls = mock_save.call_args_list
+        assert any(
+            c.args[1] == 'theme_path' and c.args[2] == str(theme.path)
+            for c in calls
+        ), f"Expected theme_path save, got: {calls}"
+        assert any(
+            c.args[1] == 'mask_path' and c.args[2] == ''
+            for c in calls
+        ), f"Expected mask_path clear, got: {calls}"
+
+    @patch("trcc.conf.Settings.save_device_setting")
+    @patch("trcc.conf.Settings.device_config_key", return_value="0")
+    @patch("trcc.services.ThemeService.discover_local")
+    @patch("trcc.core.models.ThemeDir.for_resolution")
+    def test_result_includes_theme_and_config_paths(
+        self, mock_for_res, mock_discover, mock_key, mock_save, lcd_with_mocks,
+    ):
+        """Result dict includes theme_path and config_path for caller."""
+        from pathlib import Path
+
+        from trcc.core.models import ThemeInfo, ThemeType
+
+        dc_path = Path("/tmp/themes/WithDC/config1.dc")
+        theme = ThemeInfo(
+            name="WithDC", theme_type=ThemeType.LOCAL,
+            path=Path("/tmp/themes/WithDC"),
+            config_path=dc_path,
+        )
+        mock_for_res.return_value = MagicMock(
+            path="/tmp/themes", __str__=lambda s: "/tmp/themes")
+        mock_discover.return_value = [theme]
+        lcd_with_mocks._display_svc.load_local_theme.return_value = {
+            "image": MagicMock(), "is_animated": False,
+        }
+
+        result = lcd_with_mocks.load_theme_by_name("WithDC")
+
+        assert result["theme_path"] == theme.path
+        assert result["config_path"] == dc_path
+
 
 # =============================================================================
 # IPC routes — load_theme_by_name and load_mask_standalone registered
@@ -507,6 +636,84 @@ class TestIPCDisplayRoutes:
         from trcc.ipc import _DISPLAY_ROUTES
         assert "load_mask_standalone" in _DISPLAY_ROUTES
         assert _DISPLAY_ROUTES["load_mask_standalone"] == ("overlay", "load_mask_standalone")
+
+
+# =============================================================================
+# Instance detection DI — proxy routing
+# =============================================================================
+
+
+class TestLCDDeviceProxyRouting:
+    """LCDDevice.connect() routes through proxy when another instance active."""
+
+    def test_connect_routes_through_proxy_when_active(self):
+        """When find_active_fn returns an instance, connect() sets proxy."""
+        proxy = MagicMock()
+        proxy.connected = True
+        proxy.resolution = (320, 320)
+        proxy.device_path = '/dev/sg0'
+
+        lcd = LCDDevice(
+            find_active_fn=lambda: InstanceKind.GUI,
+            proxy_factory_fn=lambda kind: proxy,
+        )
+        result = lcd.connect()
+        assert result["success"]
+        assert result["proxy"] == InstanceKind.GUI
+        # Capability accessors redirected to proxy
+        assert lcd.frame is proxy
+        assert lcd.theme is proxy
+        assert lcd.settings is proxy
+
+    def test_connect_direct_when_no_active_instance(self):
+        """When find_active_fn returns None, connect() goes direct."""
+        svc = MagicMock()
+        svc.selected = None
+        lcd = LCDDevice(
+            find_active_fn=lambda: None,
+            proxy_factory_fn=lambda kind: MagicMock(),
+        )
+        with patch("trcc.adapters.device.detector.DeviceDetector.detect"), \
+             patch("trcc.services.DeviceService", return_value=svc):
+            result = lcd.connect()
+        assert not result["success"]  # No device found
+        assert lcd._proxy is None  # No proxy set
+
+    def test_connect_skips_detection_without_di(self):
+        """Without DI params, connect() never checks for active instances."""
+        svc = MagicMock()
+        svc.selected = None
+        lcd = LCDDevice()
+        with patch("trcc.adapters.device.detector.DeviceDetector.detect"), \
+             patch("trcc.services.DeviceService", return_value=svc):
+            result = lcd.connect()
+        assert not result["success"]
+        assert lcd._proxy is None
+
+    def test_connected_true_via_proxy(self):
+        """connected property returns True when proxy is set."""
+        proxy = MagicMock()
+        proxy.connected = True
+        lcd = LCDDevice(
+            find_active_fn=lambda: InstanceKind.GUI,
+            proxy_factory_fn=lambda kind: proxy,
+        )
+        lcd.connect()
+        assert lcd.connected
+
+    def test_connect_with_explicit_device_skips_detection(self):
+        """When detected= is provided, skip instance detection."""
+        find_fn = MagicMock(return_value=InstanceKind.GUI)
+        svc = MagicMock()
+        svc.selected = None
+        lcd = LCDDevice(
+            find_active_fn=find_fn,
+            proxy_factory_fn=MagicMock(),
+        )
+        with patch("trcc.adapters.device.detector.DeviceDetector.detect"), \
+             patch("trcc.services.DeviceService", return_value=svc):
+            lcd.connect("/dev/sg0")
+        find_fn.assert_not_called()
 
 
 if __name__ == '__main__':

@@ -188,23 +188,70 @@ def list_masks(resolution: str = "320x320") -> list[MaskResponse]:
 def load_theme(body: ThemeLoadRequest) -> dict:
     """Load a theme by name and send to device.
 
-    Thin adapter — routes through LCDDevice.load_theme_by_name().
+    Full pipeline matching GUI/CLI behavior:
+    1. Stop any running video/overlay
+    2. load_theme_by_name() → select + send + persist
+    3. Start video playback for animated themes
+    4. Start overlay loop for themes with config1.dc
+    5. Update preview image for WebSocket stream
+
     Works in both standalone and IPC (GUI daemon) modes.
+    In IPC mode, the GUI daemon handles the full pipeline.
     """
-    from trcc.api import _display_dispatcher, stop_overlay_loop, stop_video_playback
+    import trcc.api as api
     from trcc.api.models import dispatch_result
 
-    if not _display_dispatcher or not _display_dispatcher.connected:
+    if not api._display_dispatcher or not api._display_dispatcher.connected:
         raise HTTPException(status_code=409, detail="No LCD device selected. POST /devices/{id}/select first.")
 
-    stop_video_playback()
-    stop_overlay_loop()
+    api.stop_video_playback()
+    api.stop_overlay_loop()
 
     w, h = 0, 0
     if body.resolution:
         w, h = _parse_resolution(body.resolution)
 
-    result = _display_dispatcher.load_theme_by_name(body.name, w, h)
+    result = api._display_dispatcher.load_theme_by_name(body.name, w, h)
+    if not result.get("success"):
+        return dispatch_result(result)
+
+    # Update preview image for WebSocket stream
+    image = result.get("image")
+    if image:
+        api.set_current_image(image)
+
+    # Standalone mode — start video/overlay loops (GUI handles its own)
+    is_animated = result.get("is_animated", False)
+    theme_path = result.get("theme_path")
+    config_path = result.get("config_path")
+
+    if not w or not h:
+        res = getattr(api._display_dispatcher, 'resolution', None)
+        if res:
+            w, h = res
+        else:
+            w, h = getattr(api._display_dispatcher, 'lcd_size', (320, 320))
+
+    if is_animated and theme_path:
+        # Find video file (Theme.zt or .mp4)
+        from pathlib import Path
+        theme_dir = Path(str(theme_path))
+        video_path = None
+        for ext in ('.zt', '.mp4'):
+            for name in ('Theme', 'theme'):
+                candidate = theme_dir / f"{name}{ext}"
+                if candidate.exists():
+                    video_path = str(candidate)
+                    break
+            if video_path:
+                break
+        if video_path:
+            api.start_video_playback(video_path, w, h, loop=True)
+
+    elif config_path and os.path.isfile(config_path) and image:
+        # Static theme with overlay config — start metrics loop
+        api.start_overlay_loop(image, str(config_path), w, h)
+
     return dispatch_result(result)
 
 

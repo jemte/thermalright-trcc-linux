@@ -17,7 +17,7 @@ from trcc.core.models import LEDMode
 # Patch-path constants
 # =========================================================================
 _CONNECT = "trcc.cli._led._connect_or_fail"
-_IPC = "trcc.ipc.IPCClient.available"
+_IPC = "trcc.core.instance.find_active"
 
 
 # =========================================================================
@@ -653,7 +653,7 @@ class TestCLIHelpers:
         with patch("trcc.cli._led.LEDDevice", return_value=fake_led), \
              patch.object(fake_led, "connect",
                           return_value={"success": True, "status": "AX120"}), \
-             patch(_IPC, return_value=False):
+             patch(_IPC, return_value=None):
             led, rc = _connect_or_fail()
 
         assert rc == 0
@@ -669,7 +669,7 @@ class TestCLIHelpers:
              patch.object(fake_led, "connect",
                           return_value={"success": False,
                                         "error": "No LED device found"}), \
-             patch(_IPC, return_value=False):
+             patch(_IPC, return_value=None):
             led, rc = _connect_or_fail()
 
         assert rc == 1
@@ -684,7 +684,7 @@ class TestCLIHelpers:
         with patch("trcc.cli._led.LEDDevice", return_value=fake_led), \
              patch.object(fake_led, "connect",
                           return_value={"success": True}), \
-             patch(_IPC, return_value=False):
+             patch(_IPC, return_value=None):
             _, rc = _connect_or_fail()
 
         assert rc == 0

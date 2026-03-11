@@ -83,22 +83,22 @@ def select_device(device_id: int) -> dict:
     api.stop_video_playback()
     api.stop_overlay_loop()
 
-    # Check if GUI daemon is running — if so, route through IPC
-    from trcc.ipc import IPCClient
+    # Check if another instance (GUI) already owns the device
+    from trcc.core.instance import find_active
+    from trcc.ipc import create_lcd_proxy, create_led_proxy
 
-    if IPCClient.available():
-        from trcc.ipc import IPCDisplayProxy, IPCLEDProxy
+    active = find_active()
 
-        api._display_dispatcher = IPCDisplayProxy()
-        api._led_dispatcher = IPCLEDProxy()
+    if active is not None:
+        api._display_dispatcher = create_lcd_proxy(active)
+        api._led_dispatcher = create_led_proxy(active)
 
-        # Daemon already discovered resolution — sync it to DeviceInfo
-        # so static dirs mount correctly and response has real resolution
+        # Active instance already discovered resolution — sync to DeviceInfo
         proxy_res = api._display_dispatcher.resolution
         if proxy_res != (0, 0):
             dev.resolution = proxy_res
 
-        log.info("Using GUI daemon for device %s", dev.name)
+        log.info("Using %s instance for device %s", active.value, dev.name)
     else:
         # Standalone mode — API manages device directly
         _device_svc.on_frame_sent = api.set_current_image
