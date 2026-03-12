@@ -55,7 +55,7 @@ These use USB HID to display images on the LCD. Code is complete, but no one has
 | Trofeo Vision LCD | `0416:5302` | HID Type 2 | High — user reported detection issue (#1) |
 | AS120 VISION | `0416:5302` | HID Type 2 | High |
 | BA120 VISION | `0416:5302` | HID Type 2 | High |
-| FROZEN WARFRAME (HID variant) | `0416:5302` | HID Type 2 | Medium |
+| FROZEN WARFRAME (HID variant) | `0416:5302` | HID Type 2 | Medium — color fix in v8.3.5, awaiting confirmation |
 | FROZEN WARFRAME SE (HID variant) | `0416:5302` | HID Type 2 | Medium |
 | FROZEN WARFRAME PRO | `0416:5302` | HID Type 2 | Medium |
 | ELITE VISION (HID variant) | `0416:5302` | HID Type 2 | Medium — SCSI variant confirmed by tensaiteki |
