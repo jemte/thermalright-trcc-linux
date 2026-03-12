@@ -887,12 +887,16 @@ class TRCCApp(QMainWindow):
         active_btn = panel_to_button.get(index, 0)
         for i, btn in enumerate(self.mode_buttons):
             btn.setChecked(i == active_btn)
+        # Hide activity sidebar when leaving settings tab (index 2)
+        if index != 2:
+            self.uc_activity_sidebar.setVisible(False)
 
     def _show_view(self, view: str):
         self.form_container.setVisible(view == 'form')
         self.uc_about.setVisible(view == 'about')
         self.uc_system_info.setVisible(view == 'sysinfo')
         self.uc_led_control.setVisible(view == 'led')
+        self.uc_activity_sidebar.setVisible(False)
 
         show_form1_btns = (view == 'sysinfo')
         self.form1_close_btn.setVisible(show_form1_btns)
@@ -943,8 +947,10 @@ class TRCCApp(QMainWindow):
         self.uc_theme_setting.background_changed.connect(self._on_background_toggle)
         self.uc_theme_setting.screencast_changed.connect(self._on_screencast_toggle)
         self.uc_theme_setting.delegate.connect(self._on_settings_delegate)
-        self.uc_theme_setting.overlay_grid.add_requested.connect(
+        self.uc_theme_setting.add_panel.hardware_requested.connect(
             self._on_overlay_add_requested)
+        self.uc_theme_setting.add_panel.element_added.connect(
+            lambda _: self.uc_activity_sidebar.setVisible(False))
         self.uc_theme_setting.overlay_grid.toggle_changed.connect(
             self._on_overlay_toggle)
         self.uc_theme_setting.overlay_grid.element_selected.connect(

@@ -316,6 +316,62 @@ class TestMask:
         h.apply_mask(mask_info)
         h._w['preview'].set_status.assert_called_once()
 
+    def test_restore_mask_skips_when_theme_already_loaded(self, tmp_path):
+        """Mask restore skips if theme reference already loaded the same mask.
+
+        Prevents video cache invalidation on startup when a saved custom
+        theme has an embedded mask reference AND per-device config also
+        records the same mask_path.
+        """
+        mask_dir = tmp_path / 'zt320320' / '015c'
+        mask_dir.mkdir(parents=True)
+        (mask_dir / '01.png').touch()
+
+        h = _make_handler()
+        # Simulate theme loader already set mask_source_dir
+        h._lcd._display_svc._mask_source_dir = mask_dir
+        cfg = {'mask_path': str(mask_dir)}
+
+        h._restore_mask(cfg)
+
+        # load_mask_standalone should NOT be called — theme already loaded it
+        h._lcd.load_mask_standalone.assert_not_called()
+
+    def test_restore_mask_loads_when_different_from_theme(self, tmp_path):
+        """Mask restore proceeds when per-device mask differs from theme's."""
+        theme_mask = tmp_path / 'zt320320' / '010'
+        theme_mask.mkdir(parents=True)
+        device_mask = tmp_path / 'zt320320' / '015c'
+        device_mask.mkdir(parents=True)
+        (device_mask / '01.png').touch()
+
+        h = _make_handler()
+        h._lcd._display_svc._mask_source_dir = theme_mask
+        h._lcd.load_mask_standalone.return_value = {
+            'success': True, 'image': MagicMock()}
+        cfg = {'mask_path': str(device_mask)}
+
+        h._restore_mask(cfg)
+
+        # Different mask → should load
+        h._lcd.load_mask_standalone.assert_called_once()
+
+    def test_restore_mask_loads_when_no_theme_mask(self, tmp_path):
+        """Mask restore proceeds when theme didn't load any mask."""
+        mask_dir = tmp_path / 'zt320320' / '015c'
+        mask_dir.mkdir(parents=True)
+        (mask_dir / '01.png').touch()
+
+        h = _make_handler()
+        h._lcd._display_svc._mask_source_dir = None
+        h._lcd.load_mask_standalone.return_value = {
+            'success': True, 'image': MagicMock()}
+        cfg = {'mask_path': str(mask_dir)}
+
+        h._restore_mask(cfg)
+
+        h._lcd.load_mask_standalone.assert_called_once()
+
 
 # =========================================================================
 # Video

@@ -159,13 +159,25 @@ class LCDHandler:
                     break
 
     def _restore_mask(self, cfg: dict) -> None:
-        """Restore mask overlay from saved config (applied on top of theme)."""
+        """Restore mask overlay from saved config (applied on top of theme).
+
+        Skips if the theme already loaded this mask via its config.json
+        reference — avoids invalidating the pre-built video cache.
+        """
         mask_path = cfg.get('mask_path')
         if not mask_path:
             return
         mask_dir = Path(mask_path)
         if not mask_dir.exists():
             log.warning("Saved mask path not found: %s", mask_path)
+            return
+        # Reference-based themes embed mask path in config.json — the theme
+        # loader already loaded it and built the video cache with it.
+        # Re-loading here would invalidate that cache (display_svc._cache=None)
+        # causing mask-less frames until the fallback renderer catches up.
+        svc = self._lcd._display_svc
+        if svc and svc._mask_source_dir == mask_dir:
+            log.debug("Mask %s already loaded by theme reference, skipping", mask_dir)
             return
         log.info("Restoring saved mask: %s", mask_dir)
         result = self._lcd.load_mask_standalone(str(mask_dir))

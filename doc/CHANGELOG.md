@@ -1,5 +1,12 @@
 # Changelog
 
+## v8.3.6
+
+### Bug Fixes
+- **Fixed**: Saved mask overlay missing on first launch after package update — reference-based themes with embedded mask paths caused a double-load: theme loader loaded the mask and built the video cache, then `_restore_mask` re-loaded the same mask and invalidated the cache. Now skips redundant mask restore when theme already loaded it
+- **Fixed**: Activity sidebar (hardware sensors) appeared when clicking any overlay element type (Time, Weekday, Date, Custom Text) — now only shows when "Hardware Data" is selected. Non-hardware types add directly without the sidebar
+- **Fixed**: Activity sidebar stayed visible when switching tabs or views — now hides on tab switch (Local/Cloud/Masks) and view switch (About/System Info/LED)
+
 ## v8.3.5
 
 ### Bug Fixes

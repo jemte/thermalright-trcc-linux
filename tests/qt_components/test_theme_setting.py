@@ -585,34 +585,18 @@ class TestAddElementPanel:
 
     def test_construction(self, qapp):
         panel = AddElementPanel()
-        assert panel.hw_combo.count() == 6
+        assert len(panel.ELEMENT_TYPES) == 5
 
-    def test_category_change_updates_metrics(self, qapp):
+    def test_hardware_emits_hardware_requested(self, qapp):
+        """Hardware Data button emits hardware_requested, not element_added."""
         panel = AddElementPanel()
-        # CPU (index 0) should have 4 sub-metrics
-        panel.hw_combo.setCurrentIndex(0)
-        assert panel.metric_combo.count() == 4
-        # GPU (index 1)
-        panel.hw_combo.setCurrentIndex(1)
-        assert panel.metric_combo.count() == 4
-
-    def test_category_names_in_combo(self, qapp):
-        panel = AddElementPanel()
-        items = [panel.hw_combo.itemText(i) for i in range(panel.hw_combo.count())]
-        assert items == list(CATEGORY_NAMES.values())
-
-    def test_element_added_signal_hardware(self, qapp):
-        panel = AddElementPanel()
-        received = []
-        panel.element_added.connect(received.append)
-        panel.hw_combo.setCurrentIndex(1)  # GPU
-        panel.metric_combo.setCurrentIndex(0)  # first metric
+        hw_received = []
+        elem_received = []
+        panel.hardware_requested.connect(lambda: hw_received.append(True))
+        panel.element_added.connect(elem_received.append)
         panel._on_type_clicked(OverlayMode.HARDWARE)
-        assert len(received) == 1
-        cfg = received[0]
-        assert cfg.mode == OverlayMode.HARDWARE
-        assert cfg.main_count == 1
-        assert cfg.sub_count == 1
+        assert len(hw_received) == 1
+        assert len(elem_received) == 0  # no element_added for hardware
 
     def test_element_added_signal_time(self, qapp):
         panel = AddElementPanel()
@@ -622,17 +606,39 @@ class TestAddElementPanel:
         assert len(received) == 1
         assert received[0].mode == OverlayMode.TIME
 
-    def test_hw_frame_visible_on_hardware(self, qapp):
+    def test_element_added_signal_weekday(self, qapp):
         panel = AddElementPanel()
-        assert panel.hw_frame.isHidden() is True
-        panel._on_type_clicked(OverlayMode.HARDWARE)
-        assert panel.hw_frame.isHidden() is False
+        received = []
+        panel.element_added.connect(received.append)
+        panel._on_type_clicked(OverlayMode.WEEKDAY)
+        assert len(received) == 1
+        assert received[0].mode == OverlayMode.WEEKDAY
 
-    def test_hw_frame_hidden_on_non_hardware(self, qapp):
+    def test_element_added_signal_date(self, qapp):
         panel = AddElementPanel()
-        panel._on_type_clicked(OverlayMode.HARDWARE)
-        panel._on_type_clicked(OverlayMode.TIME)
-        assert panel.hw_frame.isHidden() is True
+        received = []
+        panel.element_added.connect(received.append)
+        panel._on_type_clicked(OverlayMode.DATE)
+        assert len(received) == 1
+        assert received[0].mode == OverlayMode.DATE
+
+    def test_element_added_signal_custom(self, qapp):
+        panel = AddElementPanel()
+        received = []
+        panel.element_added.connect(received.append)
+        panel._on_type_clicked(OverlayMode.CUSTOM)
+        assert len(received) == 1
+        assert received[0].mode == OverlayMode.CUSTOM
+
+    def test_non_hardware_does_not_emit_hardware_requested(self, qapp):
+        """Time/Date/Weekday/Custom should not trigger hardware sidebar."""
+        panel = AddElementPanel()
+        hw_received = []
+        panel.hardware_requested.connect(lambda: hw_received.append(True))
+        for mode in (OverlayMode.TIME, OverlayMode.DATE,
+                     OverlayMode.WEEKDAY, OverlayMode.CUSTOM):
+            panel._on_type_clicked(mode)
+        assert len(hw_received) == 0
 
     def test_element_types_count(self, qapp):
         assert len(AddElementPanel.ELEMENT_TYPES) == 5

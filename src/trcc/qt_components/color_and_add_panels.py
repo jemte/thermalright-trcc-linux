@@ -8,20 +8,16 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QFont, QIcon
 from PySide6.QtWidgets import (
-    QComboBox,
     QFrame,
-    QLabel,
     QLineEdit,
     QPushButton,
     QSpinBox,
-    QVBoxLayout,
 )
 
 from ..core.models import OverlayElementConfig, OverlayMode
 from .assets import Assets
 from .base import set_background_pixmap
 from .constants import Colors, Layout, Sizes, Styles
-from .overlay_element import CATEGORY_COLORS, CATEGORY_NAMES, SUB_METRICS
 
 
 class ColorPickerPanel(QFrame):
@@ -242,6 +238,7 @@ class AddElementPanel(QFrame):
     """Add new overlay element panel (matches UCXiTongXianShiAdd 230x430)."""
 
     element_added = Signal(object)  # OverlayElementConfig
+    hardware_requested = Signal()   # Show activity sidebar for hardware pick
 
     ELEMENT_TYPES = [
         ("Hardware Data", OverlayMode.HARDWARE),
@@ -271,63 +268,12 @@ class AddElementPanel(QFrame):
             btn.clicked.connect(lambda checked, m=mode: self._on_type_clicked(m))
             y += Layout.ADD_BTN_DY
 
-        # Hardware category combo
-        self.hw_frame = QFrame(self)
-        self.hw_frame.setGeometry(Layout.ADD_BTN_X, y + 10, Layout.ADD_BTN_W, 100)
-        self.hw_frame.setStyleSheet("background: transparent;")
-
-        hw_layout = QVBoxLayout(self.hw_frame)
-        hw_layout.setContentsMargins(0, 0, 0, 0)
-
-        hw_label = QLabel("Category:")
-        hw_label.setStyleSheet(f"color: {Colors.STATUS_TEXT}; font-size: 10px; background: transparent;")
-        hw_layout.addWidget(hw_label)
-
-        self.hw_combo = QComboBox()
-        self.hw_combo.addItems(list(CATEGORY_NAMES.values()))
-        self.hw_combo.setToolTip("Hardware category")
-        self.hw_combo.setStyleSheet("""
-            QComboBox {
-                background-color: rgba(51, 51, 51, 180);
-                color: white; border: 1px solid #555; padding: 5px;
-            }
-        """)
-        hw_layout.addWidget(self.hw_combo)
-
-        metric_label = QLabel("Metric:")
-        metric_label.setStyleSheet(f"color: {Colors.STATUS_TEXT}; font-size: 10px; background: transparent;")
-        hw_layout.addWidget(metric_label)
-
-        self.metric_combo = QComboBox()
-        self.metric_combo.setToolTip("Sensor metric")
-        self.metric_combo.setStyleSheet("""
-            QComboBox {
-                background-color: rgba(51, 51, 51, 180);
-                color: white; border: 1px solid #555; padding: 5px;
-            }
-        """)
-        hw_layout.addWidget(self.metric_combo)
-
-        self.hw_combo.currentIndexChanged.connect(self._on_category_changed)
-        self._on_category_changed(0)
-
-        self.hw_frame.setVisible(False)
-
-    def _on_category_changed(self, idx):
-        self.metric_combo.clear()
-        metrics = SUB_METRICS.get(idx, {})
-        self.metric_combo.addItems(list(metrics.values()))
-
     def _on_type_clicked(self, mode: OverlayMode):
-        cfg = OverlayElementConfig(mode=mode)
-
         if mode == OverlayMode.HARDWARE:
-            self.hw_frame.setVisible(True)
-            cat_idx = self.hw_combo.currentIndex()
-            cfg.main_count = cat_idx
-            cfg.sub_count = self.metric_combo.currentIndex() + 1
-            cfg.color = CATEGORY_COLORS.get(cat_idx, '#FFFFFF')
-        else:
-            self.hw_frame.setVisible(False)
+            # Show activity sidebar for hardware sensor selection
+            # (Windows: hardware metrics listed as separate section in add panel)
+            self.hardware_requested.emit()
+            return
 
+        cfg = OverlayElementConfig(mode=mode)
         self.element_added.emit(cfg)

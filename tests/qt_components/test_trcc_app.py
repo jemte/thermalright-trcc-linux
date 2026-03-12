@@ -1464,6 +1464,7 @@ class TestViewSwitchLEDKeepsRunning:
             inst.uc_about = MagicMock()
             inst.uc_system_info = MagicMock()
             inst.uc_led_control = MagicMock()
+            inst.uc_activity_sidebar = MagicMock()
             inst.form1_close_btn = MagicMock()
             inst.form1_help_btn = MagicMock()
             yield inst
