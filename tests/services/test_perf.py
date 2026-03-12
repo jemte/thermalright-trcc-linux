@@ -8,22 +8,24 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Patch at the source module — run_device_benchmarks does deferred imports
+# Patch DeviceService at the source module — run_device_benchmarks imports it
 _DS = "trcc.services.DeviceService"
-_DD = "trcc.adapters.device.detector.DeviceDetector"
-_DF = "trcc.adapters.device.factory.DeviceProtocolFactory"
-_PL = "trcc.adapters.device.led.probe_led_model"
 
 
-def _patches(mock_svc, mock_factory=None):
-    """Stack patches for device benchmark isolation."""
+def _run(mock_svc, mock_factory=None):
+    """Call run_device_benchmarks with injected mocks."""
     factory = mock_factory or MagicMock()
-    return (
-        patch(_DS, return_value=mock_svc),
-        patch(_DD),
-        patch(_DF, factory),
-        patch(_PL),
-    )
+    detect_fn = MagicMock()
+    probe_led_fn = MagicMock()
+
+    with patch(_DS, return_value=mock_svc):
+        from trcc.services.perf import run_device_benchmarks
+        return run_device_benchmarks(
+            detect_fn=detect_fn,
+            get_protocol=factory.get_protocol,
+            get_protocol_info=factory.get_protocol_info,
+            probe_led_fn=probe_led_fn,
+        )
 
 
 class TestRunDeviceBenchmarks:
@@ -69,10 +71,7 @@ class TestRunDeviceBenchmarks:
         mock_svc = MagicMock()
         mock_svc.devices = []
 
-        p1, p2, p3, p4 = _patches(mock_svc)
-        with p1, p2, p3, p4:
-            from trcc.services.perf import run_device_benchmarks
-            report = run_device_benchmarks()
+        report = _run(mock_svc)
 
         assert not report.has_data
         assert len(report.device) == 0
@@ -88,10 +87,7 @@ class TestRunDeviceBenchmarks:
         mock_svc = MagicMock()
         mock_svc.devices = [lcd_dev]
 
-        p1, p2, p3, p4 = _patches(mock_svc, mock_factory)
-        with p1, p2, p3, p4:
-            from trcc.services.perf import run_device_benchmarks
-            report = run_device_benchmarks()
+        report = _run(mock_svc, mock_factory)
 
         assert report.has_data
         labels = [e.label for e in report.device]
@@ -111,10 +107,7 @@ class TestRunDeviceBenchmarks:
         mock_svc = MagicMock()
         mock_svc.devices = [lcd_dev]
 
-        p1, p2, p3, p4 = _patches(mock_svc, mock_factory)
-        with p1, p2, p3, p4:
-            from trcc.services.perf import run_device_benchmarks
-            report = run_device_benchmarks()
+        report = _run(mock_svc, mock_factory)
 
         handshake = next(e for e in report.device if "handshake" in e.label)
         assert handshake.limit == 2.0
@@ -131,10 +124,7 @@ class TestRunDeviceBenchmarks:
         mock_svc = MagicMock()
         mock_svc.devices = [led_dev]
 
-        p1, p2, p3, p4 = _patches(mock_svc, mock_factory)
-        with p1, p2, p3, p4:
-            from trcc.services.perf import run_device_benchmarks
-            report = run_device_benchmarks()
+        report = _run(mock_svc, mock_factory)
 
         labels = [e.label for e in report.device]
         assert any("LED handshake" in lbl for lbl in labels)
@@ -153,10 +143,7 @@ class TestRunDeviceBenchmarks:
         mock_svc = MagicMock()
         mock_svc.devices = [lcd_dev, led_dev]
 
-        p1, p2, p3, p4 = _patches(mock_svc, mock_factory)
-        with p1, p2, p3, p4:
-            from trcc.services.perf import run_device_benchmarks
-            report = run_device_benchmarks()
+        report = _run(mock_svc, mock_factory)
 
         labels = [e.label for e in report.device]
         assert any("LCD" in lbl for lbl in labels)
@@ -176,10 +163,7 @@ class TestRunDeviceBenchmarks:
         mock_svc = MagicMock()
         mock_svc.devices = [led_dev]
 
-        p1, p2, p3, p4 = _patches(mock_svc, mock_factory)
-        with p1, p2, p3, p4:
-            from trcc.services.perf import run_device_benchmarks
-            run_device_benchmarks()
+        _run(mock_svc, mock_factory)
 
         calls = proto.send_led_data.call_args_list
         assert any(len(c[0][0]) == 128 for c in calls)
@@ -195,10 +179,7 @@ class TestRunDeviceBenchmarks:
         mock_svc = MagicMock()
         mock_svc.devices = [lcd_dev]
 
-        p1, p2, p3, p4 = _patches(mock_svc, mock_factory)
-        with p1, p2, p3, p4:
-            from trcc.services.perf import run_device_benchmarks
-            report = run_device_benchmarks()
+        report = _run(mock_svc, mock_factory)
 
         d = report.to_dict()
         assert "device" in d
@@ -214,12 +195,16 @@ class TestIPCPauseResume:
         mock_svc = MagicMock()
         mock_svc.devices = []
 
-        p1, p2, p3, p4 = _patches(mock_svc)
-        with p1, p2, p3, p4, \
+        with patch(_DS, return_value=mock_svc), \
              patch("trcc.services.perf._ipc_pause", return_value=True) as m_pause, \
              patch("trcc.services.perf._ipc_resume") as m_resume:
             from trcc.services.perf import run_device_benchmarks
-            run_device_benchmarks()
+            run_device_benchmarks(
+                detect_fn=MagicMock(),
+                get_protocol=MagicMock(),
+                get_protocol_info=MagicMock(),
+                probe_led_fn=MagicMock(),
+            )
 
         m_pause.assert_called_once()
         m_resume.assert_called_once()
@@ -229,12 +214,16 @@ class TestIPCPauseResume:
         mock_svc = MagicMock()
         mock_svc.devices = []
 
-        p1, p2, p3, p4 = _patches(mock_svc)
-        with p1, p2, p3, p4, \
+        with patch(_DS, return_value=mock_svc), \
              patch("trcc.services.perf._ipc_pause", return_value=False) as m_pause, \
              patch("trcc.services.perf._ipc_resume") as m_resume:
             from trcc.services.perf import run_device_benchmarks
-            run_device_benchmarks()
+            run_device_benchmarks(
+                detect_fn=MagicMock(),
+                get_protocol=MagicMock(),
+                get_protocol_info=MagicMock(),
+                probe_led_fn=MagicMock(),
+            )
 
         m_pause.assert_called_once()
         m_resume.assert_not_called()
@@ -264,12 +253,16 @@ class TestIPCPauseResume:
         mock_factory = MagicMock()
         mock_factory.get_protocol.side_effect = RuntimeError("USB exploded")
 
-        p1, p2, p3, p4 = _patches(mock_svc, mock_factory)
-        with p1, p2, p3, p4, \
+        with patch(_DS, return_value=mock_svc), \
              patch("trcc.services.perf._ipc_pause", return_value=True), \
              patch("trcc.services.perf._ipc_resume") as m_resume:
             from trcc.services.perf import run_device_benchmarks
             with pytest.raises(RuntimeError, match="USB exploded"):
-                run_device_benchmarks()
+                run_device_benchmarks(
+                    detect_fn=MagicMock(),
+                    get_protocol=mock_factory.get_protocol,
+                    get_protocol_info=mock_factory.get_protocol_info,
+                    probe_led_fn=MagicMock(),
+                )
 
         m_resume.assert_called_once()

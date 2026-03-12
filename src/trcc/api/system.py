@@ -77,7 +77,15 @@ def get_perf() -> dict:
 @router.get("/perf/device")
 def get_perf_device() -> dict:
     """Benchmark connected hardware (USB handshake, frame latency, FPS)."""
+    from trcc.adapters.device.detector import DeviceDetector
+    from trcc.adapters.device.factory import DeviceProtocolFactory
+    from trcc.adapters.device.led import probe_led_model
     from trcc.services.perf import run_device_benchmarks
 
-    report = run_device_benchmarks()
+    report = run_device_benchmarks(
+        detect_fn=DeviceDetector.detect,
+        get_protocol=DeviceProtocolFactory.get_protocol,
+        get_protocol_info=DeviceProtocolFactory.get_protocol_info,
+        probe_led_fn=probe_led_model,
+    )
     return report.to_dict()

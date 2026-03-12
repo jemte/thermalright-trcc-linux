@@ -728,6 +728,9 @@ def _cmd_perf(
     _ensure_renderer()
 
     if device:
+        from trcc.adapters.device.detector import DeviceDetector
+        from trcc.adapters.device.factory import DeviceProtocolFactory
+        from trcc.adapters.device.led import probe_led_model
         from trcc.core.instance import InstanceKind, find_active
         from trcc.services.perf import run_device_benchmarks
 
@@ -735,7 +738,12 @@ def _cmd_perf(
         if gui_running:
             print("GUI daemon detected — pausing display refresh...")
         print("Running device I/O benchmarks (this takes ~10s)...")
-        report = run_device_benchmarks()
+        report = run_device_benchmarks(
+            detect_fn=DeviceDetector.detect,
+            get_protocol=DeviceProtocolFactory.get_protocol,
+            get_protocol_info=DeviceProtocolFactory.get_protocol_info,
+            probe_led_fn=probe_led_model,
+        )
         if gui_running:
             print("GUI display refresh resumed.")
         if not report.has_data:

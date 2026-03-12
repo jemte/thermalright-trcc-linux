@@ -300,7 +300,13 @@ def _ipc_resume() -> None:
         pass
 
 
-def run_device_benchmarks() -> PerfReport:
+def run_device_benchmarks(
+    *,
+    detect_fn: Callable,
+    get_protocol: Callable,
+    get_protocol_info: Callable,
+    probe_led_fn: Callable,
+) -> PerfReport:
     """Benchmark the connected hardware device (LCD or LED).
 
     Measures real wall-clock I/O latencies:
@@ -311,6 +317,8 @@ def run_device_benchmarks() -> PerfReport:
     Uses time.perf_counter() (wall clock) because USB I/O is the bottleneck.
     If the GUI daemon is running, pauses its display refresh for exclusive
     device access, then resumes when done.
+
+    Adapter dependencies are injected by the caller (CLI/API composition root).
     """
     report = PerfReport()
 
@@ -318,27 +326,37 @@ def run_device_benchmarks() -> PerfReport:
     gui_paused = _ipc_pause()
 
     try:
-        return _run_device_benchmarks_inner(report, gui_paused)
+        return _run_device_benchmarks_inner(
+            report, gui_paused,
+            detect_fn=detect_fn,
+            get_protocol=get_protocol,
+            get_protocol_info=get_protocol_info,
+            probe_led_fn=probe_led_fn,
+        )
     finally:
         if gui_paused:
             _ipc_resume()
 
 
-def _run_device_benchmarks_inner(report: PerfReport,
-                                 gui_paused: bool) -> PerfReport:
+def _run_device_benchmarks_inner(
+    report: PerfReport,
+    gui_paused: bool,
+    *,
+    detect_fn: Callable,
+    get_protocol: Callable,
+    get_protocol_info: Callable,
+    probe_led_fn: Callable,
+) -> PerfReport:
     """Inner device benchmark logic — separated for try/finally in caller."""
-    from ..adapters.device.detector import DeviceDetector
-    from ..adapters.device.factory import DeviceProtocolFactory
-    from ..adapters.device.led import probe_led_model
     from ..services import DeviceService
     from ..services.image import ImageService
 
     # ── Detect + handshake ─────────────────────────────────────────
     svc = DeviceService(
-        detect_fn=DeviceDetector.detect,
-        probe_led_fn=probe_led_model,
-        get_protocol=DeviceProtocolFactory.get_protocol,
-        get_protocol_info=DeviceProtocolFactory.get_protocol_info,
+        detect_fn=detect_fn,
+        probe_led_fn=probe_led_fn,
+        get_protocol=get_protocol,
+        get_protocol_info=get_protocol_info,
     )
     svc.scan_and_select()  # detect + handshake (populates resolution/fbl)
 
@@ -353,7 +371,7 @@ def _run_device_benchmarks_inner(report: PerfReport,
         if not svc.selected or svc.selected is not lcd_dev:
             svc.select(lcd_dev)
             svc._discover_resolution(lcd_dev)
-        protocol = DeviceProtocolFactory.get_protocol(lcd_dev)
+        protocol = get_protocol(lcd_dev)
         w, h = lcd_dev.resolution or (320, 320)
         r = ImageService._r()
 
@@ -424,7 +442,7 @@ def _run_device_benchmarks_inner(report: PerfReport,
         (d for d in svc.devices if d.implementation == 'hid_led'), None)
 
     if led_dev:
-        led_protocol: Any = DeviceProtocolFactory.get_protocol(led_dev)
+        led_protocol: Any = get_protocol(led_dev)
 
         # Handshake time
         t0 = time.perf_counter()

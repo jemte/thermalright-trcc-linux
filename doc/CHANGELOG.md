@@ -1,5 +1,10 @@
 # Changelog
 
+## v8.3.7
+
+### Internal
+- **Hexagonal purity**: `services/perf.py` no longer imports from `adapters/device/` — `DeviceDetector.detect`, `DeviceProtocolFactory.get_protocol`/`get_protocol_info`, and `probe_led_model` are now injected via DI by composition roots (CLI `trcc perf --device` and API `GET /system/perf/device`)
+
 ## v8.3.6
 
 ### Bug Fixes
