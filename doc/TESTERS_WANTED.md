@@ -47,6 +47,20 @@ These devices have been tested on real Linux hardware by contributors:
 | Peerless Assassin 120 Digital ARGB (LED) | `0416:8001` | HID LED | [Pewful2021](https://github.com/Pewful2021) |
 | Frozen Warframe 240 (HID) | `0416:5302` | HID Type 2 | [riodevelop](https://github.com/riodevelop), [wobbegongus](https://github.com/wobbegongus) |
 
+## Need Testers — Custom Overlay Masks (v8.3.8)
+
+New feature: upload your own PNG mask overlay and position it with X/Y controls. Custom masks are saved to `~/.trcc-user/` (survives uninstall and data re-download).
+
+**What to test:**
+1. Open GUI → Theme Settings → Mask panel → click Upload icon
+2. Select a PNG image → crop dialog → confirm
+3. Mask should appear in the mask browser with a thumbnail
+4. Adjust X/Y position using the +/- buttons
+5. Toggle visibility with the eye icon
+6. Right-click a custom mask → Delete should remove it
+
+If anything is off (positioning, cropping, display), [open an issue](https://github.com/Lexonight1/thermalright-trcc-linux/issues/new) with your screen resolution and device model.
+
 ## Need Testers — HID LCD Devices
 
 These use USB HID to display images on the LCD. Code is complete, but no one has tested with real hardware.
