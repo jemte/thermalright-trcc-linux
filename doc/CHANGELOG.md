@@ -1,5 +1,18 @@
 # Changelog
 
+## v8.3.8
+
+### Features
+- **i18n text overlays**: All GUI panel text now rendered at runtime via QLabel overlays from `core/i18n.py` — supports 30 languages without per-language PNG files
+- **Custom mask upload**: File picker → crop → save to `~/.trcc-user/` (survives uninstall), with right-click delete in mask browser
+- **Language dropdown**: Combo selector replaces 10 language checkboxes on About/Control Center panel
+- **Mask panel X/Y controls**: Position inputs with +/- buttons and eye toggle for mask visibility
+
+### Improvements
+- **Language-neutral GUI PNGs**: Replaced 129 localized background PNGs with 8 language-neutral versions — text rendered at runtime
+- **Consistent panel titles**: All display mode panels (mask, background, screencast, video) now have title label next to toggle at top
+- **Clean Ctrl+C exit**: SIGINT handler calls `app.quit()` instead of Python traceback
+
 ## v8.3.7
 
 ### Internal

@@ -178,6 +178,8 @@ def gui(verbose=0, decorated=False, start_hidden=False):
         from trcc.qt_components.trcc_app import run_app
         print("[TRCC] Starting LCD Control Center...")
         return run_app(decorated=decorated, start_hidden=start_hidden)
+    except KeyboardInterrupt:
+        return 0
     except ImportError as e:
         print(f"Error: PySide6 not available: {e}")
         print("Install with: pip install PySide6")

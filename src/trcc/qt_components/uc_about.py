@@ -237,7 +237,7 @@ class UCAbout(BasePanel):
     def __init__(self, parent=None):
         super().__init__(parent, width=Sizes.FORM_W, height=Sizes.FORM_H)
 
-        self._lang_buttons: dict[str, QPushButton] = {}
+        self._lang_buttons: dict[str, QPushButton] = {}  # Legacy — populated by combo in trcc_app
         self._temp_mode = 'C'
         self._autostart = _is_autostart_enabled()
         from ..conf import settings
@@ -302,16 +302,6 @@ class UCAbout(BasePanel):
         self.multi_thread_btn = self._make_checkbox(
             *Layout.ABOUT_MULTI_THREAD, checked=True)
         self.multi_thread_btn.clicked.connect(lambda: self._set_thread_mode(True))
-
-        # === Language selection checkboxes ===
-        from ..conf import settings
-        for x, y, lang_suffix in Layout.ABOUT_LANG_BUTTONS:
-            btn = self._make_checkbox(x, y, Layout.ABOUT_CHECKBOX_SIZE,
-                                      Layout.ABOUT_CHECKBOX_SIZE,
-                                      checked=(lang_suffix == settings.lang))
-            btn.clicked.connect(
-                lambda checked, ls=lang_suffix: self._on_lang_clicked(ls))
-            self._lang_buttons[lang_suffix] = btn
 
         # Website button (invisible, over background text area)
         self.website_btn = QPushButton(self)
@@ -471,9 +461,7 @@ class UCAbout(BasePanel):
     # --- Language ---
 
     def _on_lang_clicked(self, lang_suffix: str):
-        """Handle language checkbox click (radio behavior)."""
-        for ls, btn in self._lang_buttons.items():
-            btn.setChecked(ls == lang_suffix)
+        """Handle language selection."""
         self.language_changed.emit(lang_suffix)
 
     # --- Software update ---
@@ -580,8 +568,5 @@ class UCAbout(BasePanel):
     # --- Public API ---
 
     def sync_language(self):
-        """Sync button states and background to current settings.lang."""
-        from ..conf import settings
-        for ls, btn in self._lang_buttons.items():
-            btn.setChecked(ls == settings.lang)
+        """Sync background to current settings.lang."""
         self._apply_localized_background()

@@ -269,7 +269,6 @@ class Layout:
     COLOR_EYEDROPPER = (12, 276, 48, 48)
 
     # Display mode panel toggle/action positions
-    TOGGLE_DEFAULT = (0, 0, 50, 50)
     TOGGLE_MASK = (5, 5, 36, 18)
     ACTION_BTN_1 = (149, 30, 40, 40)
     ACTION_BTN_2 = (219, 30, 40, 40)

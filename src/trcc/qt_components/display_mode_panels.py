@@ -213,17 +213,17 @@ class DisplayModePanel(QFrame):
         "mask": "Toggle mask overlay",
     }
 
+    _TITLE_STYLE = (
+        "color: white; font-family: 'Microsoft YaHei'; font-size: 12pt;"
+        " background: transparent;"
+    )
+
     def _setup_ui(self):
-        # Toggle button — smaller slider for mask panel, large toggle for others
+        # Toggle button — small slider for all panels
         self.toggle_btn = QPushButton(self)
-        if self.mode_id == 'mask':
-            self.toggle_btn.setGeometry(*Layout.TOGGLE_MASK)
-            on_px = Assets.load_pixmap('P滑动开.png', 36, 18)
-            off_px = Assets.load_pixmap('P滑动关.png', 36, 18)
-        else:
-            self.toggle_btn.setGeometry(*Layout.TOGGLE_DEFAULT)
-            on_px = Assets.load_pixmap('P功能选择a.png', 50, 50)
-            off_px = Assets.load_pixmap('P功能选择.png', 50, 50)
+        self.toggle_btn.setGeometry(*Layout.TOGGLE_MASK)
+        on_px = Assets.load_pixmap('P滑动开.png', 36, 18)
+        off_px = Assets.load_pixmap('P滑动关.png', 36, 18)
 
         self.toggle_btn.setCheckable(True)
         if not on_px.isNull() and not off_px.isNull():
@@ -236,6 +236,11 @@ class DisplayModePanel(QFrame):
         self.toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.toggle_btn.setToolTip(self._TOGGLE_TOOLTIP.get(self.mode_id, "Toggle"))
         self.toggle_btn.clicked.connect(self._on_toggle)
+
+        # Title label next to toggle
+        self._title_lbl = QLabel(self.mode_id.title(), self)
+        self._title_lbl.setGeometry(44, 5, 140, 18)
+        self._title_lbl.setStyleSheet(self._TITLE_STYLE)
 
         # Action buttons with icon images
         _ICON_MAP = {
@@ -276,6 +281,10 @@ class DisplayModePanel(QFrame):
     def set_enabled(self, enabled):
         self.toggle_btn.setChecked(enabled)
         self._set_actions_enabled(enabled)
+
+    def set_title(self, text: str) -> None:
+        """Update the title label text."""
+        self._title_lbl.setText(text)
 
     def set_background_image(self, pixmap):
         """Apply P01 localized background via QPalette (not stylesheet)."""
@@ -322,6 +331,11 @@ class MaskPanel(DisplayModePanel):
 
     def __init__(self, parent=None):
         super().__init__("mask", ["Load", "Upload"], parent)
+        # Reposition action buttons to align with left-side text labels
+        if len(self._action_buttons) >= 1:
+            self._action_buttons[0].setGeometry(115, 30, 40, 40)  # Load/Masks
+        if len(self._action_buttons) >= 2:
+            self._action_buttons[1].setGeometry(175, 30, 40, 40)  # Upload
         self._updating = False
         self._mask_visible = True
         self._setup_mask_ui()
@@ -331,17 +345,8 @@ class MaskPanel(DisplayModePanel):
         " background: transparent;"
     )
 
-    _TITLE_STYLE = (
-        "color: white; font-family: 'Microsoft YaHei'; font-size: 12pt;"
-        " background: transparent;"
-    )
-
     def _setup_mask_ui(self):
         """Add X/Y coordinate inputs and eye toggle on top of base panel."""
-        self._title_lbl = QLabel("Layer Mask", self)
-        self._title_lbl.setGeometry(44, 5, 120, 18)
-        self._title_lbl.setStyleSheet(self._TITLE_STYLE)
-
         self._make_label("X", 247, 40)
         self._make_label("Y", 247, 65)
 

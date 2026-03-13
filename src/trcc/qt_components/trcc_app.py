@@ -756,7 +756,6 @@ class TRCCApp(QMainWindow):
             BACKGROUND_LOAD_VIDEO,
             BACKGROUND_LOAD_VIDEO_POS,
             BACKGROUND_TITLE,
-            BACKGROUND_TITLE_POS,
             DISPLAY_ANGLE,
             DISPLAY_ANGLE_POS,
             EXPORT_IMPORT,
@@ -779,11 +778,11 @@ class TRCCApp(QMainWindow):
             MASK_LOAD,
             MASK_LOAD_POS,
             MASK_TITLE,
-            MASK_TITLE_POS,
+            MASK_UPLOAD,
+            MASK_UPLOAD_POS,
             MEDIA_PLAYER_LOAD,
             MEDIA_PLAYER_LOAD_POS,
             MEDIA_PLAYER_TITLE,
-            MEDIA_PLAYER_TITLE_POS,
             ONLINE_THEME,
             ONLINE_THEME_POS,
             OVERLAY_GRID_HINT,
@@ -799,7 +798,6 @@ class TRCCApp(QMainWindow):
             SAVE_AS,
             SAVE_AS_POS,
             SCREENCAST_TITLE,
-            SCREENCAST_TITLE_POS,
             TITLE_BAR_POS,
             TITLE_BAR_TEXT,
             tr,
@@ -809,7 +807,8 @@ class TRCCApp(QMainWindow):
 
         def _lbl(parent: QWidget, text: str, x: int, y: int, w: int, h: int,
                  pt: int, table: dict[str, str] | None = None,
-                 bold: bool = False, color: str = 'red') -> QLabel:
+                 bold: bool = False, color: str = 'white',
+                 wrap: bool = False) -> QLabel:
             """Place a QLabel at PNG pixel coords — auto-adjusts for font metrics.
 
             i18n.py stores raw PNG pixel positions (where text actually appears
@@ -824,6 +823,8 @@ class TRCCApp(QMainWindow):
                 f"color: {color}; font-family: 'Microsoft YaHei';"
                 f" font-size: {pt}pt;{weight} background: transparent;"
             )
+            if wrap:
+                lbl.setWordWrap(True)
             lbl.raise_()
             self._i18n_labels.append((lbl, table))
             return lbl
@@ -860,39 +861,42 @@ class TRCCApp(QMainWindow):
             x, y, w, h, pt = pos
             _lbl(rpanel, tr(tbl, lang), x, y, w, h, pt, tbl)
 
-        # Mask panel — on uc_theme_setting.mask_panel
-        mp = self.uc_theme_setting.mask_panel
-        for tbl, pos in [
-            (MASK_TITLE, MASK_TITLE_POS),
-            (MASK_LOAD, MASK_LOAD_POS),
-            (MASK_DESCRIPTION, MASK_DESC_POS),
-        ]:
-            x, y, w, h, pt = pos
-            _lbl(mp, tr(tbl, lang), x, y, w, h, pt, tbl)
+        # Display mode panel titles — set directly on each panel's built-in label
+        s = self.uc_theme_setting
+        s.mask_panel.set_title(tr(MASK_TITLE, lang))
+        s.background_panel.set_title(tr(BACKGROUND_TITLE, lang))
+        s.screencast_panel.set_title(tr(SCREENCAST_TITLE, lang))
+        s.video_panel.set_title(tr(MEDIA_PLAYER_TITLE, lang))
+        self._i18n_panel_tables = [
+            (s.mask_panel, MASK_TITLE),
+            (s.background_panel, BACKGROUND_TITLE),
+            (s.screencast_panel, SCREENCAST_TITLE),
+            (s.video_panel, MEDIA_PLAYER_TITLE),
+        ]
 
-        # Background panel — on uc_theme_setting.background_panel
-        bp = self.uc_theme_setting.background_panel
+        # Mask panel sub-labels — on uc_theme_setting.mask_panel
+        mp = s.mask_panel
+        x, y, w, h, pt = MASK_LOAD_POS
+        _lbl(mp, tr(MASK_LOAD, lang), x, y, w, h, pt, MASK_LOAD)
+        x, y, w, h, pt = MASK_UPLOAD_POS
+        _lbl(mp, tr(MASK_UPLOAD, lang), x, y, w, h, pt, MASK_UPLOAD)
+        x, y, w, h, pt = MASK_DESC_POS
+        _lbl(mp, tr(MASK_DESCRIPTION, lang), x, y, w, h, pt, MASK_DESCRIPTION,
+             wrap=True)
+
+        # Background panel sub-labels
+        bp = s.background_panel
         for tbl, pos in [
-            (BACKGROUND_TITLE, BACKGROUND_TITLE_POS),
             (BACKGROUND_LOAD_IMG, BACKGROUND_LOAD_IMG_POS),
             (BACKGROUND_LOAD_VIDEO, BACKGROUND_LOAD_VIDEO_POS),
         ]:
             x, y, w, h, pt = pos
             _lbl(bp, tr(tbl, lang), x, y, w, h, pt, tbl)
 
-        # Screencast panel — on uc_theme_setting.screencast_panel
-        sp = self.uc_theme_setting.screencast_panel
-        x, y, w, h, pt = SCREENCAST_TITLE_POS
-        _lbl(sp, tr(SCREENCAST_TITLE, lang), x, y, w, h, pt, SCREENCAST_TITLE)
-
-        # Video/Media player panel — on uc_theme_setting.video_panel
-        vp = self.uc_theme_setting.video_panel
-        for tbl, pos in [
-            (MEDIA_PLAYER_TITLE, MEDIA_PLAYER_TITLE_POS),
-            (MEDIA_PLAYER_LOAD, MEDIA_PLAYER_LOAD_POS),
-        ]:
-            x, y, w, h, pt = pos
-            _lbl(vp, tr(tbl, lang), x, y, w, h, pt, tbl)
+        # Video/Media player panel sub-labels
+        vp = s.video_panel
+        x, y, w, h, pt = MEDIA_PLAYER_LOAD_POS
+        _lbl(vp, tr(MEDIA_PLAYER_LOAD, lang), x, y, w, h, pt, MEDIA_PLAYER_LOAD)
 
         # Local theme browser
         x, y, w, h, pt = LOCAL_THEME_POS
@@ -970,11 +974,11 @@ class TRCCApp(QMainWindow):
         if idx >= 0:
             lang_combo.setCurrentIndex(idx)
         lang_combo.setStyleSheet(
-            "QComboBox { background: #2A2A2A; color: red; border: 1px solid red;"
+            "QComboBox { background: #2A2A2A; color: white; border: 1px solid #555;"
             " font-size: 10pt; padding-left: 5px; }"
             "QComboBox::drop-down { border: none; width: 20px; }"
-            "QComboBox QAbstractItemView { background: #2A2A2A; color: red;"
-            " selection-background-color: #4A2A2A; }"
+            "QComboBox QAbstractItemView { background: #2A2A2A; color: white;"
+            " selection-background-color: #3A3A3A; }"
         )
         lang_combo.raise_()
 
@@ -984,6 +988,9 @@ class TRCCApp(QMainWindow):
             for lbl, tbl in self._i18n_labels:
                 if tbl is not None:
                     lbl.setText(tr(tbl, new_lang))
+            for panel, tbl in self._i18n_panel_tables:
+                panel.set_title(tr(tbl, new_lang))
+            self.uc_about._on_lang_clicked(new_lang)
 
         lang_combo.currentIndexChanged.connect(_on_preview_lang)
 
@@ -2043,6 +2050,7 @@ def run_app(data_dir: Path | None = None, decorated: bool = False,
             pass
 
     signal.signal(signal.SIGUSR1, _on_sigusr1)
+    signal.signal(signal.SIGINT, lambda *_: app.quit())
 
     from PySide6.QtCore import QSocketNotifier
     notifier = QSocketNotifier(rsock.fileno(), QSocketNotifier.Type.Read, app)
