@@ -48,48 +48,6 @@ Native Linux port of the Thermalright LCD Control Center (Windows TRCC 2.1.2). C
 
 > Unofficial community project, not affiliated with Thermalright. Built with [Claude](https://claude.ai) (AI) for protocol reverse engineering and code generation, guided by human architecture decisions and logical assessment.
 
-### What we do better than Windows TRCC
-
-- **38 languages** — Windows has 10 (baked into PNGs). We render text at runtime, community can add more
-- **CLI + REST API** — Windows is GUI-only. We have 50 CLI commands and 43 API endpoints for automation
-- **Custom mask upload** — upload your own PNG overlay, position with X/Y controls, saved to `~/.trcc-user/`
-- **No admin required** — udev rules handle permissions. Windows needs "Run as Administrator"
-- **Open source** — read the code, fix bugs, add features. Windows TRCC is closed-source .NET
-- **Screencast on Wayland** — Windows can't do that either
-- **Hexagonal architecture** — GUI, CLI, and API share the same core. No feature lag between interfaces
-
-### Have an untested device?
-
-Run `trcc report` and [paste the output in an issue](https://github.com/Lexonight1/thermalright-trcc-linux/issues/new) — takes 30 seconds. See the **[full list of devices that need testers](doc/TESTERS_WANTED.md)**.
-
-![TRCC Linux GUI](doc/screenshots/screenshot.png)
-
-## Features
-
-| Category | What you get |
-|----------|-------------|
-| **GUI** | Full PySide6 desktop app — theme browser, video player, overlay editor, LED control panel, 38 languages |
-| **CLI** | 50 commands — `trcc gui`, `trcc send`, `trcc video`, `trcc led-color`, `trcc screencast`, and more |
-| **REST API** | 43 endpoints — control everything remotely, build integrations, automate your setup |
-| **Themes** | Local, cloud, and masks — carousel mode, export/import as `.tr` files, custom mask upload with X/Y positioning, 5 starters + 120 masks per resolution |
-| **Media** | Video/GIF playback, video trimmer, image cropper, screen cast (X11 + Wayland) |
-| **Overlay Editor** | Text, sensors, date/time overlays — font picker, dynamic scaling, color picker |
-| **Hardware Sensors** | 77+ sensors — CPU/GPU temp, fan speed, power, usage — customizable dashboard |
-| **LED Control** | 12 LED styles, zone carousel, breathing/rainbow/static/wave modes, per-zone color |
-| **Display** | 16 resolutions (240x240 to 1920x462), 0/90/180/270 rotation, 3 brightness levels |
-| **Multi-device** | Per-device config, auto-detect, multi-device with device selection |
-| **Security** | udev rules, polkit policy, SELinux support, no root required after setup |
-
-**Under the hood**: 109 source files, ~40K lines of Python, 5045 tests across 60 test files in 9 directories. Hexagonal architecture with strict dependency injection — GUI, CLI, and API all talk to the same core services. 6 USB protocols reverse-engineered from the Windows C# app.
-
-### 38-Language GUI (i18n)
-
-The Windows TRCC app ships 10 languages by baking translated text into separate PNG background images — 129 PNGs just for panel labels. We replaced all of that with a runtime i18n system: language-neutral background PNGs + QLabel text overlays rendered from `core/i18n.py`. Switching languages updates every label instantly — no restart, no extra files.
-
-**Supported languages:** Simplified Chinese, Traditional Chinese, English, German, Russian, French, Portuguese, Japanese, Spanish, Korean, Italian, Dutch, Polish, Turkish, Arabic, Hindi, Thai, Vietnamese, Indonesian, Czech, Swedish, Danish, Norwegian, Finnish, Hungarian, Romanian, Ukrainian, Greek, Hebrew, Malay, Bengali, Urdu, Farsi, Tagalog, Tamil, Punjabi, Swahili, Burmese
-
-Adding a new language is one dict entry per string in `core/i18n.py` — no PNG editing, no asset pipeline. Community translations welcome.
-
 ## Install
 
 ### Native packages (recommended)
@@ -189,41 +147,11 @@ Fedora, Nobara, Ubuntu, Debian, Mint, Pop!_OS, Zorin, elementary OS, Arch, Manja
 
 **[Open a GitHub issue](https://github.com/Lexonight1/thermalright-trcc-linux/issues/new)** — that's the only place I see bug reports. I don't monitor Reddit, forums, or Discussions. Run `trcc report`, paste the output, and I'll get back to you.
 
-## Supported Devices
+### Have an untested device?
 
-Run `lsusb` to find your USB ID (`xxxx:xxxx` after `ID`), then match it below.
+Run `trcc report` and [paste the output in an issue](https://github.com/Lexonight1/thermalright-trcc-linux/issues/new) — takes 30 seconds. See the **[full list of devices that need testers](doc/TESTERS_WANTED.md)**.
 
-**SCSI devices** — fully supported:
-| USB ID | Devices |
-|--------|---------|
-| `87CD:70DB` | FROZEN HORIZON PRO, FROZEN MAGIC PRO, FROZEN VISION V2, CORE VISION, ELITE VISION, AK120, AX120, PA120 DIGITAL, Wonder Vision |
-| `0416:5406` | LC1, LC2, LC3, LC5 (AIO pump heads) |
-| `0402:3922` | FROZEN WARFRAME, FROZEN WARFRAME 360, FROZEN WARFRAME SE, ELITE VISION 360 |
-
-**Bulk USB devices** — raw USB protocol:
-| USB ID | Devices |
-|--------|---------|
-| `87AD:70DB` | GrandVision 360 AIO, Mjolnir Vision 360, Wonder Vision Pro 360, Frozen Warframe Pro |
-
-**LY USB devices** — chunked bulk protocol:
-| USB ID | Devices |
-|--------|---------|
-| `0416:5408` | Trofeo Vision 9.16 LCD |
-| `0416:5409` | (LY1 variant) |
-
-**HID LCD devices** — auto-detected:
-| USB ID | Devices |
-|--------|---------|
-| `0416:5302` | Trofeo Vision LCD, Assassin Spirit 120 Vision ARGB, AS120 VISION, BA120 VISION, FROZEN WARFRAME, FROZEN WARFRAME 360, FROZEN WARFRAME SE, FROZEN WARFRAME PRO, ELITE VISION, LC5 |
-| `0418:5303` | TARAN ARMS |
-| `0418:5304` | TARAN ARMS |
-
-**HID LED devices** — RGB LED control:
-| USB ID | Devices |
-|--------|---------|
-| `0416:8001` | AX120 DIGITAL, PA120 DIGITAL, Peerless Assassin 120 DIGITAL ARGB White, Assassin X 120R Digital ARGB, Phantom Spirit 120 Digital EVO, HR10 2280 PRO Digital, and others (model auto-detected via handshake) |
-
-> See the [full device list with protocol details](doc/REFERENCE_DEVICES.md) and the [Device Testing Guide](doc/GUIDE_DEVICE_TESTING.md) if you have an untested device.
+![TRCC Linux GUI](doc/screenshots/screenshot.png)
 
 ## Usage
 
@@ -304,6 +232,78 @@ curl -X POST http://localhost:9876/led/color \
 | [USBLCD Protocol](doc/audit/USBLCD_PROTOCOL.md) | SCSI frame transfer protocol |
 | [USBLCDNEW Protocol](doc/PROTOCOL_USBLCDNEW.md) | USB bulk/LY frame transfer protocol |
 | [USBLED Protocol](doc/PROTOCOL_USBLED.md) | HID LED segment display protocol |
+
+## Features
+
+| Category | What you get |
+|----------|-------------|
+| **GUI** | Full PySide6 desktop app — theme browser, video player, overlay editor, LED control panel, 38 languages |
+| **CLI** | 50 commands — `trcc gui`, `trcc send`, `trcc video`, `trcc led-color`, `trcc screencast`, and more |
+| **REST API** | 43 endpoints — control everything remotely, build integrations, automate your setup |
+| **Themes** | Local, cloud, and masks — carousel mode, export/import as `.tr` files, custom mask upload with X/Y positioning, 5 starters + 120 masks per resolution |
+| **Media** | Video/GIF playback, video trimmer, image cropper, screen cast (X11 + Wayland) |
+| **Overlay Editor** | Text, sensors, date/time overlays — font picker, dynamic scaling, color picker |
+| **Hardware Sensors** | 77+ sensors — CPU/GPU temp, fan speed, power, usage — customizable dashboard |
+| **LED Control** | 12 LED styles, zone carousel, breathing/rainbow/static/wave modes, per-zone color |
+| **Display** | 16 resolutions (240x240 to 1920x462), 0/90/180/270 rotation, 3 brightness levels |
+| **Multi-device** | Per-device config, auto-detect, multi-device with device selection |
+| **Security** | udev rules, polkit policy, SELinux support, no root required after setup |
+
+**Under the hood**: 109 source files, ~40K lines of Python, 5045 tests across 60 test files in 9 directories. Hexagonal architecture with strict dependency injection — GUI, CLI, and API all talk to the same core services. 6 USB protocols reverse-engineered from the Windows C# app.
+
+### What we do better than Windows TRCC
+
+- **38 languages** — Windows has 10 (baked into PNGs). We render text at runtime, community can add more
+- **CLI + REST API** — Windows is GUI-only. We have 50 CLI commands and 43 API endpoints for automation
+- **Custom mask upload** — upload your own PNG overlay, position with X/Y controls, saved to `~/.trcc-user/`
+- **No admin required** — udev rules handle permissions. Windows needs "Run as Administrator"
+- **Open source** — read the code, fix bugs, add features. Windows TRCC is closed-source .NET
+- **Screencast on Wayland** — Windows can't do that either
+- **Hexagonal architecture** — GUI, CLI, and API share the same core. No feature lag between interfaces
+
+### 38-Language GUI (i18n)
+
+The Windows TRCC app ships 10 languages by baking translated text into separate PNG background images — 129 PNGs just for panel labels. We replaced all of that with a runtime i18n system: language-neutral background PNGs + QLabel text overlays rendered from `core/i18n.py`. Switching languages updates every label instantly — no restart, no extra files.
+
+**Supported languages:** Simplified Chinese, Traditional Chinese, English, German, Russian, French, Portuguese, Japanese, Spanish, Korean, Italian, Dutch, Polish, Turkish, Arabic, Hindi, Thai, Vietnamese, Indonesian, Czech, Swedish, Danish, Norwegian, Finnish, Hungarian, Romanian, Ukrainian, Greek, Hebrew, Malay, Bengali, Urdu, Farsi, Tagalog, Tamil, Punjabi, Swahili, Burmese
+
+Adding a new language is one dict entry per string in `core/i18n.py` — no PNG editing, no asset pipeline. Community translations welcome.
+
+### Supported Devices
+
+Run `lsusb` to find your USB ID (`xxxx:xxxx` after `ID`), then match it below.
+
+**SCSI devices** — fully supported:
+| USB ID | Devices |
+|--------|---------|
+| `87CD:70DB` | FROZEN HORIZON PRO, FROZEN MAGIC PRO, FROZEN VISION V2, CORE VISION, ELITE VISION, AK120, AX120, PA120 DIGITAL, Wonder Vision |
+| `0416:5406` | LC1, LC2, LC3, LC5 (AIO pump heads) |
+| `0402:3922` | FROZEN WARFRAME, FROZEN WARFRAME 360, FROZEN WARFRAME SE, ELITE VISION 360 |
+
+**Bulk USB devices** — raw USB protocol:
+| USB ID | Devices |
+|--------|---------|
+| `87AD:70DB` | GrandVision 360 AIO, Mjolnir Vision 360, Wonder Vision Pro 360, Frozen Warframe Pro |
+
+**LY USB devices** — chunked bulk protocol:
+| USB ID | Devices |
+|--------|---------|
+| `0416:5408` | Trofeo Vision 9.16 LCD |
+| `0416:5409` | (LY1 variant) |
+
+**HID LCD devices** — auto-detected:
+| USB ID | Devices |
+|--------|---------|
+| `0416:5302` | Trofeo Vision LCD, Assassin Spirit 120 Vision ARGB, AS120 VISION, BA120 VISION, FROZEN WARFRAME, FROZEN WARFRAME 360, FROZEN WARFRAME SE, FROZEN WARFRAME PRO, ELITE VISION, LC5 |
+| `0418:5303` | TARAN ARMS |
+| `0418:5304` | TARAN ARMS |
+
+**HID LED devices** — RGB LED control:
+| USB ID | Devices |
+|--------|---------|
+| `0416:8001` | AX120 DIGITAL, PA120 DIGITAL, Peerless Assassin 120 DIGITAL ARGB White, Assassin X 120R Digital ARGB, Phantom Spirit 120 Digital EVO, HR10 2280 PRO Digital, and others (model auto-detected via handshake) |
+
+> See the [full device list with protocol details](doc/REFERENCE_DEVICES.md) and the [Device Testing Guide](doc/GUIDE_DEVICE_TESTING.md) if you have an untested device.
 
 ## Architecture
 
