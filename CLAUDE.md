@@ -14,6 +14,12 @@
 - **Config** (`conf.py`): Application settings singleton — resolution, language, temp unit, device prefs. Single source of truth for all mutable app state.
 - **Entry**: `cli/` → `trcc_app.py` (TRCCApp) → builder.build_lcd()/build_led()
 - **Protocols**: SCSI (LCD frames), HID (handshake/resolution), LED (RGB effects + segment displays)
+- **Platform** (`core/platform.py`): `WINDOWS`, `LINUX`, `MACOS`, `BSD` flags. `builder.py` routes to platform-specific adapters via these flags.
+- **Platform adapters** (`adapters/{device,system}/{windows,macos,bsd}/`): Platform-specific scaffolds — each has detector, SCSI transport, sensor enumerator, and hardware info. All share the same interface as Linux adapters.
+  - **Windows**: WMI detector, DeviceIoControl SCSI, LibreHardwareMonitor + pynvml sensors, WMI hardware
+  - **macOS**: pyusb detector, USB BOT SCSI (kernel driver detach), IOKit/powermetrics sensors, system_profiler hardware
+  - **BSD**: pyusb detector, camcontrol SCSI (`/dev/pass*`), sysctl + psutil sensors, geom hardware
+- **CI pipelines**: `release.yml` (Linux RPM/DEB/Arch), `windows.yml` (PyInstaller + Inno Setup .exe), `macos.yml` (PyInstaller + create-dmg .dmg)
 - **On-demand download**: Theme/Web/Mask archives fetched from GitHub at runtime via `data_repository.py`
 
 ### Design Patterns (Gang of Four + Architectural)

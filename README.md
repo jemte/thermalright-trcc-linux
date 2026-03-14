@@ -60,13 +60,13 @@ Pre-built packages are available for every major distro. No pip, no venv, no PEP
 
 **Fedora / openSUSE / Nobara:**
 ```bash
-sudo dnf install https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux-8.3.13-1.fc43.noarch.rpm
+sudo dnf install https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux-8.4.0-1.fc43.noarch.rpm
 ```
 
 **Ubuntu 24.04+ / Debian 13+ / Mint 22+ / Pop!_OS 24.04+ / Zorin 17+:**
 ```bash
-curl -LO https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux_8.3.13-1_all.deb
-sudo dpkg -i trcc-linux_8.3.13-1_all.deb
+curl -LO https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux_8.4.0-1_all.deb
+sudo dpkg -i trcc-linux_8.4.0-1_all.deb
 sudo apt-get install -f    # pulls in any missing dependencies
 ```
 
@@ -74,8 +74,8 @@ sudo apt-get install -f    # pulls in any missing dependencies
 
 **Arch / CachyOS / Manjaro / EndeavourOS / Garuda:**
 ```bash
-curl -LO https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux-8.3.13-1-any.pkg.tar.zst
-sudo pacman -U trcc-linux-8.3.13-1-any.pkg.tar.zst
+curl -LO https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux-8.4.0-1-any.pkg.tar.zst
+sudo pacman -U trcc-linux-8.4.0-1-any.pkg.tar.zst
 ```
 
 **NixOS** — add to your `flake.nix` inputs:
@@ -97,6 +97,31 @@ trcc gui
 ```
 
 That's it! If your device isn't detected, run `trcc detect --all` to see what's connected, or `trcc report` and [open an issue](https://github.com/Lexonight1/thermalright-trcc-linux/issues/new) with the output.
+
+### Windows (experimental)
+
+Download `trcc-8.4.0-setup.exe` from the [latest release](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest) and run the installer. It installs both the GUI and CLI:
+
+- **TRCC** shortcut in Start Menu — launches the GUI
+- **`trcc`** command in Command Prompt/PowerShell — CLI access (installer adds it to PATH)
+
+> Requires Windows 10 or 11. For GPU sensors (hotspot temp, memory junction temp, voltage), [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) must be running — trcc reads its sensors automatically. Run as Administrator for full hardware access.
+
+### macOS (experimental)
+
+Download `trcc-8.4.0-macos.dmg` from the [latest release](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest), open the DMG, and drag **TRCC** to Applications.
+
+> Requires macOS 11+. Install `libusb` first: `brew install libusb`. LCD devices using SCSI (most models) need `sudo` to detach the kernel driver — HID devices work without root. On Apple Silicon Macs, sensor reading requires `sudo` for `powermetrics` access.
+
+### FreeBSD (experimental)
+
+```bash
+pkg install py311-pip libusb py311-pyusb py311-hid
+pip install trcc-linux
+trcc gui
+```
+
+> SCSI devices use `/dev/pass*` via `camcontrol` (part of base system). CPU temp requires `kldload coretemp` (Intel) or `kldload amdtemp` (AMD). HID devices work via hidapi. Run as root for full hardware access.
 
 ### Verify your download
 

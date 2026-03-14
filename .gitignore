@@ -36,6 +36,9 @@ CLAUDE.md
 .DS_Store
 Thumbs.db
 
+# Image editor project files
+*.xcf
+
 # FFmpeg temp
 .video_temp/
 

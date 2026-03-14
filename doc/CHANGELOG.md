@@ -1,5 +1,16 @@
 # Changelog
 
+## v8.4.0
+
+### Features
+- **FreeBSD/BSD adapter scaffolds**: USB detection (pyusb), SCSI passthrough (camcontrol `/dev/pass*`), sensors (sysctl coretemp/amdtemp + ACPI thermal zones + psutil + pynvml), hardware info (sysctl + geom)
+- **Cross-platform install docs**: README now has install sections for Windows (.exe), macOS (.dmg), and FreeBSD (pip)
+- **Clean gold bar assets**: Removed baked-in "TRCC" text from 10 device/panel background PNGs — title rendered via QLabel overlay as "TRCC-Linux"
+
+### Tests
+- 37 new tests for BSD adapters (mocked sysctl/camcontrol/pyusb — run on Linux CI)
+- 5207 total tests across 4 platforms (Linux, Windows, macOS, BSD)
+
 ## v8.3.13
 
 ### Improvements
