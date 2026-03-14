@@ -1,5 +1,10 @@
 # Changelog
 
+## v8.3.13
+
+### Improvements
+- **Clean gold bar assets**: Removed baked-in "TRCC" text from 10 device/panel background PNGs — title now rendered purely via QLabel overlay as "TRCC-Linux"
+
 ## v8.3.12
 
 ### Features

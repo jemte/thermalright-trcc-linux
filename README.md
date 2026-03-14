@@ -1,6 +1,6 @@
 # TRCC Linux
 
-> **Looking for testers!** We're expanding to **Windows** and **macOS** alongside Linux. If you have a Thermalright LCD or LED device on any platform, grab the latest [release](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest) and [let us know how it goes](https://github.com/Lexonight1/thermalright-trcc-linux/issues) — run `trcc report` and paste the output in an issue. Every test report helps, even if nothing works yet!
+> **Looking for testers!** We need **Linux**, **Windows**, and **macOS** testers. If you have a Thermalright LCD or LED device on any platform, grab the latest [release](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest) and [let us know how it goes](https://github.com/Lexonight1/thermalright-trcc-linux/issues) — run `trcc report` and paste the output in an issue. Every test report helps, even if nothing works yet!
 
 > **Solo hobbyist project** — built in my spare time, one device, no corporate backing. Just a Linux user who got tired of waiting for Thermalright to support us. If something breaks, please be patient — I do this for free because I like helping people. If this project helps you, consider [buying me a beer](https://buymeacoffee.com/Lexonight1) 🍺 or [Ko-fi](https://ko-fi.com/lexonight1) ☕
 
@@ -60,13 +60,13 @@ Pre-built packages are available for every major distro. No pip, no venv, no PEP
 
 **Fedora / openSUSE / Nobara:**
 ```bash
-sudo dnf install https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux-8.3.12-1.fc43.noarch.rpm
+sudo dnf install https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux-8.3.13-1.fc43.noarch.rpm
 ```
 
 **Ubuntu 24.04+ / Debian 13+ / Mint 22+ / Pop!_OS 24.04+ / Zorin 17+:**
 ```bash
-curl -LO https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux_8.3.12-1_all.deb
-sudo dpkg -i trcc-linux_8.3.12-1_all.deb
+curl -LO https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux_8.3.13-1_all.deb
+sudo dpkg -i trcc-linux_8.3.13-1_all.deb
 sudo apt-get install -f    # pulls in any missing dependencies
 ```
 
@@ -74,8 +74,8 @@ sudo apt-get install -f    # pulls in any missing dependencies
 
 **Arch / CachyOS / Manjaro / EndeavourOS / Garuda:**
 ```bash
-curl -LO https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux-8.3.12-1-any.pkg.tar.zst
-sudo pacman -U trcc-linux-8.3.12-1-any.pkg.tar.zst
+curl -LO https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux-8.3.13-1-any.pkg.tar.zst
+sudo pacman -U trcc-linux-8.3.13-1-any.pkg.tar.zst
 ```
 
 **NixOS** — add to your `flake.nix` inputs:
