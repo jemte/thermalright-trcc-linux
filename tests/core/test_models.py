@@ -572,5 +572,32 @@ class TestProtocolTraits:
             t.requires_reboot = False  # type: ignore[misc]
 
 
+class TestGetButtonImage:
+    """get_button_image() — PM+SUB → button image name (#69)."""
+
+    def test_stream_vision_pm7_sub1(self):
+        """PM=7, SUB=1 → Stream Vision (not Frozen Warframe Pro)."""
+        from trcc.core.models import get_button_image
+        assert get_button_image(7, 1) == 'A1Stream Vision'
+
+    def test_fbl64_sub0_is_frozen_warframe_pro(self):
+        """FBL=64 with sub=0 → Frozen Warframe Pro (the old buggy lookup)."""
+        from trcc.core.models import get_button_image
+        assert get_button_image(64, 0) == 'A1FROZEN WARFRAME PRO'
+
+    def test_pm7_sub1_differs_from_fbl64(self):
+        """PM=7/SUB=1 and FBL=64/SUB=0 must resolve differently (#69)."""
+        from trcc.core.models import get_button_image
+        assert get_button_image(7, 1) != get_button_image(64, 0)
+
+    def test_pm32_sub1_frozen_warframe_pro(self):
+        from trcc.core.models import get_button_image
+        assert get_button_image(32, 1) == 'A1FROZEN WARFRAME PRO'
+
+    def test_unknown_pm_returns_none(self):
+        from trcc.core.models import get_button_image
+        assert get_button_image(255) is None
+
+
 if __name__ == '__main__':
     unittest.main()

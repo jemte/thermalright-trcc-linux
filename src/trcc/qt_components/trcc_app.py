@@ -1259,7 +1259,10 @@ class TRCCApp(QMainWindow):
                     resolution = getattr(result, 'resolution', None)
                     fbl = getattr(result, 'fbl', None) or getattr(
                         result, 'model_id', None)
-                    self._handshake_done.emit(device, (resolution, fbl))
+                    pm = getattr(result, 'pm_byte', 0)
+                    sub = getattr(result, 'sub_byte', 0)
+                    self._handshake_done.emit(
+                        device, (resolution, fbl, pm, sub))
                 else:
                     self._handshake_done.emit(device, None)
             except Exception as e:
@@ -1272,21 +1275,22 @@ class TRCCApp(QMainWindow):
         if not data:
             self.uc_preview.set_status("Handshake failed — replug device")
             return
-        resolution, fbl = data
+        resolution, fbl, pm, sub = data
         if not resolution or resolution == (0, 0):
             self.uc_preview.set_status("Handshake failed — no resolution")
             return
-        log.info("Handshake OK: %s -> %s (FBL=%s)", device.path, resolution, fbl)
+        log.info("Handshake OK: %s -> %s (FBL=%s, PM=%s, SUB=%s)",
+                 device.path, resolution, fbl, pm, sub)
         device.resolution = resolution
         if fbl:
             device.fbl_code = fbl
-            self._resolve_device_identity(device, fbl)
+            self._resolve_device_identity(device, pm or fbl, sub)
         # use_jpeg is computed from protocol + fbl — no propagation needed
         self._on_device_selected(device)
 
-    def _resolve_device_identity(self, device: DeviceInfo, fbl: int):
+    def _resolve_device_identity(self, device: DeviceInfo, pm: int, sub: int = 0):
         from ..core.models import get_button_image
-        btn_img = get_button_image(fbl)
+        btn_img = get_button_image(pm, sub)
         if not btn_img:
             return
         product = btn_img.replace('A1', '', 1).replace('_', ' ')

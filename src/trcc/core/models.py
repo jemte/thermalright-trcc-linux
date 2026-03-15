@@ -396,6 +396,8 @@ class HandshakeResult:
     resolution: Optional[Tuple[int, int]] = None
     model_id: int = 0
     serial: str = ""
+    pm_byte: int = 0   # Raw PM from handshake (for button image lookup)
+    sub_byte: int = 0   # Raw SUB from handshake (for button image lookup)
     raw_response: bytes = field(default=b"", repr=False)
 
 

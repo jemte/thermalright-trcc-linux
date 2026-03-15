@@ -288,6 +288,21 @@ class TestType2Handshake:
         assert info.mode_byte_1 == 0x99
         assert info.mode_byte_2 == 0x42
 
+    def test_handshake_pm_byte_and_sub_byte(self):
+        """Type 2: pm_byte/sub_byte carry raw PM+SUB for button image (#69)."""
+        transport = _make_mock_transport()
+        resp = bytearray(_make_type2_valid_response())
+        resp[4] = 1   # SUB
+        resp[5] = 7   # PM
+        transport.read.return_value = bytes(resp)
+        transport.write.return_value = TYPE2_INIT_SIZE
+
+        dev = HidDeviceType2(transport)
+        info = dev.handshake()
+
+        assert info.pm_byte == 7
+        assert info.sub_byte == 1
+
     def test_handshake_timing(self):
         """Verify C# Sleep(50) + Sleep(200) timing is called."""
         transport = _make_mock_transport()
@@ -576,6 +591,18 @@ class TestType3Handshake:
 
         assert dev.device_info is info
         assert info.fbl == 101
+
+    def test_handshake_pm_byte_equals_fbl(self):
+        """Type 3: pm_byte=fbl (PM=FBL for Type 3 devices, #69)."""
+        transport = _make_mock_transport()
+        transport.read.return_value = _make_type3_valid_response(0x66)
+        transport.write.return_value = TYPE3_INIT_SIZE
+
+        dev = HidDeviceType3(transport)
+        info = dev.handshake()
+
+        assert info.pm_byte == 101  # 0x66 - 1
+        assert info.sub_byte == 0
 
     def test_handshake_timing(self):
         """Verify C# Sleep(50) + Sleep(200) timing is called."""

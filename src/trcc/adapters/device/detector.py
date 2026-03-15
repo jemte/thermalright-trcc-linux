@@ -35,6 +35,7 @@ from trcc.core.models import (
     DetectedDevice,  # noqa: F401 — re-export
     DeviceEntry,  # noqa: F401 — re-export
 )
+from trcc.core.platform import BSD, MACOS, WINDOWS
 
 log = logging.getLogger(__name__)
 
@@ -611,12 +612,34 @@ def main():
     return 0
 
 
-# Aliases used by cli/, __init__.py, and tests
+# Aliases used by cli/, __init__.py, and tests.
+# Platform-aware: route to the correct detector based on OS.
 _get_all_devices = DeviceDetector._get_all_registries
-detect_devices = DeviceDetector.detect
 check_udev_rules = DeviceDetector.check_udev_rules
-get_default_device = DeviceDetector.get_default
 get_device_path = DeviceDetector.get_device_path
+
+if WINDOWS:
+    from trcc.adapters.device.windows.detector import WindowsDeviceDetector
+    detect_devices = WindowsDeviceDetector.detect
+elif MACOS:
+    from trcc.adapters.device.macos.detector import MacOSDeviceDetector
+    detect_devices = MacOSDeviceDetector.detect
+elif BSD:
+    from trcc.adapters.device.bsd.detector import BSDDeviceDetector
+    detect_devices = BSDDeviceDetector.detect
+else:
+    detect_devices = DeviceDetector.detect
+
+
+def get_default_device() -> 'Optional[DetectedDevice]':
+    """Get the first available LCD device (platform-aware)."""
+    devices = detect_devices()
+    if not devices:
+        return None
+    for device in devices:
+        if device.vid == 0x87CD:
+            return device
+    return devices[0]
 
 
 if __name__ == '__main__':

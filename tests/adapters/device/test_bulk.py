@@ -455,6 +455,30 @@ class TestBulkDeviceHandshake(unittest.TestCase):
         bd.handshake()
         self.assertFalse(bd.use_jpeg)
 
+    def test_handshake_pm_byte_and_sub_byte_on_result(self):
+        """HandshakeResult carries raw PM + SUB for button image lookup (#69)."""
+        bd = self._setup_device()
+        resp = _make_handshake_response(pm=7, sub=1)
+        bd._ep_in.read.return_value = resp
+
+        result = bd.handshake()
+
+        self.assertEqual(result.pm_byte, 7)
+        self.assertEqual(result.sub_byte, 1)
+        # model_id is FBL (64), NOT the raw PM
+        self.assertEqual(result.model_id, 64)
+
+    def test_handshake_pm_byte_differs_from_fbl(self):
+        """PM=7 → FBL=64 — pm_byte must be the raw PM, not FBL (#69)."""
+        bd = self._setup_device()
+        resp = _make_handshake_response(pm=7, sub=0)
+        bd._ep_in.read.return_value = resp
+
+        result = bd.handshake()
+
+        self.assertEqual(result.pm_byte, 7)
+        self.assertNotEqual(result.pm_byte, result.model_id)
+
     def test_handshake_opens_device_if_needed(self):
         """If _dev is None, handshake calls _open() first."""
         bd = BulkDevice(0x87AD, 0x70DB)

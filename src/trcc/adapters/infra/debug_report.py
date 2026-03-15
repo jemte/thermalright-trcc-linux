@@ -464,7 +464,8 @@ class DebugReport:
                         f"    Result: None ({error or 'no response'})")
                 return
             sec.lines.append(
-                f"    PM={result.model_id}, resolution={result.resolution}, "
+                f"    PM={result.pm_byte}, SUB={result.sub_byte}, "
+                f"FBL={result.model_id}, resolution={result.resolution}, "
                 f"serial={result.serial}"
             )
             if result.raw_response:
@@ -512,7 +513,8 @@ class DebugReport:
                         f"    Result: None ({error or 'no response'})")
                 return
             sec.lines.append(
-                f"    PM={result.model_id}, resolution={result.resolution}, "
+                f"    PM={result.pm_byte}, SUB={result.sub_byte}, "
+                f"FBL={result.model_id}, resolution={result.resolution}, "
                 f"serial={result.serial}"
             )
             if result.raw_response:

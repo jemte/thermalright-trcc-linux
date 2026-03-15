@@ -174,6 +174,16 @@ class TestLyDeviceHandshake(unittest.TestCase):
         d.handshake()
         self.assertTrue(d.use_jpeg)
 
+    def test_handshake_pm_byte_and_sub_byte(self):
+        """HandshakeResult carries raw PM + SUB for button image lookup (#69)."""
+        d = self._setup()
+        d._ep_in.read.return_value = _make_ly_response(pm_byte_20=1, pm_byte_22=2)
+        result = d.handshake()
+
+        self.assertEqual(result.pm_byte, 65)   # 64 + 1
+        self.assertEqual(result.sub_byte, 3)   # resp[22]+1
+        self.assertEqual(result.model_id, 192)  # FBL
+
 
 class TestLyDeviceSendFrame(unittest.TestCase):
     def _setup(self, pid=_PID_LY):

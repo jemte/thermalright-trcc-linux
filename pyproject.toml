@@ -48,6 +48,9 @@ wayland = [
     "dbus-python>=1.3.0",
     "PyGObject>=3.42.0",
 ]
+windows = [
+    "wmi>=1.5.1; sys_platform == 'win32'",
+]
 hid = [
     "hidapi>=0.14.0",
 ]

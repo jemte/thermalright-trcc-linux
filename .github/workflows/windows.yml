@@ -27,7 +27,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller
-          pip install ".[nvidia]"
+          pip install ".[nvidia,windows]"
 
       # Build CLI exe (with console) and GUI exe (without console)
       - name: Build CLI with PyInstaller
@@ -40,6 +40,7 @@ jobs:
             --add-data "src/trcc/assets;trcc/assets" `
             --hidden-import PySide6.QtSvg `
             --hidden-import pynvml `
+            --hidden-import wmi `
             --collect-submodules trcc `
             --noconfirm `
             src/trcc/__main__.py
@@ -54,6 +55,7 @@ jobs:
             --add-data "src/trcc/assets;trcc/assets" `
             --hidden-import PySide6.QtSvg `
             --hidden-import pynvml `
+            --hidden-import wmi `
             --collect-submodules trcc `
             --noconfirm `
             src/trcc/__main__.py

@@ -123,6 +123,8 @@ class BulkDevice(BulkFrameDevice, FrameDevice):
         return HandshakeResult(
             resolution=resolution,
             model_id=fbl,
+            pm_byte=self.pm,
+            sub_byte=self.sub_type,
             raw_response=resp,
         )
 

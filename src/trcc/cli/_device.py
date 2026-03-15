@@ -180,18 +180,20 @@ def detect(show_all=False):
             dev = devices[0]
         print(f"Active: {_format(dev, probe=True)}")
 
-    # Check for stale/missing udev rules on any device
-    from trcc.core.models import PROTOCOL_TRAITS
+    # Check for stale/missing udev rules (Linux only)
+    from trcc.core.platform import LINUX
+    if LINUX:
+        from trcc.core.models import PROTOCOL_TRAITS
 
-    for dev in devices:
-        if not check_udev_rules(dev):
-            msg = f"\nDevice {dev.vid:04x}:{dev.pid:04x} needs updated udev rules.\n"
-            msg += "Run:  sudo trcc setup-udev"
-            traits = PROTOCOL_TRAITS.get(dev.protocol, PROTOCOL_TRAITS['scsi'])
-            if traits.requires_reboot:
-                msg += "\nThen reboot for the USB storage quirk to take effect."
-            print(msg)
-            break
+        for dev in devices:
+            if not check_udev_rules(dev):
+                msg = f"\nDevice {dev.vid:04x}:{dev.pid:04x} needs updated udev rules.\n"
+                msg += "Run:  sudo trcc setup-udev"
+                traits = PROTOCOL_TRAITS.get(dev.protocol, PROTOCOL_TRAITS['scsi'])
+                if traits.requires_reboot:
+                    msg += "\nThen reboot for the USB storage quirk to take effect."
+                print(msg)
+                break
 
     return 0
 

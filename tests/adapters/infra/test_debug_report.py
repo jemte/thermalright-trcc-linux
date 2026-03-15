@@ -802,11 +802,13 @@ class TestHandshakeBulk:
         return dev
 
     def _make_result(self, model_id=32, resolution=(480, 480),
-                     serial="", raw=bytes(64)):
+                     serial="", raw=bytes(64), pm_byte=7, sub_byte=1):
         r = MagicMock()
         r.model_id = model_id
         r.resolution = resolution
         r.serial = serial
+        r.pm_byte = pm_byte
+        r.sub_byte = sub_byte
         r.raw_response = raw
         return r
 
@@ -822,7 +824,9 @@ class TestHandshakeBulk:
         rpt._handshake_bulk(self._make_dev(), sec_obj)
 
         text = " ".join(sec_obj.lines)
-        assert "PM=32" in text
+        assert "PM=7" in text
+        assert "SUB=1" in text
+        assert "FBL=32" in text
         assert "(480, 480)" in text
         proto.close.assert_called_once()
 
@@ -904,11 +908,13 @@ class TestHandshakeLy:
         return dev
 
     def _make_result(self, model_id=64, resolution=(1280, 480),
-                     serial="", raw=bytes(64)):
+                     serial="", raw=bytes(64), pm_byte=68, sub_byte=0):
         r = MagicMock()
         r.model_id = model_id
         r.resolution = resolution
         r.serial = serial
+        r.pm_byte = pm_byte
+        r.sub_byte = sub_byte
         r.raw_response = raw
         return r
 
@@ -924,7 +930,9 @@ class TestHandshakeLy:
         rpt._handshake_ly(self._make_dev(), sec_obj)
 
         text = " ".join(sec_obj.lines)
-        assert "PM=64" in text
+        assert "PM=68" in text
+        assert "SUB=0" in text
+        assert "FBL=64" in text
         assert "(1280, 480)" in text
         proto.close.assert_called_once()
 
