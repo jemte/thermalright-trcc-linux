@@ -29,6 +29,14 @@ jobs:
           pip install pyinstaller
           pip install ".[nvidia,windows]"
 
+      # Download 7-Zip standalone (LGPL) for theme extraction
+      - name: Download 7-Zip standalone
+        run: |
+          Invoke-WebRequest -Uri "https://www.7-zip.org/a/7z2409-extra.7z" -OutFile 7z-extra.7z
+          # Bootstrap: use system 7z to extract the extra package
+          7z x 7z-extra.7z -o7z-standalone 7za.exe 7za.dll
+          # Place in dist root after PyInstaller build (added below)
+
       # Build CLI exe (with console) and GUI exe (without console)
       - name: Build CLI with PyInstaller
         run: |
@@ -61,6 +69,8 @@ jobs:
             src/trcc/__main__.py
           # Merge GUI exe into CLI dist folder (share the runtime)
           Copy-Item -Path dist/trcc-gui/trcc-gui.exe -Destination dist/trcc/ -Force
+          # Bundle 7z for theme extraction (LGPL, redistributable)
+          Copy-Item -Path 7z-standalone/7za.exe -Destination dist/trcc/7z.exe -Force
 
       - name: Extract version
         id: version
