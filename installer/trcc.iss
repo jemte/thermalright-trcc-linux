@@ -29,6 +29,9 @@ ArchitecturesInstallIn64BitMode=x64compatible
 WizardStyle=modern
 PrivilegesRequired=admin
 LicenseFile=..\LICENSE
+; Upgrade: detect running TRCC and offer to close it
+CloseApplications=yes
+CloseApplicationsFilter=trcc*.exe
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -36,6 +39,12 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+
+[InstallDelete]
+; Clean stale PyInstaller files from previous version before installing new ones
+Type: filesandordirs; Name: "{app}\_internal"
+Type: files; Name: "{app}\trcc.exe"
+Type: files; Name: "{app}\trcc-gui.exe"
 
 [Files]
 ; PyInstaller output directory (all DLLs, Python runtime, Qt, app code)
