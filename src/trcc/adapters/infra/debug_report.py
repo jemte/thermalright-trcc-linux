@@ -281,25 +281,44 @@ class DebugReport:
     def _process_usage(self) -> None:
         sec = self._add("Process usage")
         try:
-            result = subprocess.run(
-                ["ps", "-eo", "pid,pcpu,pmem,rss,comm", "--no-headers"],
-                capture_output=True, text=True, timeout=5,
-            )
-            trcc_procs = [
-                line.strip() for line in result.stdout.splitlines()
-                if "trcc" in line.split()[-1]
-            ]
-            if not trcc_procs:
-                sec.lines.append("  (no trcc process running)")
-                return
-            sec.lines.append("  PID    %CPU  %MEM   RSS(MB)  CMD")
-            for proc in trcc_procs:
-                parts = proc.split(None, 4)
-                if len(parts) >= 5:
-                    pid, cpu, mem, rss, cmd = parts
-                    rss_mb = f"{int(rss) / 1024:.0f}"
+            if LINUX:
+                result = subprocess.run(
+                    ["ps", "-eo", "pid,pcpu,pmem,rss,comm", "--no-headers"],
+                    capture_output=True, text=True, timeout=5,
+                )
+                trcc_procs = [
+                    line.strip() for line in result.stdout.splitlines()
+                    if "trcc" in line.split()[-1]
+                ]
+                if not trcc_procs:
+                    sec.lines.append("  (no trcc process running)")
+                    return
+                sec.lines.append("  PID    %CPU  %MEM   RSS(MB)  CMD")
+                for proc in trcc_procs:
+                    parts = proc.split(None, 4)
+                    if len(parts) >= 5:
+                        pid, cpu, mem, rss, cmd = parts
+                        rss_mb = f"{int(rss) / 1024:.0f}"
+                        sec.lines.append(
+                            f"  {pid:>6}  {cpu:>5}  {mem:>4}  {rss_mb:>7}  {cmd}")
+            else:
+                # Windows/macOS: use psutil for cross-platform process listing
+                import psutil
+                trcc_procs = [
+                    p for p in psutil.process_iter(['pid', 'name', 'cpu_percent',
+                                                    'memory_percent', 'memory_info'])
+                    if 'trcc' in (p.info['name'] or '').lower()
+                ]
+                if not trcc_procs:
+                    sec.lines.append("  (no trcc process running)")
+                    return
+                sec.lines.append("  PID    %CPU  %MEM   RSS(MB)  CMD")
+                for p in trcc_procs:
+                    info = p.info
+                    rss_mb = f"{(info['memory_info'].rss / 1024 / 1024):.0f}"
                     sec.lines.append(
-                        f"  {pid:>6}  {cpu:>5}  {mem:>4}  {rss_mb:>7}  {cmd}")
+                        f"  {info['pid']:>6}  {info['cpu_percent']:>5.1f}  "
+                        f"{info['memory_percent']:>4.1f}  {rss_mb:>7}  {info['name']}")
         except Exception as e:
             sec.lines.append(f"  Error: {e}")
 

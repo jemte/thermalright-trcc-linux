@@ -1,5 +1,13 @@
 # Changelog
 
+## v8.4.3
+
+### Fixes
+- **Windows: doctor shows Linux-only checks**: Skips libusb, sg_raw, 7z, udev, SELinux, RAPL, and polkit checks on non-Linux platforms
+- **Windows: process usage crash**: `ps` command doesn't exist on Windows — uses `psutil` for cross-platform process listing
+- **Windows: ANSI escape codes raw in PowerShell**: Enables virtual terminal processing via `SetConsoleMode` so colored output renders correctly
+- **Windows: doctor distro name**: Shows `platform.platform()` instead of "Unknown" on non-Linux
+
 ## v8.4.2
 
 ### Fixes

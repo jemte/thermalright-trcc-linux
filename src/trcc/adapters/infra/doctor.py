@@ -15,6 +15,8 @@ import shutil
 import sys
 from dataclasses import dataclass, field
 
+from trcc.core.platform import LINUX, WINDOWS
+
 # ── Distro → package manager mapping ────────────────────────────────────────
 
 _DISTRO_TO_PM: dict[str, str] = {
@@ -241,6 +243,23 @@ def get_module_version(import_name: str) -> str | None:
     except ImportError:
         return None
 
+
+def _enable_ansi_windows() -> None:
+    """Enable ANSI escape codes on Windows (virtual terminal processing)."""
+    try:
+        import ctypes
+        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        # STD_OUTPUT_HANDLE = -11, ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
+        handle = kernel32.GetStdHandle(-11)
+        mode = ctypes.c_ulong()
+        kernel32.GetConsoleMode(handle, ctypes.byref(mode))
+        kernel32.SetConsoleMode(handle, mode.value | 0x0004)
+    except Exception:
+        pass
+
+
+if WINDOWS:
+    _enable_ansi_windows()
 
 _OK = "\033[32m[OK]\033[0m"
 _MISS = "\033[31m[MISSING]\033[0m"
@@ -668,7 +687,10 @@ def check_desktop_entry() -> bool:
 def run_doctor() -> int:
     """Run dependency health check. Returns 0 if all required deps pass."""
     pm = _detect_pkg_manager()
-    distro = _read_os_release().get('PRETTY_NAME', 'Unknown')
+    if LINUX:
+        distro = _read_os_release().get('PRETTY_NAME', 'Unknown')
+    else:
+        distro = platform.platform()
     all_ok = True
 
     print(f"\n  TRCC Doctor — {distro}\n")
@@ -701,54 +723,56 @@ def run_doctor() -> int:
     print()
     _check_gpu_packages()
 
-    # System libraries
-    print()
-    if not _check_library('libusb-1.0', 'usb-1.0', required=True, pm=pm,
-                          dep_key='libusb'):
-        all_ok = False
-    if pm == 'apt':
-        if not _check_library('libxcb-cursor', 'xcb-cursor', required=True, pm=pm,
-                              dep_key='libxcb-cursor'):
-            all_ok = False
-
-    # System binaries
-    print()
-    if not _check_binary('sg_raw', required=True, pm=pm,
-                         note='SCSI LCD devices'):
-        all_ok = False
-    if not _check_binary('7z', required=True, pm=pm,
-                         note='theme extraction'):
-        all_ok = False
-    _check_binary('ffmpeg', required=False, pm=pm, note='video playback')
-
-    # udev rules
-    print()
-    if not _check_udev_rules():
-        all_ok = False
-
-    # SELinux
-    se = check_selinux()
-    if se.enforcing:
+    # Linux-only checks — system libraries, binaries, udev, SELinux, RAPL, polkit
+    if LINUX:
+        # System libraries
         print()
-        if se.ok:
-            print(f"  {_OK}  {se.message}")
-        else:
-            print(f"  {_MISS}  {se.message}")
-            print("         run: sudo trcc setup-selinux")
+        if not _check_library('libusb-1.0', 'usb-1.0', required=True, pm=pm,
+                              dep_key='libusb'):
+            all_ok = False
+        if pm == 'apt':
+            if not _check_library('libxcb-cursor', 'xcb-cursor', required=True, pm=pm,
+                                  dep_key='libxcb-cursor'):
+                all_ok = False
+
+        # System binaries
+        print()
+        if not _check_binary('sg_raw', required=True, pm=pm,
+                             note='SCSI LCD devices'):
+            all_ok = False
+        if not _check_binary('7z', required=True, pm=pm,
+                             note='theme extraction'):
+            all_ok = False
+        _check_binary('ffmpeg', required=False, pm=pm, note='video playback')
+
+        # udev rules
+        print()
+        if not _check_udev_rules():
             all_ok = False
 
-    # RAPL power sensors
-    print()
-    _check_rapl_permissions()
+        # SELinux
+        se = check_selinux()
+        if se.enforcing:
+            print()
+            if se.ok:
+                print(f"  {_OK}  {se.message}")
+            else:
+                print(f"  {_MISS}  {se.message}")
+                print("         run: sudo trcc setup-selinux")
+                all_ok = False
 
-    # Polkit policy
-    print()
-    pk = check_polkit()
-    if pk.ok:
-        print(f"  {_OK}  {pk.message}")
-    else:
-        print(f"  {_OPT}  {pk.message}")
-        print("         run: trcc setup (or sudo trcc setup-polkit)")
+        # RAPL power sensors
+        print()
+        _check_rapl_permissions()
+
+        # Polkit policy
+        print()
+        pk = check_polkit()
+        if pk.ok:
+            print(f"  {_OK}  {pk.message}")
+        else:
+            print(f"  {_OPT}  {pk.message}")
+            print("         run: trcc setup (or sudo trcc setup-polkit)")
 
     # Summary
     print()
