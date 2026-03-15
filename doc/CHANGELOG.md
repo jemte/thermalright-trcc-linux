@@ -1,5 +1,10 @@
 # Changelog
 
+## v8.5.4
+
+### Improvements
+- **Windows installer bundles 7z.exe**: 7-Zip standalone (LGPL) downloaded and included in the `.exe` installer. Theme extraction works out of the box
+
 ## v8.5.3
 
 ### Fixes
