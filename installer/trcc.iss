@@ -49,7 +49,8 @@ Type: files; Name: "{app}\trcc-gui.exe"
 [Files]
 ; PyInstaller output directory (all DLLs, Python runtime, Qt, app code)
 Source: "..\dist\trcc\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-; WinUSB driver .inf for non-SCSI USB devices
+; WinUSB driver .inf kept for reference — not auto-installed (requires signed cert)
+; Users needing WinUSB (bulk/HID devices) are guided to Zadig via `trcc doctor`
 Source: "trcc-usb.inf"; DestDir: "{app}\driver"; Flags: ignoreversion
 
 [Icons]
@@ -60,9 +61,8 @@ Name: "{commondesktop}\TRCC"; Filename: "{app}\trcc-gui.exe"; Tasks: desktopicon
 Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\TRCC"; Filename: "{app}\trcc-gui.exe"; Tasks: quicklaunchicon
 
 [Run]
-; Install WinUSB driver for Thermalright USB devices (best-effort — device may not be connected yet)
-Filename: "pnputil.exe"; Parameters: "/add-driver ""{app}\driver\trcc-usb.inf"" /install"; \
-    StatusMsg: "Installing USB drivers..."; Flags: runhidden runascurrentuser
+; WinUSB driver not auto-installed (requires signed certificate).
+; Users with bulk/HID devices are guided to Zadig via `trcc doctor`.
 Filename: "{app}\trcc-gui.exe"; Description: "{cm:LaunchProgram,TRCC}"; Flags: nowait postinstall skipifsilent
 
 [Registry]

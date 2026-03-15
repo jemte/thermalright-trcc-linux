@@ -1,5 +1,12 @@
 # Changelog
 
+## v8.4.6
+
+### Improvements
+- **Windows: Zadig driver guidance**: `trcc setup-winusb` now prints step-by-step Zadig instructions with download link and lists all devices needing WinUSB. Removed unsigned `.inf` auto-install from installer (requires paid EV code signing certificate)
+- **Windows: doctor WinUSB detection**: `trcc doctor` detects connected devices needing WinUSB and shows their driver status (installed vs needs install via Zadig)
+- **Windows: detect hint**: `trcc detect` shows WinUSB guidance when no devices found on Windows
+
 ## v8.4.5
 
 ### Fixes

@@ -162,6 +162,10 @@ def detect(show_all=False):
     devices = detect_devices()
     if not devices:
         print("No compatible TRCC LCD device detected.")
+        from trcc.core.platform import WINDOWS
+        if WINDOWS:
+            print("\nOn Windows, non-SCSI devices (HID, Bulk, LY) need the")
+            print("WinUSB driver. Run 'trcc setup-winusb' for instructions.")
         return 1
 
     if show_all:

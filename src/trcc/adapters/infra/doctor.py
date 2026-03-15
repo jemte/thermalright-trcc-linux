@@ -774,6 +774,11 @@ def run_doctor() -> int:
             print(f"  {_OPT}  {pk.message}")
             print("         run: trcc setup (or sudo trcc setup-polkit)")
 
+    # Windows-only: check for devices needing WinUSB
+    if WINDOWS:
+        print()
+        _check_winusb_devices()
+
     # Summary
     print()
     if all_ok:
@@ -781,3 +786,46 @@ def run_doctor() -> int:
         return 0
     print("  Some required dependencies are missing.\n")
     return 1
+
+
+def _check_winusb_devices() -> None:
+    """Check if connected devices need WinUSB driver (Windows only)."""
+    try:
+        import wmi as wmi_mod  # pyright: ignore[reportMissingImports]
+    except ImportError:
+        return
+
+    from trcc.adapters.device.detector import (
+        _BULK_DEVICES,
+        _HID_LCD_DEVICES,
+        _LED_DEVICES,
+        _LY_DEVICES,
+    )
+    winusb_registries = {**_BULK_DEVICES, **_HID_LCD_DEVICES,
+                         **_LED_DEVICES, **_LY_DEVICES}
+
+    try:
+        w = wmi_mod.WMI()
+        for usb in w.Win32_PnPEntity():
+            dev_id = getattr(usb, 'DeviceID', '') or ''
+            if 'VID_' not in dev_id:
+                continue
+            import re
+            m = re.search(r'VID_([0-9A-Fa-f]{4})&PID_([0-9A-Fa-f]{4})', dev_id)
+            if not m:
+                continue
+            vid, pid = int(m.group(1), 16), int(m.group(2), 16)
+            if (vid, pid) not in winusb_registries:
+                continue
+            entry = winusb_registries[(vid, pid)]
+            status = getattr(usb, 'Status', 'Unknown')
+            service = getattr(usb, 'Service', '') or ''
+            if service.lower() == 'winusb':
+                print(f"  {_OK}  {entry.product} ({vid:04X}:{pid:04X}) — WinUSB")
+            else:
+                print(f"  {_OPT}  {entry.product} ({vid:04X}:{pid:04X}) — "
+                      f"needs WinUSB (status: {status})")
+                print("         Install via Zadig: https://zadig.akeo.ie/")
+                print("         Or run: trcc setup-winusb")
+    except Exception:
+        pass

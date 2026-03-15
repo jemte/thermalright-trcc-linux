@@ -537,13 +537,12 @@ def setup_polkit():
 
 
 def setup_winusb():
-    """Install WinUSB driver for Thermalright USB devices (Windows only).
+    """Guide WinUSB driver installation for Thermalright USB devices (Windows only).
 
-    Stages the bundled trcc-usb.inf via pnputil so Windows recognises
-    HID LCD, LED, Bulk, and LY devices.  SCSI devices use the default
-    USB Mass Storage driver and are not affected.
+    SCSI devices (Frozen Warframe, Elite Vision, etc.) use the default
+    USB Mass Storage driver and need no extra setup.
 
-    Must run as Administrator.
+    HID, Bulk, and LY devices need WinUSB — installed via Zadig.
     """
     from trcc.core.platform import WINDOWS
     if not WINDOWS:
@@ -551,38 +550,39 @@ def setup_winusb():
         print("On Linux, use: trcc setup-udev")
         return 1
 
-    # Locate the .inf — bundled next to the exe by Inno Setup,
-    # or in the installer/ directory for source installs.
-    pkg_root = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    candidates = [
-        Path(sys.executable).parent / "driver" / "trcc-usb.inf",  # installed
-        pkg_root.parent / "installer" / "trcc-usb.inf",           # source tree
-    ]
-    inf_path = next((p for p in candidates if p.exists()), None)
-    if inf_path is None:
-        print("trcc-usb.inf not found.")
-        print("If installed via .exe, it should be in the driver/ folder.")
-        return 1
+    # Detect which devices are connected and need WinUSB
+    from trcc.adapters.device.detector import (
+        _BULK_DEVICES,
+        _HID_LCD_DEVICES,
+        _LED_DEVICES,
+        _LY_DEVICES,
+    )
+    winusb_vids = set()
+    for registry in (_BULK_DEVICES, _HID_LCD_DEVICES, _LED_DEVICES, _LY_DEVICES):
+        for vid, pid in registry:
+            winusb_vids.add((vid, pid))
 
-    print(f"Installing WinUSB driver from {inf_path} ...")
-    try:
-        result = subprocess.run(
-            ["pnputil", "/add-driver", str(inf_path), "/install"],
-            capture_output=True, text=True, timeout=30,
-        )
-        print(result.stdout)
-        if result.returncode != 0:
-            print(result.stderr)
-            print("\nFailed. Make sure you are running as Administrator.")
-            return 1
-        print("WinUSB driver installed. Replug your device to activate.")
-        return 0
-    except FileNotFoundError:
-        print("pnputil.exe not found — this requires Windows 10 or later.")
-        return 1
-    except Exception as e:
-        print(f"Error: {e}")
-        return 1
+    print("\n  TRCC WinUSB Driver Setup\n")
+    print("  SCSI devices (Frozen Warframe, Elite Vision, CZTV, etc.)")
+    print("  use the default USB Mass Storage driver — no setup needed.\n")
+    print("  HID, Bulk, and LY devices need the WinUSB driver.")
+    print("  Install it using Zadig (free, open-source):\n")
+    print("  1. Download Zadig: https://zadig.akeo.ie/")
+    print("  2. Run Zadig → Options → List All Devices")
+    print("  3. Select your Thermalright device from the dropdown")
+    print("  4. Set target driver to WinUSB")
+    print("  5. Click 'Replace Driver' (or 'Install Driver')")
+    print("  6. Replug the USB device\n")
+    print("  Devices that need WinUSB:")
+    for vid, pid in sorted(winusb_vids):
+        # Look up friendly name
+        for registry in (_BULK_DEVICES, _HID_LCD_DEVICES, _LED_DEVICES, _LY_DEVICES):
+            if (vid, pid) in registry:
+                entry = registry[(vid, pid)]
+                print(f"    {vid:04X}:{pid:04X}  {entry.product}")
+                break
+    print()
+    return 0
 
 
 def _detect_install_method() -> str:
