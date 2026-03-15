@@ -1,5 +1,12 @@
 # Changelog
 
+## v8.4.2
+
+### Fixes
+- **Windows: `fcntl` module not found**: Deferred Unix-only `fcntl` import in `scsi.py` (moved to function level). Instance lock in `trcc_app.py` uses `msvcrt.locking` on Windows
+- **Windows: `python-multipart` missing**: Moved from dev to main dependencies — FastAPI requires it at runtime for form/file uploads, PyInstaller `collect-submodules` failed without it
+- **macOS: missing `app.icns`**: CI now generates `.icns` from `trcc.png` via `iconutil` at build time
+
 ## v8.4.1
 
 ### Fixes
