@@ -41,8 +41,9 @@ class VideoDecoder:
     def __init__(self, video_path: str, target_size: tuple[int, int] = (320, 320),
                  fit_mode: str = 'fill') -> None:
         if not FFMPEG_AVAILABLE:
+            from trcc.core.builder import ControllerBuilder
             raise RuntimeError(
-                "FFmpeg not available. Install: sudo dnf install ffmpeg"
+                ControllerBuilder.build_setup().ffmpeg_install_help()
             )
         self.frames: list[Image.Image] = []
         self.fps: int = 16  # Windows: originalImageHz = 16

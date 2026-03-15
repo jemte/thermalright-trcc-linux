@@ -27,6 +27,12 @@ class LinuxSetup(PlatformSetup):
         from trcc.adapters.infra.doctor import check_system_deps
         return check_system_deps(self.get_pkg_manager())
 
+    def ffmpeg_install_help(self) -> str:
+        from trcc.adapters.infra.doctor import _detect_pkg_manager, _install_hint
+        pm = _detect_pkg_manager()
+        hint = _install_hint('ffmpeg', pm)
+        return f"ffmpeg not found. Install:\n  {hint}" if hint else "ffmpeg not found"
+
     def resolve_assets_dir(self, pkg_assets_dir: Path) -> Path:
         """Linux: use package dir directly — no sandboxing issues."""
         return pkg_assets_dir

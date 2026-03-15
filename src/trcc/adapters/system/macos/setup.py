@@ -26,6 +26,9 @@ class MacOSSetup(PlatformSetup):
         from trcc.adapters.infra.doctor import check_system_deps
         return check_system_deps(self.get_pkg_manager())
 
+    def ffmpeg_install_help(self) -> str:
+        return "ffmpeg not found. Install:\n  brew install ffmpeg"
+
     def resolve_assets_dir(self, pkg_assets_dir: Path) -> Path:
         """macOS: copy to ~/.trcc/assets/gui/ to avoid app bundle paths."""
         return _copy_assets_to_user_dir(pkg_assets_dir)

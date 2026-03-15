@@ -318,6 +318,10 @@ class PlatformSetup(ABC):
         """Platform-specific instructions for installing 7z/p7zip."""
 
     @abstractmethod
+    def ffmpeg_install_help(self) -> str:
+        """Platform-specific instructions for installing ffmpeg."""
+
+    @abstractmethod
     def resolve_assets_dir(self, pkg_assets_dir: Any) -> Any:
         """Resolve the GUI assets directory for this platform.
 
