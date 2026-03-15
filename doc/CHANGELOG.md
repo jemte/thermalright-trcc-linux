@@ -1,5 +1,10 @@
 # Changelog
 
+## v8.4.12
+
+### Improvements
+- **`trcc report` shows install method**: Reports pip, pipx, pacman, dnf, apt, or .exe — helps triage user issues immediately
+
 ## v8.4.11
 
 ### Fixes
