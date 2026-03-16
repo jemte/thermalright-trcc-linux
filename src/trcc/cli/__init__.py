@@ -52,7 +52,14 @@ def _ensure_settings() -> None:
 
 
 def _ensure_system() -> None:
-    """Initialize SystemService singleton for CLI (once)."""
+    """Initialize SystemService singleton for CLI (once).
+
+    Settings must be initialized first — SystemService reads settings.hdd_enabled
+    and other preferences. Without this, any CLI command that touches metrics
+    (test-lcd, test-led, info) crashes on Windows with
+    ``'NoneType' object has no attribute 'hdd_enabled'``.
+    """
+    _ensure_settings()
     from trcc.services.system import _instance
     if _instance is None:
         from trcc.core.builder import ControllerBuilder

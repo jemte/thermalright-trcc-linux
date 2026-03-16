@@ -1,5 +1,12 @@
 # Changelog
 
+## v8.6.7
+
+### Fixes
+- **Windows `NoBackendError` — pyusb can't find libusb (#68)**: Python 3.8+ on Windows doesn't search the exe's directory for ctypes DLLs. Added `os.add_dll_directory()` at startup so the bundled `libusb-1.0.dll` is found by pyusb
+- **Windows `'NoneType' has no attribute 'hdd_enabled'` (#68)**: `_ensure_system()` created SystemService without initializing Settings first. Any CLI command touching metrics (`trcc test-lcd`, `trcc test-led`, `trcc info`) crashed. Now calls `_ensure_settings()` before SystemService creation
+- **Wrong device button image for bulk device 87AD:70DB (#68)**: `_BULK_DEVICES` entry for GrandVision 360 AIO inherited the default `button_image="A1CZTV"` instead of `"A1GRAND VISION"`. On Windows where assets may not resolve, this caused a text fallback with the wrong device name
+
 ## v8.6.6
 
 ### Features

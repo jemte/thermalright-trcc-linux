@@ -29,6 +29,18 @@ logging.basicConfig(
 log = logging.getLogger('trcc.main')
 log.info("Starting TRCC — platform=%s, executable=%s", sys.platform, sys.executable)
 
+# Windows: ensure libusb-1.0.dll is findable by pyusb (ctypes).
+# PyInstaller bundles the DLL next to the exe, but Python 3.8+ on Windows
+# doesn't search the exe's directory for ctypes DLLs unless explicitly told.
+# Without this, pyusb raises ``NoBackendError: No backend available``.
+if sys.platform == 'win32':
+    _app_dir = Path(sys.executable).parent
+    try:
+        os.add_dll_directory(str(_app_dir))
+        log.debug("Added DLL search directory: %s", _app_dir)
+    except (OSError, AttributeError):
+        pass  # add_dll_directory requires Python 3.8+ and a valid dir
+
 try:
     # Auto-launch GUI when invoked as trcc-gui.exe (windowed PyInstaller build)
     if os.path.basename(sys.executable).lower().startswith('trcc-gui'):

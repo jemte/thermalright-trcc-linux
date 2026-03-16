@@ -94,7 +94,8 @@ _LED_DEVICES: dict[tuple[int, int], DeviceEntry] = {
 _BULK_DEVICES: dict[tuple[int, int], DeviceEntry] = {
     (0x87AD, 0x70DB): DeviceEntry(
         vendor="ChiZhu Tech", product="GrandVision 360 AIO",
-        model="GRAND_VISION", implementation="bulk_usblcdnew",
+        model="GRAND_VISION", button_image="A1GRAND VISION",
+        implementation="bulk_usblcdnew",
         protocol="bulk", device_type=4,
     ),
 }
