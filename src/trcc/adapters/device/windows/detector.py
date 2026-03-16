@@ -171,6 +171,75 @@ def _match_device(
     return None
 
 
+def _scan_physical_drives_ctypes() -> list[tuple[str, str]]:
+    """Scan PhysicalDrive0..15 for USB-bus drives using ctypes.
+
+    Returns list of (drive_path, vendor_id_string) for USB-connected drives.
+    No WMI dependency — uses DeviceIoControl IOCTL_STORAGE_QUERY_PROPERTY.
+    """
+    import ctypes
+    import ctypes.wintypes  # pyright: ignore[reportMissingImports]
+
+    kernel32 = ctypes.windll.kernel32  # pyright: ignore[reportAttributeAccessIssue]
+
+    GENERIC_READ = 0x80000000
+    FILE_SHARE_RW = 0x3
+    OPEN_EXISTING = 3
+    IOCTL_STORAGE_QUERY_PROPERTY = 0x2D1400
+
+    # STORAGE_PROPERTY_QUERY: PropertyId=0 (StorageDeviceProperty), QueryType=0
+    query = (ctypes.c_ubyte * 12)()
+    query[0] = 0   # PropertyId = StorageDeviceProperty
+    query[4] = 0   # QueryType = PropertyStandardQuery
+
+    results: list[tuple[str, str]] = []
+
+    for i in range(16):
+        path = f'\\\\.\\PhysicalDrive{i}'
+        handle = kernel32.CreateFileW(
+            path, GENERIC_READ, FILE_SHARE_RW,
+            None, OPEN_EXISTING, 0, None,
+        )
+        if handle == -1:
+            continue
+        try:
+            # Query storage device descriptor (contains bus type + vendor ID)
+            out_buf = (ctypes.c_ubyte * 1024)()
+            bytes_returned = ctypes.wintypes.DWORD(0)
+            ok = kernel32.DeviceIoControl(
+                handle,
+                IOCTL_STORAGE_QUERY_PROPERTY,
+                ctypes.byref(query), ctypes.sizeof(query),
+                ctypes.byref(out_buf), ctypes.sizeof(out_buf),
+                ctypes.byref(bytes_returned),
+                None,
+            )
+            if not ok:
+                continue
+
+            # STORAGE_DEVICE_DESCRIPTOR layout:
+            #   offset 12: VendorIdOffset (DWORD) — offset to vendor string
+            #   offset 28: BusType (DWORD) — 7 = BusTypeUsb
+            bus_type = int.from_bytes(bytes(out_buf[28:32]), 'little')
+            if bus_type != 7:  # Not USB
+                continue
+
+            vendor_offset = int.from_bytes(bytes(out_buf[12:16]), 'little')
+            vendor = ''
+            if 0 < vendor_offset < 1024:
+                # Read null-terminated ASCII string
+                end = vendor_offset
+                while end < 1024 and out_buf[end] != 0:
+                    end += 1
+                vendor = bytes(out_buf[vendor_offset:end]).decode('ascii', errors='replace').strip()
+
+            results.append((path, vendor))
+        finally:
+            kernel32.CloseHandle(handle)
+
+    return results
+
+
 def _find_physical_drive(vid: int, pid: int) -> str | None:
     """Find the Windows physical drive path for a USB SCSI device.
 
@@ -190,7 +259,9 @@ def _find_physical_drive(vid: int, pid: int) -> str | None:
 
         # Strategy 1: VID directly in disk PNPDeviceID
         for disk in w.Win32_DiskDrive():
-            if vid_tag in (disk.PNPDeviceID or '').upper():
+            pnp = (disk.PNPDeviceID or '').upper()
+            log.debug("Strategy 1: disk %s PNP=%s", disk.DeviceID, pnp[:80])
+            if vid_tag in pnp:
                 return disk.DeviceID
 
         # Strategy 2: USBSTOR disks — PNPDeviceID uses vendor names
@@ -198,17 +269,22 @@ def _find_physical_drive(vid: int, pid: int) -> str | None:
         # Confirm the USB device exists, then find the USBSTOR disk
         # by matching known Thermalright USBSTOR vendor strings.
         _USBSTOR_VENDORS = ('VEN_USBLCD', 'VEN_THERMALR', 'VEN_WINBOND')
-        has_usb_device = any(
-            vid_tag in (rel.Dependent or '').upper()
-            and pid_tag in (rel.Dependent or '').upper()
-            for rel in w.Win32_USBControllerDevice()
-        )
+        has_usb_device = False
+        for rel in w.Win32_USBControllerDevice():
+            dep = str(rel.Dependent or '').upper()
+            if vid_tag in dep and pid_tag in dep:
+                has_usb_device = True
+                log.debug("USB parent found: %s", dep[:120])
+                break
+        log.debug("Strategy 2: has_usb_device=%s", has_usb_device)
         if has_usb_device:
             for disk in w.Win32_DiskDrive():
                 pnp_upper = (disk.PNPDeviceID or '').upper()
+                log.debug("Strategy 2: checking disk %s PNP=%s", disk.DeviceID, pnp_upper[:80])
                 if not pnp_upper.startswith('USBSTOR'):
                     continue
                 if any(v in pnp_upper for v in _USBSTOR_VENDORS):
+                    log.debug("Strategy 2: vendor match! %s", disk.DeviceID)
                     return disk.DeviceID
             # Fallback: no vendor match but USB device confirmed —
             # try any USBSTOR disk with zero/tiny capacity (LCD devices
@@ -221,6 +297,31 @@ def _find_physical_drive(vid: int, pid: int) -> str | None:
                 if size < 1_000_000:  # < 1MB = not a real storage device
                     log.debug("USBSTOR fallback: %s (size=%d)", disk.DeviceID, size)
                     return disk.DeviceID
-    except Exception:
-        log.debug("Could not find physical drive for %04X:%04X", vid, pid)
+    except Exception as e:
+        log.debug("WMI strategies failed for %04X:%04X: %s", vid, pid, e)
+
+    # Strategy 3: brute-force scan PhysicalDrive0..15 — no WMI needed.
+    # Query each drive's bus type via IOCTL_STORAGE_QUERY_PROPERTY.
+    # USB devices report BusTypeUsb (7). Filter to USB-bus drives only,
+    # then check vendor string for Thermalright LCD identifiers.
+    log.debug("Strategy 3: brute-force PhysicalDrive scan")
+    try:
+        usb_drives = _scan_physical_drives_ctypes()
+        for path, vendor in usb_drives:
+            log.debug("Strategy 3: USB drive %s vendor=%r", path, vendor)
+            # Match known LCD vendor strings from USBSTOR enumeration
+            v_upper = vendor.upper()
+            if any(k in v_upper for k in ('USBLCD', 'USB PRC', 'THERMALR', 'WINBOND')):
+                log.info("Strategy 3: vendor match at %s (%s)", path, vendor)
+                return path
+        # Fallback: if only one USB drive found and we confirmed VID/PID
+        # exists via WMI (or detection), it's likely our device
+        if len(usb_drives) == 1:
+            path, vendor = usb_drives[0]
+            log.info("Strategy 3: single USB drive fallback %s (%s)", path, vendor)
+            return path
+    except Exception as e:
+        log.debug("Strategy 3 failed: %s", e)
+
+    log.debug("Could not find physical drive for %04X:%04X", vid, pid)
     return None

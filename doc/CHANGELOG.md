@@ -1,5 +1,14 @@
 # Changelog
 
+## v8.7.1
+
+### Fixes
+- **Windows PhysicalDrive detection fails in PyInstaller builds**: WMI queries silently fail in frozen .exe, preventing SCSI devices from connecting. Added ctypes-based strategy 3: scans PhysicalDrive0..15 via `DeviceIoControl` `IOCTL_STORAGE_QUERY_PROPERTY`, filters by USB bus type, matches Thermalright LCD vendor strings. Falls back to single-USB-drive heuristic. No WMI dependency.
+- **Better debug logging for all Windows drive detection strategies**: Each strategy now logs disk paths, PNP IDs, vendor strings, and USB parent matches to aid troubleshooting
+
+### Tests
+- 4 new tests for ctypes PhysicalDrive scan strategy (5269 total across 92 files)
+
 ## v8.7.0
 
 ### Features

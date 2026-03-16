@@ -302,3 +302,62 @@ class TestFindPhysicalDrive:
             result = _find_physical_drive(0x0402, 0x3922)
 
         assert result is None
+
+    def test_strategy3_ctypes_vendor_match(self):
+        """Strategy 3: WMI fails, ctypes scan finds USB drive with LCD vendor."""
+        from trcc.adapters.device.windows.detector import _find_physical_drive
+
+        # WMI fails entirely
+        mock_wmi_mod = MagicMock()
+        mock_wmi_mod.WMI.side_effect = Exception("WMI unavailable")
+
+        # ctypes scan finds a USB drive with USBLCD vendor
+        with patch.dict('sys.modules', {'wmi': mock_wmi_mod}), \
+             patch(f'{MODULE}._scan_physical_drives_ctypes',
+                   return_value=[('\\\\.\\PhysicalDrive1', 'USBLCD')]):
+            result = _find_physical_drive(0x0402, 0x3922)
+
+        assert result == '\\\\.\\PhysicalDrive1'
+
+    def test_strategy3_single_usb_drive_fallback(self):
+        """Strategy 3: unknown vendor but only one USB drive — fallback match."""
+        from trcc.adapters.device.windows.detector import _find_physical_drive
+
+        mock_wmi_mod = MagicMock()
+        mock_wmi_mod.WMI.side_effect = Exception("WMI unavailable")
+
+        with patch.dict('sys.modules', {'wmi': mock_wmi_mod}), \
+             patch(f'{MODULE}._scan_physical_drives_ctypes',
+                   return_value=[('\\\\.\\PhysicalDrive2', 'UNKNOWN_DEVICE')]):
+            result = _find_physical_drive(0x0402, 0x3922)
+
+        assert result == '\\\\.\\PhysicalDrive2'
+
+    def test_strategy3_multiple_usb_drives_no_vendor_match(self):
+        """Strategy 3: multiple USB drives, no vendor match — returns None."""
+        from trcc.adapters.device.windows.detector import _find_physical_drive
+
+        mock_wmi_mod = MagicMock()
+        mock_wmi_mod.WMI.side_effect = Exception("WMI unavailable")
+
+        with patch.dict('sys.modules', {'wmi': mock_wmi_mod}), \
+             patch(f'{MODULE}._scan_physical_drives_ctypes',
+                   return_value=[('\\\\.\\PhysicalDrive1', 'KINGSTON'),
+                                 ('\\\\.\\PhysicalDrive2', 'SANDISK')]):
+            result = _find_physical_drive(0x0402, 0x3922)
+
+        assert result is None
+
+    def test_strategy3_no_usb_drives(self):
+        """Strategy 3: no USB drives found — returns None."""
+        from trcc.adapters.device.windows.detector import _find_physical_drive
+
+        mock_wmi_mod = MagicMock()
+        mock_wmi_mod.WMI.side_effect = Exception("WMI unavailable")
+
+        with patch.dict('sys.modules', {'wmi': mock_wmi_mod}), \
+             patch(f'{MODULE}._scan_physical_drives_ctypes',
+                   return_value=[]):
+            result = _find_physical_drive(0x0402, 0x3922)
+
+        assert result is None
