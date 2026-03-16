@@ -2,7 +2,7 @@
 #
 # Prerequisites (one-time setup):
 #   1. Install Python 3.12 from python.org (check "Add to PATH")
-#   2. pip install pyinstaller
+#   2. pip install python -m PyInstaller
 #   3. pip install ".[nvidia,windows]"
 #   4. pip install libusb-package
 #
@@ -17,11 +17,17 @@
 
 $ErrorActionPreference = "Stop"
 
+# Ensure Python Scripts dir is on PATH (pyinstaller lives there)
+$scriptsDir = python -c "import sysconfig; print(sysconfig.get_path('scripts'))"
+if ($scriptsDir -and (Test-Path $scriptsDir)) {
+  $env:PATH += ";$scriptsDir"
+}
+
 Write-Host "=== TRCC Windows Build ===" -ForegroundColor Cyan
 
 # Build CLI (with console)
 Write-Host "`n--- Building CLI ---" -ForegroundColor Yellow
-pyinstaller `
+python -m PyInstaller `
   --name trcc `
   --onedir `
   --console `
@@ -37,7 +43,7 @@ pyinstaller `
 
 # Build GUI (windowed, no console)
 Write-Host "`n--- Building GUI ---" -ForegroundColor Yellow
-pyinstaller `
+python -m PyInstaller `
   --name trcc-gui `
   --onedir `
   --windowed `
