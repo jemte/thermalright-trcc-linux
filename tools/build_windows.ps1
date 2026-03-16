@@ -25,6 +25,7 @@ pyinstaller `
   --name trcc `
   --onedir `
   --console `
+  --uac-admin `
   --icon src/trcc/assets/icons/app.ico `
   --add-data "src/trcc/assets;trcc/assets" `
   --hidden-import PySide6.QtSvg `
@@ -40,6 +41,7 @@ pyinstaller `
   --name trcc-gui `
   --onedir `
   --windowed `
+  --uac-admin `
   --icon src/trcc/assets/icons/app.ico `
   --add-data "src/trcc/assets;trcc/assets" `
   --hidden-import PySide6.QtSvg `
