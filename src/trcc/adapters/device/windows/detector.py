@@ -176,13 +176,51 @@ def _find_physical_drive(vid: int, pid: int) -> str | None:
 
     Maps USB VID:PID → PhysicalDrive via WMI disk associations.
     Returns e.g. '\\\\.\\PhysicalDrive2' or None.
+
+    Two lookup strategies:
+    1. Direct: disk PNPDeviceID contains VID_xxxx (some USB devices).
+    2. USBSTOR: disk is a USBSTOR child — trace USB parent via
+       Win32_USBControllerDevice to match VID/PID.
     """
+    vid_tag = f'VID_{vid:04X}'
+    pid_tag = f'PID_{pid:04X}'
     try:
         import wmi  # pyright: ignore[reportMissingImports]
         w = wmi.WMI()
+
+        # Strategy 1: VID directly in disk PNPDeviceID
         for disk in w.Win32_DiskDrive():
-            if f'VID_{vid:04X}' in (disk.PNPDeviceID or '').upper():
-                return disk.DeviceID  # e.g., \\.\PHYSICALDRIVE2
+            if vid_tag in (disk.PNPDeviceID or '').upper():
+                return disk.DeviceID
+
+        # Strategy 2: USBSTOR disks — PNPDeviceID uses vendor names
+        # (e.g. USBSTOR\DISK&VEN_USBLCD) instead of VID/PID.
+        # Confirm the USB device exists, then find the USBSTOR disk
+        # by matching known Thermalright USBSTOR vendor strings.
+        _USBSTOR_VENDORS = ('VEN_USBLCD', 'VEN_THERMALR', 'VEN_WINBOND')
+        has_usb_device = any(
+            vid_tag in (rel.Dependent or '').upper()
+            and pid_tag in (rel.Dependent or '').upper()
+            for rel in w.Win32_USBControllerDevice()
+        )
+        if has_usb_device:
+            for disk in w.Win32_DiskDrive():
+                pnp_upper = (disk.PNPDeviceID or '').upper()
+                if not pnp_upper.startswith('USBSTOR'):
+                    continue
+                if any(v in pnp_upper for v in _USBSTOR_VENDORS):
+                    return disk.DeviceID
+            # Fallback: no vendor match but USB device confirmed —
+            # try any USBSTOR disk with zero/tiny capacity (LCD devices
+            # report no real storage, unlike USB flash drives).
+            for disk in w.Win32_DiskDrive():
+                pnp_upper = (disk.PNPDeviceID or '').upper()
+                if not pnp_upper.startswith('USBSTOR'):
+                    continue
+                size = int(disk.Size or 0)
+                if size < 1_000_000:  # < 1MB = not a real storage device
+                    log.debug("USBSTOR fallback: %s (size=%d)", disk.DeviceID, size)
+                    return disk.DeviceID
     except Exception:
         log.debug("Could not find physical drive for %04X:%04X", vid, pid)
     return None

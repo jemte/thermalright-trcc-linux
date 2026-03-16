@@ -1,5 +1,13 @@
 # Changelog
 
+## v8.6.9
+
+### Fixes
+- **Windows SCSI device not found — USBSTOR PNPDeviceID lacks VID/PID (#68)**: `_find_physical_drive()` only matched `VID_xxxx` in the disk's PNPDeviceID, but Windows USBSTOR devices use vendor names instead (e.g. `VEN_USBLCD`). Added two-stage lookup: first try direct VID match, then confirm USB VID/PID via `Win32_USBControllerDevice` and match USBSTOR disks by known Thermalright vendor strings, with a size-based fallback (<1MB) for unknown vendors
+
+### Tests
+- 5 new tests for USBSTOR physical drive detection (5265 total across 92 files)
+
 ## v8.6.8
 
 ### Fixes
