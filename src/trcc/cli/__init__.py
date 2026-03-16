@@ -86,6 +86,7 @@ from trcc.cli import (  # noqa: E402
     _device,
     _diag,
     _display,
+    _i18n,
     _led,
     _system,
     _theme,
@@ -556,6 +557,28 @@ def _cmd_led_temp_unit(
 ) -> int:
     """Set LED segment display temperature unit."""
     return _led.set_temp_unit(unit)
+
+
+@app.command("lang")
+def _cmd_lang() -> int:
+    """Show current language."""
+    return _i18n.get_language()
+
+
+@app.command("lang-set")
+def _cmd_lang_set(
+    code: Annotated[str, typer.Argument(
+        help="ISO 639-1 language code (e.g., en, de, ja, zh)",
+    )],
+) -> int:
+    """Set the application language."""
+    return _i18n.set_language(code)
+
+
+@app.command("lang-list")
+def _cmd_lang_list() -> int:
+    """List all available languages."""
+    return _i18n.get_languages()
 
 
 @app.command("split")
@@ -1061,6 +1084,11 @@ load_theme = _theme.load_theme
 save_theme = _theme.save_theme
 export_theme = _theme.export_theme
 import_theme = _theme.import_theme
+
+# Language commands
+get_languages = _i18n.get_languages
+get_language = _i18n.get_language
+set_language = _i18n.set_language
 
 # LED commands
 led_color = _led.set_color

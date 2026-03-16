@@ -435,6 +435,57 @@ trcc api
 
 ---
 
+### `trcc lang`
+
+Show the current application language.
+
+```bash
+trcc lang
+```
+
+**Example output:**
+```
+en (English)
+```
+
+---
+
+### `trcc lang-set`
+
+Set the application language by ISO 639-1 code.
+
+```bash
+trcc lang-set de        # German
+trcc lang-set ja        # Japanese
+trcc lang-set zh        # Chinese
+```
+
+Persists to config. Affects GUI labels and localized assets.
+
+---
+
+### `trcc lang-list`
+
+List all available languages with ISO codes and native names.
+
+```bash
+trcc lang-list
+```
+
+**Example output:**
+```
+Available languages (38):
+  de     Deutsch
+  en     English
+  es     Español
+  fr     Français
+  ja     日本語
+  ko     한국어
+  ...
+```
+
+---
+
 ### `trcc brightness`
 
 Set display brightness level.

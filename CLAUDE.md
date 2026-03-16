@@ -9,8 +9,8 @@
 - **Devices** (`core/lcd_device.py`, `core/led_device.py`): Application-layer facades in `core/`. Strict DI — `RuntimeError` if `device_svc` or `build_services_fn` not injected. Zero adapter imports. Delegate to services and return result dicts.
 - **Builder** (`core/builder.py`): `ControllerBuilder` — fluent builder, assembles devices with DI, returns `LCDDevice`/`LEDDevice`. Composition root: imports adapters to inject into services.
 - **Views** (`qt_components/`): PySide6 GUI adapter. `TRCCApp` (thin shell) + `LCDHandler`/`LEDHandler` (one per device).
-- **CLI** (`cli/`): Typer CLI adapter (package: `__init__.py` + 7 submodules). Thin presentation wrappers over `LCDDevice`/`LEDDevice` — connect, call device method, print result.
-- **API** (`api/`): FastAPI REST adapter (package: `__init__.py` + 7 submodules). 46 endpoints covering devices, display, LED, themes, system metrics, and i18n. Includes WebSocket live preview stream + cloud theme download. Uses `LCDDevice`/`LEDDevice` from core/. `_current_image` tracks last frame sent for preview endpoints.
+- **CLI** (`cli/`): Typer CLI adapter (package: `__init__.py` + 8 submodules). Thin presentation wrappers over `LCDDevice`/`LEDDevice` — connect, call device method, print result. Includes i18n commands (`lang`, `lang-set`, `lang-list`).
+- **API** (`api/`): FastAPI REST adapter (package: `__init__.py` + 7 submodules). 49 endpoints covering devices, display, LED, themes, system metrics, and i18n. Includes WebSocket live preview stream + cloud theme download + theme export + display/LED test. Uses `LCDDevice`/`LEDDevice` from core/. `_current_image` tracks last frame sent for preview endpoints.
 - **Config** (`conf.py`): Application settings with DI — `Settings(path_resolver)` receives a `PlatformSetup` adapter via constructor. `init_settings(resolver)` called by composition roots (CLI, GUI, API). Single source of truth for all mutable app state.
 - **Entry**: `cli/` → `trcc_app.py` (TRCCApp) → builder.build_lcd()/build_led()
 - **Protocols**: SCSI (LCD frames), HID (handshake/resolution), LED (RGB effects + segment displays)
@@ -127,7 +127,7 @@ Every piece of data has exactly ONE owner. Violations = bugs.
 - **Logging**: Use `log = logging.getLogger(__name__)` — never `print()` for diagnostics
 - **Paths**: Use `pathlib.Path` where possible; `os.path` only in `data_repository.py` (legacy, perf)
 - **Thread safety**: Use Qt signals to communicate from background threads to GUI — never `QTimer.singleShot` from non-main threads
-- **Tests**: `pytest` with `PYTHONPATH=src`; 4660 tests across 57+ files in 9 directories mirroring `src/trcc/` hexagonal layers (`tests/{core,services,adapters/{device,infra,system},cli,api,qt_components}/`). Cross-cutting tests at `tests/` root. When refactoring changes mock targets, use `conftest.py` fixtures/helpers — never update 50+ individual test mock paths inline. Shared mock helpers go in conftest.
+- **Tests**: `pytest` with `PYTHONPATH=src`; 5258 tests across 92 files in 9 directories mirroring `src/trcc/` hexagonal layers (`tests/{core,services,adapters/{device,infra,system},cli,api,qt_components}/`). Cross-cutting tests at `tests/` root. When refactoring changes mock targets, use `conftest.py` fixtures/helpers — never update 50+ individual test mock paths inline. Shared mock helpers go in conftest.
 - **Linting**: `ruff check .` + `pyright` must pass before any commit (0 errors, 0 warnings)
 - **Security**: Zero tolerance for CodeQL / OWASP findings — see **Security** section below
 - **Assets**: All GUI asset access goes through `Assets` class (`qt_components/assets.py`). Auto-appends `.png` for base names. Never manually build asset paths with `f"{name}.png"`.

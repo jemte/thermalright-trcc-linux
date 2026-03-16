@@ -55,7 +55,7 @@ Health check. Always accessible, no auth required.
 
 **Response:**
 ```json
-{"status": "ok", "version": "8.6.5"}
+{"status": "ok", "version": "8.6.6"}
 ```
 
 ---
@@ -178,6 +178,15 @@ Set split mode (Dynamic Island). Persists to config.
 ```
 
 Values: `0` (off), `1`-`3` (Dynamic Island variants).
+
+### `POST /display/test`
+
+Run a color cycle test on the connected LCD. Cycles through 7 colors (red, green, blue, yellow, magenta, cyan, white) with 1-second pauses. Stops any running video/overlay first.
+
+**Response:**
+```json
+{"success": true, "message": "Test complete — cycled 7 colors on 320x320"}
+```
 
 ### `POST /display/reset`
 
@@ -347,6 +356,19 @@ Import a `.tr` theme archive. Max 50 MB.
 |-----------|------|-------------|
 | `file` | file | `.tr` theme archive |
 
+### `POST /themes/export`
+
+Export a theme as a downloadable `.tr` archive.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `theme_name` | string | required | Theme name (exact or partial match) |
+| `resolution` | string | "320x320" | Resolution filter |
+
+**Response:** Binary `.tr` file download (`application/octet-stream`).
+
+**Errors:** `400` invalid name, `404` theme not found.
+
 ### `GET /themes/web`
 
 List available cloud theme previews for a given resolution.
@@ -510,6 +532,30 @@ Set segment display temperature unit.
 **Body:** `{"unit": "C"}`
 
 Values: `C` (Celsius), `F` (Fahrenheit).
+
+### Test
+
+#### `POST /led/test`
+
+Run LED preview with real system metrics. No device needed — useful for testing without hardware.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `mode` | string | "static" | LED mode: static, breathing, colorful, rainbow |
+| `segments` | int | 64 | Number of LED segments to simulate |
+
+**Response:**
+```json
+{
+  "success": true,
+  "mode": "static",
+  "segments": 10,
+  "colors": [
+    {"r": 255, "g": 0, "b": 0},
+    {"r": 255, "g": 0, "b": 0}
+  ]
+}
+```
 
 ### Status
 

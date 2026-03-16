@@ -123,6 +123,62 @@ def set_temp_unit(body: TempUnitRequest) -> dict:
     return _led_route("set_temp_unit", body.unit)
 
 
+# ── Test endpoint ─────────────────────────────────────────────────────
+
+
+@router.post("/test")
+def test_led(
+    mode: str = "static",
+    segments: int = 64,
+) -> dict:
+    """Run LED preview with real system metrics. No device needed.
+
+    Returns computed LED colors for the given mode and segment count.
+    Useful for testing without hardware.
+    """
+    from trcc.core.models import LEDMode, LEDState
+    from trcc.services.led import LEDService
+
+    modes = {
+        'static': LEDMode.STATIC,
+        'breathing': LEDMode.BREATHING,
+        'colorful': LEDMode.COLORFUL,
+        'rainbow': LEDMode.RAINBOW,
+    }
+
+    key = mode.lower()
+    if key not in modes:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown mode '{mode}'. Choose: {', '.join(modes)}",
+        )
+
+    import trcc.api as api
+
+    state = LEDState()
+    state.mode = modes[key]
+    state.color = (255, 0, 0) if modes[key] == LEDMode.STATIC else (0, 255, 255)
+    state.segment_count = segments
+    state.global_on = True
+    state.brightness = 100
+    svc = LEDService(state=state)
+
+    if api._system_svc:
+        svc.update_metrics(api._system_svc.all_metrics)
+
+    colors = svc.tick()
+
+    return {
+        "success": True,
+        "mode": key,
+        "segments": segments,
+        "colors": [
+            {"r": c[0], "g": c[1], "b": c[2]}
+            for c in colors
+        ],
+    }
+
+
 # ── Status ─────────────────────────────────────────────────────────────
 
 @router.get("/status")

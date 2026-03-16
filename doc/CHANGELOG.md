@@ -1,5 +1,19 @@
 # Changelog
 
+## v8.6.6
+
+### Features
+- **CLI/API parity**: Closed feature gaps between CLI and API adapters
+  - **API**: `POST /themes/export` — download a theme as `.tr` archive
+  - **API**: `POST /display/test` — run color cycle test on connected LCD
+  - **API**: `POST /led/test` — software LED preview with real metrics (no device needed)
+  - **CLI**: `trcc lang` — show current language
+  - **CLI**: `trcc lang-set <code>` — set application language by ISO 639-1 code
+  - **CLI**: `trcc lang-list` — list all available languages
+
+### Tests
+- 17 new tests covering all new endpoints and commands (5258 total across 92 files)
+
 ## v8.6.5
 
 ### Fixes

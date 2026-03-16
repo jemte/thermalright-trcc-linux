@@ -643,5 +643,88 @@ class TestSettingsCorruptJSON(unittest.TestCase):
             self.assertEqual(result, '/dev/sg0')
 
 
+# ── i18n CLI commands ─────────────────────────────────────────────────
+
+
+class TestI18nDispatch(unittest.TestCase):
+    """Test main() dispatch for lang/lang-set/lang-list commands."""
+
+    @patch('trcc.cli._i18n.get_languages', return_value=0)
+    def test_dispatch_lang_list(self, mock_fn):
+        with patch('sys.argv', ['trcc', 'lang-list']):
+            result = main()
+        mock_fn.assert_called_once()
+        self.assertEqual(result, 0)
+
+    @patch('trcc.cli._i18n.get_language', return_value=0)
+    def test_dispatch_lang(self, mock_fn):
+        with patch('sys.argv', ['trcc', 'lang']):
+            result = main()
+        mock_fn.assert_called_once()
+        self.assertEqual(result, 0)
+
+    @patch('trcc.cli._i18n.set_language', return_value=0)
+    def test_dispatch_lang_set(self, mock_fn):
+        with patch('sys.argv', ['trcc', 'lang-set', 'de']):
+            result = main()
+        mock_fn.assert_called_once_with('de')
+        self.assertEqual(result, 0)
+
+
+class TestI18nCommands(unittest.TestCase):
+    """Test i18n CLI command implementations."""
+
+    @patch('trcc.cli._ensure_renderer')
+    @patch('trcc.cli._ensure_settings')
+    def test_get_languages_lists_all(self, mock_settings, mock_renderer):
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            from trcc.cli._i18n import get_languages
+            result = get_languages()
+        self.assertEqual(result, 0)
+        output = buf.getvalue()
+        self.assertIn("en", output)
+        self.assertIn("English", output)
+        self.assertIn("de", output)
+        self.assertIn("Deutsch", output)
+
+    @patch('trcc.conf.settings')
+    @patch('trcc.cli._ensure_renderer')
+    @patch('trcc.cli._ensure_settings')
+    def test_get_language_shows_current(self, mock_settings_fn, mock_renderer,
+                                        mock_settings):
+        mock_settings.lang = 'ja'
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            from trcc.cli._i18n import get_language
+            result = get_language()
+        self.assertEqual(result, 0)
+        output = buf.getvalue()
+        self.assertIn("ja", output)
+
+    @patch('trcc.conf.settings')
+    @patch('trcc.cli._ensure_renderer')
+    @patch('trcc.cli._ensure_settings')
+    def test_set_language_valid(self, mock_settings_fn, mock_renderer,
+                                mock_settings):
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            from trcc.cli._i18n import set_language
+            result = set_language('de')
+        self.assertEqual(result, 0)
+        self.assertEqual(mock_settings.lang, 'de')
+        self.assertIn("Deutsch", buf.getvalue())
+
+    @patch('trcc.cli._ensure_renderer')
+    @patch('trcc.cli._ensure_settings')
+    def test_set_language_invalid(self, mock_settings, mock_renderer):
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            from trcc.cli._i18n import set_language
+            result = set_language('zzz')
+        self.assertEqual(result, 1)
+        self.assertIn("Unknown", buf.getvalue())
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -12,7 +12,7 @@
 [![Platform](https://img.shields.io/badge/platform-Linux-FCC624?logo=linux&logoColor=black)](https://github.com/Lexonight1/thermalright-trcc-linux)
 
 [![CI](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/ci.yml/badge.svg)](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-5243_passed-brightgreen.svg)](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-5258_passed-brightgreen.svg)](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-72%25-brightgreen.svg)](https://github.com/Lexonight1/thermalright-trcc-linux/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://python.org)
 [![Code Style](https://img.shields.io/badge/code_style-ruff-D7FF64?logo=ruff&logoColor=black)](https://docs.astral.sh/ruff/)
@@ -60,13 +60,13 @@ Pre-built packages are available for every major distro. No pip, no venv, no PEP
 
 **Fedora / openSUSE / Nobara:**
 ```bash
-sudo dnf install https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux-8.6.5-1.fc43.noarch.rpm
+sudo dnf install https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux-8.6.6-1.fc43.noarch.rpm
 ```
 
 **Ubuntu 24.04+ / Debian 13+ / Mint 22+ / Pop!_OS 24.04+ / Zorin 17+:**
 ```bash
-curl -LO https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux_8.6.5-1_all.deb
-sudo dpkg -i trcc-linux_8.6.5-1_all.deb
+curl -LO https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux_8.6.6-1_all.deb
+sudo dpkg -i trcc-linux_8.6.6-1_all.deb
 sudo apt-get install -f    # pulls in any missing dependencies
 ```
 
@@ -74,8 +74,8 @@ sudo apt-get install -f    # pulls in any missing dependencies
 
 **Arch / CachyOS / Manjaro / EndeavourOS / Garuda:**
 ```bash
-curl -LO https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux-8.6.5-1-any.pkg.tar.zst
-sudo pacman -U trcc-linux-8.6.5-1-any.pkg.tar.zst
+curl -LO https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux-8.6.6-1-any.pkg.tar.zst
+sudo pacman -U trcc-linux-8.6.6-1-any.pkg.tar.zst
 ```
 
 **NixOS** — add to your `flake.nix` inputs:
@@ -102,8 +102,8 @@ That's it! If your device isn't detected, run `trcc detect --all` to see what's 
 
 | OS | Download | Notes |
 |----|----------|-------|
-| **Windows 10/11** | [`trcc-8.6.5-setup.exe`](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest) | GUI + CLI, bundles 7z/ffmpeg/libusb |
-| **macOS 11+** | [`trcc-8.6.5-macos.dmg`](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest) | Drag to Applications, `brew install libusb` first |
+| **Windows 10/11** | [`trcc-8.6.6-setup.exe`](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest) | GUI + CLI, bundles 7z/ffmpeg/libusb |
+| **macOS 11+** | [`trcc-8.6.6-macos.dmg`](https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest) | Drag to Applications, `brew install libusb` first |
 | **FreeBSD** | `pip install trcc-linux` | PyPI only, needs `libusb` + `py311-pyusb` |
 
 See the **[Install Guide](doc/GUIDE_INSTALL.md)** for detailed setup instructions, requirements, and troubleshooting for each platform.
@@ -209,7 +209,7 @@ trcc serve --tls              # HTTPS with auto-generated self-signed cert
 trcc serve --host 0.0.0.0     # Listen on all interfaces (LAN access)
 ```
 
-46 endpoints covering devices, display, LED, themes, and system metrics. Use `trcc api` to list all endpoints.
+49 endpoints covering devices, display, LED, themes, and system metrics. Use `trcc api` to list all endpoints.
 
 ```bash
 # Examples with curl
@@ -251,7 +251,7 @@ curl -X POST http://localhost:9876/led/color \
 |----------|-------------|
 | **GUI** | Full PySide6 desktop app — theme browser, video player, overlay editor, LED control panel, 38 languages |
 | **CLI** | 50 commands — `trcc gui`, `trcc send`, `trcc video`, `trcc led-color`, `trcc screencast`, and more |
-| **REST API** | 46 endpoints — control everything remotely, build integrations, automate your setup |
+| **REST API** | 49 endpoints — control everything remotely, build integrations, automate your setup |
 | **Themes** | Local, cloud, and masks — carousel mode, export/import as `.tr` files, custom mask upload with X/Y positioning, 5 starters + 120 masks per resolution |
 | **Media** | Video/GIF playback, video trimmer, image cropper, screen cast (X11 + Wayland) |
 | **Overlay Editor** | Text, sensors, date/time overlays — font picker, dynamic scaling, color picker |
@@ -266,7 +266,7 @@ curl -X POST http://localhost:9876/led/color \
 ### What we do better than Windows TRCC
 
 - **38 languages** — Windows has 10 (baked into PNGs). We render text at runtime, community can add more
-- **CLI + REST API** — Windows is GUI-only. We have 50 CLI commands and 46 API endpoints for automation
+- **CLI + REST API** — Windows is GUI-only. We have 53 CLI commands and 49 API endpoints for automation
 - **Custom mask upload** — upload your own PNG overlay, position with X/Y controls, saved to `~/.trcc-user/`
 - **No admin required** — udev rules handle permissions. Windows needs "Run as Administrator"
 - **Open source** — read the code, fix bugs, add features. Windows TRCC is closed-source .NET
@@ -326,7 +326,7 @@ src/trcc/
 ├── adapters/       # USB device protocols (SCSI, HID, Bulk, LY, LED)
 ├── qt_components/  # PySide6 GUI (themes, video, overlay, LED, sensors)
 ├── cli/            # Typer CLI — 50 commands across 8 modules
-├── api/            # FastAPI REST API — 46 endpoints across 7 modules
+├── api/            # FastAPI REST API — 49 endpoints across 7 modules
 ├── conf.py         # Settings singleton
 └── assets/         # GUI images, desktop entry, polkit policy, systemd service
 ```

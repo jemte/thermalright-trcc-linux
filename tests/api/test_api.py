@@ -2671,5 +2671,144 @@ class TestIPCPauseResume(unittest.TestCase):
         self.assertTrue(mock_display.auto_send)
 
 
+# ── Theme export endpoint ─────────────────────────────────────────────
+
+
+class TestThemeExportEndpoint(unittest.TestCase):
+    """POST /themes/export — export theme as .tr archive."""
+
+    def setUp(self):
+        configure_auth(None)
+        self.client = TestClient(app)
+
+    def test_export_invalid_theme_name(self):
+        resp = self.client.post("/themes/export?theme_name=../../etc/passwd")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Invalid theme name", resp.json()["detail"])
+
+    def test_export_invalid_resolution(self):
+        resp = self.client.post("/themes/export?theme_name=Theme001&resolution=bad")
+        self.assertEqual(resp.status_code, 400)
+
+    @patch('trcc.services.ThemeService.discover_local', return_value=[])
+    @patch('trcc.adapters.infra.data_repository.DataManager.ensure_themes')
+    @patch('trcc.adapters.infra.data_repository.ThemeDir.for_resolution')
+    def test_export_theme_not_found(self, mock_td, mock_ensure, mock_discover):
+        mock_td.return_value = MagicMock(__str__=lambda s: '/tmp/themes')
+        resp = self.client.post("/themes/export?theme_name=NonExistent")
+        self.assertEqual(resp.status_code, 404)
+
+    @patch('trcc.services.ThemeService.discover_local')
+    @patch('trcc.adapters.infra.data_repository.DataManager.ensure_themes')
+    @patch('trcc.adapters.infra.data_repository.ThemeDir.for_resolution')
+    @patch('trcc.services.ThemeService.export_tr')
+    def test_export_theme_success(self, mock_export, mock_td, mock_ensure, mock_discover):
+        from trcc.core.models import ThemeInfo
+        theme = ThemeInfo(name="CyberPunk", path=Path("/tmp/themes/CyberPunk"))
+        mock_discover.return_value = [theme]
+        mock_td.return_value = MagicMock(__str__=lambda s: '/tmp/themes')
+
+        # Create a real temp file for FileResponse
+        with tempfile.NamedTemporaryFile(suffix='.tr', delete=False) as f:
+            f.write(b"fake theme archive")
+            tmp_path = f.name
+
+        mock_export.return_value = (True, f"Exported to {tmp_path}")
+
+        with patch('tempfile.NamedTemporaryFile') as mock_tmp:
+            mock_file = MagicMock()
+            mock_file.name = tmp_path
+            mock_file.close = MagicMock()
+            mock_tmp.return_value = mock_file
+
+            resp = self.client.post("/themes/export?theme_name=CyberPunk")
+            self.assertEqual(resp.status_code, 200)
+
+        Path(tmp_path).unlink(missing_ok=True)
+
+
+# ── Display test endpoint ─────────────────────────────────────────────
+
+
+class TestDisplayTestEndpoint(unittest.TestCase):
+    """POST /display/test — color cycle test."""
+
+    def setUp(self):
+        configure_auth(None)
+        self.client = TestClient(app)
+
+    def test_display_test_no_device(self):
+        api_module._display_dispatcher = None
+        resp = self.client.post("/display/test")
+        self.assertEqual(resp.status_code, 409)
+
+    @patch('time.sleep')
+    @patch('trcc.services.ImageService.solid_color')
+    @patch('trcc.api.stop_overlay_loop')
+    @patch('trcc.api.stop_video_playback')
+    def test_display_test_success(self, mock_stop_v, mock_stop_o, mock_solid, mock_sleep):
+        mock_lcd = MagicMock()
+        mock_lcd.connected = True
+        mock_lcd.resolution = (320, 320)
+        mock_lcd.frame.send_color.return_value = {"success": True, "message": "ok"}
+        api_module._display_dispatcher = mock_lcd
+
+        mock_img = MagicMock()
+        mock_solid.return_value = mock_img
+
+        resp = self.client.post("/display/test")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data["success"])
+        self.assertIn("7 colors", data["message"])
+        # 7 colors = 7 calls
+        self.assertEqual(mock_lcd.frame.send_color.call_count, 7)
+        self.assertEqual(mock_sleep.call_count, 7)
+
+        api_module._display_dispatcher = None
+
+
+# ── LED test endpoint ─────────────────────────────────────────────────
+
+
+class TestLEDTestEndpoint(unittest.TestCase):
+    """POST /led/test — software preview, no device needed."""
+
+    def setUp(self):
+        configure_auth(None)
+        self.client = TestClient(app)
+
+    def test_led_test_static(self):
+        resp = self.client.post("/led/test?mode=static&segments=10")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["mode"], "static")
+        self.assertEqual(data["segments"], 10)
+        self.assertEqual(len(data["colors"]), 10)
+        # Each color has r, g, b keys
+        self.assertIn("r", data["colors"][0])
+
+    def test_led_test_rainbow(self):
+        resp = self.client.post("/led/test?mode=rainbow&segments=5")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["mode"], "rainbow")
+        self.assertEqual(len(data["colors"]), 5)
+
+    def test_led_test_invalid_mode(self):
+        resp = self.client.post("/led/test?mode=disco")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Unknown mode", resp.json()["detail"])
+
+    def test_led_test_default_mode(self):
+        resp = self.client.post("/led/test")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["mode"], "static")
+        self.assertEqual(data["segments"], 64)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -5,6 +5,7 @@ import logging
 import os
 
 from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi.responses import Response
 
 from trcc.api.models import (
     MaskResponse,
@@ -287,6 +288,60 @@ def save_theme(body: ThemeSaveRequest) -> dict:
         raise HTTPException(status_code=500, detail="No configuration to save")
 
     return {"success": True, "message": f"Theme '{body.name}' saved", "name": body.name}
+
+
+@router.post("/export")
+def export_theme(theme_name: str, resolution: str = "320x320") -> Response:
+    """Export a theme as a downloadable .tr archive."""
+    import re
+    import tempfile
+    from pathlib import Path
+
+    from fastapi.responses import FileResponse
+
+    # Validate theme_name — no path traversal
+    if not re.fullmatch(r'[a-zA-Z0-9_ \-().]+', theme_name):
+        raise HTTPException(status_code=400, detail="Invalid theme name")
+
+    w, h = _parse_resolution(resolution)
+
+    from trcc.adapters.infra.data_repository import DataManager, ThemeDir
+    DataManager.ensure_themes(w, h)
+    td = ThemeDir.for_resolution(w, h)
+    theme_dir = Path(str(td))
+
+    themes = ThemeService.discover_local(theme_dir, (w, h))
+    match = next((t for t in themes if t.name == theme_name), None)
+    if not match:
+        match = next(
+            (t for t in themes if theme_name.lower() in t.name.lower()),
+            None,
+        )
+    if not match or not match.path:
+        raise HTTPException(status_code=404, detail=f"Theme not found: {theme_name}")
+
+    from trcc.adapters.infra.dc_config import DcConfig
+    from trcc.adapters.infra.dc_parser import load_config_json
+    from trcc.adapters.infra.dc_writer import export_theme as _export_fn
+    theme_svc = ThemeService(
+        export_theme_fn=_export_fn,
+        load_config_json_fn=load_config_json,
+        dc_config_cls=DcConfig,
+    )
+
+    tmp = tempfile.NamedTemporaryFile(suffix='.tr', delete=False)
+    tmp.close()
+    ok, msg = theme_svc.export_tr(match.path, Path(tmp.name))
+    if not ok:
+        Path(tmp.name).unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail=msg)
+
+    return FileResponse(
+        tmp.name,
+        media_type="application/octet-stream",
+        filename=f"{match.name}.tr",
+        background=None,
+    )
 
 
 @router.post("/import")

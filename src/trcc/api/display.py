@@ -191,6 +191,49 @@ def video_status() -> VideoStatusResponse:
     )
 
 
+# ── Test endpoint ─────────────────────────────────────────────────────
+
+
+@router.post("/test")
+def test_display() -> dict:
+    """Send a color cycle test to the LCD device.
+
+    Cycles through 7 colors (red, green, blue, yellow, magenta, cyan, white),
+    sending each as a solid frame with a 1-second pause between them.
+    """
+    import time
+
+    import trcc.api as api
+
+    lcd = _get_display()
+    api.stop_video_playback()
+    api.stop_overlay_loop()
+
+    w, h = lcd.resolution  # type: ignore[union-attr]
+
+    colors = [
+        (255, 0, 0, "Red"),
+        (0, 255, 0, "Green"),
+        (0, 0, 255, "Blue"),
+        (255, 255, 0, "Yellow"),
+        (255, 0, 255, "Magenta"),
+        (0, 255, 255, "Cyan"),
+        (255, 255, 255, "White"),
+    ]
+
+    from trcc.services import ImageService
+
+    for r, g, b, _name in colors:
+        img = ImageService.solid_color(r, g, b, w, h)
+        lcd.frame.send_color(r, g, b)
+        time.sleep(1)
+
+    # Update preview with last frame
+    api.set_current_image(img)  # type: ignore[possibly-undefined]
+
+    return {"success": True, "message": f"Test complete — cycled {len(colors)} colors on {w}x{h}"}
+
+
 # ── Preview helpers ───────────────────────────────────────────────────
 
 
