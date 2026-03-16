@@ -46,6 +46,10 @@ These devices have been tested on real Linux hardware by contributors:
 | GrandVision 360 AIO | `87AD:70DB` | Bulk | [Reborn627](https://github.com/Reborn627) |
 | Peerless Assassin 120 Digital ARGB (LED) | `0416:8001` | HID LED | [Pewful2021](https://github.com/Pewful2021) |
 | Frozen Warframe 240 (HID) | `0416:5302` | HID Type 2 | [riodevelop](https://github.com/riodevelop), [wobbegongus](https://github.com/wobbegongus) |
+| HID Type 2 (generic) | `0416:5302` | HID Type 2 | [mog199](https://github.com/mog199) |
+| PA120 DIGITAL LCD | `0416:8040` | HID | [lallemandgianni-boop](https://github.com/lallemandgianni-boop) |
+| Stream Vision | `87AD:70DB` | Bulk | [Me-shok](https://github.com/Me-shok) |
+| Wonder Vision 360 UB ARGB | `87AD:70DB` | Bulk | [Alb3e3](https://github.com/Alb3e3) (Windows) |
 
 ## Need Testers — Custom Overlay Masks (v8.3.8)
 
@@ -88,7 +92,7 @@ These use PID `0416:8001` for RGB LED ring control. The device model is auto-det
 |--------|---------|-----------|--------|
 | AX120 DIGITAL | 3 | Style 1 (30 LEDs, 10 segments) | Confirmed working |
 | PA120 DIGITAL ARGB | 16 | Style 2 (84 LEDs, 18 segments) | Confirmed working |
-| Peerless Assassin 120 DIGITAL | — | — | LED detected, handshake failed |
+| Peerless Assassin 120 DIGITAL | — | — | Confirmed working ([Pewful2021](https://github.com/Pewful2021)) |
 | RK120 DIGITAL | 23 | Style 2 | Untested |
 | AK120 DIGITAL | 32 | Style 3 (64 LEDs, 10 segments) | Untested |
 | FROZEN HORIZON PRO (LED) | 1 | Style 1 | Untested |
