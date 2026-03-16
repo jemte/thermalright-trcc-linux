@@ -63,7 +63,7 @@ Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\TRCC"; Filename: "
 [Run]
 ; WinUSB driver not auto-installed (requires signed certificate).
 ; Users with bulk/HID devices are guided to Zadig via `trcc doctor`.
-Filename: "{app}\trcc-gui.exe"; Description: "{cm:LaunchProgram,TRCC}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\trcc-gui.exe"; Description: "{cm:LaunchProgram,TRCC}"; Flags: nowait postinstall skipifsilent shellexec
 
 [Registry]
 ; Add trcc CLI to PATH
