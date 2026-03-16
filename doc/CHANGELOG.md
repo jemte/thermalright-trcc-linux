@@ -1,5 +1,11 @@
 # Changelog
 
+## v8.6.2
+
+### Improvements
+- **Early crash logging on all OS's**: `__main__.py` sets up `~/.trcc/trcc.log` before any imports — startup crashes are captured on Linux, Windows, macOS, and BSD
+- **CI build logging**: Windows, macOS, and Linux workflows log build environment, bundle contents with sizes, and structured pass/fail verification
+
 ## v8.6.1
 
 ### Fixes

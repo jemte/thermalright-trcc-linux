@@ -82,23 +82,52 @@ jobs:
             cp "$LIBUSB_DYLIB" dist/TRCC.app/Contents/Frameworks/
           fi
 
+      - name: Log build environment
+        run: |
+          echo "=== macOS Build Environment ==="
+          echo "macOS: $(sw_vers -productVersion)"
+          echo "Arch: $(uname -m)"
+          echo "Python: $(python3 --version)"
+          echo "PyInstaller: $(python3 -c 'import PyInstaller; print(PyInstaller.__version__)')"
+          echo "PySide6: $(python3 -c 'import PySide6; print(PySide6.__version__)')"
+          echo "7z: $(which 7z || echo 'not found')"
+          echo "ffmpeg: $(which ffmpeg || echo 'not found')"
+          echo "libusb: $(brew --prefix libusb)/lib/libusb-1.0.dylib"
+
       - name: Verify bundled dependencies
         run: |
+          echo "=== Full Bundle Structure ==="
+          find dist/TRCC.app/Contents -type f | head -50
+          echo ""
           echo "=== Contents/MacOS/ ==="
-          ls -la dist/TRCC.app/Contents/MacOS/ || true
+          ls -la dist/TRCC.app/Contents/MacOS/ 2>/dev/null || echo "(empty or missing)"
           echo "=== Contents/Frameworks/ (first 20) ==="
-          ls dist/TRCC.app/Contents/Frameworks/ | head -20 || true
+          ls dist/TRCC.app/Contents/Frameworks/ 2>/dev/null | head -20 || echo "(empty or missing)"
+          echo "=== Contents/Resources/ (first 10) ==="
+          ls dist/TRCC.app/Contents/Resources/ 2>/dev/null | head -10 || echo "(empty or missing)"
+          echo ""
+          echo "=== Verification ==="
           missing=()
-          # PyInstaller may name the launcher differently — check for any executable
-          [ -f "dist/TRCC.app/Contents/MacOS/TRCC" ] || [ -f "dist/TRCC.app/Contents/Frameworks/TRCC" ] || [ -f "dist/TRCC.app/Contents/MacOS/__main__" ] || missing+=("TRCC")
-          [ -f "dist/TRCC.app/Contents/MacOS/7z" ] || missing+=("7z")
-          [ -f "dist/TRCC.app/Contents/MacOS/ffmpeg" ] || missing+=("ffmpeg")
-          [ -f "dist/TRCC.app/Contents/Frameworks/libusb-1.0.dylib" ] || missing+=("libusb-1.0.dylib")
+          # PyInstaller 6.0+ may put executable in Frameworks/ or MacOS/
+          if [ -f "dist/TRCC.app/Contents/MacOS/TRCC" ]; then
+            echo "  TRCC executable: Contents/MacOS/TRCC"
+          elif [ -f "dist/TRCC.app/Contents/Frameworks/TRCC" ]; then
+            echo "  TRCC executable: Contents/Frameworks/TRCC"
+          else
+            echo "  Searching for TRCC executable..."
+            find dist/TRCC.app -name "TRCC" -type f 2>/dev/null || echo "  NOT FOUND"
+            find dist/TRCC.app -name "__main__" -type f 2>/dev/null || echo "  No __main__ either"
+            missing+=("TRCC")
+          fi
+          [ -f "dist/TRCC.app/Contents/MacOS/7z" ] && echo "  7z: OK" || missing+=("7z")
+          [ -f "dist/TRCC.app/Contents/MacOS/ffmpeg" ] && echo "  ffmpeg: OK" || missing+=("ffmpeg")
+          [ -f "dist/TRCC.app/Contents/Frameworks/libusb-1.0.dylib" ] && echo "  libusb: OK" || missing+=("libusb")
+          echo ""
           if [ ${#missing[@]} -gt 0 ]; then
-            echo "::error::Missing from bundle: ${missing[*]}"
+            echo "::error::FAILED — Missing: ${missing[*]}"
             exit 1
           fi
-          echo "Bundle verified: TRCC, 7z, ffmpeg, libusb OK"
+          echo "PASSED — all dependencies bundled"
 
       - name: Create DMG
         run: |

@@ -29,9 +29,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install build
 
+      - name: Log build environment
+        run: |
+          echo "=== Linux Build Environment ==="
+          echo "OS: $(cat /etc/os-release | grep PRETTY_NAME | cut -d= -f2)"
+          echo "Python: $(python --version)"
+          echo "pip: $(pip --version)"
+
       - name: Build sdist & wheel
         run: |
           python -m build --sdist --wheel --outdir dist
+          echo "=== Built Artifacts ==="
+          ls -lh dist/
+          echo "Wheel size: $(du -h dist/*.whl | cut -f1)"
 
       - name: Create GitHub Release and upload artifacts
         uses: ncipollo/release-action@v1

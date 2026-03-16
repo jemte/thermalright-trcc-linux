@@ -94,8 +94,27 @@ jobs:
             Copy-Item -Path "${{ steps.libusb.outputs.LIBUSB_PATH }}" -Destination dist/trcc/ -Force
           }
 
+      - name: Log build environment
+        run: |
+          Write-Host "=== Windows Build Environment ==="
+          Write-Host "OS: $([System.Environment]::OSVersion)"
+          Write-Host "Python: $(python --version)"
+          Write-Host "PyInstaller: $(python -c 'import PyInstaller; print(PyInstaller.__version__)')"
+          Write-Host "PySide6: $(python -c 'import PySide6; print(PySide6.__version__)')"
+          Write-Host "Working dir: $(Get-Location)"
+
       - name: Verify bundled dependencies
         run: |
+          Write-Host "=== Bundle Contents ==="
+          Write-Host "--- dist/trcc/ (top-level) ---"
+          Get-ChildItem "dist/trcc/*.exe" | ForEach-Object { Write-Host "  $($_.Name) ($([math]::Round($_.Length/1MB, 1)) MB)" }
+          Get-ChildItem "dist/trcc/*.dll" | ForEach-Object { Write-Host "  $($_.Name) ($([math]::Round($_.Length/1KB, 0)) KB)" }
+          Write-Host "--- Total files ---"
+          $total = (Get-ChildItem "dist/trcc" -Recurse | Measure-Object).Count
+          $size = (Get-ChildItem "dist/trcc" -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB
+          Write-Host "  $total files, $([math]::Round($size, 1)) MB total"
+          Write-Host ""
+          Write-Host "=== Verification ==="
           $missing = @()
           if (-not (Test-Path "dist/trcc/trcc.exe")) { $missing += "trcc.exe" }
           if (-not (Test-Path "dist/trcc/trcc-gui.exe")) { $missing += "trcc-gui.exe" }
@@ -104,10 +123,10 @@ jobs:
           $libusb = Get-ChildItem "dist/trcc/libusb*" -ErrorAction SilentlyContinue
           if (-not $libusb) { $missing += "libusb-1.0.dll" }
           if ($missing.Count -gt 0) {
-            Write-Error "Missing from bundle: $($missing -join ', ')"
+            Write-Error "FAILED — Missing: $($missing -join ', ')"
             exit 1
           }
-          Write-Host "Bundle verified: trcc.exe, trcc-gui.exe, 7z.exe, ffmpeg.exe, libusb OK"
+          Write-Host "PASSED — trcc.exe, trcc-gui.exe, 7z.exe, ffmpeg.exe, libusb OK"
 
       - name: Extract version
         id: version
