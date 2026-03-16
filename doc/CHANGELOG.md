@@ -1,5 +1,14 @@
 # Changelog
 
+## v8.6.5
+
+### Fixes
+- **macOS .dmg broken — APFS case-insensitive symlink**: `ln -sf TRCC .../trcc` on case-insensitive APFS deleted the 12MB TRCC executable (macOS treats `trcc` and `TRCC` as the same file). Removed the CLI symlink from the .app bundle
+
+### Improvements
+- **Linux distro build logging**: RPM (Fedora), DEB (Ubuntu), and Arch CI builds now log build environment (distro version, Python, packager) and verify output (package size, entry points)
+- **macOS CI verification**: uses `find -L` consistently for symlink-aware bundle inspection
+
 ## v8.6.4
 
 ### Fixes
