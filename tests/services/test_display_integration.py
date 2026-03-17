@@ -331,17 +331,18 @@ class TestThemeSaveRoundTrip:
             (save_dir / 'theme320320' / 'Custom_MaskSave' / 'config.json').read_text())
         assert config['mask'] == str(mask_dir)
 
-    def test_save_after_cloud_load_no_stale_mask(
+    def test_cloud_load_preserves_mask_source_dir(
         self, display_svc: DisplayService, renderer: Any,
         mock_settings: Any, mock_media: MagicMock, tmp_path: Path,
     ) -> None:
-        """Cloud load must clear mask, so save has no stale mask ref."""
-        # Set up stale mask state
-        display_svc._mask_source_dir = Path('/old/stale/mask')
+        """Cloud load must preserve mask source dir (video-only background)."""
+        # User applied a mask before loading cloud video
+        mask_dir = Path('/applied/mask/dir')
+        display_svc._mask_source_dir = mask_dir
         display_svc.current_image = renderer.create_surface(320, 320, (0, 0, 0))
         display_svc._clean_background = display_svc.current_image
 
-        # Simulate cloud theme load
+        # Cloud theme load — video only, no mask of its own
         frame = renderer.create_surface(320, 320, (50, 50, 50))
         mock_media.get_frame.return_value = frame
         mock_media.has_frames = True
@@ -353,12 +354,13 @@ class TestThemeSaveRoundTrip:
         with patch.object(display_svc._loader, 'load_cloud_theme', return_value=cloud_result):
             display_svc.load_cloud_theme(MagicMock())
 
-        assert display_svc._mask_source_dir is None
+        # Mask source dir preserved — not wiped by cloud load
+        assert display_svc._mask_source_dir == mask_dir
 
-        # Save should NOT reference old mask
+        # Save should reference the mask
         with patch.object(ThemePersistence, 'save', return_value=(True, 'ok')) as mock_save:
             display_svc.save_theme('CloudSave', tmp_path)
-        assert mock_save.call_args.kwargs.get('mask_source_dir') is None
+        assert mock_save.call_args.kwargs.get('mask_source_dir') == mask_dir
 
     def test_save_after_brightness_uses_clean_bg(
         self, display_svc: DisplayService, renderer: Any,

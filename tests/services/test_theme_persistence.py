@@ -263,11 +263,12 @@ class TestLoadMaskStandaloneWiring:
 
 class TestCloudThemeStateWiring:
 
-    def test_clears_stale_mask_source_dir(
+    def test_preserves_mask_source_dir_on_cloud_load(
         self, display_svc: DisplayService, mock_settings: Any,
     ) -> None:
-        """Loading a cloud theme must clear _mask_source_dir from previous theme."""
-        display_svc._mask_source_dir = Path('/old/mask')
+        """Cloud load (video-only) must preserve existing mask source dir."""
+        mask_dir = Path('/applied/mask')
+        display_svc._mask_source_dir = mask_dir
 
         cloud_result = {
             'image': None, 'is_animated': True,
@@ -278,7 +279,7 @@ class TestCloudThemeStateWiring:
         with patch.object(display_svc._loader, 'load_cloud_theme', return_value=cloud_result):
             display_svc.load_cloud_theme(MagicMock())
 
-        assert display_svc._mask_source_dir is None
+        assert display_svc._mask_source_dir == mask_dir
 
     def test_wires_theme_path(
         self, display_svc: DisplayService, mock_settings: Any,
@@ -314,11 +315,12 @@ class TestCloudThemeStateWiring:
 
         assert display_svc._clean_background is frame
 
-    def test_save_after_cloud_load_no_stale_mask(
+    def test_save_after_cloud_load_preserves_mask(
         self, display_svc: DisplayService, tmp_path: Path, mock_settings: Any,
     ) -> None:
-        """Save after cloud load must NOT reference old mask."""
-        display_svc._mask_source_dir = Path('/old/mask')
+        """Save after cloud load must preserve applied mask source dir."""
+        mask_dir = Path('/applied/mask')
+        display_svc._mask_source_dir = mask_dir
         display_svc.media.get_frame.return_value = make_test_surface(320, 320, (50, 50, 50))
 
         cloud_result = {
@@ -333,4 +335,4 @@ class TestCloudThemeStateWiring:
         with patch.object(ThemePersistence, 'save', return_value=(True, 'ok')) as mock_save:
             display_svc.save_theme('CloudSave', tmp_path)
 
-        assert mock_save.call_args.kwargs.get('mask_source_dir') is None
+        assert mock_save.call_args.kwargs.get('mask_source_dir') == mask_dir
