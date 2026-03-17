@@ -1,5 +1,11 @@
 # Changelog
 
+## v8.7.4
+
+### Fixes
+- **Custom theme save loses mask after loading cloud video background**: `load_cloud_theme()` unconditionally wiped `_mask_source_dir` to `None`. Cloud video backgrounds don't carry masks — the user's applied cloud theme (mask) should persist. Now only overwrites mask source dir when the loader provides a non-None value
+- **Windows build script NativeCommandError spam**: PyInstaller writes INFO to stderr, PowerShell treats it as errors. Wrapped PyInstaller calls in `cmd /c` to suppress
+
 ## v8.7.3
 
 ### Fixes
