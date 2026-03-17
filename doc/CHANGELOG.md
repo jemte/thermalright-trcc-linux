@@ -1,5 +1,13 @@
 # Changelog
 
+## v8.7.5
+
+### Fixes
+- **Windows 12-hour time format crashes overlay rendering**: `%-I` strftime directive is Unix-only — Windows Python raises `ValueError: Invalid format string`. Replaced with cross-platform `%I` + `lstrip('0')` in both overlay renderer (`core/models.py`) and settings card paint (`overlay_element.py`)
+
+### Improvements
+- **Debug logging for settings signal chain**: Added logging to color picker, format/position/font changes, overlay config propagation, and LCD handler overlay updates — enables diagnosing GUI event flow issues on all platforms
+
 ## v8.7.4
 
 ### Fixes

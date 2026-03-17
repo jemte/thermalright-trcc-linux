@@ -172,7 +172,7 @@ class OverlayElementWidget(QWidget):
                 # Windows: label1+label3 hidden, only label2 visible
                 from datetime import datetime
                 if self.config.mode_sub == 1:
-                    text = datetime.now().strftime('%-I:%M')
+                    text = datetime.now().strftime('%I:%M').lstrip('0')
                 else:
                     text = datetime.now().strftime('%H:%M')
                 painter.setPen(QColor(color_str))

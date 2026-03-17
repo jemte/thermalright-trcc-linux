@@ -5,6 +5,8 @@ AddElementPanel: Create new overlay elements by type with category/metric select
 """
 from __future__ import annotations
 
+import logging
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QFont, QIcon
 from PySide6.QtWidgets import (
@@ -18,6 +20,8 @@ from ..core.models import OverlayElementConfig, OverlayMode
 from .assets import Assets
 from .base import set_background_pixmap
 from .constants import Colors, Layout, Sizes, Styles
+
+log = logging.getLogger(__name__)
 
 
 class ColorPickerPanel(QFrame):
@@ -172,6 +176,7 @@ class ColorPickerPanel(QFrame):
         self._apply_color(r, g, b)
 
     def _apply_color(self, r, g, b):
+        log.debug("_apply_color: r=%d, g=%d, b=%d", r, g, b)
         self._current_color = QColor(r, g, b)
         self.r_input.setText(str(r))
         self.g_input.setText(str(g))

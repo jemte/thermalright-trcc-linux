@@ -467,6 +467,7 @@ class LCDHandler:
 
     def on_overlay_changed(self, element_data: dict) -> None:
         """Forward overlay config change from settings panel."""
+        log.debug("on_overlay_changed: %d elements", len(element_data) if element_data else 0)
         if not element_data:
             return
         if not self._lcd.overlay.enabled:
