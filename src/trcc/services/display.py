@@ -520,8 +520,6 @@ class DisplayService:
         Returns:
             Result dict with success/error/message.
         """
-        import time as _time
-
         log.info("run_video_loop: path=%s overlay=%s mask=%s loop=%s duration=%s",
                  video_path, bool(overlay_config), bool(mask_path), loop, duration)
 
@@ -551,14 +549,37 @@ class DisplayService:
                     self.overlay.set_theme_mask(mask_img)
             self.overlay.enabled = True
 
-        # 3. Start playback
+        # 3. Start playback + run tick loop
         self.media._state.loop = loop
         self.media.play()
+        return self._run_tick_loop(
+            metrics_fn=metrics_fn, on_frame=on_frame,
+            on_progress=on_progress, duration=duration)
+
+    def _run_tick_loop(
+        self,
+        *,
+        metrics_fn: Any | None = None,
+        on_frame: Any | None = None,
+        on_progress: Any | None = None,
+        duration: float = 0,
+    ) -> dict:
+        """Blocking tick loop — shared by run_video_loop and theme-load.
+
+        Assumes media is already loaded + playing, overlay already configured.
+        Polls metrics, composites overlay, applies adjustments, calls callbacks.
+
+        Returns:
+            Result dict with success/message.
+        """
+        import time as _time
+
+        total = self.media.state.total_frames
+        fps = self.media.state.fps
         interval = self.media.frame_interval_ms / 1000.0
         start = _time.monotonic()
         last_metrics = 0.0
 
-        # 4. Tick loop
         try:
             while self.media.is_playing:
                 frame, should_send, progress = self.media.tick()

@@ -100,43 +100,16 @@ def load_theme(name, *, device=None, preview=False):
             _ensure_system()
             metrics_fn = get_all_metrics
 
-        def _on_frame(img):
-            svc.send_pil(img, w, h)
+        lcd._display_svc.media._state.loop = True
+        lcd._display_svc.media.play()
 
-        def _on_progress(pct, cur, total_t):
-            print(f"\r  {cur} / {total_t} ({pct:.0f}%)", end="", flush=True)
-
-        import time as _time
-        interval = lcd._display_svc.media.frame_interval_ms / 1000.0
-        last_metrics = 0.0
-        media = lcd._display_svc.media
-        overlay = lcd._display_svc.overlay
-
-        media._state.loop = True
-        media.play()
-
-        try:
-            while media.is_playing:
-                frame, should_send, progress = media.tick()
-                if frame is None:
-                    break
-                if metrics_fn and overlay.enabled:
-                    now = _time.monotonic()
-                    if now - last_metrics >= 1.0:
-                        overlay.update_metrics(metrics_fn())
-                        last_metrics = now
-                if overlay.enabled:
-                    frame = overlay.render(frame)
-                processed = lcd._display_svc._apply_adjustments(frame)
-                if should_send:
-                    _on_frame(processed)
-                if progress:
-                    _on_progress(*progress)
-                _time.sleep(interval)
-        except KeyboardInterrupt:
-            print("\nStopped.")
-            return 0
-        print("\nDone.")
+        loop_result = lcd._display_svc._run_tick_loop(
+            metrics_fn=metrics_fn,
+            on_frame=lambda img: svc.send_pil(img, w, h),
+            on_progress=lambda p, c, t: print(
+                f"\r  {c} / {t} ({p:.0f}%)", end="", flush=True),
+        )
+        print(f"\n{loop_result['message']}.")
     else:
         # Static theme
         img = result.get('image')
