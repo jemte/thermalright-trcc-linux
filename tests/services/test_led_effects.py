@@ -382,3 +382,82 @@ class TestDispatch:
         assert engine.metrics.cpu_temp == 50
         engine.metrics = m2
         assert engine.metrics.cpu_temp == 80
+
+
+# ── Decoration ring (LF25 sub=1) ─────────────────────────────────
+
+class TestDecorationRing:
+    """Ring LED computation for sub-variant devices (e.g. LF25)."""
+
+    def test_static_ring_appended(self):
+        """Static mode appends ring_count LEDs with same color."""
+        state = LEDState(ring_count=77)
+        engine = _make_engine(state)
+        colors = engine._tick_single_mode(LEDMode.STATIC, (255, 0, 0), 23)
+        assert len(colors) == 23 + 77
+        # Segments = static color
+        assert all(c == (255, 0, 0) for c in colors[:23])
+        # Ring = same color
+        assert all(c == (255, 0, 0) for c in colors[23:])
+
+    def test_breathing_ring_matches_segments(self):
+        """Breathing mode: ring gets same pulsed color as segments."""
+        state = LEDState(ring_count=77)
+        engine = _make_engine(state)
+        colors = engine._tick_single_mode(LEDMode.BREATHING, (0, 255, 0), 23)
+        assert len(colors) == 100
+        # Ring color should match segment color (same pulse phase)
+        assert colors[23] == colors[0]
+        assert colors[99] == colors[0]
+
+    def test_colorful_ring_matches_segments(self):
+        """Colorful mode: ring gets same gradient color as segments."""
+        state = LEDState(ring_count=77)
+        engine = _make_engine(state)
+        colors = engine._tick_single_mode(LEDMode.COLORFUL, (0, 0, 0), 23)
+        assert len(colors) == 100
+        assert colors[23] == colors[0]
+
+    def test_rainbow_ring_per_led_phase(self):
+        """Rainbow mode: each ring LED gets a unique phase offset."""
+        state = LEDState(ring_count=77)
+        engine = _make_engine(state)
+        colors = engine._tick_single_mode(LEDMode.RAINBOW, (0, 0, 0), 23)
+        assert len(colors) == 100
+        ring = colors[23:]
+        # Not all the same — per-LED phase offsets
+        assert len(set(ring)) > 1
+
+    def test_rainbow_ring_reversed(self):
+        """Rainbow ring is filled in reverse order (C# 77-j-1)."""
+        state = LEDState(ring_count=10, rgb_timer=0)
+        engine = _make_engine(state)
+        colors = engine._tick_single_mode(LEDMode.RAINBOW, (0, 0, 0), 5)
+        ring = colors[5:]
+        # First and last should differ (reversed gradient)
+        assert ring[0] != ring[-1]
+
+    def test_no_ring_when_zero(self):
+        """ring_count=0 (default) returns only segment colors."""
+        state = LEDState(ring_count=0)
+        engine = _make_engine(state)
+        colors = engine._tick_single_mode(LEDMode.STATIC, (255, 0, 0), 23)
+        assert len(colors) == 23
+
+    def test_temp_linked_ring_uniform(self):
+        """Temp-linked mode: ring gets same temp color as segments."""
+        state = LEDState(ring_count=77)
+        m = HardwareMetrics(cpu_temp=60)
+        engine = _make_engine(state, m)
+        colors = engine._tick_single_mode(LEDMode.TEMP_LINKED, (0, 0, 0), 23)
+        assert len(colors) == 100
+        assert colors[23] == colors[0]
+
+    def test_load_linked_ring_uniform(self):
+        """Load-linked mode: ring gets same load color as segments."""
+        state = LEDState(ring_count=77)
+        m = HardwareMetrics(cpu_percent=75)
+        engine = _make_engine(state, m)
+        colors = engine._tick_single_mode(LEDMode.LOAD_LINKED, (0, 0, 0), 23)
+        assert len(colors) == 100
+        assert colors[23] == colors[0]

@@ -105,9 +105,11 @@ class DeviceService:
             info = self._probe_led_fn(device.vid, device.pid, usb_path=usb_path)
             if info and info.style:
                 device.led_style_id = info.style.style_id
+                device.led_style_sub = getattr(info, 'style_sub', 0)
                 device.model = info.style.model_name
-                log.debug("LED probe: PM=%d → style=%d model=%s",
-                          info.pm, info.style.style_id, info.style.model_name)
+                log.debug("LED probe: PM=%d → style=%d sub=%d model=%s",
+                          info.pm, info.style.style_id,
+                          device.led_style_sub, info.style.model_name)
         except Exception as e:
             log.debug("LED probe failed: %s", e)
 

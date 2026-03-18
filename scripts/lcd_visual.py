@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Visual test harness for LCD preview — all resolutions and themes.
+"""Visual harness for LCD preview — all resolutions and themes.
 
 Exercises the rendering pipeline without a real USB device:
 UCPreview widget, theme loading, overlay compositing, rotation,
@@ -8,12 +8,9 @@ brightness, and resolution switching.
 Themes are loaded from ~/.trcc/.lcd_test/theme{W}{H}/ directories.
 Copy or symlink theme folders there to test them.
 
-Resolution buttons across the top, theme list on the left,
-large preview center, controls on the right.
-
 Usage:
-    PYTHONPATH=src python3 tests/test_lcd_panel_visual.py
-    PYTHONPATH=src python3 tests/test_lcd_panel_visual.py --overlay   # start with overlay
+    PYTHONPATH=src python3 scripts/lcd_visual.py
+    PYTHONPATH=src python3 scripts/lcd_visual.py --overlay   # start with overlay
 """
 from __future__ import annotations
 
@@ -32,19 +29,21 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QColor, QImage, QPainter, QPalette
 from PySide6.QtWidgets import (
     QApplication,
-    QComboBox,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QListWidget,
     QListWidgetItem,
     QPushButton,
+    QScrollArea,
     QSlider,
     QVBoxLayout,
     QWidget,
 )
 
 from trcc.adapters.infra.data_repository import ThemeDir
+from trcc.adapters.render.qt import QtRenderer
+from trcc.conf import init_settings
+from trcc.core.builder import ControllerBuilder
 from trcc.core.models import FBL_TO_RESOLUTION
 from trcc.qt_components.uc_preview import UCPreview
 from trcc.services.image import ImageService
@@ -55,6 +54,15 @@ _start_with_overlay = '--overlay' in sys.argv
 
 # Test themes live here — separate from real app data
 _TEST_DIR = Path.home() / '.trcc' / '.lcd_test'
+
+# Button style shared across all buttons
+_BTN_STYLE = (
+    "QPushButton { background: #333; color: #ccc; border: 1px solid #555; "
+    "border-radius: 4px; font-size: 10px; padding: 2px 6px; }"
+    "QPushButton:checked { background: #1565C0; color: white; "
+    "border: 2px solid #42A5F5; }"
+    "QPushButton:hover { background: #444; }"
+)
 
 
 # ── Test pattern generation ──────────────────────────────────────────
@@ -67,7 +75,6 @@ def _checkerboard(w: int, h: int, block: int = 16) -> QImage:
         for x in range(0, w, block):
             c = QColor(200, 200, 200) if (x // block + y // block) % 2 == 0 else QColor(80, 80, 80)
             p.fillRect(x, y, block, block, c)
-    # Draw resolution text in center
     p.setPen(QColor(255, 100, 100))
     font = p.font()
     font.setPixelSize(max(16, min(w, h) // 8))
@@ -94,18 +101,18 @@ def _gradient(w: int, h: int) -> QImage:
 # ── Main harness ─────────────────────────────────────────────────────
 
 class LCDPanelTestHarness(QWidget):
-    """Main test window for LCD preview verification.
+    """LCD preview harness — vertical layout matching LED visual style.
 
-    - Resolution buttons: switch between all known FBL resolutions
-    - Theme list: load real themes from ~/.trcc/.lcd_test/theme{W}{H}/
-    - Test patterns: checkerboard / gradient for pixel-perfect checks
-    - Overlay toggle, rotation, brightness controls
+    - Resolution buttons across the top
+    - Status + info labels
+    - UCPreview centered on gray backdrop in scroll area
+    - Theme list + controls in bottom bar
     """
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("LCD Panel Visual Test — All Resolutions")
-        self.setMinimumSize(1200, 800)
+        self.setWindowTitle("LCD Panel Visual — All Resolutions")
+        self.setMinimumSize(1300, 900)
 
         # Persistent working dir for copy-based theme loading
         self._working_dir = Path(tempfile.mkdtemp(prefix='trcc_lcd_test_'))
@@ -125,148 +132,161 @@ class LCDPanelTestHarness(QWidget):
         pal.setColor(QPalette.ColorRole.Window, QColor(50, 50, 50))
         self.setPalette(pal)
 
-        root = QHBoxLayout(self)
-        root.setContentsMargins(6, 6, 6, 6)
-        root.setSpacing(6)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(4)
 
-        # ── Left: theme list ─────────────────────────────────────
-        left = QVBoxLayout()
-        left.setSpacing(4)
+        # ── Resolution buttons bar ─────────────────────────────────
+        btn_bar = QWidget()
+        btn_layout = QHBoxLayout(btn_bar)
+        btn_layout.setContentsMargins(0, 0, 0, 0)
+        btn_layout.setSpacing(2)
 
-        left.addWidget(self._make_label("Themes", bold=True))
-        self._theme_list = QListWidget()
-        self._theme_list.setStyleSheet(
-            "QListWidget { background: #2a2a2a; color: #ccc; border: 1px solid #555; }"
-            "QListWidget::item:selected { background: #1565C0; }"
-        )
-        self._theme_list.currentRowChanged.connect(self._on_theme_selected)
-        left.addWidget(self._theme_list, 1)
-
-        # Test pattern buttons
-        pat_group = QGroupBox("Test Patterns")
-        pat_group.setStyleSheet("QGroupBox { color: #aaa; border: 1px solid #555; padding-top: 14px; }")
-        pat_layout = QVBoxLayout(pat_group)
-        for label, fn in [("Checkerboard", self._show_checkerboard),
-                          ("Gradient", self._show_gradient),
-                          ("Black", self._show_black),
-                          ("White", self._show_white)]:
-            btn = QPushButton(label)
-            btn.setStyleSheet("QPushButton { background: #333; color: #ccc; padding: 4px; }"
-                              "QPushButton:hover { background: #444; }")
-            btn.clicked.connect(fn)
-            pat_layout.addWidget(btn)
-        left.addWidget(pat_group)
-
-        root.addLayout(left, 1)
-
-        # ── Center: preview + resolution bar ─────────────────────
-        center = QVBoxLayout()
-        center.setSpacing(4)
-
-        # Resolution buttons (two rows)
-        res_group = QGroupBox("Resolution (FBL)")
-        res_group.setStyleSheet("QGroupBox { color: #aaa; border: 1px solid #555; padding-top: 14px; }")
-        res_layout = QVBoxLayout(res_group)
-
-        # Deduplicate resolutions, sort by area
         unique_res = sorted(set(FBL_TO_RESOLUTION.values()),
                             key=lambda r: (r[0] * r[1], r[0]))
 
         self._res_buttons: list[QPushButton] = []
-        row = QHBoxLayout()
-        for i, (w, h) in enumerate(unique_res):
+        for w, h in unique_res:
             btn = QPushButton(f"{w}x{h}")
             btn.setCheckable(True)
-            btn.setMinimumHeight(28)
-            btn.setStyleSheet(
-                "QPushButton { background: #333; color: #ccc; border: 1px solid #555; "
-                "border-radius: 3px; font-size: 10px; padding: 2px 6px; }"
-                "QPushButton:checked { background: #1565C0; color: white; border: 2px solid #42A5F5; }"
-                "QPushButton:hover { background: #444; }"
-            )
+            btn.setMinimumHeight(44)
+            btn.setStyleSheet(_BTN_STYLE)
             btn.clicked.connect(lambda _, r=(w, h): self._switch_resolution(*r))
-            row.addWidget(btn)
+            btn_layout.addWidget(btn)
             self._res_buttons.append(btn)
-            if (i + 1) % 6 == 0:
-                res_layout.addLayout(row)
-                row = QHBoxLayout()
-        if row.count():
-            res_layout.addLayout(row)
 
-        center.addWidget(res_group)
+        layout.addWidget(btn_bar)
 
-        # Status
+        # ── Status bar ─────────────────────────────────────────────
         self._status = QLabel()
         self._status.setStyleSheet(
             "color: #ff8; font-size: 11px; font-family: monospace; "
             "background: #222; padding: 4px; border-radius: 3px;"
         )
-        center.addWidget(self._status)
+        layout.addWidget(self._status)
 
-        # Preview widget
+        # ── Info label ─────────────────────────────────────────────
+        self._info = QLabel()
+        self._info.setStyleSheet(
+            "color: #8f8; font-size: 11px; font-family: monospace; "
+            "background: #1a1a1a; padding: 4px; border-radius: 3px;"
+        )
+        self._info.setWordWrap(True)
+        self._info.setMaximumHeight(80)
+        layout.addWidget(self._info)
+
+        # ── Scroll area with gray backdrop for UCPreview ───────────
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet(
+            "QScrollArea { background: #808080; border: none; }"
+            "QWidget#panelContainer { background: #808080; }"
+        )
+
+        self._container = QWidget()
+        self._container.setObjectName("panelContainer")
+        container_layout = QVBoxLayout(self._container)
+        container_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
         self._preview = UCPreview(320, 320)
-        center.addWidget(self._preview, 1, Qt.AlignmentFlag.AlignCenter)
+        container_layout.addWidget(self._preview)
 
-        root.addLayout(center, 3)
+        scroll.setWidget(self._container)
+        layout.addWidget(scroll, 1)
 
-        # ── Right: controls ──────────────────────────────────────
-        right = QVBoxLayout()
-        right.setSpacing(8)
+        # ── Bottom bar: themes + controls ──────────────────────────
+        bottom = QHBoxLayout()
+        bottom.setSpacing(6)
+
+        # Theme list
+        theme_col = QVBoxLayout()
+        theme_col.setSpacing(2)
+        theme_label = QLabel("Themes")
+        theme_label.setStyleSheet("color: #ccc; font-weight: bold; font-size: 12px;")
+        theme_col.addWidget(theme_label)
+
+        self._theme_list = QListWidget()
+        self._theme_list.setFixedHeight(140)
+        self._theme_list.setStyleSheet(
+            "QListWidget { background: #2a2a2a; color: #ccc; border: 1px solid #555; }"
+            "QListWidget::item:selected { background: #1565C0; }"
+        )
+        self._theme_list.currentRowChanged.connect(self._on_theme_selected)
+        theme_col.addWidget(self._theme_list)
+        bottom.addLayout(theme_col, 2)
+
+        # Test patterns
+        pat_col = QVBoxLayout()
+        pat_col.setSpacing(2)
+        pat_label = QLabel("Patterns")
+        pat_label.setStyleSheet("color: #ccc; font-weight: bold; font-size: 12px;")
+        pat_col.addWidget(pat_label)
+        for label, fn in [("Checkerboard", self._show_checkerboard),
+                          ("Gradient", self._show_gradient),
+                          ("Black", self._show_black),
+                          ("White", self._show_white)]:
+            btn = QPushButton(label)
+            btn.setStyleSheet(_BTN_STYLE)
+            btn.clicked.connect(fn)
+            pat_col.addWidget(btn)
+        bottom.addLayout(pat_col, 1)
 
         # Rotation
-        rot_group = QGroupBox("Rotation")
-        rot_group.setStyleSheet("QGroupBox { color: #aaa; border: 1px solid #555; padding-top: 14px; }")
-        rot_layout = QVBoxLayout(rot_group)
-        self._rot_combo = QComboBox()
-        self._rot_combo.addItems(["0°", "90°", "180°", "270°"])
-        self._rot_combo.setStyleSheet("background: #333; color: #ccc;")
-        self._rot_combo.currentIndexChanged.connect(
-            lambda i: self._set_rotation(i * 90))
-        rot_layout.addWidget(self._rot_combo)
-        right.addWidget(rot_group)
+        rot_col = QVBoxLayout()
+        rot_col.setSpacing(2)
+        rot_label = QLabel("Rotation")
+        rot_label.setStyleSheet("color: #ccc; font-weight: bold; font-size: 12px;")
+        rot_col.addWidget(rot_label)
+        self._rot_buttons: list[QPushButton] = []
+        for deg in [0, 90, 180, 270]:
+            btn = QPushButton(f"{deg}°")
+            btn.setCheckable(True)
+            btn.setChecked(deg == 0)
+            btn.setStyleSheet(_BTN_STYLE)
+            btn.clicked.connect(lambda _, d=deg: self._set_rotation(d))
+            rot_col.addWidget(btn)
+            self._rot_buttons.append(btn)
+        bottom.addLayout(rot_col, 1)
 
         # Brightness
-        br_group = QGroupBox("Brightness")
-        br_group.setStyleSheet("QGroupBox { color: #aaa; border: 1px solid #555; padding-top: 14px; }")
-        br_layout = QVBoxLayout(br_group)
+        br_col = QVBoxLayout()
+        br_col.setSpacing(2)
+        self._br_label = QLabel("Brightness: 100%")
+        self._br_label.setStyleSheet("color: #ccc; font-weight: bold; font-size: 12px;")
+        br_col.addWidget(self._br_label)
         self._br_slider = QSlider(Qt.Orientation.Horizontal)
         self._br_slider.setRange(10, 100)
         self._br_slider.setValue(100)
         self._br_slider.valueChanged.connect(self._set_brightness)
-        br_layout.addWidget(self._br_slider)
-        self._br_label = QLabel("100%")
-        self._br_label.setStyleSheet("color: #ccc;")
-        br_layout.addWidget(self._br_label)
-        right.addWidget(br_group)
+        br_col.addWidget(self._br_slider)
+        br_col.addStretch(1)
+        bottom.addLayout(br_col, 1)
 
-        # Overlay
-        ov_group = QGroupBox("Overlay")
-        ov_group.setStyleSheet("QGroupBox { color: #aaa; border: 1px solid #555; padding-top: 14px; }")
-        ov_layout = QVBoxLayout(ov_group)
-        self._ov_btn = QPushButton("Overlay: OFF")
+        # Overlay toggle
+        ov_col = QVBoxLayout()
+        ov_col.setSpacing(2)
+        ov_label = QLabel("Overlay")
+        ov_label.setStyleSheet("color: #ccc; font-weight: bold; font-size: 12px;")
+        ov_col.addWidget(ov_label)
+        self._ov_btn = QPushButton("OFF")
         self._ov_btn.setCheckable(True)
         self._ov_btn.setChecked(self._overlay_enabled)
+        self._ov_btn.setMinimumHeight(44)
         self._ov_btn.setStyleSheet(
-            "QPushButton { background: #333; color: #ccc; padding: 6px; }"
-            "QPushButton:checked { background: #2E7D32; color: white; }"
+            "QPushButton { background: #333; color: #ccc; border: 1px solid #555; "
+            "border-radius: 4px; padding: 6px; font-size: 12px; }"
+            "QPushButton:checked { background: #2E7D32; color: white; "
+            "border: 2px solid #66BB6A; }"
+            "QPushButton:hover { background: #444; }"
         )
         self._ov_btn.toggled.connect(self._toggle_overlay)
-        ov_layout.addWidget(self._ov_btn)
-        right.addWidget(ov_group)
+        ov_col.addWidget(self._ov_btn)
+        ov_col.addStretch(1)
+        bottom.addLayout(ov_col, 1)
 
-        # Info
-        self._info = QLabel()
-        self._info.setStyleSheet(
-            "color: #8f8; font-size: 11px; font-family: monospace; "
-            "background: #1a1a1a; padding: 6px; border-radius: 3px;"
-        )
-        self._info.setWordWrap(True)
-        right.addWidget(self._info)
+        layout.addLayout(bottom)
 
-        right.addStretch(1)
-        root.addLayout(right, 1)
-
-        # ── Initialize ───────────────────────────────────────────
+        # ── Initialize ─────────────────────────────────────────────
         self._switch_resolution(320, 320)
         self._show_checkerboard()
 
@@ -276,20 +296,12 @@ class LCDPanelTestHarness(QWidget):
         self._metrics_timer.start(1000)
 
     def closeEvent(self, event):  # noqa: N802
-        """Clean up working dir on close."""
         self._metrics_timer.stop()
         if self._working_dir.exists():
             shutil.rmtree(self._working_dir, ignore_errors=True)
         super().closeEvent(event)
 
-    # ── Helpers ───────────────────────────────────────────────────
-
-    @staticmethod
-    def _make_label(text: str, bold: bool = False) -> QLabel:
-        lbl = QLabel(text)
-        weight = "bold" if bold else "normal"
-        lbl.setStyleSheet(f"color: #ccc; font-weight: {weight}; font-size: 12px;")
-        return lbl
+    # ── Status helpers ────────────────────────────────────────────
 
     def _update_status(self):
         overlay_text = "ON" if self._overlay_enabled else "OFF"
@@ -304,71 +316,54 @@ class LCDPanelTestHarness(QWidget):
         )
 
     def _update_info(self):
-        # Show preview offset info
         offset = UCPreview.RESOLUTION_OFFSETS.get(
             (self._width, self._height), UCPreview.DEFAULT_OFFSET)
         left, top, pw, ph, frame = offset
         self._info.setText(
-            f"Preview offset:\n"
-            f"  pos=({left},{top})\n"
-            f"  size={pw}x{ph}\n"
-            f"  frame={frame}\n"
-            f"  scale={pw/self._width:.2f}x{ph/self._height:.2f}"
+            f"Preview: pos=({left},{top})  size={pw}x{ph}  "
+            f"frame={frame}  scale={pw / self._width:.2f}x{ph / self._height:.2f}"
         )
 
     def _render_and_show(self):
-        """Render current background with overlay/brightness and show in preview."""
         if self._current_bg is None:
             return
 
         r = ImageService._r()
         img = self._current_bg
 
-        # Apply overlay if enabled
         if self._overlay_enabled and self._overlay_svc.enabled:
             overlay = self._overlay_svc.render()
             if overlay:
                 img = r.composite(img, overlay, (0, 0))
 
-        # Apply brightness
         if self._brightness < 100:
             img = r.apply_brightness(img, self._brightness)
 
-        # Apply rotation
         if self._rotation:
             img = r.apply_rotation(img, self._rotation)
 
         self._preview.set_image(img)
 
-    # ── Resolution switching ─────────────────────────────────────
+    # ── Resolution switching ──────────────────────────────────────
 
     def _switch_resolution(self, w: int, h: int):
         self._width, self._height = w, h
 
-        # Update button states
         unique_res = sorted(set(FBL_TO_RESOLUTION.values()),
                             key=lambda r: (r[0] * r[1], r[0]))
         for i, (rw, rh) in enumerate(unique_res):
             self._res_buttons[i].setChecked(rw == w and rh == h)
 
-        # Recreate preview at new resolution
         self._preview.set_resolution(w, h)
-
-        # Reset overlay for new resolution
         self._overlay_svc.set_config({})
         self._overlay_svc.enabled = False
-
-        # Reload themes for this resolution
         self._load_themes()
-
-        # Show checkerboard at new resolution
         self._show_checkerboard()
         self._update_info()
 
-    # ── Theme loading ────────────────────────────────────────────
+    # ── Theme loading ─────────────────────────────────────────────
 
     def _load_themes(self):
-        """Discover themes from ~/.trcc/.lcd_test/theme{W}{H}/."""
         self._theme_list.clear()
         self._themes = []
 
@@ -389,7 +384,6 @@ class LCDPanelTestHarness(QWidget):
             return
         theme = self._themes[row]
         try:
-            # Clear working dir for this theme
             if self._working_dir.exists():
                 shutil.rmtree(self._working_dir)
             self._working_dir.mkdir(parents=True, exist_ok=True)
@@ -398,7 +392,6 @@ class LCDPanelTestHarness(QWidget):
             data = ThemeService.load(theme, self._working_dir, lcd_size)
 
             if data.background is not None:
-                # ThemeService.load returns QImage (via QtRenderer)
                 self._current_bg = data.background
             elif data.is_animated and data.animation_path:
                 self._preview.set_status(f"Video: {data.animation_path.name}")
@@ -406,16 +399,14 @@ class LCDPanelTestHarness(QWidget):
             else:
                 self._current_bg = _checkerboard(self._width, self._height)
 
-            # Load mask into overlay if theme has one
             if data.mask is not None:
                 r = ImageService._r()
-                mask_img = r.from_pil(data.mask)  # mask is PIL Image
+                mask_img = r.from_pil(data.mask)
                 self._overlay_svc.set_mask(mask_img, data.mask_position)
                 self._overlay_svc.enabled = True
                 self._overlay_enabled = True
                 self._ov_btn.setChecked(True)
 
-            # Load overlay config from theme's DC file
             td = ThemeDir(self._working_dir)
             if td.dc.exists():
                 self._overlay_svc.load_from_dc(td.dc)
@@ -431,7 +422,7 @@ class LCDPanelTestHarness(QWidget):
             traceback.print_exc()
             self._preview.set_status(f"Error: {e}")
 
-    # ── Test patterns ────────────────────────────────────────────
+    # ── Test patterns ─────────────────────────────────────────────
 
     def _show_checkerboard(self):
         self._current_bg = _checkerboard(self._width, self._height)
@@ -457,27 +448,28 @@ class LCDPanelTestHarness(QWidget):
         self._render_and_show()
         self._preview.set_status("White")
 
-    # ── Controls ─────────────────────────────────────────────────
+    # ── Controls ──────────────────────────────────────────────────
 
     def _set_rotation(self, degrees: int):
         self._rotation = degrees
+        for i, btn in enumerate(self._rot_buttons):
+            btn.setChecked(i * 90 == degrees)
         self._render_and_show()
         self._update_status()
 
     def _set_brightness(self, val: int):
         self._brightness = val
-        self._br_label.setText(f"{val}%")
+        self._br_label.setText(f"Brightness: {val}%")
         self._render_and_show()
         self._update_status()
 
     def _toggle_overlay(self, on: bool):
         self._overlay_enabled = on
-        self._ov_btn.setText(f"Overlay: {'ON' if on else 'OFF'}")
+        self._ov_btn.setText("ON" if on else "OFF")
         self._render_and_show()
         self._update_status()
 
     def _tick_overlay(self):
-        """Update overlay metrics (time/date/temp) if active."""
         if self._overlay_enabled and self._overlay_svc.enabled and self._current_bg is not None:
             self._render_and_show()
 
@@ -496,7 +488,9 @@ def main():
     dark.setColor(QPalette.ColorRole.ButtonText, QColor(200, 200, 200))
     app.setPalette(dark)
 
-    # Create test dir if it doesn't exist
+    init_settings(ControllerBuilder.build_setup())
+    ImageService.set_renderer(QtRenderer())
+
     _TEST_DIR.mkdir(parents=True, exist_ok=True)
 
     window = LCDPanelTestHarness()

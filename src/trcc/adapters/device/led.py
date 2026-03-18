@@ -20,6 +20,7 @@ from typing import List, Optional, Tuple
 
 from trcc.core.color import ColorEngine  # noqa: F401 — re-export
 from trcc.core.models import (
+    LED_REMAP_SUB_TABLES,  # noqa: F401 — re-export
     LED_REMAP_TABLES,  # noqa: F401 — re-export
     LED_STYLES,  # noqa: F401 — re-export
     PRESET_COLORS,  # noqa: F401 — re-export
@@ -264,6 +265,15 @@ class LedHidSender(LedDevice):
                 sub_type = resp[4]
                 style = PmRegistry.get_style(pm, sub_type)
                 model_name = PmRegistry.get_model_name(pm, sub_type)
+                entry = PmRegistry.resolve(pm, sub_type)
+                style_sub = entry.style_sub if entry else 0
+
+                log.info(
+                    "LED handshake: PM=%d SUB=%d style=%s model=%s style_sub=%d",
+                    pm, sub_type,
+                    style.style_id if style else "?",
+                    model_name, style_sub,
+                )
 
                 return LedHandshakeInfo(
                     model_id=pm,
@@ -271,6 +281,7 @@ class LedHidSender(LedDevice):
                     sub_type=sub_type,
                     style=style,
                     model_name=model_name,
+                    style_sub=style_sub,
                     raw_response=bytes(resp[:64]),
                 )
 
@@ -428,11 +439,13 @@ class _LedProbeCache:
                 return None
             pm = entry['pm']
             sub_type = entry['sub_type']
+            pm_entry = PmRegistry.resolve(pm, sub_type)
             return LedHandshakeInfo(
                 pm=pm,
                 sub_type=sub_type,
                 style=PmRegistry.get_style(pm, sub_type),
                 model_name=entry['model_name'],
+                style_sub=pm_entry.style_sub if pm_entry else 0,
             )
         except Exception as e:
             log.debug("Failed to load probe cache: %s", e)

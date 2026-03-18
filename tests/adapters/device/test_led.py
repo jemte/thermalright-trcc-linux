@@ -27,6 +27,7 @@ from trcc.adapters.device.led import (
     LED_INIT_SIZE,
     LED_MAGIC,
     LED_PID,
+    LED_REMAP_SUB_TABLES,
     LED_REMAP_TABLES,
     LED_RESPONSE_SIZE,
     LED_STYLES,
@@ -1425,3 +1426,88 @@ class TestRemapLedColors:
                     f"Style {style_id} ({style.model_name}) position {i}: "
                     f"index {idx} >= led_count {style.led_count}"
                 )
+
+    # ── Sub-variant remap tests ──────────────────────────────────
+
+    def test_sub_table_lf25_length(self):
+        """LF25 (style 5, sub 1) remap table has 170 entries (93 seg + 77 ring)."""
+        assert (5, 1) in LED_REMAP_SUB_TABLES
+        assert len(LED_REMAP_SUB_TABLES[(5, 1)]) == 170
+
+    def test_sub_table_lf25_segment_indices_valid(self):
+        """LF25 segment portion (first 93 entries) references valid style 5 indices."""
+        table = LED_REMAP_SUB_TABLES[(5, 1)]
+        segment_part = table[:93]
+        for i, idx in enumerate(segment_part):
+            assert 0 <= idx < 93, (
+                f"LF25 segment position {i}: index {idx} >= 93"
+            )
+
+    def test_sub_table_lf25_covers_all_segments(self):
+        """LF25 segment portion references all 93 logical LEDs."""
+        table = LED_REMAP_SUB_TABLES[(5, 1)]
+        segment_part = table[:93]
+        assert set(segment_part) == set(range(93))
+
+    def test_sub_table_lf25_decoration_indices_valid(self):
+        """LF25 decoration ring (entries 93-169) maps to indices 93-169."""
+        table = LED_REMAP_SUB_TABLES[(5, 1)]
+        ring_part = table[93:]
+        assert len(ring_part) == 77
+        for i, idx in enumerate(ring_part):
+            assert 93 <= idx <= 169, (
+                f"LF25 ring position {i}: index {idx} not in 93-169"
+            )
+
+    def test_sub_table_lf25_decoration_covers_all(self):
+        """LF25 decoration ring references all 77 logical ring LEDs."""
+        table = LED_REMAP_SUB_TABLES[(5, 1)]
+        ring_part = table[93:]
+        assert set(ring_part) == set(range(93, 170))
+
+    def test_remap_uses_sub_table_when_available(self):
+        """remap_led_colors uses sub table for (style 5, sub 1)."""
+        colors = [(i, i, i) for i in range(93)]
+        # sub=0 uses style 5 base table (93 entries)
+        result_base = remap_led_colors(colors, style_id=5, style_sub=0)
+        assert len(result_base) == len(LED_REMAP_TABLES[5])
+        # sub=1 uses LF25 table (170 entries, ring LEDs = black)
+        result_lf25 = remap_led_colors(colors, style_id=5, style_sub=1)
+        assert len(result_lf25) == 170
+        # decoration ring should be black (indices >= 93, no colors provided)
+        for idx in range(93, 170):
+            assert result_lf25[idx] == (0, 0, 0)
+
+    def test_remap_sub_default_zero_unchanged(self):
+        """style_sub=0 (default) falls through to base remap table."""
+        colors = [(i, i, i) for i in range(93)]
+        result_default = remap_led_colors(colors, style_id=5)
+        result_explicit = remap_led_colors(colors, style_id=5, style_sub=0)
+        assert result_default == result_explicit
+
+    def test_pm_176_lf25_has_style_sub_1(self):
+        """PM 176 (LF25) PmEntry has style_sub=1."""
+        entry = PmRegistry.resolve(176)
+        assert entry is not None
+        assert entry.style_sub == 1
+        assert entry.style_id == 5
+
+    def test_pm_129_lf11_has_style_sub_1(self):
+        """PM 129 (LF11 variant) PmEntry has style_sub=1."""
+        entry = PmRegistry.resolve(129)
+        assert entry is not None
+        assert entry.style_sub == 1
+        assert entry.style_id == 10
+
+    def test_pm_48_lf8_has_style_sub_0(self):
+        """PM 48 (LF8) PmEntry has default style_sub=0."""
+        entry = PmRegistry.resolve(48)
+        assert entry is not None
+        assert entry.style_sub == 0
+
+    def test_led_handshake_info_carries_style_sub(self):
+        """LedHandshakeInfo includes style_sub field."""
+        info = LedHandshakeInfo(pm=176, sub_type=0, style_sub=1)
+        assert info.style_sub == 1
+        info_default = LedHandshakeInfo(pm=48)
+        assert info_default.style_sub == 0

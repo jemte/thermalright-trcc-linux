@@ -331,6 +331,7 @@ class DeviceInfo:
     device_type: int = 1  # 1=SCSI, 2=HID Type 2 ("H"), 3=HID Type 3 ("ALi")
     implementation: str = "generic"  # e.g. "thermalright_lcd_v1", "hid_type2", "hid_led"
     led_style_id: Optional[int] = None  # LED style from probe (avoids name-based lookup)
+    led_style_sub: int = 0              # LED style sub-variant (C# nowLedStyleSub)
 
     # State
     connected: bool = True
@@ -354,6 +355,7 @@ class DeviceInfo:
             device_type=d.get('device_type', 1),
             implementation=d.get('implementation', 'generic'),
             led_style_id=d.get('led_style_id'),
+            led_style_sub=d.get('led_style_sub', 0),
         )
 
     @property
@@ -609,6 +611,7 @@ class LEDState:
 
     # LC1 (style 4) sub-style: 0=memory, 1=hard disk
     sub_style: int = 0              # nowLedStyleSub
+    ring_count: int = 0             # decoration ring LEDs (e.g. LF25 = 77)
     memory_ratio: int = 2           # DDR multiplier (1, 2, or 4) — C# default: 2
 
     # LF11 (style 10) disk selector (C# hardDiskCount, 0-based)
@@ -690,6 +693,7 @@ class LedHandshakeInfo(HandshakeResult):
     sub_type: int = 0
     style: Optional[LedDeviceStyle] = None
     model_name: str = ""
+    style_sub: int = 0  # C# nowLedStyleSub — wire remap variant
 
 
 # =============================================================================
@@ -702,6 +706,7 @@ class PmEntry(NamedTuple):
     model_name: str
     button_image: str
     preview_image: str = ""  # PM-specific preview; empty = use style default
+    style_sub: int = 0       # C# nowLedStyleSub — variant within same style
 
 
 class PmRegistry:
@@ -729,10 +734,10 @@ class PmRegistry:
         96:  PmEntry(7, "LF10", "A1LF10"),
         112: PmEntry(9, "LC2", "A1LC2"),
         128: PmEntry(4, "LC1", "A1LC1"),
-        129: PmEntry(10, "LF11", "A1LF11"),
+        129: PmEntry(10, "LF11", "A1LF11", style_sub=1),
         144: PmEntry(11, "LF15", "A1LF15"),
         160: PmEntry(12, "LF13", "A1LF13"),
-        176: PmEntry(5, "LF25", "A1LF25"),
+        176: PmEntry(5, "LF25", "A1LF25", style_sub=1),
         208: PmEntry(8, "CZ1", "A1CZ1"),
         # PA120 variants (PMs 17-22, 24-31) all map to style 2.
         **{pm: PmEntry(2, "PA120_DIGITAL", "A1PA120 DIGITAL")
@@ -863,6 +868,41 @@ _REMAP_STYLE_5: tuple[int, ...] = (
     39, 38, 37, 41, 40, 35, 36,           # seg5
     46, 45, 44, 48, 47, 42, 43,           # seg6
     4, 92,                                 # WATT, LEDC13 (unused/padding)
+)
+
+# Style 5 sub=1: LF25 (170 wire positions — 93 segment + 77 decoration ring)
+# Segments use same indices as LF8 but REVERSED wire order.
+# Decoration ring (ledVal5_1) mapped to logical indices 93-169.
+# Decoration ring wire order: ledVal5_1[3,2,1,0,76,75,...,5,4].
+_REMAP_STYLE_5_SUB1: tuple[int, ...] = (
+    # --- Segment LEDs (93, reversed vs LF8) ---
+    4,                                          # WATT
+    43, 42, 47, 48, 44, 45, 46,                # seg6 (B A F G C D E)
+    36, 35, 40, 41, 37, 38, 39,                # seg5
+    29, 28, 33, 34, 30, 31, 32,                # seg4
+    3, 2,                                       # HSD, SSD
+    22, 21, 26, 27, 23, 24, 25,                # seg3
+    15, 1, 14, 19, 20, 16, 17, 18,             # seg2 (B Gpu1 A F G C D E)
+    8, 0, 7, 12, 13, 9, 10, 11,               # seg1 (B Cpu1 A F G C D E)
+    54, 49, 50, 55, 53, 52, 51,                # seg7 (F A B G E D C)
+    61, 56, 57, 62, 60, 59, 58,                # seg8
+    68, 63, 64, 69, 67, 66, 65,                # seg9
+    75, 70, 71, 76, 74, 73, 72,                # seg10
+    5, 92, 91,                                  # MHz, LEDC13, LEDB13
+    82, 77, 78, 83, 81, 80, 79,                # seg11
+    89, 84, 85, 90, 88, 87, 86,                # seg12
+    6,                                          # BFB
+    # --- Decoration ring (77 LEDs, logical 93-169) ---
+    # ledVal5_1[3,2,1,0] then [76,75,...,5,4]
+    96, 95, 94, 93,
+    169, 168, 167, 166, 165, 164, 163, 162, 161, 160,
+    159, 158, 157, 156, 155, 154, 153, 152, 151, 150,
+    149, 148, 147, 146, 145, 144, 143, 142, 141, 140,
+    139, 138, 137, 136, 135, 134, 133, 132, 131, 130,
+    129, 128, 127, 126, 125, 124, 123, 122, 121, 120,
+    119, 118, 117, 116, 115, 114, 113, 112, 111, 110,
+    109, 108, 107, 106, 105, 104, 103, 102, 101, 100,
+    99, 98, 97,
 )
 
 # Style 6: LF12 (141 wire positions, 124 logical LEDs)
@@ -1001,6 +1041,12 @@ LED_REMAP_TABLES: dict[int, tuple[int, ...]] = {
     10: _REMAP_STYLE_10,  # LF11 (38 LEDs)
 }
 
+# Sub-variant remap overrides: (style_id, style_sub) → remap table.
+# Used when nowLedStyleSub != 0 (e.g. LF25 = style 5, sub 1).
+LED_REMAP_SUB_TABLES: dict[tuple[int, int], tuple[int, ...]] = {
+    (5, 1): _REMAP_STYLE_5_SUB1,  # LF25 (170 wire positions)
+}
+
 
 # Default-off LED indices per style (from C# isOnN arrays in UCScreenLED.cs).
 # Styles not listed here default to all-on.
@@ -1021,13 +1067,17 @@ LED_DEFAULT_OFF: dict[int, frozenset[int]] = {
 def remap_led_colors(
     colors: List[Tuple[int, int, int]],
     style_id: int,
+    style_sub: int = 0,
 ) -> List[Tuple[int, int, int]]:
     """Remap LED colors from logical to physical wire order.
 
     Each LED device style has a hardware-specific mapping from logical LED
     indices (used by the GUI) to physical wire positions (sent to device).
+    Sub-variant overrides (e.g. LF25 = style 5, sub 1) use a separate table.
     """
-    table = LED_REMAP_TABLES.get(style_id)
+    table = LED_REMAP_SUB_TABLES.get((style_id, style_sub))
+    if table is None:
+        table = LED_REMAP_TABLES.get(style_id)
     if table is None:
         return colors
     black = (0, 0, 0)
@@ -1724,6 +1774,7 @@ DEVICE_BUTTON_IMAGE: dict[int, dict[Optional[int], str]] = {
     11:  {6: 'A1LD8', None: 'A1LF19'},
     12:  {None: 'A1LF167'},
     13:  {None: 'A1PC1'},
+    14:  {1: 'A1Stream Vision', 2: 'A1Mjolnir VISION PRO'},
     15:  {2: 'A1LC8', None: 'A1LC7'},
     16:  {None: 'A1CZ2'},
     17:  {1: 'A1PC1', 2: 'A1LC9', 5: 'A1PC1', None: 'A1PC1'},
@@ -1737,16 +1788,21 @@ DEVICE_BUTTON_IMAGE: dict[int, dict[Optional[int], str]] = {
     53:  {1: 'A1LF21', 2: 'A1LF22', None: 'A1LF20'},
     54:  {None: 'A1LC5'},
     58:  {0: 'A1FROZEN WARFRAME SE', None: 'A1LM26'},
+    63:  {0: 'A1FROZEN WARFRAME PRO', 1: 'A1LM22', 2: 'A1LM27',
+          3: 'A1LM30'},
     64:  {0: 'A1FROZEN WARFRAME PRO', 1: 'A1LM22', 2: 'A1LM27',
           3: 'A1LM30'},
-    65:  {0: 'A1ELITE VISION', 1: 'A1LF14', 3: 'A1LD7', 4: 'A1LD10'},
-    66:  {3: 'A1LD7', 4: 'A1LD7'},
+    65:  {0: 'A1ELITE VISION', 1: 'A1LF14', 3: 'A1LD7', 4: 'A1LD10',
+          5: 'A1LD7'},
+    66:  {0: 'A1ELITE VISION', 1: 'A1LF14', 2: 'A1LF14',
+          3: 'A1LD7', 4: 'A1LD7'},
     68:  {None: 'A1LM24'},
     69:  {2: 'A1LD9'},
     100: {0: 'A1FROZEN WARFRAME PRO', 1: 'A1LM22',
           None: 'A1FROZEN WARFRAME PRO'},
     101: {0: 'A1ELITE VISION', 1: 'A1LF14', None: 'A1ELITE VISION'},
     128: {None: 'A1LM24'},
+    129: {None: 'A1GRAND VISION'},
     # -- SCSI devices (VID → {PID: image}) --
     0x87CD: {0x70DB: 'A1CZTV', None: 'A1CZTV'},
     0x87AD: {0x70DB: 'A1GRAND VISION', None: 'A1GRAND VISION'},

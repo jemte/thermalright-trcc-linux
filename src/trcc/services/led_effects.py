@@ -35,20 +35,39 @@ class LEDEffectEngine:
 
     def _tick_single_mode(self, mode: LEDMode, color: Tuple[int, int, int],
                           seg_count: int) -> List[Tuple[int, int, int]]:
-        """Compute colors for a single mode across seg_count segments."""
+        """Compute colors for a single mode across seg_count segments.
+
+        If the device has a decoration ring (state.ring_count > 0), ring
+        colors are appended after the segment colors.  Rainbow mode gives
+        each ring LED a per-position phase offset (C# CHMS_Timer5 for
+        ledVal5_1); all other modes fill the ring uniformly.
+        """
         if mode == LEDMode.STATIC:
-            return [color] * seg_count
+            colors = [color] * seg_count
         elif mode == LEDMode.BREATHING:
-            return self._tick_breathing_for(color, seg_count)
+            colors = self._tick_breathing_for(color, seg_count)
         elif mode == LEDMode.COLORFUL:
-            return self._tick_colorful_for(seg_count)
+            colors = self._tick_colorful_for(seg_count)
         elif mode == LEDMode.RAINBOW:
-            return self._tick_rainbow_for(seg_count)
+            colors = self._tick_rainbow_for(seg_count)
         elif mode == LEDMode.TEMP_LINKED:
-            return self._tick_temp_linked_for(seg_count)
+            colors = self._tick_temp_linked_for(seg_count)
         elif mode == LEDMode.LOAD_LINKED:
-            return self._tick_load_linked_for(seg_count)
-        return [(0, 0, 0)] * seg_count
+            colors = self._tick_load_linked_for(seg_count)
+        else:
+            colors = [(0, 0, 0)] * seg_count
+
+        # Decoration ring LEDs (e.g. LF25: 77 ring LEDs after 93 segments)
+        ring_count = self._state.ring_count
+        if ring_count > 0:
+            if mode == LEDMode.RAINBOW:
+                colors.extend(self._tick_ring_rainbow(ring_count))
+            else:
+                # All other modes: ring gets same color as segments
+                ring_color = colors[0] if colors else (0, 0, 0)
+                colors.extend([ring_color] * ring_count)
+
+        return colors
 
     def _tick_test_mode(self) -> List[Tuple[int, int, int]]:
         """C# checkBox1 test mode: cycle 4 colors every 10 ticks at min brightness."""
@@ -163,6 +182,26 @@ class LEDEffectEngine:
 
         self._state.rgb_timer = (timer + 4) % table_len
 
+        return colors
+
+    def _tick_ring_rainbow(self, ring_count: int) -> List[Tuple[int, int, int]]:
+        """C# CHMS_Timer5 for ledVal5_1: per-LED rainbow with reversed index.
+
+        Each ring LED gets a phase offset based on position, and the ring
+        is filled in reverse order (77-j-1) to create the animation flow.
+        Uses the same rgb_timer as the segment rainbow (already advanced).
+        """
+        from ..core.color import ColorEngine
+        table = ColorEngine.get_table()
+        table_len = len(table)
+        # rgb_timer was already advanced by _tick_rainbow_for, so subtract
+        # the increment to use the same timer value as the segments.
+        timer = (self._state.rgb_timer - 4) % table_len
+
+        colors: List[Tuple[int, int, int]] = [(0, 0, 0)] * ring_count
+        for j in range(ring_count):
+            idx = (timer + j * table_len // ring_count) % table_len
+            colors[ring_count - j - 1] = table[idx]
         return colors
 
     def _tick_temp_linked_for(self, seg_count: int) -> List[Tuple[int, int, int]]:

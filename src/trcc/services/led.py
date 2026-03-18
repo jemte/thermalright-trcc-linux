@@ -224,23 +224,32 @@ class LEDService:
         self._metrics = metrics
         self._engine.metrics = metrics
 
-    def configure_for_style(self, style_id: int) -> None:
+    def configure_for_style(self, style_id: int, style_sub: int = 0) -> None:
         """Configure state for a specific LED device style.
 
         Sets up LED segment counts/zones from the style registry and
         activates segment display rotation for digit-display styles (1-11).
+        ``style_sub`` selects wire remap variants (e.g. LF25 = style 5, sub 1)
+        which may add decoration ring LEDs.
         """
         from ..core.led_segment import get_display
-        from ..core.models import LED_STYLES
+        from ..core.models import LED_REMAP_SUB_TABLES, LED_STYLES
 
         self._led_style = style_id
         style = LED_STYLES.get(style_id)
         if style:
             self.state.style = style.style_id
+            self.state.sub_style = style_sub
             self.state.led_count = style.led_count
             self.state.segment_count = style.segment_count
             self.state.zone_count = style.zone_count
             self.state.segment_on = [True] * style.segment_count
+
+            # Decoration ring: sub-variant remap tables may be longer than
+            # the base led_count — extra entries are ring LEDs.
+            sub_table = LED_REMAP_SUB_TABLES.get((style_id, style_sub))
+            self.state.ring_count = (
+                len(sub_table) - style.led_count if sub_table else 0)
             if style.zone_count > 1:
                 self.state.zones = [LEDZoneState() for _ in range(style.zone_count)]
                 # Must also size zone_sync_zones — __post_init__ ran with
@@ -422,7 +431,8 @@ class LEDService:
             device_info.pid,
         )
 
-        self.configure_for_style(led_style)
+        style_sub = getattr(device_info, 'led_style_sub', 0)
+        self.configure_for_style(led_style, style_sub)
 
         try:
             if self._get_protocol is None:

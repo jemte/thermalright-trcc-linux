@@ -127,7 +127,7 @@ Every piece of data has exactly ONE owner. Violations = bugs.
 - **Logging**: Use `log = logging.getLogger(__name__)` — never `print()` for diagnostics
 - **Paths**: Use `pathlib.Path` where possible; `os.path` only in `data_repository.py` (legacy, perf)
 - **Thread safety**: Use Qt signals to communicate from background threads to GUI — never `QTimer.singleShot` from non-main threads
-- **Tests**: `pytest` with `PYTHONPATH=src`; 5265 tests across 92 files in 9 directories mirroring `src/trcc/` hexagonal layers (`tests/{core,services,adapters/{device,infra,system},cli,api,qt_components}/`). Cross-cutting tests at `tests/` root. When refactoring changes mock targets, use `conftest.py` fixtures/helpers — never update 50+ individual test mock paths inline. Shared mock helpers go in conftest.
+- **Tests**: `pytest` with `PYTHONPATH=src`; 5302 tests across 92 files in 9 directories mirroring `src/trcc/` hexagonal layers (`tests/{core,services,adapters/{device,infra,system},cli,api,qt_components}/`). Cross-cutting tests at `tests/` root. When refactoring changes mock targets, use `conftest.py` fixtures/helpers — never update 50+ individual test mock paths inline. Shared mock helpers go in conftest. Run with `PYTHONPATH=src pytest tests/ -n 8 -x -q` (pytest-xdist parallel, 8 workers).
 - **Linting**: `ruff check .` + `pyright` must pass before any commit (0 errors, 0 warnings)
 - **Security**: Zero tolerance for CodeQL / OWASP findings — see **Security** section below
 - **Assets**: All GUI asset access goes through `Assets` class (`qt_components/assets.py`). Auto-appends `.png` for base names. Never manually build asset paths with `f"{name}.png"`.
@@ -250,6 +250,9 @@ Zero tolerance for security issues. Fix properly within hexagonal/SOLID architec
 
 ## Development Workflow
 
+### Plan Before Coding
+For any non-trivial change: think through the full impact (what files, what callers, what data flow), state the plan to the user, wait for confirmation, THEN implement cleanly in one pass. Never jump into code and patch problems as they appear — that wastes the user's time reviewing half-baked work. Don't start coding while still discovering the problem scope.
+
 ### Two modes: Development and Release
 
 **Development** — local commits, no push, no version bump:
@@ -263,7 +266,7 @@ Zero tolerance for security issues. Fix properly within hexagonal/SOLID architec
 2. Add version history entry in `__version__.py`
 3. Update `doc/CHANGELOG.md` with new version entry
 4. Run `ruff check .` + `pyright` — fix any issues (0 errors, 0 warnings)
-5. Run `PYTHONPATH=src pytest tests/ -x -q` — all tests must pass
+5. Run `PYTHONPATH=src pytest tests/ -n 8 -x -q` — all tests must pass
 6. Squash or keep commits as-is, then push to `main`
 7. Tag and push: `git tag v{version} && git push origin v{version}` — this triggers CI to build + publish to PyPI. Do NOT run `twine upload` manually.
 8. GitHub Release: `gh release create v{version} --target main --title "v{version}"` with release notes

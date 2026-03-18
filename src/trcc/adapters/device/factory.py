@@ -562,7 +562,10 @@ class LedProtocol(UsbProtocol):
 
             hr = self._handshake_result
             style = getattr(hr, 'style', None) if hr else None
-            remapped = remap_led_colors(led_colors, style.style_id) if style else led_colors
+            style_sub = getattr(hr, 'style_sub', 0) if hr else 0
+            remapped = remap_led_colors(
+                led_colors, style.style_id, style_sub,
+            ) if style else led_colors
 
             packet = LedPacketBuilder.build_led_packet(
                 remapped, is_on, global_on, brightness
