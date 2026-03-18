@@ -44,18 +44,17 @@ def _make_device(vid=0x87CD, pid=0x70DB, scsi="/dev/sg0", usb_path="2-1",
 class TestDetectToSend(unittest.TestCase):
     """Full pipeline: detect device → create LCDDriver → send_frame."""
 
-    @patch("trcc.adapters.infra.data_repository.SysUtils.require_sg_raw")
-    @patch("trcc.adapters.device.scsi.subprocess.run")
+    @patch("trcc.adapters.device.scsi._sg_io_write", return_value=True)
+    @patch("trcc.adapters.device.scsi._sg_io_read", return_value=b"\x00" * 512)
     @patch("trcc.adapters.device.lcd.detect_devices")
     @patch("trcc.adapters.device.lcd.LCDDriver._detect_resolution", return_value=False)
-    def test_detect_init_send(self, _, mock_detect, mock_run, mock_sg):
+    def test_detect_init_send(self, _, mock_detect, mock_read, mock_write):
         """detect_devices → LCDDriver(path) → send_frame goes through all layers."""
         from trcc.adapters.device.lcd import LCDDriver
         from trcc.adapters.device.scsi import ScsiDevice
 
         dev = _make_device()
         mock_detect.return_value = [dev]
-        mock_run.return_value = MagicMock(returncode=0, stdout=b"\x00" * 512)
 
         driver = LCDDriver(device_path="/dev/sg0")
 
@@ -71,23 +70,22 @@ class TestDetectToSend(unittest.TestCase):
         driver.send_frame(frame)
         self.assertTrue(driver.initialized)
 
-        # poll(read) + init(write) + frame chunks(write)
-        # sg_raw calls: 1 read (poll) + 1 write (init) + N chunk writes
+        # SG_IO calls: 1 read (poll) + 1 write (init) + N chunk writes
         chunks = ScsiDevice._get_frame_chunks(320, 320)
-        expected_calls = 1 + 1 + len(chunks)  # poll + init + chunks
-        self.assertEqual(mock_run.call_count, expected_calls)
+        self.assertEqual(mock_read.call_count, 1)  # poll
+        expected_writes = 1 + len(chunks)  # init + chunks
+        self.assertEqual(mock_write.call_count, expected_writes)
 
-    @patch("trcc.adapters.infra.data_repository.SysUtils.require_sg_raw")
-    @patch("trcc.adapters.device.scsi.subprocess.run")
+    @patch("trcc.adapters.device.scsi._sg_io_write", return_value=True)
+    @patch("trcc.adapters.device.scsi._sg_io_read", return_value=b"\x00" * 512)
     @patch("trcc.adapters.device.lcd.detect_devices")
     @patch("trcc.adapters.device.lcd.LCDDriver._detect_resolution", return_value=False)
-    def test_send_image_pipeline(self, _, mock_detect, mock_run, mock_sg):
+    def test_send_image_pipeline(self, _, mock_detect, mock_read, mock_write):
         """LCDDriver.load_image → send_frame end-to-end."""
         from trcc.adapters.device.lcd import LCDDriver
 
         dev = _make_device()
         mock_detect.return_value = [dev]
-        mock_run.return_value = MagicMock(returncode=0, stdout=b"\x00" * 512)
 
         driver = LCDDriver(device_path="/dev/sg0")
 
