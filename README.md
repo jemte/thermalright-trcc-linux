@@ -63,6 +63,12 @@ Pre-built packages are available for every major distro. No pip, no venv, no PEP
 sudo dnf install https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux-8.7.6-1.fc43.noarch.rpm
 ```
 
+**Bazzite / Bluefin / Aurora / Universal Blue (immutable Fedora):**
+```bash
+rpm-ostree install https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux-8.7.6-1.fc43.noarch.rpm
+systemctl reboot   # rpm-ostree changes apply on next boot
+```
+
 **Ubuntu 24.04+ / Debian 13+ / Mint 22+ / Pop!_OS 24.04+ / Zorin 17+:**
 ```bash
 curl -LO https://github.com/Lexonight1/thermalright-trcc-linux/releases/latest/download/trcc-linux_8.7.6-1_all.deb
