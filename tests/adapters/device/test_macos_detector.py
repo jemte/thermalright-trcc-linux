@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-MODULE = 'trcc.adapters.device.macos.detector'
+MODULE = 'trcc.adapters.detection.facade_macos'
 
 
 class TestMacOSDetector:
@@ -27,7 +27,7 @@ class TestMacOSDetector:
             return None
 
         with patch('usb.core.find', side_effect=mock_find):
-            from trcc.adapters.device.macos.detector import MacOSDeviceDetector
+            from trcc.adapters.detection.facade_macos import MacOSDeviceDetector
             devices = MacOSDeviceDetector.detect()
 
         matching = [d for d in devices if d.vid == vid and d.pid == pid]
@@ -70,7 +70,7 @@ class TestGetUsbTree:
             returncode=0,
             stdout=json.dumps({'SPUSBDataType': [{'_name': 'USB 3.0 Bus'}]}),
         )
-        from trcc.adapters.device.macos.detector import get_usb_tree
+        from trcc.adapters.detection.facade_macos import get_usb_tree
         tree = get_usb_tree()
         assert len(tree) == 1
         assert tree[0]['_name'] == 'USB 3.0 Bus'
@@ -78,5 +78,5 @@ class TestGetUsbTree:
     @patch(f'{MODULE}.subprocess')
     def test_returns_empty_on_failure(self, mock_sub):
         mock_sub.run.side_effect = RuntimeError("no system_profiler")
-        from trcc.adapters.device.macos.detector import get_usb_tree
+        from trcc.adapters.detection.facade_macos import get_usb_tree
         assert get_usb_tree() == []

@@ -712,7 +712,7 @@ class TestBulkDeviceDetection(unittest.TestCase):
             device_type=4,
         )
 
-        with patch("trcc.adapters.device.detector.detect_devices", return_value=[fake_dev]):
+        with patch("trcc.adapters.detection.factory_detector.detect_devices", return_value=[fake_dev]):
             from trcc.adapters.device.scsi import find_lcd_devices
             devices = find_lcd_devices()
 

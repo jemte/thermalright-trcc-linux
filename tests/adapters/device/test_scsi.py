@@ -343,7 +343,7 @@ class TestSendFrame(unittest.TestCase):
 class TestFindLCDDevices(unittest.TestCase):
 
     @patch('trcc.adapters.transport.facade_lcd.LCDDriver')
-    @patch('trcc.adapters.device.detector.detect_devices')
+    @patch('trcc.adapters.detection.factory_detector.detect_devices')
     def test_returns_device_dicts(self, mock_detect, mock_driver_cls):
         dev = MagicMock()
         dev.scsi_device = '/dev/sg0'
@@ -368,7 +368,7 @@ class TestFindLCDDevices(unittest.TestCase):
         self.assertEqual(devices[0]['resolution'], (0, 0))
         self.assertEqual(devices[0]['device_index'], 0)
 
-    @patch('trcc.adapters.device.detector.detect_devices')
+    @patch('trcc.adapters.detection.factory_detector.detect_devices')
     def test_skips_devices_without_scsi(self, mock_detect):
         dev = MagicMock()
         dev.scsi_device = None
@@ -378,7 +378,7 @@ class TestFindLCDDevices(unittest.TestCase):
         self.assertEqual(find_lcd_devices(), [])
 
     @patch('trcc.adapters.transport.facade_lcd.LCDDriver', side_effect=Exception('driver fail'))
-    @patch('trcc.adapters.device.detector.detect_devices')
+    @patch('trcc.adapters.detection.factory_detector.detect_devices')
     def test_driver_error_uses_unresolved_resolution(self, mock_detect, _):
         dev = MagicMock()
         dev.scsi_device = '/dev/sg0'

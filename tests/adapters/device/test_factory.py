@@ -574,7 +574,7 @@ class TestDeviceDetectorProtocol:
 class TestFindLcdDevicesHid:
     """Verify find_lcd_devices() returns HID devices with protocol info."""
 
-    @patch("trcc.adapters.device.detector.detect_devices")
+    @patch("trcc.adapters.detection.factory_detector.detect_devices")
     def test_hid_device_included_without_scsi_path(self, mock_detect):
         from trcc.adapters.device.detector import DetectedDevice
         mock_detect.return_value = [
@@ -592,7 +592,7 @@ class TestFindLcdDevicesHid:
         assert devices[0]['device_type'] == 2
         assert devices[0]['path'] == 'hid:0416:5302'
 
-    @patch("trcc.adapters.device.detector.detect_devices")
+    @patch("trcc.adapters.detection.factory_detector.detect_devices")
     def test_scsi_device_needs_scsi_path(self, mock_detect):
         from trcc.adapters.device.detector import DetectedDevice
         mock_detect.return_value = [
@@ -607,7 +607,7 @@ class TestFindLcdDevicesHid:
         devices = find_lcd_devices()
         assert len(devices) == 0  # SCSI device without path is excluded
 
-    @patch("trcc.adapters.device.detector.detect_devices")
+    @patch("trcc.adapters.detection.factory_detector.detect_devices")
     def test_mixed_scsi_and_hid(self, mock_detect):
         from trcc.adapters.device.detector import DetectedDevice
         mock_detect.return_value = [
@@ -638,7 +638,7 @@ class TestFindLcdDevicesHid:
         assert hid_dev['path'] == 'hid:0418:5303'
         assert hid_dev['device_type'] == 3
 
-    @patch("trcc.adapters.device.detector.detect_devices")
+    @patch("trcc.adapters.detection.factory_detector.detect_devices")
     def test_device_index_assigned_across_protocols(self, mock_detect):
         from trcc.adapters.device.detector import DetectedDevice
         mock_detect.return_value = [

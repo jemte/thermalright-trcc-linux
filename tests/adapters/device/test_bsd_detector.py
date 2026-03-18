@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-MODULE = 'trcc.adapters.device.bsd.detector'
+MODULE = 'trcc.adapters.detection.facade_bsd'
 
 
 class TestBSDDetector:
@@ -27,7 +27,7 @@ class TestBSDDetector:
             return None
 
         with patch('usb.core.find', side_effect=mock_find):
-            from trcc.adapters.device.bsd.detector import BSDDeviceDetector
+            from trcc.adapters.detection.facade_bsd import BSDDeviceDetector
             devices = BSDDeviceDetector.detect()
 
         matching = [d for d in devices if d.vid == vid and d.pid == pid]
@@ -67,7 +67,7 @@ class TestGetPassDeviceMap:
             returncode=0,
             stdout='<THERMALRIGHT LCD 1.00>  at scbus0 target 0 lun 0 (pass0,da0)\n',
         )
-        from trcc.adapters.device.bsd.detector import _get_pass_device_map
+        from trcc.adapters.detection.facade_bsd import _get_pass_device_map
         result = _get_pass_device_map()
         assert 'pass0' in result
         assert result['pass0'] == '/dev/pass0'
@@ -75,7 +75,7 @@ class TestGetPassDeviceMap:
     @patch(f'{MODULE}.subprocess')
     def test_returns_empty_on_failure(self, mock_sub):
         mock_sub.run.side_effect = RuntimeError("no camcontrol")
-        from trcc.adapters.device.bsd.detector import _get_pass_device_map
+        from trcc.adapters.detection.facade_bsd import _get_pass_device_map
         assert _get_pass_device_map() == {}
 
 
@@ -87,7 +87,7 @@ class TestGetUsbList:
             returncode=0,
             stdout='ugen0.1: <USB EHCI> at usbus0\nugen0.2: <THERMALRIGHT> at usbus0\n',
         )
-        from trcc.adapters.device.bsd.detector import get_usb_list
+        from trcc.adapters.detection.facade_bsd import get_usb_list
         lines = get_usb_list()
         assert len(lines) == 2
         assert 'THERMALRIGHT' in lines[1]
@@ -95,5 +95,5 @@ class TestGetUsbList:
     @patch(f'{MODULE}.subprocess')
     def test_returns_empty_on_failure(self, mock_sub):
         mock_sub.run.side_effect = RuntimeError("no usbconfig")
-        from trcc.adapters.device.bsd.detector import get_usb_list
+        from trcc.adapters.detection.facade_bsd import get_usb_list
         assert get_usb_list() == []
