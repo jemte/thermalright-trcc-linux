@@ -18,9 +18,10 @@ from __future__ import annotations
 import logging
 import struct
 
-from trcc.adapters.device._usb_helpers import BulkFrameDevice
-from trcc.adapters.device.frame import FrameDevice
 from trcc.core.models import HandshakeResult, fbl_to_resolution, pm_to_fbl
+
+from ._usb_helpers import BulkFrameDevice
+from .frame import FrameDevice
 
 log = logging.getLogger(__name__)
 

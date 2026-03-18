@@ -342,9 +342,11 @@ class WindowsScsiProtocol(DeviceProtocol):
     Keeps the transport handle open for the lifetime of the protocol.
     """
 
-    def __init__(self, device_path: str):
+    def __init__(self, device_path: str, vid: int = 0, pid: int = 0):
         super().__init__()
         self._path = device_path
+        self._vid = vid
+        self._pid = pid
         self._transport: Any = None
 
     def _get_transport(self):
@@ -359,32 +361,59 @@ class WindowsScsiProtocol(DeviceProtocol):
         return self._transport
 
     def _do_handshake(self) -> Optional[HandshakeResult]:
-        """Init Windows SCSI device and determine FBL.
+        """Poll + init Windows SCSI device — same sequence as Linux.
 
-        Windows IOCTL_SCSI_PASS_THROUGH_DIRECT read direction times out
-        (error 121) on USB mass storage LCD devices — the protocol doesn't
-        map cleanly to standard SCSI IN/OUT. Skip the poll read and default
-        to FBL=100 (320x320). The init write still works and is required
-        to wake the device for frame sends.
+        1. Poll (cmd=0xF5) → read 0xE100 bytes → FBL = response[0]
+        2. Boot state check (bytes[4:8] == 0xA1A2A3A4 → wait, re-poll)
+        3. Init (cmd=0x1F5) → write 0xE100 zeros
         """
         import time  # noqa: I001
 
-        from .scsi import ScsiDevice, _POST_INIT_DELAY
+        from .scsi import (
+            ScsiDevice,
+            _BOOT_MAX_RETRIES,
+            _BOOT_SIGNATURE,
+            _BOOT_WAIT_SECONDS,
+            _POST_INIT_DELAY,
+        )
 
         transport = self._get_transport()
         if transport is None:
             return None
 
         try:
-            # Init write — wakes the device for frame reception
+            # Step 1: Poll with boot state check
+            poll_header = ScsiDevice._build_header(0xF5, 0xE100)
+            response = b''
+            for attempt in range(_BOOT_MAX_RETRIES):
+                response = transport.read_cdb(poll_header[:16], 0xE100)
+                if len(response) >= 8 and response[4:8] == _BOOT_SIGNATURE:
+                    log.info(
+                        "Windows SCSI %s still booting (attempt %d/%d)",
+                        self._path, attempt + 1, _BOOT_MAX_RETRIES,
+                    )
+                    time.sleep(_BOOT_WAIT_SECONDS)
+                else:
+                    break
+
+            if not response:
+                log.error(
+                    "Windows SCSI poll returned empty response on %s "
+                    "(VID=%04X PID=%04X)",
+                    self._path, self._vid, self._pid,
+                )
+                return None
+
+            fbl = response[0]
+            log.info(
+                "Windows SCSI poll OK: FBL=%d (VID=%04X PID=%04X)",
+                fbl, self._vid, self._pid,
+            )
+
+            # Step 2: Init write — wakes device for frame reception
             init_header = ScsiDevice._build_header(0x1F5, 0xE100)
             transport.send_cdb(init_header[:16], b'\x00' * 0xE100)
             time.sleep(_POST_INIT_DELAY)
-
-            # Default FBL=100 (320x320) — poll read not supported on
-            # Windows SCSI passthrough for these devices
-            fbl = 100
-            log.info("Windows SCSI init OK, defaulting FBL=%d", fbl)
 
             # Build HandshakeResult
             from trcc.core.models import fbl_to_resolution
@@ -395,7 +424,7 @@ class WindowsScsiProtocol(DeviceProtocol):
                 resolution=(width, height),
                 pm_byte=fbl,
                 sub_byte=0,
-                raw_response=b'',
+                raw_response=response[:64],
             )
         except Exception:
             log.exception("Windows SCSI handshake failed on %s", self._path)
@@ -562,7 +591,10 @@ class LedProtocol(UsbProtocol):
 
             hr = self._handshake_result
             style = getattr(hr, 'style', None) if hr else None
-            remapped = remap_led_colors(led_colors, style.style_id) if style else led_colors
+            style_sub = getattr(hr, 'style_sub', 0) if hr else 0
+            remapped = remap_led_colors(
+                led_colors, style.style_id, style_sub,
+            ) if style else led_colors
 
             packet = LedPacketBuilder.build_led_packet(
                 remapped, is_on, global_on, brightness
@@ -744,7 +776,7 @@ class DeviceProtocolFactory:
     # SCSI routes to WindowsScsiProtocol on Windows (DeviceIoControl)
     # vs ScsiProtocol on Linux/macOS/BSD (sg_raw/SG_IO).
     _PROTOCOL_REGISTRY: ClassVar[Dict[Tuple[str, str], Callable[..., DeviceProtocol]]] = {
-        ('scsi', ''):       lambda di: (WindowsScsiProtocol(di.path)
+        ('scsi', ''):       lambda di: (WindowsScsiProtocol(di.path, vid=di.vid, pid=di.pid)
                                         if _is_windows() else ScsiProtocol(di.path)),
         ('bulk', ''):       lambda di: BulkProtocol(vid=di.vid, pid=di.pid),
         ('ly', ''):         lambda di: LyProtocol(vid=di.vid, pid=di.pid),

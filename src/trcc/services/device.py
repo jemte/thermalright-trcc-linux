@@ -105,9 +105,11 @@ class DeviceService:
             info = self._probe_led_fn(device.vid, device.pid, usb_path=usb_path)
             if info and info.style:
                 device.led_style_id = info.style.style_id
+                device.led_style_sub = getattr(info, 'style_sub', 0)
                 device.model = info.style.model_name
-                log.debug("LED probe: PM=%d → style=%d model=%s",
-                          info.pm, info.style.style_id, info.style.model_name)
+                log.debug("LED probe: PM=%d → style=%d sub=%d model=%s",
+                          info.pm, info.style.style_id,
+                          device.led_style_sub, info.style.model_name)
         except Exception as e:
             log.debug("LED probe failed: %s", e)
 
@@ -220,10 +222,9 @@ class DeviceService:
         else:
             from .image import ImageService
 
-            if self._selected:
-                protocol, resolution, fbl, use_jpeg = self._selected.encoding_params
-            else:
-                protocol, resolution, fbl, use_jpeg = 'scsi', (320, 320), None, True
+            if not self._selected:
+                raise RuntimeError("Cannot encode for device — no device selected")
+            protocol, resolution, fbl, use_jpeg = self._selected.encoding_params
 
             data = ImageService.encode_for_device(image, protocol, resolution, fbl, use_jpeg)
             self._last_encode_id = img_id
@@ -257,10 +258,9 @@ class DeviceService:
         else:
             from .image import ImageService
 
-            if self._selected:
-                protocol, resolution, fbl, use_jpeg = self._selected.encoding_params
-            else:
-                protocol, resolution, fbl, use_jpeg = 'scsi', (320, 320), None, True
+            if not self._selected:
+                raise RuntimeError("Cannot encode for device — no device selected")
+            protocol, resolution, fbl, use_jpeg = self._selected.encoding_params
 
             data = ImageService.encode_for_device(
                 image, protocol, resolution, fbl, use_jpeg)

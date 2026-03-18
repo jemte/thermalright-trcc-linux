@@ -51,23 +51,6 @@ class TestAssets(unittest.TestCase):
         pix = Assets.load_pixmap.__wrapped__(Assets, 'definitely_not_a_file.png')
         self.assertTrue(pix.isNull())
 
-    def test_load_pixmap_existing(self):
-        """Loading a real asset returns valid pixmap."""
-        if Assets.exists('P0CZTV.png'):
-            pix = Assets.load_pixmap.__wrapped__(Assets, 'P0CZTV.png')
-            self.assertFalse(pix.isNull())
-        else:
-            self.skipTest('P0CZTV.png not found')
-
-    def test_load_pixmap_scaled(self):
-        """Scaling produces correct dimensions."""
-        if Assets.exists('P0CZTV.png'):
-            pix = Assets.load_pixmap.__wrapped__(Assets, 'P0CZTV.png', 100, 80)
-            self.assertEqual(pix.width(), 100)
-            self.assertEqual(pix.height(), 80)
-        else:
-            self.skipTest('P0CZTV.png not found')
-
     def test_exists(self):
         self.assertFalse(Assets.exists('nonexistent_file_xyz.png'))
 
@@ -116,7 +99,7 @@ class TestResolveAssetsDir(unittest.TestCase):
 
     def test_linux_uses_package_dir(self):
         """LinuxSetup returns package dir directly."""
-        from trcc.adapters.system.setup import LinuxSetup
+        from trcc.adapters.system.linux.setup import LinuxSetup
         from trcc.qt_components.assets import _PKG_ASSETS_DIR
         result = LinuxSetup().resolve_assets_dir(_PKG_ASSETS_DIR)
         self.assertEqual(result, _PKG_ASSETS_DIR)

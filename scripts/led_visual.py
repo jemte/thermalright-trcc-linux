@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Visual test harness for LED panel — all 12 device styles.
+"""Visual harness for LED panel — all 12 device styles.
 
 Uses the real LEDService to compute LED colors (segment masks,
 mode effects, metrics-linked gradients). Buttons across the top
@@ -9,8 +9,8 @@ missing/misplaced LEDs are immediately obvious.
 All panel buttons wired: mode, color, brightness, zones, on/off.
 
 Usage:
-    PYTHONPATH=src python3 tests/test_led_panel_visual.py          # real metrics
-    PYTHONPATH=src python3 tests/test_led_panel_visual.py --fake    # fake cycling
+    PYTHONPATH=src python3 scripts/led_visual.py          # real metrics
+    PYTHONPATH=src python3 scripts/led_visual.py --fake    # fake cycling
 """
 from __future__ import annotations
 
@@ -33,10 +33,21 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from trcc.core.models import LED_STYLES, HardwareMetrics, LEDMode
+from trcc.conf import init_settings
+from trcc.core.builder import ControllerBuilder
+from trcc.core.models import (
+    LED_REMAP_SUB_TABLES,
+    LED_REMAP_TABLES,
+    LED_STYLES,
+    HardwareMetrics,
+    LEDMode,
+    PmRegistry,
+    remap_led_colors,
+)
 from trcc.qt_components.uc_led_control import PREVIEW_X, PREVIEW_Y, UCLedControl
 from trcc.qt_components.uc_screen_led import STYLE_POSITIONS
 from trcc.services.led import LEDService
+from trcc.services.system import set_instance
 
 # ── Metrics source ────────────────────────────────────────────────
 _use_fake = '--fake' in sys.argv
@@ -107,6 +118,58 @@ class LEDIndexOverlay(QWidget):
         p.end()
 
 
+class WirePreview(QWidget):
+    """Shows the remapped wire output as a horizontal strip of colored cells.
+
+    Each cell = one wire position. Color = what the device physically receives.
+    Helps verify remap tables visually — wrong wiring shows as misplaced colors.
+    """
+
+    CELL_W = 6
+    CELL_H = 20
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._colors: list[tuple[int, int, int]] = []
+        self._label = ""
+        self.setMinimumHeight(self.CELL_H + 20)
+
+    def set_colors(self, colors: list[tuple[int, int, int]], label: str = ""):
+        self._colors = colors
+        self._label = label
+        w = max(len(colors) * self.CELL_W + 10, 200)
+        self.setMinimumWidth(w)
+        self.update()
+
+    def paintEvent(self, _event):  # noqa: N802
+        if not self._colors:
+            return
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+
+        # Label
+        p.setPen(QColor(180, 180, 180))
+        font = p.font()
+        font.setPixelSize(10)
+        p.setFont(font)
+        p.drawText(2, 12, self._label)
+
+        # Color cells
+        y = 16
+        for i, (r, g, b) in enumerate(self._colors):
+            p.fillRect(i * self.CELL_W, y, self.CELL_W - 1, self.CELL_H,
+                        QColor(r, g, b))
+
+        # Tick marks every 10
+        p.setPen(QColor(100, 100, 100))
+        for i in range(0, len(self._colors), 10):
+            x = i * self.CELL_W
+            p.drawLine(x, y + self.CELL_H, x, y + self.CELL_H + 3)
+            p.drawText(x, y + self.CELL_H + 12, str(i))
+
+        p.end()
+
+
 class LEDPanelTestHarness(QWidget):
     """Main test window: device buttons at top, LED panel below.
 
@@ -123,6 +186,7 @@ class LEDPanelTestHarness(QWidget):
 
         # ── State ─────────────────────────────────────────────────
         self._current_style = 0
+        self._current_sub = 0
         self._svc = LEDService()  # real effect engine
         self._tick_count = 0
 
@@ -161,6 +225,20 @@ class LEDPanelTestHarness(QWidget):
             btn.clicked.connect(lambda _, sid=style_id: self._switch_style(sid))
             btn_layout.addWidget(btn)
             self._device_buttons.append(btn)
+
+        # Sub-variant toggle
+        self._sub_btn = QPushButton("sub=0")
+        self._sub_btn.setCheckable(True)
+        self._sub_btn.setMinimumHeight(44)
+        self._sub_btn.setStyleSheet(
+            "QPushButton { background: #333; color: #ccc; border: 1px solid #555; "
+            "border-radius: 4px; font-size: 10px; padding: 2px 6px; }"
+            "QPushButton:checked { background: #2E7D32; color: white; "
+            "border: 2px solid #66BB6A; }"
+            "QPushButton:hover { background: #444; }"
+        )
+        self._sub_btn.clicked.connect(self._toggle_sub)
+        btn_layout.addWidget(self._sub_btn)
 
         layout.addWidget(btn_bar)
 
@@ -214,6 +292,19 @@ class LEDPanelTestHarness(QWidget):
 
         scroll.setWidget(self._container)
         layout.addWidget(scroll, 1)
+
+        # ── Wire output preview ────────────────────────────────────
+        self._wire_logical = WirePreview()
+        self._wire_remapped = WirePreview()
+        wire_box = QWidget()
+        wire_box.setStyleSheet("background: #1a1a1a;")
+        wire_layout = QVBoxLayout(wire_box)
+        wire_layout.setContentsMargins(4, 4, 4, 4)
+        wire_layout.setSpacing(2)
+        wire_layout.addWidget(self._wire_logical)
+        wire_layout.addWidget(self._wire_remapped)
+        wire_box.setFixedHeight(100)
+        layout.addWidget(wire_box)
 
         # ── Wire ALL panel signals (matches LEDHandler._connect_signals) ─
         p = self._led_panel
@@ -299,13 +390,39 @@ class LEDPanelTestHarness(QWidget):
     # Device switching
     # ================================================================
 
+    def _toggle_sub(self):
+        """Toggle between sub=0 and sub=1 for current style."""
+        self._current_sub = 1 if self._current_sub == 0 else 0
+        self._svc.configure_for_style(self._current_style, self._current_sub)
+        self._svc.set_color(*self._svc.state.color)
+        self._update_sub_btn()
+
+    def _update_sub_btn(self):
+        """Update sub button text and highlight based on current state."""
+        has_sub = (self._current_style, 1) in LED_REMAP_SUB_TABLES
+        sub = self._current_sub
+        if has_sub:
+            # Find the model name for this sub variant
+            for pm, entry in PmRegistry._REGISTRY.items():
+                if entry.style_id == self._current_style and entry.style_sub == sub:
+                    self._sub_btn.setText(
+                        f"sub={sub}\n{entry.model_name}")
+                    break
+            else:
+                self._sub_btn.setText(f"sub={sub}")
+        else:
+            self._sub_btn.setText("sub=0\n(no variant)")
+        self._sub_btn.setChecked(sub == 1)
+        self._sub_btn.setEnabled(has_sub)
+
     def _switch_style(self, style_id: int):
         self._current_style = style_id
+        self._current_sub = 0
         style = LED_STYLES[style_id]
 
         # Reset LEDService for this style
         self._svc = LEDService()
-        self._svc.configure_for_style(style_id)
+        self._svc.configure_for_style(style_id, self._current_sub)
         self._svc.set_color(255, 0, 0)
 
         # Update button checked state
@@ -350,6 +467,7 @@ class LEDPanelTestHarness(QWidget):
         )
 
         self._tick_count = 0
+        self._update_sub_btn()
         self._update_status()
 
     # ================================================================
@@ -365,12 +483,20 @@ class LEDPanelTestHarness(QWidget):
         r, g, b = s.color
         on_count = sum(s.segment_on) if s.segment_on else 0
         total = len(s.segment_on)
+        has_sub = (self._current_style, 1) in LED_REMAP_SUB_TABLES
+        sub_text = f"sub={self._current_sub}" if has_sub else ""
+        remap_key = f"({self._current_style},{self._current_sub})" if has_sub else str(self._current_style)
+        table = LED_REMAP_SUB_TABLES.get(
+            (self._current_style, self._current_sub),
+            LED_REMAP_TABLES.get(self._current_style))
+        wire_len = len(table) if table else "identity"
         self._status_label.setText(
             f"Mode: {mv} ({mode_name}) | "
             f"Color: ({r},{g},{b}) | Bright: {s.brightness}% | "
             f"On: {'YES' if s.global_on else 'OFF'} | "
             f"Zone: {s.selected_zone}/{s.zone_count} | "
-            f"Segments: {on_count}/{total} on"
+            f"Segments: {on_count}/{total} on | "
+            f"Remap: {remap_key}→{wire_len} {sub_text}"
         )
 
     def _tick(self):
@@ -392,6 +518,18 @@ class LEDPanelTestHarness(QWidget):
         colors = self._svc.tick()
         display_colors = self._svc.apply_mask(colors)
         self._led_panel.set_led_colors(display_colors)
+
+        # Wire preview: logical vs remapped
+        remapped = remap_led_colors(
+            display_colors, self._current_style, self._current_sub)
+
+        self._wire_logical.set_colors(
+            display_colors,
+            f"Logical ({len(display_colors)} LEDs)")
+        self._wire_remapped.set_colors(
+            remapped,
+            f"Wire out (sub={self._current_sub}, {len(remapped)} positions)")
+
         self._update_status()
 
 
@@ -408,6 +546,10 @@ def main():
     dark.setColor(QPalette.ColorRole.Button, QColor(53, 53, 53))
     dark.setColor(QPalette.ColorRole.ButtonText, QColor(200, 200, 200))
     app.setPalette(dark)
+
+    init_settings(ControllerBuilder.build_setup())
+    if not _use_fake:
+        set_instance(ControllerBuilder().build_system())
 
     window = LEDPanelTestHarness()
     window.show()

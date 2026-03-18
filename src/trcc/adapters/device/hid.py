@@ -27,7 +27,6 @@ from typing import Any, Optional, Set
 import usb.core
 import usb.util
 
-from trcc.adapters.device.frame import FrameDevice
 from trcc.core.models import (
     DEVICE_BUTTON_IMAGE,  # noqa: F401 — re-export
     PM_TO_BUTTON_IMAGE,  # noqa: F401 — re-export
@@ -37,6 +36,8 @@ from trcc.core.models import (
     get_button_image,  # noqa: F401 — re-export
     pm_to_fbl,
 )
+
+from .frame import FrameDevice
 
 # hidapi is optional ([hid] extra)
 try:

@@ -334,7 +334,7 @@ class TestPlatformSetupABC(unittest.TestCase):
     """All platform setup adapters implement the PlatformSetup ABC."""
 
     def test_linux_implements_abc(self):
-        from trcc.adapters.system.setup import LinuxSetup
+        from trcc.adapters.system.linux.setup import LinuxSetup
         from trcc.core.ports import PlatformSetup
         self.assertTrue(issubclass(LinuxSetup, PlatformSetup))
 
@@ -358,7 +358,7 @@ class TestSensorEnumeratorABC(unittest.TestCase):
     """All platform sensor enumerators implement the SensorEnumerator ABC."""
 
     def test_linux_implements_abc(self):
-        from trcc.adapters.system.sensors import SensorEnumerator
+        from trcc.adapters.system.linux.sensors import SensorEnumerator
         from trcc.core.ports import SensorEnumerator as ABC
         self.assertTrue(issubclass(SensorEnumerator, ABC))
 

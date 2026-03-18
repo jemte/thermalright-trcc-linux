@@ -7,10 +7,14 @@ Combines device detection with implementation-specific protocols.
 import logging
 from typing import Optional
 
+from trcc.adapters.device.detector import (
+    DetectedDevice,
+    detect_devices,
+    get_default_device,
+)
 from trcc.core.encoding import byte_order_for, rgb_to_bytes
 from trcc.core.models import LCDDeviceConfig
 
-from .detector import DetectedDevice, detect_devices, get_default_device
 from .scsi import ScsiDevice
 
 log = logging.getLogger(__name__)

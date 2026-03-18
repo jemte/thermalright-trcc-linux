@@ -1,178 +1,34 @@
-"""
-SCSI Device Bridge — connects MVC models to lcd_driver/device_detector.
+"""SCSI LCD protocol adapter — command blocks, frame chunking, boot animation.
 
-models.py imports `from ..device_scsi import find_lcd_devices, send_image_to_device`
-This module provides those two functions.
-
-SCSI send protocol is inlined here (from trcc_handshake_v2) so everything
-lives in one place under src/trcc/.  LCDDriver is used only for resolution
-auto-detection during device discovery.
-
-Performance: uses native SG_IO ioctl when available (no subprocess fork).
-Falls back to sg_raw subprocess automatically on older kernels or permission
-issues.
+Platform-agnostic SCSI protocol logic. Linux SG_IO ioctl lives in
+bridge_linux.py; this adapter calls it with sg_raw subprocess fallback.
 """
 from __future__ import annotations
 
 import binascii
-import ctypes
 import logging
-import os
 import struct
 import subprocess
 import tempfile
 import time
 import zlib
-from typing import Dict, List, Set
+from typing import Set
 
 from trcc.adapters.device.frame import FrameDevice
+from trcc.adapters.device.linux.scsi import (
+    sg_io_read as _sg_io_read,
+)
+from trcc.adapters.device.linux.scsi import (
+    sg_io_write as _sg_io_write,
+)
 from trcc.adapters.infra.data_repository import SysUtils
 from trcc.core.models import HandshakeResult, fbl_to_resolution
 
 log = logging.getLogger(__name__)
 
-# =========================================================================
-# SG_IO ioctl — direct SCSI passthrough (no subprocess fork)
-# =========================================================================
-
-_SG_IO = 0x2285
-_SG_DXFER_TO_DEV = -2
-_SG_DXFER_FROM_DEV = -3
-
-
-class _SgIoHdr(ctypes.Structure):
-    """Linux sg_io_hdr_t for SG_IO ioctl."""
-
-    _fields_ = [
-        ('interface_id', ctypes.c_int),
-        ('dxfer_direction', ctypes.c_int),
-        ('cmd_len', ctypes.c_ubyte),
-        ('mx_sb_len', ctypes.c_ubyte),
-        ('iovec_count', ctypes.c_ushort),
-        ('dxfer_len', ctypes.c_uint),
-        ('dxferp', ctypes.c_void_p),
-        ('cmdp', ctypes.c_void_p),
-        ('sbp', ctypes.c_void_p),
-        ('timeout', ctypes.c_uint),
-        ('flags', ctypes.c_uint),
-        ('pack_id', ctypes.c_int),
-        ('usr_ptr', ctypes.c_void_p),
-        ('status', ctypes.c_ubyte),
-        ('masked_status', ctypes.c_ubyte),
-        ('msg_status', ctypes.c_ubyte),
-        ('sb_len_wr', ctypes.c_ubyte),
-        ('host_status', ctypes.c_ushort),
-        ('driver_status', ctypes.c_ushort),
-        ('resid', ctypes.c_int),
-        ('duration', ctypes.c_uint),
-        ('info', ctypes.c_uint),
-    ]
-
-
-# Module state: None = untested, True/False = tested
+# Fallback state: None = untested, True/False = tested.
+# Controls whether _scsi_read/_scsi_write try SG_IO or fall back to sg_raw.
 _sg_io_available: bool | None = None
-# Cached file descriptors per device path
-_device_fds: dict[str, int] = {}
-
-# Pre-allocated SG_IO buffers per data size (avoids ctypes alloc per write).
-# Key: data length → (cdb_buf, data_buf, sense_buf, hdr, ioctl_buf)
-_SG_HDR_SIZE = ctypes.sizeof(_SgIoHdr)
-_write_bufs: dict[int, tuple] = {}
-
-
-def _get_device_fd(dev: str) -> int:
-    """Get or open a file descriptor for the SCSI generic device."""
-    fd = _device_fds.get(dev)
-    if fd is not None:
-        return fd
-    fd = os.open(dev, os.O_RDWR | os.O_NONBLOCK)
-    _device_fds[dev] = fd
-    return fd
-
-
-def _close_device_fd(dev: str) -> None:
-    """Close and remove cached fd."""
-    fd = _device_fds.pop(dev, None)
-    if fd is not None:
-        try:
-            os.close(fd)
-        except OSError:
-            pass
-
-
-def _get_write_bufs(cdb_len: int, data_len: int) -> tuple:
-    """Get or create pre-allocated ctypes buffers for a given data size."""
-    bufs = _write_bufs.get(data_len)
-    if bufs is not None:
-        return bufs
-    cdb_buf = (ctypes.c_ubyte * cdb_len)()
-    data_buf = (ctypes.c_ubyte * data_len)()
-    sense_buf = (ctypes.c_ubyte * 32)()
-    hdr = _SgIoHdr()
-    ioctl_buf = ctypes.create_string_buffer(_SG_HDR_SIZE)
-    # Pre-fill immutable header fields
-    hdr.interface_id = ord('S')
-    hdr.dxfer_direction = _SG_DXFER_TO_DEV
-    hdr.cmd_len = cdb_len
-    hdr.mx_sb_len = 32
-    hdr.dxfer_len = data_len
-    hdr.dxferp = ctypes.addressof(data_buf)
-    hdr.cmdp = ctypes.addressof(cdb_buf)
-    hdr.sbp = ctypes.addressof(sense_buf)
-    hdr.timeout = 10000
-    bufs = (cdb_buf, data_buf, sense_buf, hdr, ioctl_buf)
-    _write_bufs[data_len] = bufs
-    return bufs
-
-
-def _sg_io_write(dev: str, cdb: bytes, data: bytes) -> bool:
-    """SCSI write via SG_IO ioctl. No subprocess, no temp file."""
-    import fcntl  # Unix-only — Windows uses windows/scsi.py
-
-    fd = _get_device_fd(dev)
-
-    cdb_buf, data_buf, _sense, hdr, ioctl_buf = _get_write_bufs(len(cdb), len(data))
-    # Copy payload into pre-allocated buffers
-    ctypes.memmove(cdb_buf, cdb, len(cdb))
-    ctypes.memmove(data_buf, data, len(data))
-
-    ctypes.memmove(ioctl_buf, ctypes.addressof(hdr), _SG_HDR_SIZE)
-    fcntl.ioctl(fd, _SG_IO, ioctl_buf)
-    ctypes.memmove(ctypes.addressof(hdr), ioctl_buf, _SG_HDR_SIZE)
-
-    return hdr.status == 0
-
-
-def _sg_io_read(dev: str, cdb: bytes, length: int) -> bytes:
-    """SCSI read via SG_IO ioctl. No subprocess."""
-    import fcntl  # Unix-only — Windows uses windows/scsi.py
-
-    fd = _get_device_fd(dev)
-
-    cdb_buf = (ctypes.c_ubyte * len(cdb)).from_buffer_copy(cdb)
-    data_buf = (ctypes.c_ubyte * length)()
-    sense_buf = (ctypes.c_ubyte * 32)()
-
-    hdr = _SgIoHdr()
-    hdr.interface_id = ord('S')
-    hdr.dxfer_direction = _SG_DXFER_FROM_DEV
-    hdr.cmd_len = len(cdb)
-    hdr.mx_sb_len = 32
-    hdr.dxfer_len = length
-    hdr.dxferp = ctypes.addressof(data_buf)
-    hdr.cmdp = ctypes.addressof(cdb_buf)
-    hdr.sbp = ctypes.addressof(sense_buf)
-    hdr.timeout = 10000
-
-    buf = ctypes.create_string_buffer(ctypes.sizeof(hdr))
-    ctypes.memmove(buf, ctypes.addressof(hdr), ctypes.sizeof(hdr))
-    fcntl.ioctl(fd, _SG_IO, buf)
-    ctypes.memmove(ctypes.addressof(hdr), buf, ctypes.sizeof(hdr))
-
-    if hdr.status != 0:
-        return b''
-    actual = length - hdr.resid
-    return bytes(data_buf[:actual])
 
 # Boot signature: device still initializing its display controller
 _BOOT_SIGNATURE = b'\xa1\xa2\xa3\xa4'
@@ -337,7 +193,13 @@ class ScsiDevice(FrameDevice):
                 break
 
         # Extract FBL from poll response byte[0]
-        fbl = response[0] if response else 100  # default FBL 100 = 320x320
+        if not response:
+            log.warning("SCSI poll returned empty response on %s", dev)
+            raise RuntimeError(
+                f"SCSI poll returned empty response on {dev}. "
+                "Device may not be connected or may need a reboot."
+            )
+        fbl = response[0]
         log.debug("SCSI poll byte[0] = %d (FBL)", fbl)
 
         # Step 2: Init
@@ -475,174 +337,10 @@ class ScsiDevice(FrameDevice):
         ScsiDevice._initialized_devices.discard(self.device_path)
 
 
-# =========================================================================
-# Public API (used by core/models.py)
-# =========================================================================
-
-def _load_saved_identity(
-    dev_index: int, vid: int, pid: int,
-) -> tuple[str | None, str | None]:
-    """Load previously resolved button_image + product name from config.
-
-    Returns (button_image, product) or (None, None) if not saved.
-    """
-    try:
-        from trcc.conf import Settings
-        key = Settings.device_config_key(dev_index, vid, pid)
-        cfg = Settings.get_device_config(key)
-        return cfg.get('resolved_button_image'), cfg.get('resolved_product')
-    except Exception:
-        return None, None
-
-
-def find_lcd_devices() -> List[Dict]:
-    """Detect connected LCD devices (SCSI and HID).
-
-    Returns:
-        List of dicts with keys: name, path, resolution, vendor, product,
-        model, button_image, protocol, device_type, vid, pid
-    """
-    try:
-        from .detector import detect_devices
-    except ImportError:
-        return []
-
-    raw = detect_devices()
-    devices = []
-
-    for dev in raw:
-        protocol = getattr(dev, 'protocol', 'scsi')
-        device_type = getattr(dev, 'device_type', 1)
-
-        # Load previously resolved device identity from config (C# SetButtonImage).
-        # First launch: no saved data, uses registry defaults. Handshake resolves
-        # the real product and saves to config. Subsequent launches: correct button
-        # image shown immediately. Re-verified on each handshake (detects cooler swaps).
-        dev_idx = len(devices)
-        saved_btn, saved_product = _load_saved_identity(dev_idx, dev.vid, dev.pid)
-
-        if protocol == 'scsi':
-            # SCSI devices need a /dev/sgX path
-            if not dev.scsi_device:
-                continue
-
-            product = saved_product or dev.product_name
-            # Resolution (0,0) until handshake polls FBL from device
-            devices.append({
-                'name': f"Thermalright {product}" if saved_product
-                        else f"{dev.vendor_name} {dev.product_name}",
-                'path': dev.scsi_device,
-                'resolution': (0, 0),
-                'vendor': dev.vendor_name,
-                'product': product,
-                'model': dev.model,
-                'button_image': saved_btn or dev.button_image,
-                'vid': dev.vid,
-                'pid': dev.pid,
-                'protocol': 'scsi',
-                'device_type': 1,
-                'implementation': dev.implementation,
-            })
-        elif protocol == 'hid':
-            # HID devices use USB VID:PID directly (no SCSI path)
-            # Path is a synthetic identifier for the factory
-            hid_path = f"hid:{dev.vid:04x}:{dev.pid:04x}"
-
-            model = dev.model
-            button_image = saved_btn or dev.button_image
-            led_style_id = None
-
-            # All LED devices share PID 0x8001 — probe via HID handshake
-            # to discover the real model (AX120, PA120, LC1, etc.).
-            if dev.implementation == 'hid_led':
-                try:
-                    from .led import PmRegistry, probe_led_model
-                    info = probe_led_model(dev.vid, dev.pid,
-                                           usb_path=dev.usb_path)
-                    if info and info.model_name:
-                        model = info.model_name
-                        led_style_id = info.style.style_id if info.style else None
-                        btn = PmRegistry.get_button_image(info.pm, info.sub_type)
-                        if btn:
-                            button_image = btn
-                except Exception:
-                    pass  # Fall back to registry default
-
-            product = saved_product or dev.product_name
-            devices.append({
-                'name': f"Thermalright {product}" if saved_product
-                        else f"{dev.vendor_name} {dev.product_name}",
-                'path': hid_path,
-                'resolution': (0, 0),  # Unknown until HID handshake (PM->FBL->resolution)
-                'vendor': dev.vendor_name,
-                'product': product,
-                'model': model,
-                'led_style_id': led_style_id,
-                'button_image': button_image,
-                'vid': dev.vid,
-                'pid': dev.pid,
-                'protocol': 'hid',
-                'device_type': device_type,
-                'implementation': dev.implementation,
-            })
-        elif protocol in ('bulk', 'ly'):
-            # Bulk / LY USB devices — no SCSI path, use VID:PID
-            dev_path = f"{protocol}:{dev.vid:04x}:{dev.pid:04x}"
-
-            product = saved_product or dev.product_name
-            devices.append({
-                'name': f"Thermalright {product}" if saved_product
-                        else f"{dev.vendor_name} {dev.product_name}",
-                'path': dev_path,
-                'resolution': (0, 0),
-                'vendor': dev.vendor_name,
-                'product': product,
-                'model': dev.model,
-                'button_image': saved_btn or dev.button_image,
-                'vid': dev.vid,
-                'pid': dev.pid,
-                'protocol': protocol,
-                'device_type': device_type,
-                'implementation': dev.implementation,
-            })
-
-    # Sort by path for stable ordinal assignment
-    devices.sort(key=lambda d: d['path'])
-    for i, d in enumerate(devices):
-        d['device_index'] = i
-
-    return devices
-
-
-def send_image_to_device(
-    device_path: str,
-    rgb565_data: bytes,
-    width: int,
-    height: int,
-) -> bool:
-    """Send RGB565 image data to an LCD device via SCSI.
-
-    Initializes (poll + init) on first send to each device, then skips
-    init for subsequent sends.
-
-    Args:
-        device_path: SCSI device path (e.g. /dev/sg0)
-        rgb565_data: Raw RGB565 pixel bytes (big-endian, width*height*2 bytes)
-        width: Image width in pixels
-        height: Image height in pixels
-
-    Returns:
-        True if the send succeeded.
-    """
-    try:
-        if device_path not in ScsiDevice._initialized_devices:
-            ScsiDevice._init_device(device_path)  # return value unused here
-            ScsiDevice._initialized_devices.add(device_path)
-
-        ScsiDevice._send_frame(device_path, rgb565_data, width, height)
-        return True
-    except Exception as e:
-        log.error("SCSI send failed (%s): %s", device_path, e)
-        # Allow re-init on next attempt
-        ScsiDevice._initialized_devices.discard(device_path)
-        return False
+# Detection functions moved to adapters/detection/facade_linux.py.
+# Re-exported here for backward compatibility.
+from trcc.adapters.device.linux.detector import (  # noqa: F401,E402
+    _load_saved_identity,
+    find_lcd_devices,
+    send_image_to_device,
+)

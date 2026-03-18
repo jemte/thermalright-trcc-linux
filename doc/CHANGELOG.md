@@ -1,5 +1,11 @@
 # Changelog
 
+## v9.0.0
+
+### Architecture
+- **Pure hexagonal restructure**: Eliminated all re-export stubs and mis-named directories. Real code now lives where it belongs — `adapters/device/` (detection + protocols + platform SCSI), `adapters/system/` (sensors + setup + hardware), `adapters/render/`, `adapters/infra/`. Each platform gets its own subdirectory (`linux/`, `bsd/`, `macos/`, `windows/`) — all four equal, no Linux bias
+- **VID/PID only detection (#74)**: Removed unreliable vendor string scanning (`USBLCD`/`Xsail`). All SCSI device identification now uses VID/PID via sysfs — works regardless of what firmware string the device reports
+
 ## v8.8.2
 
 ### Fixes

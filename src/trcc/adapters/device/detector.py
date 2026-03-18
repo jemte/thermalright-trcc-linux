@@ -256,29 +256,20 @@ class DeviceDetector:
 
     @staticmethod
     def find_scsi_device_by_usb_path(usb_path: str) -> Optional[str]:
-        """Find SCSI device corresponding to USB path."""
-        # Method 1: Scan sysfs directly for sg devices with USBLCD vendor
+        """Find SCSI device corresponding to USB path.
+
+        Matches by VID/PID against ``KNOWN_DEVICES`` — never by vendor string.
+        """
+        # Method 1: Scan sysfs directly for sg devices with known VID/PID
         for sg_name in SysUtils.find_scsi_devices():
             sysfs_base = f"/sys/class/scsi_generic/{sg_name}/device"
             if not os.path.exists(sysfs_base):
                 continue
-            try:
-                with open(f"{sysfs_base}/vendor", 'r') as f:
-                    vendor = f.read().strip()
-                if 'USBLCD' in vendor:
-                    return f"/dev/{sg_name}"
-            except (IOError, OSError):
-                continue
+            resolved = DeviceDetector._resolve_usblcd_vid_pid(sysfs_base)
+            if resolved and (resolved[0], resolved[1]) in KNOWN_DEVICES:
+                return f"/dev/{sg_name}"
 
-        # Method 2: try lsscsi variants
-        _scan = DeviceDetector._scan_lsscsi
-        result = (_scan(['lsscsi', '-g'], ['USBLCD'])
-                  or _scan(['lsscsi', '-t'], ['USBLCD', 'usb'])
-                  or _scan(['lsscsi'], ['USBLCD']))
-        if result:
-            return result
-
-        # Method 3: sg module not loaded — fall back to /dev/sd* block devices.
+        # Method 2: sg module not loaded — fall back to /dev/sd* block devices.
         # SG_IO ioctl works on block devices too.
         for sd_name in SysUtils.find_scsi_block_devices():
             dev_path = f"/dev/{sd_name}"
@@ -289,25 +280,14 @@ class DeviceDetector:
         return None
 
     @staticmethod
-    def _scan_lsscsi(cmd: list[str], patterns: list[str]) -> Optional[str]:
-        """Scan lsscsi output for /dev/sgN matching any pattern."""
-        output = DeviceDetector.run_command(cmd)
-        if not output:
-            return None
-        for line in output.split('\n'):
-            if any(p in line or p.lower() in line.lower() for p in patterns):
-                match = re.search(r'/dev/sg\d+', line)
-                if match:
-                    return match.group(0)
-        return None
+    def _resolve_usblcd_vid_pid(
+        sysfs_base: str,
+    ) -> Optional[tuple[int, int, str, str]]:
+        """Walk sysfs parents to find VID/PID for a USBLCD SCSI device.
 
-    @staticmethod
-    def _resolve_usblcd_vid_pid(sysfs_base: str) -> tuple[int, int, str, str]:
-        """Walk sysfs parents to find VID/PID for a USBLCD SCSI device."""
-        dev_vid = 0x87CD  # Fallback
-        dev_pid = 0x70DB
-        dev_model = "CZTV"
-        dev_button = "A1CZTV"
+        Returns ``(vid, pid, model, button_image)`` or ``None`` if sysfs
+        walk fails — callers must skip the device, never guess a VID/PID.
+        """
         try:
             device_path = os.path.realpath(sysfs_base)
             for _ in range(10):
@@ -319,18 +299,23 @@ class DeviceDetector:
                         dev_vid = int(vf.read().strip(), 16)
                     with open(pid_path) as pf:
                         dev_pid = int(pf.read().strip(), 16)
+                    dev_model = "CZTV"
+                    dev_button = "A1CZTV"
                     if (dev_vid, dev_pid) in KNOWN_DEVICES:
                         dev_info = KNOWN_DEVICES[(dev_vid, dev_pid)]
                         dev_model = dev_info.model
                         dev_button = dev_info.button_image
-                    break
+                    return dev_vid, dev_pid, dev_model, dev_button
         except (IOError, OSError, ValueError):
             pass
-        return dev_vid, dev_pid, dev_model, dev_button
+        log.warning("sysfs VID/PID walk failed for %s — skipping device", sysfs_base)
+        return None
 
     @staticmethod
     def find_scsi_usblcd_devices() -> List[DetectedDevice]:
-        """Find USBLCD devices directly via sysfs (pure Python, no external commands).
+        """Find Thermalright LCD devices directly via sysfs.
+
+        Matches by VID/PID against ``KNOWN_DEVICES`` — never by vendor string.
 
         Scans SCSI generic devices (``/dev/sg*``) first.  If the ``sg`` kernel
         module is not loaded, falls back to block devices (``/dev/sd*``) which
@@ -347,25 +332,30 @@ class DeviceDetector:
                 continue
 
             try:
-                with open(f"{sysfs_base}/vendor", 'r') as f:
-                    vendor = f.read().strip()
-                with open(f"{sysfs_base}/model", 'r') as f:
-                    model = f.read().strip()
+                resolved = DeviceDetector._resolve_usblcd_vid_pid(sysfs_base)
+                if resolved is None:
+                    continue
+                vid, pid, dev_model, dev_button = resolved
+                if (vid, pid) not in KNOWN_DEVICES:
+                    continue
 
-                if 'USBLCD' in vendor:
-                    vid, pid, dev_model, dev_button = (
-                        DeviceDetector._resolve_usblcd_vid_pid(sysfs_base)
-                    )
-                    devices.append(DetectedDevice(
-                        vid=vid, pid=pid,
-                        vendor_name="Thermalright",
-                        product_name=f"LCD Display ({model})",
-                        usb_path="unknown",
-                        scsi_device=sg_path,
-                        implementation="thermalright_lcd_v1",
-                        model=dev_model,
-                        button_image=dev_button,
-                    ))
+                # Read model string for display name (best-effort)
+                try:
+                    with open(f"{sysfs_base}/model", 'r') as f:
+                        model = f.read().strip()
+                except (IOError, OSError):
+                    model = "LCD"
+
+                devices.append(DetectedDevice(
+                    vid=vid, pid=pid,
+                    vendor_name="Thermalright",
+                    product_name=f"LCD Display ({model})",
+                    usb_path="unknown",
+                    scsi_device=sg_path,
+                    implementation="thermalright_lcd_v1",
+                    model=dev_model,
+                    button_image=dev_button,
+                ))
             except (IOError, OSError):
                 continue
 
@@ -383,9 +373,10 @@ class DeviceDetector:
             except (IOError, OSError):
                 model = "USB PRC System"
 
-            vid, pid, dev_model, dev_button = (
-                DeviceDetector._resolve_usblcd_vid_pid(sysfs_base)
-            )
+            resolved = DeviceDetector._resolve_usblcd_vid_pid(sysfs_base)
+            if resolved is None:
+                continue
+            vid, pid, dev_model, dev_button = resolved
             log.info("sg module not loaded — detected USBLCD via block device %s", sd_path)
             devices.append(DetectedDevice(
                 vid=vid, pid=pid,

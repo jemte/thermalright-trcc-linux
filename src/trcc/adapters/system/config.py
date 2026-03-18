@@ -136,7 +136,7 @@ class SysInfoConfig:
 
         Only fills sensors where sensor_id is empty (preserves user customizations).
         """
-        from .sensors import map_defaults
+        from .linux.sensors import map_defaults
         defaults = map_defaults(enumerator)
 
         # Map category_id + row index to legacy metric key

@@ -17,7 +17,7 @@ import os
 import sys
 import unittest
 from dataclasses import fields
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock, patch
 
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
@@ -258,25 +258,10 @@ class TestFindScsiDeviceByUsbPath(unittest.TestCase):
     """Test find_scsi_device_by_usb_path function."""
 
     @patch('trcc.adapters.infra.data_repository.SysUtils.find_scsi_devices', return_value=['sg0'])
-    @patch('os.path.exists')
-    @patch('builtins.open', new_callable=mock_open, read_data='USBLCD  ')
-    def test_find_via_sysfs(self, mock_file, mock_exists, _):
-        """Test finding SCSI device via sysfs."""
-        mock_exists.return_value = True
-        result = find_scsi_device_by_usb_path("1-2")
-        self.assertEqual(result, "/dev/sg0")
-
-    @patch('os.path.exists')
-    @patch(f'{_CLS}.run_command')
-    def test_find_via_lsscsi_g(self, mock_run, mock_exists):
-        """Test finding SCSI device via lsscsi -g."""
-        mock_exists.return_value = False
-        mock_run.side_effect = [
-            # First call: lsscsi -g
-            "[0:0:0:0]    disk    USBLCD   LCD              1.00  -      /dev/sg0",
-            # Won't reach lsscsi -t
-            "",
-        ]
+    @patch(f'{_CLS}._resolve_usblcd_vid_pid', return_value=(0x0402, 0x3922, 'CZTV', 'A1CZTV'))
+    @patch('os.path.exists', return_value=True)
+    def test_find_via_sysfs(self, mock_exists, mock_resolve, _):
+        """Test finding SCSI device via sysfs VID/PID."""
         result = find_scsi_device_by_usb_path("1-2")
         self.assertEqual(result, "/dev/sg0")
 
@@ -305,22 +290,27 @@ class TestFindScsiUsblcdDevices(unittest.TestCase):
     @patch('trcc.adapters.infra.data_repository.SysUtils.find_scsi_devices', return_value=['sg0'])
     @patch('builtins.open')
     @patch('os.path.exists')
-    def test_usblcd_device_found(self, mock_exists, mock_open_fn, _):
+    @patch('os.path.realpath', side_effect=lambda p: p)
+    def test_usblcd_device_found(self, _realpath, mock_exists, mock_open_fn, _):
         """Test finding USBLCD device via sysfs (basic case)."""
-        # Configure exists() - only sg0 exists
+        # Configure exists() — sg0 sysfs base + VID/PID files
         def exists_side_effect(path):
             if '/sys/class/scsi_generic/sg0' in path:
                 return True
-            if '/sys/class/scsi_generic/sg' in path:
-                return False
+            if 'idVendor' in path or 'idProduct' in path:
+                return True
             return False
 
         mock_exists.side_effect = exists_side_effect
 
-        # Configure file reads for vendor/model
+        # Configure file reads for vendor/model + VID/PID
         def open_side_effect(path, *args, **kwargs):
             m = MagicMock()
-            if 'vendor' in path:
+            if 'idVendor' in path:
+                m.read.return_value = '87cd\n'
+            elif 'idProduct' in path:
+                m.read.return_value = '70db\n'
+            elif 'vendor' in path:
                 m.read.return_value = 'USBLCD  \n'
             elif 'model' in path:
                 m.read.return_value = 'LCD\n'
@@ -336,6 +326,76 @@ class TestFindScsiUsblcdDevices(unittest.TestCase):
         self.assertEqual(len(devices), 1)
         self.assertEqual(devices[0].scsi_device, "/dev/sg0")
         self.assertEqual(devices[0].vendor_name, "Thermalright")
+        self.assertEqual(devices[0].vid, 0x87CD)
+        self.assertEqual(devices[0].pid, 0x70DB)
+
+    @patch('trcc.adapters.infra.data_repository.SysUtils.find_scsi_devices', return_value=['sg0'])
+    @patch('builtins.open')
+    @patch('os.path.exists')
+    @patch('os.path.realpath', side_effect=lambda p: p)
+    def test_sysfs_vid_pid_fail_skips_device(self, _realpath, mock_exists, mock_open_fn, _):
+        """sysfs VID/PID walk failure must skip the device, not guess."""
+        def exists_side_effect(path):
+            if '/sys/class/scsi_generic/sg0' in path:
+                return True
+            # No idVendor/idProduct files
+            return False
+
+        mock_exists.side_effect = exists_side_effect
+
+        def open_side_effect(path, *args, **kwargs):
+            m = MagicMock()
+            if 'vendor' in path:
+                m.read.return_value = 'USBLCD  \n'
+            elif 'model' in path:
+                m.read.return_value = 'LCD\n'
+            else:
+                raise FileNotFoundError(path)
+            m.__enter__.return_value = m
+            m.__exit__.return_value = None
+            return m
+
+        mock_open_fn.side_effect = open_side_effect
+
+        devices = find_scsi_usblcd_devices()
+        self.assertEqual(devices, [])
+
+    @patch('trcc.adapters.infra.data_repository.SysUtils.find_scsi_devices', return_value=['sg0'])
+    @patch('builtins.open')
+    @patch('os.path.exists')
+    @patch('os.path.realpath', side_effect=lambda p: p)
+    def test_xsail_vendor_detected_by_vid_pid(self, _realpath, mock_exists, mock_open_fn, _):
+        """Xsail vendor (issue #74) detected via VID/PID, not vendor string."""
+        def exists_side_effect(path):
+            if '/sys/class/scsi_generic/sg0' in path:
+                return True
+            if 'idVendor' in path or 'idProduct' in path:
+                return True
+            return False
+
+        mock_exists.side_effect = exists_side_effect
+
+        def open_side_effect(path, *args, **kwargs):
+            m = MagicMock()
+            if 'idVendor' in path:
+                m.read.return_value = '0402\n'
+            elif 'idProduct' in path:
+                m.read.return_value = '3922\n'
+            elif 'model' in path:
+                m.read.return_value = 'Xsail LCD\n'
+            else:
+                raise FileNotFoundError(path)
+            m.__enter__.return_value = m
+            m.__exit__.return_value = None
+            return m
+
+        mock_open_fn.side_effect = open_side_effect
+
+        devices = find_scsi_usblcd_devices()
+        self.assertEqual(len(devices), 1)
+        self.assertEqual(devices[0].vid, 0x0402)
+        self.assertEqual(devices[0].pid, 0x3922)
+        self.assertEqual(devices[0].scsi_device, "/dev/sg0")
 
 
 class TestDetectDevices(unittest.TestCase):
@@ -603,50 +663,27 @@ class TestDeviceModelMapping(unittest.TestCase):
 
 class TestScsiMethodFallbacks(unittest.TestCase):
 
+    @patch('trcc.adapters.infra.data_repository.SysUtils.find_scsi_block_devices', return_value=[])
     @patch('trcc.adapters.infra.data_repository.SysUtils.find_scsi_devices', return_value=['sg0'])
     @patch(f'{_CLS}.run_command', return_value=None)
     @patch('os.path.exists')
     @patch('builtins.open')
-    def test_sysfs_non_usblcd_skipped(self, mock_open_fn, mock_exists, _, __):
-        """sg0 exists but vendor is NOT USBLCD -> continues to next."""
+    def test_sysfs_unknown_vid_pid_skipped(self, mock_open_fn, mock_exists, _, __, ___):
+        """sg0 exists but VID/PID not in KNOWN_DEVICES -> skipped."""
         mock_exists.side_effect = lambda p: 'sg0' in p
         mock_open_fn.return_value.__enter__.return_value.read.return_value = 'SomeOther\n'
         result = find_scsi_device_by_usb_path('1-2')
         self.assertIsNone(result)
 
+    @patch('trcc.adapters.infra.data_repository.SysUtils.find_scsi_block_devices', return_value=[])
     @patch('trcc.adapters.infra.data_repository.SysUtils.find_scsi_devices', return_value=['sg0'])
     @patch(f'{_CLS}.run_command', return_value=None)
     @patch('os.path.exists', return_value=True)
     @patch('builtins.open', side_effect=IOError("permission"))
     def test_sysfs_ioerror(self, *_):
-        """IOError reading vendor file -> continues."""
+        """IOError reading sysfs files -> skips device, returns None."""
         result = find_scsi_device_by_usb_path('1-2')
         self.assertIsNone(result)
-
-    @patch('trcc.adapters.infra.data_repository.SysUtils.find_scsi_devices', return_value=[])
-    @patch(f'{_CLS}.run_command')
-    @patch('os.path.exists', return_value=False)
-    def test_method3_lsscsi_t(self, _, mock_run, __):
-        """Methods 1 & 2 fail, Method 3 (lsscsi -t) finds device."""
-        mock_run.side_effect = [
-            None,  # lsscsi -g
-            '[0:0:0:0]  usb:1-2           /dev/sg0\n',  # lsscsi -t
-        ]
-        result = find_scsi_device_by_usb_path('1-2')
-        self.assertEqual(result, '/dev/sg0')
-
-    @patch(f'{_CLS}.run_command')
-    @patch('os.path.exists', return_value=False)
-    def test_method4_plain_lsscsi(self, _, mock_run):
-        """Methods 1-3 fail, Method 4 (plain lsscsi) finds USBLCD."""
-        mock_run.side_effect = [
-            None,  # lsscsi -g
-            None,  # lsscsi -t
-            '[0:0:0:0]  disk    USBLCD   LCD-PANEL   /dev/sg1\n',  # lsscsi
-        ]
-        result = find_scsi_device_by_usb_path('1-2')
-        self.assertEqual(result, '/dev/sg1')
-
 
 # ── usb_reset_device additional branches ─────────────────────────────────────
 
@@ -890,41 +927,22 @@ _SYSUTILS = 'trcc.adapters.infra.data_repository.SysUtils'
 
 
 class TestFindScsiBlockDevices(unittest.TestCase):
-    """Test SysUtils.find_scsi_block_devices() fallback."""
+    """Test SysUtils.find_scsi_block_devices() — returns all sd* devices."""
 
     @patch('os.listdir', return_value=['sda', 'sdb', 'nvme0n1'])
     @patch('os.path.isdir', return_value=True)
-    @patch('builtins.open')
-    def test_finds_usblcd_block_device(self, mock_open_fn, mock_isdir, mock_listdir):
-        """Block device with USBLCD vendor is found."""
+    def test_returns_all_sd_devices(self, mock_isdir, mock_listdir):
+        """All sd* devices returned — callers filter by VID/PID."""
         from trcc.adapters.infra.data_repository import SysUtils
-
-        def open_side(path, *args, **kwargs):
-            m = MagicMock()
-            if 'sdb/device/vendor' in path:
-                m.__enter__ = lambda s: MagicMock(read=lambda: ' USBLCD  ')
-            elif 'sda/device/vendor' in path:
-                m.__enter__ = lambda s: MagicMock(read=lambda: 'ATA     ')
-            else:
-                raise IOError("no vendor")
-            m.__exit__ = lambda s, *a: None
-            return m
-        mock_open_fn.side_effect = open_side
 
         result = SysUtils.find_scsi_block_devices()
-        self.assertEqual(result, ['sdb'])
+        self.assertEqual(result, ['sda', 'sdb'])
 
-    @patch('os.listdir', return_value=['sda'])
+    @patch('os.listdir', return_value=['nvme0n1'])
     @patch('os.path.isdir', return_value=True)
-    @patch('builtins.open')
-    def test_no_usblcd_block_device(self, mock_open_fn, mock_isdir, mock_listdir):
-        """No block device has USBLCD vendor."""
+    def test_no_sd_devices(self, mock_isdir, mock_listdir):
+        """No sd* devices — returns empty list."""
         from trcc.adapters.infra.data_repository import SysUtils
-
-        m = MagicMock()
-        m.__enter__ = lambda s: MagicMock(read=lambda: 'ATA     ')
-        m.__exit__ = lambda s, *a: None
-        mock_open_fn.return_value = m
 
         result = SysUtils.find_scsi_block_devices()
         self.assertEqual(result, [])

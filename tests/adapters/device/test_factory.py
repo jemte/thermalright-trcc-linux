@@ -835,3 +835,70 @@ class TestDeviceServiceProtocolInfo:
         assert info.protocol == "hid"
         assert info.is_hid is True
         assert info.device_type == 2
+
+
+# =========================================================================
+# WindowsScsiProtocol — poll read handshake (same as Linux)
+# =========================================================================
+
+
+class TestWindowsScsiProtocolHandshake:
+    """Windows SCSI handshake polls FBL from device via read_cdb."""
+
+    def _make_proto(self, vid: int = 0x0402, pid: int = 0x3922,
+                    poll_response: bytes = b''):
+        from trcc.adapters.device.factory import WindowsScsiProtocol
+
+        proto = WindowsScsiProtocol(r"\\.\PhysicalDrive1", vid=vid, pid=pid)
+        mock_transport = MagicMock()
+        mock_transport.open.return_value = True
+        mock_transport._handle = True
+        mock_transport.read_cdb.return_value = poll_response
+        proto._transport = mock_transport
+        return proto
+
+    def test_handshake_reads_fbl_from_poll(self):
+        """FBL extracted from poll response byte[0]."""
+        # FBL=100 → 320x320
+        poll_resp = bytes([100]) + b'\x00' * 63
+        proto = self._make_proto(poll_response=poll_resp)
+
+        result = proto._do_handshake()
+
+        assert result is not None
+        assert result.model_id == 100
+        assert result.resolution == (320, 320)
+        assert result.raw_response == poll_resp
+
+    def test_handshake_fbl_72_480x480(self):
+        """FBL=72 → 480x480 resolution."""
+        poll_resp = bytes([72]) + b'\x00' * 63
+        proto = self._make_proto(poll_response=poll_resp)
+
+        result = proto._do_handshake()
+
+        assert result is not None
+        assert result.model_id == 72
+        assert result.resolution == (480, 480)
+
+    def test_empty_poll_returns_none(self):
+        """Empty poll response → handshake fails (no fallback)."""
+        proto = self._make_proto(poll_response=b'')
+
+        result = proto._do_handshake()
+
+        assert result is None
+
+    def test_constructor_accepts_vid_pid(self):
+        from trcc.adapters.device.factory import WindowsScsiProtocol
+
+        proto = WindowsScsiProtocol(r"\\.\PhysicalDrive2", vid=0x87CD, pid=0x70DB)
+        assert proto._vid == 0x87CD
+        assert proto._pid == 0x70DB
+
+    def test_constructor_defaults_vid_pid_zero(self):
+        from trcc.adapters.device.factory import WindowsScsiProtocol
+
+        proto = WindowsScsiProtocol(r"\\.\PhysicalDrive3")
+        assert proto._vid == 0
+        assert proto._pid == 0

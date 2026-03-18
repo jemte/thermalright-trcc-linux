@@ -71,10 +71,7 @@ These use USB HID to display images on the LCD. Code is complete, but no one has
 
 | Device | USB ID | Protocol | Priority |
 |--------|--------|----------|----------|
-| Trofeo Vision LCD | `0416:5302` | HID Type 2 | High — user reported detection issue (#1) |
-| AS120 VISION | `0416:5302` | HID Type 2 | High |
 | BA120 VISION | `0416:5302` | HID Type 2 | High |
-| FROZEN WARFRAME (HID variant) | `0416:5302` | HID Type 2 | Confirmed working (v8.3.5) — other 240px variants may differ |
 | FROZEN WARFRAME SE (HID variant) | `0416:5302` | HID Type 2 | Medium |
 | FROZEN WARFRAME PRO | `0416:5302` | HID Type 2 | Medium |
 | ELITE VISION (HID variant) | `0416:5302` | HID Type 2 | Medium — SCSI variant confirmed by tensaiteki |
@@ -90,14 +87,10 @@ These use PID `0416:8001` for RGB LED ring control. The device model is auto-det
 
 | Device | PM Byte | LED Style | Status |
 |--------|---------|-----------|--------|
-| AX120 DIGITAL | 3 | Style 1 (30 LEDs, 10 segments) | Confirmed working |
-| PA120 DIGITAL ARGB | 16 | Style 2 (84 LEDs, 18 segments) | Confirmed working |
-| Peerless Assassin 120 DIGITAL | — | — | Confirmed working ([Pewful2021](https://github.com/Pewful2021)) |
 | RK120 DIGITAL | 23 | Style 2 | Untested |
 | AK120 DIGITAL | 32 | Style 3 (64 LEDs, 10 segments) | Untested |
 | FROZEN HORIZON PRO (LED) | 1 | Style 1 | Untested |
 | FROZEN MAGIC PRO (LED) | 2 | Style 1 | Untested |
-| HR10 2280 PRO Digital | 128 | Style 4 (31 LEDs, 14 segments) | Confirmed working |
 | LF8 | 48 | Style 5 (93 LEDs, 23 segments) | Untested |
 | LF10 | 96 | Style 7 (116 LEDs, 12 segments) | Untested |
 | LF11 | 129 | Style 10 (38 LEDs, 17 segments) | Untested |
@@ -137,7 +130,6 @@ The following models are listed on [Thermalright's official download page](https
 
 | Device | Likely Protocol | Status |
 |--------|----------------|--------|
-| Assassin Spirit 120 Vision | HID LCD or LED | Need tester |
 | Burst Assassin 120 Vision | HID LCD or LED | Need tester |
 | Core Matrix VISION | HID LCD or LED | Need tester |
 | Core Vision | HID LCD or LED | Need tester |

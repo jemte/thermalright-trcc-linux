@@ -186,15 +186,17 @@ class TestLCDDriverScsiIO(unittest.TestCase):
     """Test _scsi_read and _scsi_write (module-level functions in scsi_device)."""
 
     def setUp(self):
+        import trcc.adapters.device.linux.scsi as bridge_mod
         import trcc.adapters.device.scsi as scsi_mod
         # Force subprocess fallback — these tests verify the sg_raw path
         scsi_mod._sg_io_available = False
-        scsi_mod._device_fds.clear()
+        bridge_mod._device_fds.clear()
 
     def tearDown(self):
+        import trcc.adapters.device.linux.scsi as bridge_mod
         import trcc.adapters.device.scsi as scsi_mod
         scsi_mod._sg_io_available = None
-        scsi_mod._device_fds.clear()
+        bridge_mod._device_fds.clear()
 
     @patch('trcc.adapters.infra.data_repository.SysUtils.require_sg_raw')
     @patch('trcc.adapters.device.scsi.subprocess.run')
@@ -245,7 +247,8 @@ class TestLCDDriverInitDevice(unittest.TestCase):
         return driver
 
     @patch('trcc.adapters.device.scsi.ScsiDevice._scsi_write', return_value=True)
-    @patch('trcc.adapters.device.scsi.ScsiDevice._scsi_read', return_value=b'')
+    @patch('trcc.adapters.device.scsi.ScsiDevice._scsi_read',
+           return_value=b'\x64' + b'\x00' * 63)  # FBL=100 valid response
     def test_init_device_calls_poll_then_init(self, mock_read, mock_write):
         driver = self._make_driver()
         driver.init_device()
@@ -254,7 +257,8 @@ class TestLCDDriverInitDevice(unittest.TestCase):
         self.assertTrue(driver.initialized)
 
     @patch('trcc.adapters.device.scsi.ScsiDevice._scsi_write', return_value=True)
-    @patch('trcc.adapters.device.scsi.ScsiDevice._scsi_read', return_value=b'')
+    @patch('trcc.adapters.device.scsi.ScsiDevice._scsi_read',
+           return_value=b'\x64' + b'\x00' * 63)
     def test_init_device_skips_if_already_initialized(self, mock_read, mock_write):
         driver = self._make_driver()
         driver.initialized = True
