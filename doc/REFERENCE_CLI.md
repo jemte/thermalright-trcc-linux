@@ -305,6 +305,37 @@ trcc led-debug --test      # handshake + send test colors
 
 ---
 
+### `trcc perf`
+
+Run CPU + memory performance benchmarks. Measures rendering, encoding, and compositing pipeline times.
+
+```bash
+trcc perf                  # software benchmarks only
+trcc perf --device         # include hardware USB I/O benchmarks
+```
+
+| Option | Description |
+|--------|-------------|
+| `--device` | Include hardware device send benchmarks (requires connected LCD) |
+
+Software benchmarks run without a device. Hardware benchmarks pause any running GUI daemon, take exclusive device access, then resume.
+
+---
+
+### `trcc setup-winusb`
+
+Guide users through WinUSB driver installation for bulk USB devices on Windows.
+
+```bash
+trcc setup-winusb
+```
+
+Detects devices needing WinUSB (bulk protocol devices like GrandVision, Stream Vision, Wonder Vision) and provides step-by-step Zadig instructions. SCSI devices use the default Windows USB Mass Storage driver and don't need this.
+
+> **Windows only.** On Linux/macOS this command exits with a message that WinUSB is not needed.
+
+---
+
 ### `trcc setup`
 
 Interactive setup wizard — checks system dependencies, GPU packages, udev rules, and desktop integration. Offers to install anything missing.

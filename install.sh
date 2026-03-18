@@ -131,7 +131,7 @@ detect_immutable() {
     fi
     if [ "$distro_id" = "nixos" ]; then
         warn "NixOS detected. This script cannot manage declarative packages."
-        warn "Follow the NixOS section in doc/INSTALL_GUIDE.md instead."
+        warn "Follow the NixOS section in doc/GUIDE_INSTALL.md instead."
         exit 0
     fi
 }
@@ -299,7 +299,7 @@ print_success() {
     echo "  trcc detect --all # show all devices"
     echo "  trcc test         # color cycle test"
     echo ""
-    echo "Full guide: doc/INSTALL_GUIDE.md"
+    echo "Full guide: doc/GUIDE_INSTALL.md"
 }
 
 # ── Uninstall ──────────────────────────────────────────────────────────────
@@ -391,7 +391,7 @@ Supported distros:
   Fedora, Ubuntu, Debian, Arch, Manjaro, openSUSE, Void, Gentoo,
   Alpine, Nobara, Solus, Clear Linux, Bazzite, SteamOS, and more.
 
-For NixOS or manual install, see doc/INSTALL_GUIDE.md
+For NixOS or manual install, see doc/GUIDE_INSTALL.md
 EOF
 }
 

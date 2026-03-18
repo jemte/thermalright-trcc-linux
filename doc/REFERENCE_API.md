@@ -20,14 +20,16 @@ When the `qrcode` package is installed (`pip install qrcode`), startup prints a 
 
 1. [Authentication](#authentication)
 2. [Health](#health)
-3. [Devices](#devices)
-4. [Display (LCD)](#display-lcd)
-5. [Video Playback](#video-playback)
-6. [Preview / Live Stream](#preview--live-stream)
-7. [Themes](#themes)
-8. [LED](#led)
-9. [System Metrics](#system-metrics)
-10. [Request/Response Models](#requestresponse-models)
+3. [Pairing](#post-pair)
+4. [Devices](#devices)
+5. [Display (LCD)](#display-lcd)
+6. [Video Playback](#video-playback)
+7. [Preview / Live Stream](#preview--live-stream)
+8. [Themes](#themes)
+9. [LED](#led)
+10. [System Metrics](#system-metrics)
+11. [i18n (Internationalization)](#i18n-internationalization)
+12. [Request/Response Models](#requestresponse-models)
 
 ---
 
@@ -55,7 +57,18 @@ Health check. Always accessible, no auth required.
 
 **Response:**
 ```json
-{"status": "ok", "version": "8.7.0"}
+{"status": "ok", "version": "8.7.6"}
+```
+
+---
+
+### `POST /pair`
+
+Pair a remote client (e.g. TRCC Remote app). Returns connection info and device status.
+
+**Response:**
+```json
+{"paired": true, "version": "8.7.6"}
 ```
 
 ---
@@ -304,6 +317,20 @@ ws.send(JSON.stringify({quality: 70, fps: 15}));
 ---
 
 ## Themes
+
+### `POST /themes/init`
+
+Initialize the theme system for a given resolution. Downloads theme/mask/web archives if not cached locally.
+
+**Body:**
+```json
+{"resolution": "320x320"}
+```
+
+**Response:**
+```json
+{"initialized": true, "resolution": "320x320"}
+```
 
 ### `GET /themes`
 
@@ -613,8 +640,71 @@ Generate diagnostic report (same as `trcc report` CLI command).
 
 **Response:**
 ```json
-{"report": "TRCC Linux v8.1.0\n..."}
+{"report": "TRCC Linux v8.7.6\n..."}
 ```
+
+### `GET /system/perf`
+
+Run software performance benchmarks (rendering, encoding, compositing).
+
+**Response:**
+```json
+{
+  "benchmarks": [
+    {"name": "encode_rgb565_320x320", "mean_ms": 0.8, "iterations": 100}
+  ]
+}
+```
+
+### `GET /system/perf/device`
+
+Run hardware USB I/O benchmarks. Requires a connected LCD device. Pauses any running GUI daemon for exclusive access.
+
+**Response:**
+```json
+{
+  "benchmarks": [
+    {"name": "send_frame_320x320", "mean_ms": 42.1, "iterations": 50}
+  ]
+}
+```
+
+---
+
+## i18n (Internationalization)
+
+### `GET /i18n/languages`
+
+List all available languages with ISO codes and native names.
+
+**Response:**
+```json
+[
+  {"code": "en", "name": "English"},
+  {"code": "de", "name": "Deutsch"},
+  {"code": "ja", "name": "日本語"}
+]
+```
+
+### `GET /i18n/language`
+
+Get the current application language.
+
+**Response:**
+```json
+{"code": "en", "name": "English"}
+```
+
+### `PUT /i18n/language/{code}`
+
+Set the application language by ISO 639-1 code. Persists to config.
+
+**Response:**
+```json
+{"code": "de", "name": "Deutsch"}
+```
+
+**Errors:** `400` if language code is not supported.
 
 ---
 

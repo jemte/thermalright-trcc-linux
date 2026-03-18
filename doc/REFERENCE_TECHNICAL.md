@@ -47,15 +47,19 @@ The Windows app uses FBL values to identify display resolution. FBL mapping:
 | FBL | Resolution | Notes |
 |-----|------------|-------|
 | 36, 37 | 240x240 | Small |
-| 50 | 240x320 | Portrait |
-| 54 | 360x360 | Medium |
-| 64 | 640x480 | VGA |
+| 50 | 320x240 | Rotate, SPI mode 2 |
+| 51 | 320x240 | HID Type 2, rotate |
+| 53 | 320x240 | HID Type 2, rotate |
+| 54 | 360x360 | JPEG |
+| 58 | 320x240 | Rotate |
+| 64 | 640x480 | Rotate |
 | 72 | 480x480 | Large square |
-| 100-102 | 320x320 | Standard (default) |
-| 114 | 1600x720 | Ultrawide |
-| 128 | 1280x480 | Wide (Trofeo Vision) |
-| 192 | 1920x462 | Ultrawide |
-| 224 | 854x480/960x540/800x480 | Depends on PM byte |
+| 100-102 | 320x320 | Big-endian RGB565 (default) |
+| 114 | 1600x720 | JPEG, rotate |
+| 128 | 1280x480 | JPEG, rotate (Trofeo Vision) |
+| 129 | 480x480 | Alias for FBL 72 |
+| 192 | 1920x462 | JPEG, rotate. PM disambiguates: 68→1280x480, 69→1920x440 |
+| 224 | 854x480 | JPEG, rotate. PM disambiguates: 10/16→960x540, 12→800x480, 13/17→960x320, 15→640x172 |
 
 ### PM → FBL Mapping (Type 2 HID Devices)
 
@@ -63,15 +67,25 @@ Type 2 HID devices don't report FBL directly. Instead, the PM (product mode) byt
 
 | PM | FBL | Resolution | Notes |
 |----|-----|------------|-------|
-| 5 | 50 | 240x320 | |
+| 5 | 50 | 320x240 | |
 | 7 | 64 | 640x480 | |
 | 9 | 224 | 854x480 | |
-| 10 | 224 | 960x540 | Special: PM overrides FBL 224 default |
+| 10 | 224 | 960x540 | PM disambiguates FBL 224 |
 | 11 | 224 | 854x480 | |
-| 12 | 224 | 800x480 | Special: PM overrides FBL 224 default |
+| 12 | 224 | 800x480 | PM disambiguates FBL 224 |
+| 13 | 224 | 960x320 | PM disambiguates FBL 224 |
+| 14 | 64 | 640x480 | |
+| 15 | 224 | 640x172 | PM disambiguates FBL 224 |
+| 16 | 224 | 960x540 | PM disambiguates FBL 224 |
+| 17 | 224 | 960x320 | PM disambiguates FBL 224 |
 | 32 | 100 | 320x320 | |
+| 50 | 50 | 320x240 | SPI mode 2 |
+| 63 | 114 | 1600x720 | |
 | 64 | 114 | 1600x720 | |
 | 65 | 192 | 1920x462 | |
+| 66 | 192 | 1920x462 | |
+| 68 | 192 | 1280x480 | PM disambiguates FBL 192 |
+| 69 | 192 | 1920x440 | PM disambiguates FBL 192 |
 | 1+sub=48 | 114 | 1600x720 | PM=1 with SUB byte variant |
 | 1+sub=49 | 192 | 1920x462 | PM=1 with SUB byte variant |
 
@@ -428,14 +442,15 @@ Hexagonal architecture (Ports & Adapters). Services are the core hexagon; CLI, G
 
 ```
 src/trcc/
-├── cli/                         # Typer CLI adapter package (7 submodules)
-├── api/                         # FastAPI REST adapter package (6 submodules)
+├── cli/                         # Typer CLI adapter package (8 submodules)
+├── api/                         # FastAPI REST adapter package (7 submodules)
 │   ├── __init__.py              # App factory, middleware, CORS
 │   ├── devices.py               # Device endpoints
 │   ├── display.py               # Display endpoints
 │   ├── led.py                   # LED endpoints
 │   ├── themes.py                # Theme endpoints
-│   ├── system.py                # System endpoints
+│   ├── system.py                # System + perf endpoints
+│   ├── i18n.py                  # Language endpoints
 │   └── models.py                # Pydantic request/response models
 ├── ipc.py                       # Unix socket IPC daemon (GUI-as-server)
 ├── conf.py                      # Settings singleton + persistence helpers
@@ -539,7 +554,7 @@ src/trcc/
 3. sysfs → verify USBLCD vendor
 4. FBL query → detect resolution (or use default 320x320)
 5. Sort by /dev/sgX path, assign 0-based device_index
-6. Build device key: "{index}:{vid:04x}_{pid:04x}"
+6. Build device key: "{index}" (vid_pid stored inside the device dict)
 7. Restore per-device config (theme, brightness, rotation)
 ```
 
@@ -581,8 +596,7 @@ Settings stored in `~/.trcc/config.json`.
 
 ### Per-device settings
 
-Stored under `"devices"` keyed by `"{ordinal}:{vid:04x}_{pid:04x}"` (e.g. `"0:87cd_70db"`).
-Ordinal is 0-based index assigned by sorting detected devices by `/dev/sgX` path.
+Stored under `"devices"` keyed by index-only `"0"`, `"1"`, etc. The `vid_pid` is stored inside each device dict (e.g. `"vid_pid": "87cd_70db"`). Old `"0:vid_pid"` format is auto-migrated on `load_config()`.
 
 | Key | Type | Description |
 |-----|------|-------------|
