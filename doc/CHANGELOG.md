@@ -1,5 +1,10 @@
 # Changelog
 
+## v9.0.1
+
+### Fixes
+- **Windows SCSI PhysicalDrive detection — VID/PID only (#74)**: Removed all vendor string matching (`USBLCD`, `Xsail`, ctypes brute-force scan). `_find_physical_drive()` now confirms VID/PID via `Win32_USBControllerDevice` device instance path, then matches the first USBSTOR disk with size < 1 MB — works for any firmware vendor string including Xsail
+
 ## v9.0.0
 
 ### Architecture
