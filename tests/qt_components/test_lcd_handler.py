@@ -193,7 +193,7 @@ class TestApplyDeviceConfig:
         lcd.lcd_size = (320, 320)
         h = _make_handler(lcd=lcd)
         h.apply_device_config(self._device(), 480, 480)
-        lcd.settings.set_resolution.assert_called_with(480, 480)
+        lcd.set_resolution.assert_called_with(480, 480)
         h._w['preview'].set_resolution.assert_called_with(480, 480)
 
     @patch('trcc.qt_components.lcd_handler.Settings')
@@ -204,7 +204,7 @@ class TestApplyDeviceConfig:
         lcd.lcd_size = (320, 320)
         h = _make_handler(lcd=lcd)
         h.apply_device_config(self._device(), 320, 320)
-        lcd.settings.set_resolution.assert_not_called()
+        lcd.set_resolution.assert_not_called()
 
     @patch('trcc.qt_components.lcd_handler.Settings')
     def test_split_mode_restored_for_split_resolution(self, mock_settings):

@@ -1,5 +1,13 @@
 # Changelog
 
+## v8.8.2
+
+### Fixes
+- **LY devices missing udev rules (#73)**: `trcc setup-udev` didn't generate permissions for LY protocol devices (Trofeo Vision 9.16 — `0416:5408`, `0416:5409`). Users got "permission denied" on handshake even after running setup
+- **`trcc report` handshake crash**: Report's handshake section failed with `'DetectedDevice' object has no attribute 'path'` — added `path` property to `DetectedDevice`
+- **First-run theme browser empty**: On fresh install, theme browsers showed 0 themes because `DisplayService._setup_dirs` was never called after handshake resolved the resolution. GUI now calls `LCDDevice.set_resolution()` which triggers background download + refresh callback
+- **Duplicate calls in `LCDDevice.set_resolution()`**: `media.set_target_size()` and `overlay.set_resolution()` were called twice — already done by `DisplayService.set_resolution()` internally
+
 ## v8.8.1
 
 ### Features

@@ -86,10 +86,10 @@ class LCDHandler:
         self._device_key = Settings.device_config_key(
             device.device_index, device.vid, device.pid)
 
-        # Resolution change
+        # Resolution change — update Settings + DisplayService (triggers data download)
         cur_w, cur_h = self._lcd.lcd_size
         if (w, h) != (cur_w, cur_h):
-            self._lcd.settings.set_resolution(w, h)
+            self._lcd.set_resolution(w, h)
             self._w['preview'].set_resolution(w, h)
             self._w['image_cut'].set_resolution(w, h)
             self._w['video_cut'].set_resolution(w, h)

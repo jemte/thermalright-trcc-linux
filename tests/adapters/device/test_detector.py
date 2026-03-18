@@ -87,6 +87,24 @@ class TestDetectedDevice(unittest.TestCase):
         self.assertEqual(device.scsi_device, "/dev/sg0")
         self.assertEqual(device.model, "FROZEN_WARFRAME")
 
+    def test_path_returns_scsi_device_when_available(self):
+        """Test path property returns scsi_device for SCSI devices."""
+        device = DetectedDevice(
+            vid=0x0402, pid=0x3922,
+            vendor_name="ALi Corp", product_name="LCD",
+            usb_path="1-2.3", scsi_device="/dev/sg0",
+        )
+        self.assertEqual(device.path, "/dev/sg0")
+
+    def test_path_falls_back_to_usb_path(self):
+        """Test path property returns usb_path when scsi_device is None."""
+        device = DetectedDevice(
+            vid=0x0416, pid=0x5302,
+            vendor_name="Thermalright", product_name="HID LCD",
+            usb_path="2-1.4", protocol="hid",
+        )
+        self.assertEqual(device.path, "2-1.4")
+
 
 class TestKnownDevices(unittest.TestCase):
     """Test KNOWN_DEVICES constant mapping."""

@@ -302,6 +302,11 @@ class DetectedDevice:
     protocol: str = "scsi"  # "scsi" or "hid"
     device_type: int = 1  # 1=SCSI, 2=HID Type 2, 3=HID Type 3, 4=Bulk, 5=LY
 
+    @property
+    def path(self) -> str:
+        """Device path for protocol factories (SCSI → /dev/sgN, else USB path)."""
+        return self.scsi_device or self.usb_path
+
 
 @dataclass
 class DeviceInfo:

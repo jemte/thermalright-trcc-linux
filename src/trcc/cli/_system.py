@@ -200,12 +200,13 @@ def setup_udev(dry_run=False):
         _BULK_DEVICES,
         _HID_LCD_DEVICES,
         _LED_DEVICES,
+        _LY_DEVICES,
         KNOWN_DEVICES,
     )
 
     # Always include ALL devices in udev rules (so hardware is ready
     # when users plug in HID/bulk devices, even without --testing-hid)
-    all_devices = {**KNOWN_DEVICES, **_HID_LCD_DEVICES, **_LED_DEVICES, **_BULK_DEVICES}
+    all_devices = {**KNOWN_DEVICES, **_HID_LCD_DEVICES, **_LED_DEVICES, **_BULK_DEVICES, **_LY_DEVICES}
 
     # --- 1. udev rules (permissions) ---
     rules_path = "/etc/udev/rules.d/99-trcc-lcd.rules"

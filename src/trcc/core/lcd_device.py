@@ -498,8 +498,6 @@ class LCDDevice(Device):
             web_dir=self._display_svc.web_dir,
             masks_dir=self._display_svc.masks_dir,
         )
-        self._display_svc.media.set_target_size(width, height)
-        self._display_svc.overlay.set_resolution(width, height)
         if width and height:
             self._theme_svc.load_local_themes((width, height))
         return {"success": True, "resolution": (width, height),
