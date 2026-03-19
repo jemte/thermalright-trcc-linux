@@ -794,7 +794,16 @@ alias trcc='/Applications/TRCC.app/Contents/MacOS/TRCC'
 ## FreeBSD (experimental)
 
 ```bash
+# CLI + API only
 pkg install py311-pip libusb py311-pyusb py311-hid
+pip install trcc-linux
+trcc setup
+trcc serve    # or trcc detect, trcc lcd, etc.
+```
+
+```bash
+# GUI (adds Qt6/PySide6)
+pkg install py311-pip libusb py311-pyusb py311-hid py311-pyside6 p7zip ffmpeg
 pip install trcc-linux
 trcc setup
 trcc gui
@@ -806,6 +815,7 @@ trcc gui
 - HID devices work via hidapi
 - Run as root for full hardware access
 - No native package — install from PyPI
+- GUI is untested on BSD — if you get it working, please [open an issue](https://github.com/Lexonight1/thermalright-trcc-linux/issues/new) and let us know
 
 ---
 
