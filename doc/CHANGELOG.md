@@ -1,5 +1,10 @@
 # Changelog
 
+## v9.0.4
+
+### Fixes
+- **Bulk device disconnect on KVM USB passthrough (#78)**: `send_frame` was sending the entire frame as one bulk transfer (~460 KB for 480×480). On KVM virtual machines with USB passthrough, this overwhelmed the virtual USB controller and caused the device to reset mid-transfer (`[Errno 19] No such device`). Frame is now sent in 16 KiB chunks, matching the `_WRITE_CHUNK_SIZE` constant that was already defined but unused
+
 ## v9.0.3
 
 ### Features

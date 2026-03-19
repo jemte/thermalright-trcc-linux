@@ -546,17 +546,34 @@ class TestBulkDeviceSendFrame(unittest.TestCase):
         self.assertEqual(struct.unpack_from("<I", header, 56)[0], 2)
         self.assertEqual(struct.unpack_from("<I", header, 60)[0], 1000)
 
-    def test_send_frame_single_transfer(self):
-        """Header + payload sent as one contiguous buffer."""
+    def test_send_frame_small_payload_single_chunk(self):
+        """Small payloads (< 16 KiB) are sent in one chunk."""
         bd = self._setup_device()
-        data = b'\xAB\xCD' * 500  # 1000 bytes
+        data = b'\xAB\xCD' * 500  # 1000 bytes — well under 16 KiB
         bd.send_frame(data)
 
         calls = bd._ep_out.write.call_args_list
-        # Single write (header + payload), no ZLP (1064 % 512 != 0)
+        # Single chunk (header + payload), no ZLP (1064 % 512 != 0)
         self.assertEqual(len(calls), 1)
         frame = calls[0][0][0]
         self.assertEqual(frame[64:], data)
+
+    def test_send_frame_large_payload_chunked(self):
+        """Large payloads are split into 16 KiB chunks."""
+        bd = self._setup_device()
+        # 3 full 16 KiB chunks + remainder
+        data = b'\xAB' * (3 * 16 * 1024 + 500)
+        bd.send_frame(data)
+
+        calls = bd._ep_out.write.call_args_list
+        # header (64) + data split into 16 KiB chunks
+        total = 64 + len(data)
+        import math
+        expected_chunks = math.ceil(total / (16 * 1024))
+        self.assertEqual(len(calls), expected_chunks)
+        # Reassemble and verify header + payload intact
+        reassembled = b''.join(c[0][0] for c in calls)
+        self.assertEqual(reassembled[64:], data)
 
     def test_send_frame_zlp_when_512_aligned(self):
         """ZLP sent only when total frame size is 512-aligned."""

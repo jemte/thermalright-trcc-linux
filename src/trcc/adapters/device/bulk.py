@@ -163,10 +163,14 @@ class BulkDevice(BulkFrameDevice, FrameDevice):
         struct.pack_into("<I", header, 60, data_size)    # payload length
 
         try:
-            # C# USBLCDNEW ThreadSendDeviceData: single SubmitAsyncTransfer
-            # of header + payload as one contiguous buffer.
             frame = bytes(header) + image_data
-            self._ep_out.write(frame, timeout=_WRITE_TIMEOUT_MS)  # type: ignore[union-attr]
+            # Send in chunks — a single large transfer can reset the device
+            # on KVM USB passthrough and slower USB hubs.
+            for offset in range(0, len(frame), _WRITE_CHUNK_SIZE):
+                self._ep_out.write(  # type: ignore[union-attr]
+                    frame[offset:offset + _WRITE_CHUNK_SIZE],
+                    timeout=_WRITE_TIMEOUT_MS,
+                )
 
             # C#: ZLP when total is 512-aligned (num2 % 512 == 0)
             if len(frame) % 512 == 0:
