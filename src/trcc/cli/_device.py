@@ -156,16 +156,18 @@ def _format(dev, probe=False):
 @_cli_handler
 def detect(show_all=False):
     """Detect LCD device."""
-    from trcc.adapters.device.detector import check_udev_rules, detect_devices
+    from trcc.adapters.device.detector import detect_devices
     from trcc.conf import Settings
+    from trcc.core.builder import ControllerBuilder
 
     devices = detect_devices()
+    platform_setup = ControllerBuilder.build_setup()
+
     if not devices:
         print("No compatible TRCC LCD device detected.")
-        from trcc.core.platform import WINDOWS
-        if WINDOWS:
-            print("\nOn Windows, non-SCSI devices (HID, Bulk, LY) need the")
-            print("WinUSB driver. Run 'trcc setup-winusb' for instructions.")
+        hint = platform_setup.no_devices_hint()
+        if hint:
+            print(hint)
         return 1
 
     if show_all:
@@ -184,20 +186,8 @@ def detect(show_all=False):
             dev = devices[0]
         print(f"Active: {_format(dev, probe=True)}")
 
-    # Check for stale/missing udev rules (Linux only)
-    from trcc.core.platform import LINUX
-    if LINUX:
-        from trcc.core.models import PROTOCOL_TRAITS
-
-        for dev in devices:
-            if not check_udev_rules(dev):
-                msg = f"\nDevice {dev.vid:04x}:{dev.pid:04x} needs updated udev rules.\n"
-                msg += "Run:  sudo trcc setup-udev"
-                traits = PROTOCOL_TRAITS.get(dev.protocol, PROTOCOL_TRAITS['scsi'])
-                if traits.requires_reboot:
-                    msg += "\nThen reboot for the USB storage quirk to take effect."
-                print(msg)
-                break
+    for warning in platform_setup.check_device_permissions(devices):
+        print(f"\n{warning}")
 
     return 0
 

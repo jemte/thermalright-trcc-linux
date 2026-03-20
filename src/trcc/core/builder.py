@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .ports import AutostartManager, PlatformSetup, Renderer
+from .ports import AutostartManager, GetDiskInfoFn, GetMemoryInfoFn, PlatformSetup, Renderer
 
 if TYPE_CHECKING:
     from ..services.system import SystemService
@@ -249,6 +249,21 @@ class ControllerBuilder:
         # Linux and BSD both use XDG .desktop
         from ..adapters.system.linux.autostart import LinuxAutostartManager
         return LinuxAutostartManager()
+
+    @staticmethod
+    def build_hardware_fns() -> tuple[GetMemoryInfoFn, GetDiskInfoFn]:
+        """Return platform-specific (get_memory_info, get_disk_info) callables."""
+        from .platform import BSD, MACOS, WINDOWS
+
+        if WINDOWS:
+            from ..adapters.system.windows.hardware import get_disk_info, get_memory_info
+        elif MACOS:
+            from ..adapters.system.macos.hardware import get_disk_info, get_memory_info
+        elif BSD:
+            from ..adapters.system.bsd.hardware import get_disk_info, get_memory_info
+        else:
+            from ..adapters.system.linux.hardware import get_disk_info, get_memory_info
+        return get_memory_info, get_disk_info
 
     @staticmethod
     def build_setup() -> PlatformSetup:

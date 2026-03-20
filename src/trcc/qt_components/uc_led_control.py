@@ -323,7 +323,15 @@ class UCLedControl(QWidget):
         self._is_timer_24h = True
         self._is_week_sunday = False
 
+        self._get_memory_info = None
+        self._get_disk_info = None
+
         self._setup_ui()
+
+    def set_hardware_fns(self, get_memory_info, get_disk_info) -> None:
+        """Inject platform hardware callables (DI from ControllerBuilder)."""
+        self._get_memory_info = get_memory_info
+        self._get_disk_info = get_disk_info
 
     def _setup_ui(self):
         """Create all UI elements."""
@@ -1267,18 +1275,9 @@ class UCLedControl(QWidget):
     def _populate_memory_identity(self) -> None:
         """Populate memory timing labels from DRAM SPD info."""
         try:
-            from trcc.core.platform import BSD, LINUX, MACOS, WINDOWS
-            if LINUX:
-                from ..adapters.system.linux.hardware import get_memory_info
-            elif WINDOWS:
-                from ..adapters.system.windows.hardware import get_memory_info
-            elif MACOS:
-                from ..adapters.system.macos.hardware import get_memory_info
-            elif BSD:
-                from ..adapters.system.bsd.hardware import get_memory_info
-            else:
-                raise ImportError("Unsupported platform")
-            self._mem_slots = get_memory_info()
+            if self._get_memory_info is None:
+                return
+            self._mem_slots = self._get_memory_info()
             if self._mem_slots:
                 s = self._mem_slots[0]
                 for key in ('mem_tcas', 'mem_trcd', 'mem_trp',
@@ -1307,18 +1306,9 @@ class UCLedControl(QWidget):
     def _populate_disk_identity(self) -> None:
         """Populate disk selector dropdown (C# ucComboBoxC)."""
         try:
-            from trcc.core.platform import BSD, LINUX, MACOS, WINDOWS
-            if LINUX:
-                from ..adapters.system.linux.hardware import get_disk_info
-            elif WINDOWS:
-                from ..adapters.system.windows.hardware import get_disk_info
-            elif MACOS:
-                from ..adapters.system.macos.hardware import get_disk_info
-            elif BSD:
-                from ..adapters.system.bsd.hardware import get_disk_info
-            else:
-                raise ImportError("Unsupported platform")
-            self._disk_slots = get_disk_info()
+            if self._get_disk_info is None:
+                return
+            self._disk_slots = self._get_disk_info()
 
             self._disk_selector.blockSignals(True)
             self._disk_selector.clear()

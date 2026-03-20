@@ -474,6 +474,13 @@ class TRCCApp(QMainWindow):
         self._apply_dark_theme()
         self._setup_ui()
 
+        # Inject platform-specific hardware callables and window close behaviour
+        from ..core.builder import ControllerBuilder
+        _platform = ControllerBuilder.build_setup()
+        self._minimize_on_close = _platform.minimize_on_close()
+        mem_fn, disk_fn = ControllerBuilder.build_hardware_fns()
+        self.uc_led_control.set_hardware_fns(mem_fn, disk_fn)
+
         # Build initial display controller for the default resolution
         self._build_lcd_handler()
 
@@ -1936,13 +1943,12 @@ class TRCCApp(QMainWindow):
         event.accept()
 
     def closeEvent(self, event):
-        from trcc.core.platform import WINDOWS
         if (not self._force_quit
                 and self._tray.isSystemTrayAvailable()
                 and self._tray.isVisible()
-                and not (WINDOWS and self._minimized_to_taskbar)):
+                and not (self._minimize_on_close and self._minimized_to_taskbar)):
             event.ignore()
-            if WINDOWS:
+            if self._minimize_on_close:
                 self._minimized_to_taskbar = True
                 self.showMinimized()
             else:

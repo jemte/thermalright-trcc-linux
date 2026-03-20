@@ -61,6 +61,18 @@ class MacOSSetup(PlatformSetup):
             "  brew install p7zip"
         )
 
+    def minimize_on_close(self) -> bool:
+        return False
+
+    def no_devices_hint(self) -> str | None:
+        return None
+
+    def check_device_permissions(self, devices: list) -> list[str]:
+        return []
+
+    def get_system_files(self) -> list[str]:
+        return []
+
     def run(self, auto_yes: bool = False) -> int:
         from trcc.adapters.infra.doctor import check_system_deps
 

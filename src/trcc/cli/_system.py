@@ -166,14 +166,9 @@ def uninstall(*, yes: bool = False):
 
     home = _real_user_home()
 
-    # Files that require root to remove (Linux only)
-    root_files = [
-        "/etc/udev/rules.d/99-trcc-lcd.rules",
-        "/etc/modprobe.d/trcc-lcd.conf",
-        "/etc/modules-load.d/trcc-sg.conf",
-        "/usr/share/polkit-1/actions/com.github.lexonight1.trcc.policy",
-        "/etc/polkit-1/rules.d/50-trcc.rules",
-    ] if LINUX else []
+    # Files that require root to remove (platform-specific)
+    from trcc.core.builder import ControllerBuilder
+    root_files = ControllerBuilder.build_setup().get_system_files()
 
     # User files/dirs to remove
     user_items = [

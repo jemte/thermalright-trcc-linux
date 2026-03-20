@@ -221,6 +221,11 @@ ImportThemeFn = Callable[[str, str], None]
 # Concrete: hardware._privileged_cmd
 PrivilegedCmdFn = Callable[[str, list[str]], list[str]]
 
+# Type aliases for platform hardware info callables.
+# Concrete: adapters/system/{linux,windows,macos,bsd}/hardware.py
+GetMemoryInfoFn = Callable[[], list[dict[str, str]]]
+GetDiskInfoFn = Callable[[], list[dict[str, str]]]
+
 # =========================================================================
 # Sensor Enumerator ABC — contract for platform sensor adapters
 # =========================================================================
@@ -356,6 +361,38 @@ class PlatformSetup(ABC):
         Linux: use package dir directly.
         Others: copy to ~/.trcc/assets/gui/ to avoid sandboxed paths.
         Returns the resolved Path.
+        """
+
+    @abstractmethod
+    def minimize_on_close(self) -> bool:
+        """Return True if the window should minimize to taskbar on close.
+
+        Windows: True — clicking the taskbar X minimizes, second close exits.
+        All other platforms: False — close hides to tray.
+        """
+
+    @abstractmethod
+    def no_devices_hint(self) -> Optional[str]:
+        """Platform-specific hint printed when no devices are detected.
+
+        Returns a message string, or None if no extra hint is needed.
+        """
+
+    @abstractmethod
+    def check_device_permissions(self, devices: list[Any]) -> list[str]:
+        """Return list of permission warning messages for detected devices.
+
+        Linux: checks udev rules for each device.
+        Other platforms: returns [].
+        """
+
+    @abstractmethod
+    def get_system_files(self) -> list[str]:
+        """Return list of system-level file paths installed by this platform.
+
+        Used by uninstall to remove files that require root.
+        Linux: udev rules, modprobe, polkit policy files.
+        Other platforms: returns [].
         """
 
 

@@ -65,6 +65,21 @@ class WindowsSetup(PlatformSetup):
             "  winget install 7zip.7zip"
         )
 
+    def minimize_on_close(self) -> bool:
+        return True
+
+    def no_devices_hint(self) -> str | None:
+        return (
+            "\nOn Windows, non-SCSI devices (HID, Bulk, LY) need the\n"
+            "WinUSB driver. Run 'trcc setup-winusb' for instructions."
+        )
+
+    def check_device_permissions(self, devices: list) -> list[str]:
+        return []
+
+    def get_system_files(self) -> list[str]:
+        return []
+
     def run(self, auto_yes: bool = False) -> int:
         from trcc.adapters.infra.doctor import check_system_deps
 

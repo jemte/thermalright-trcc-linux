@@ -457,6 +457,36 @@ class LinuxSetup(PlatformSetup):
             "  Arch:           sudo pacman -S p7zip"
         )
 
+    def minimize_on_close(self) -> bool:
+        return False
+
+    def no_devices_hint(self) -> str | None:
+        return None
+
+    def check_device_permissions(self, devices: list) -> list[str]:
+        from trcc.adapters.device.detector import check_udev_rules
+        from trcc.core.models import PROTOCOL_TRAITS
+        warnings = []
+        for dev in devices:
+            if not check_udev_rules(dev):
+                traits = PROTOCOL_TRAITS.get(dev.protocol, PROTOCOL_TRAITS['scsi'])
+                msg = (f"Device {dev.vid:04x}:{dev.pid:04x} needs updated udev rules.\n"
+                       "Run:  sudo trcc setup-udev")
+                if traits.requires_reboot:
+                    msg += "\nThen reboot for the USB storage quirk to take effect."
+                warnings.append(msg)
+                break
+        return warnings
+
+    def get_system_files(self) -> list[str]:
+        return [
+            "/etc/udev/rules.d/99-trcc-lcd.rules",
+            "/etc/modprobe.d/trcc-lcd.conf",
+            "/etc/modules-load.d/trcc-sg.conf",
+            "/usr/share/polkit-1/actions/com.github.lexonight1.trcc.policy",
+            "/etc/polkit-1/rules.d/50-trcc.rules",
+        ]
+
     def run(self, auto_yes: bool = False) -> int:
         from trcc.adapters.infra.doctor import (
             check_desktop_entry,
