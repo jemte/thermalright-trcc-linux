@@ -544,7 +544,7 @@ class TestAboutAutostart:
 
     def test_is_autostart_enabled_no_file(self, tmp_path, monkeypatch):
         monkeypatch.setattr(
-            "trcc.qt_components.uc_about._AUTOSTART_FILE",
+            "trcc.qt_components.uc_about._LINUX_AUTOSTART_FILE",
             tmp_path / "nonexistent.desktop",
         )
         from trcc.qt_components.uc_about import _is_autostart_enabled
@@ -554,7 +554,7 @@ class TestAboutAutostart:
     def test_is_autostart_enabled_with_file(self, tmp_path, monkeypatch):
         f = tmp_path / "trcc-linux.desktop"
         f.write_text("[Desktop Entry]\nExec=trcc\n")
-        monkeypatch.setattr("trcc.qt_components.uc_about._AUTOSTART_FILE", f)
+        monkeypatch.setattr("trcc.qt_components.uc_about._LINUX_AUTOSTART_FILE", f)
         from trcc.qt_components.uc_about import _is_autostart_enabled
 
         assert _is_autostart_enabled() is True
@@ -562,8 +562,8 @@ class TestAboutAutostart:
     def test_set_autostart_enable(self, tmp_path, monkeypatch):
         autostart_dir = tmp_path / "autostart"
         autostart_file = autostart_dir / "trcc-linux.desktop"
-        monkeypatch.setattr("trcc.qt_components.uc_about._AUTOSTART_DIR", autostart_dir)
-        monkeypatch.setattr("trcc.qt_components.uc_about._AUTOSTART_FILE", autostart_file)
+        monkeypatch.setattr("trcc.qt_components.uc_about._LINUX_AUTOSTART_DIR", autostart_dir)
+        monkeypatch.setattr("trcc.qt_components.uc_about._LINUX_AUTOSTART_FILE", autostart_file)
         from trcc.qt_components.uc_about import _set_autostart
 
         _set_autostart(True)
@@ -574,8 +574,8 @@ class TestAboutAutostart:
         autostart_dir.mkdir()
         autostart_file = autostart_dir / "trcc-linux.desktop"
         autostart_file.write_text("test")
-        monkeypatch.setattr("trcc.qt_components.uc_about._AUTOSTART_DIR", autostart_dir)
-        monkeypatch.setattr("trcc.qt_components.uc_about._AUTOSTART_FILE", autostart_file)
+        monkeypatch.setattr("trcc.qt_components.uc_about._LINUX_AUTOSTART_DIR", autostart_dir)
+        monkeypatch.setattr("trcc.qt_components.uc_about._LINUX_AUTOSTART_FILE", autostart_file)
         from trcc.qt_components.uc_about import _set_autostart
 
         _set_autostart(False)

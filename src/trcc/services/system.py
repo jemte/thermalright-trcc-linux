@@ -285,8 +285,10 @@ class SystemService:
                     v = fallback()
                     if v is not None:
                         cache[key] = v
-                except Exception:
-                    pass
+                    else:
+                        log.debug("Fallback for %s returned no value", key)
+                except Exception as e:
+                    log.debug("Fallback for %s failed: %s", key, e)
         with self._fallback_lock:
             self._fallback_cache = cache
 
@@ -327,8 +329,10 @@ class SystemService:
                     match = re.search(r':\s*([0-9.]+)', line)
                     if match:
                         return float(match.group(1))
-        except Exception:
-            pass
+        except FileNotFoundError:
+            log.debug("lm_sensors not installed — cpu_temp fallback unavailable")
+        except Exception as e:
+            log.debug("cpu_temp fallback failed: %s", e)
         return None
 
     @staticmethod
@@ -339,8 +343,8 @@ class SystemService:
             if loadavg:
                 load = float(loadavg.split()[0])
                 return min(100.0, load * 10)
-        except Exception:
-            pass
+        except Exception as e:
+            log.debug("cpu_percent fallback failed: %s", e)
         return None
 
     @staticmethod
@@ -353,8 +357,8 @@ class SystemService:
                         match = re.search(r':\s*([0-9.]+)', line)
                         if match:
                             return float(match.group(1))
-        except Exception:
-            pass
+        except Exception as e:
+            log.debug("cpu_freq fallback failed: %s", e)
         return None
 
     def _fallback_mem_temp(self) -> Optional[float]:
@@ -375,8 +379,10 @@ class SystemService:
                         match = re.search(r':\s*([0-9.]+)', line)
                         if match:
                             return float(match.group(1))
-        except Exception:
-            pass
+        except FileNotFoundError:
+            log.debug("lm_sensors not installed — mem_temp fallback unavailable")
+        except Exception as e:
+            log.debug("mem_temp fallback failed: %s", e)
         return None
 
     @staticmethod
@@ -413,8 +419,10 @@ class SystemService:
                         match = re.search(r'(\d+)\s*(?:MT/s|MHz)', line)
                         if match:
                             return float(match.group(1))
-        except Exception:
-            pass
+        except FileNotFoundError:
+            log.debug("dmidecode not installed — mem_clock fallback unavailable")
+        except Exception as e:
+            log.debug("mem_clock dmidecode probe failed: %s", e)
 
         try:
             result = subprocess.run(
@@ -425,8 +433,10 @@ class SystemService:
                 match = re.search(r'(\d+)\s*(?:MT/s|MHz)', result.stdout)
                 if match:
                     return float(match.group(1))
-        except Exception:
-            pass
+        except FileNotFoundError:
+            log.debug("lshw not installed — mem_clock lshw probe unavailable")
+        except Exception as e:
+            log.debug("mem_clock lshw probe failed: %s", e)
 
         mc_path = "/sys/devices/system/edac/mc"
         if os.path.exists(mc_path):
@@ -437,8 +447,8 @@ class SystemService:
                         match = re.search(r'(\d+)\s*MHz', content)
                         if match:
                             return float(match.group(1))
-            except Exception:
-                pass
+            except Exception as e:
+                log.debug("mem_clock EDAC probe failed: %s", e)
 
         return None
 
@@ -457,8 +467,10 @@ class SystemService:
                         for part in parts:
                             if part.isdigit() and int(part) < 100:
                                 return float(part)
-        except Exception:
-            pass
+        except FileNotFoundError:
+            log.debug("smartctl not installed — disk_temp fallback unavailable")
+        except Exception as e:
+            log.debug("disk_temp fallback failed: %s", e)
         return None
 
 

@@ -6,8 +6,9 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
-from trcc.core.platform import LINUX, detect_install_method, is_root
+from trcc.core.platform import LINUX, MACOS, WINDOWS, detect_install_method, is_root
 
 
 def _require_linux(command: str) -> int | None:
@@ -185,6 +186,12 @@ def uninstall(*, yes: bool = False):
         if d.is_dir():
             user_items.extend(d.glob("trcc*.desktop"))
 
+    # macOS Launch Agent
+    if MACOS:
+        plist = home / 'Library' / 'LaunchAgents' / 'com.thermalright.trcc.plist'
+        if plist.exists():
+            user_items.append(plist)
+
     removed = []
 
     # Handle root files — auto-elevate with sudo if needed
@@ -209,6 +216,22 @@ def uninstall(*, yes: bool = False):
             else:
                 path.unlink()
             removed.append(str(path))
+
+    # Windows registry autostart key
+    if WINDOWS:
+        try:
+            import winreg as _wr  # pyright: ignore[reportMissingImports]
+            wr: Any = _wr
+            key = wr.OpenKey(
+                wr.HKEY_CURRENT_USER,
+                r'Software\Microsoft\Windows\CurrentVersion\Run',
+                0, wr.KEY_SET_VALUE,
+            )
+            wr.DeleteValue(key, 'TRCC Linux')
+            wr.CloseKey(key)
+            removed.append(r'HKCU\Software\Microsoft\Windows\CurrentVersion\Run\TRCC Linux')
+        except OSError:
+            pass
 
     if removed:
         print("Removed:")

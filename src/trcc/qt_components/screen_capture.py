@@ -61,21 +61,27 @@ def grab_full_screen() -> QPixmap:
             ['gnome-screenshot', '-f', tmp_path],        # GNOME
             ['scrot', tmp_path],                         # X11 fallback
         ]:
+            tool = cmd[0]
             try:
-                result = subprocess.run(
-                    cmd, capture_output=True, timeout=5)
+                result = subprocess.run(cmd, capture_output=True, timeout=5)
                 if result.returncode == 0 and os.path.getsize(tmp_path) > 0:
                     pixmap = QPixmap(tmp_path)
                     if not pixmap.isNull():
+                        log.debug("Screen capture via %s", tool)
                         return pixmap
-            except (FileNotFoundError, subprocess.TimeoutExpired):
-                continue
+                else:
+                    log.debug("Screen capture tool %s failed (exit %d)", tool, result.returncode)
+            except FileNotFoundError:
+                log.debug("Screen capture tool %s not installed", tool)
+            except subprocess.TimeoutExpired:
+                log.warning("Screen capture tool %s timed out", tool)
     finally:
         try:
             os.unlink(tmp_path)
         except OSError:
             pass
 
+    log.error("Screen capture failed — no working tool found (tried grim, gnome-screenshot, scrot)")
     return QPixmap()
 
 
@@ -105,18 +111,23 @@ def grab_screen_region(x: int, y: int, w: int, h: int) -> QPixmap:
     try:
         geometry = f"{x},{y} {w}x{h}"
         for cmd in [
-            ['grim', '-g', geometry, tmp_path],       # Wayland (wlroots)
-            ['scrot', '-a', f'{x},{y},{w},{h}', tmp_path],  # X11 fallback
+            ['grim', '-g', geometry, tmp_path],            # Wayland (wlroots)
+            ['scrot', '-a', f'{x},{y},{w},{h}', tmp_path], # X11 fallback
         ]:
+            tool = cmd[0]
             try:
-                result = subprocess.run(
-                    cmd, capture_output=True, timeout=2)
+                result = subprocess.run(cmd, capture_output=True, timeout=2)
                 if result.returncode == 0 and os.path.getsize(tmp_path) > 0:
                     pixmap = QPixmap(tmp_path)
                     if not pixmap.isNull():
+                        log.debug("Region capture via %s", tool)
                         return pixmap
-            except (FileNotFoundError, subprocess.TimeoutExpired):
-                continue
+                else:
+                    log.debug("Region capture tool %s failed (exit %d)", tool, result.returncode)
+            except FileNotFoundError:
+                log.debug("Region capture tool %s not installed", tool)
+            except subprocess.TimeoutExpired:
+                log.warning("Region capture tool %s timed out", tool)
 
         # Last resort: full screen capture + crop
         full = grab_full_screen()

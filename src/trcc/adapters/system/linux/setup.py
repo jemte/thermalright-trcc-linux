@@ -90,12 +90,18 @@ def setup_rapl_permissions() -> None:
         f.write(tmpfiles_content)
     print(f"Wrote {tmpfiles_path}")
 
+    made_readable = 0
     for energy_file in energy_files:
         try:
             energy_file.chmod(0o444)
-        except OSError:
-            pass
-    print(f"RAPL power sensors: {len(energy_files)} domain(s) made readable")
+            made_readable += 1
+        except OSError as e:
+            print(f"  WARNING: could not chmod {energy_file}: {e}")
+    if made_readable == len(energy_files):
+        print(f"RAPL power sensors: {made_readable} domain(s) made readable")
+    else:
+        print(f"RAPL power sensors: {made_readable}/{len(energy_files)} domain(s) made readable"
+              f" — {len(energy_files) - made_readable} failed (tmpfiles.d will fix on next boot)")
 
     restorecon = subprocess.run(
         ["which", "restorecon"], capture_output=True, text=True,

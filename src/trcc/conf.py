@@ -106,12 +106,18 @@ def _migrate_device_keys(config: dict) -> bool:
 
 
 def load_config() -> dict:
-    """Load user config from disk. Returns empty dict on missing/corrupt file."""
+    """Load user config from disk. Returns empty dict if file is missing."""
     _migrate_old_config()
     try:
         with open(CONFIG_PATH, 'r') as f:
             config = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
+    except FileNotFoundError:
+        return {}
+    except json.JSONDecodeError as e:
+        log.warning("Config file is corrupt (%s) — resetting to defaults: %s", CONFIG_PATH, e)
+        return {}
+    except OSError as e:
+        log.error("Failed to read config file (%s): %s", CONFIG_PATH, e)
         return {}
     if _migrate_device_keys(config):
         save_config(config)
@@ -146,7 +152,13 @@ def load_last_handshake() -> dict:
     try:
         with open(_HANDSHAKE_CACHE_PATH, 'r') as f:
             return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
+    except FileNotFoundError:
+        return {}
+    except json.JSONDecodeError as e:
+        log.warning("Handshake cache is corrupt — ignoring: %s", e)
+        return {}
+    except OSError as e:
+        log.error("Failed to read handshake cache: %s", e)
         return {}
 
 
