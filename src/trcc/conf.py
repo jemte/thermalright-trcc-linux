@@ -279,6 +279,18 @@ class Settings:
         config['hdd_enabled'] = enabled
         save_config(config)
 
+    @staticmethod
+    def _get_saved_refresh_interval() -> int:
+        """Get saved metrics refresh interval in seconds. Defaults to 1."""
+        return int(load_config().get('refresh_interval', 1))
+
+    @staticmethod
+    def _save_refresh_interval(interval: int) -> None:
+        """Persist metrics refresh interval to config."""
+        config = load_config()
+        config['refresh_interval'] = interval
+        save_config(config)
+
     # --- Public static methods (device config, format prefs, etc.) ---
 
     @staticmethod
@@ -430,6 +442,7 @@ class Settings:
         # User preferences
         self.temp_unit: int = Settings._get_saved_temp_unit()
         self.hdd_enabled: bool = Settings._get_saved_hdd_enabled()
+        self.refresh_interval: int = Settings._get_saved_refresh_interval()
         self._lang: str = self._get_saved_lang()
 
         # Static paths
@@ -472,6 +485,11 @@ class Settings:
         """Set HDD info toggle and persist."""
         self.hdd_enabled = enabled
         Settings._save_hdd_enabled(enabled)
+
+    def set_refresh_interval(self, interval: int) -> None:
+        """Set metrics refresh interval in seconds and persist."""
+        self.refresh_interval = interval
+        Settings._save_refresh_interval(interval)
 
     @property
     def lang(self) -> str:

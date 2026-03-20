@@ -339,6 +339,12 @@ class QtRenderer(Renderer):
             rows.append(raw[y * bpl:y * bpl + w * 3])
         return PILImage.frombytes('RGB', (w, h), b''.join(rows))
 
+    def from_raw_rgb24(self, frame: Any) -> Any:
+        """RawFrame (RGB24 bytes) → QImage (RGB32)."""
+        qimg = QImage(frame.data, frame.width, frame.height,
+                      frame.width * 3, QImage.Format.Format_RGB888)
+        return qimg.convertToFormat(QImage.Format.Format_RGB32)
+
     def from_pil(self, image: Any) -> Any:
         """PIL Image → QImage (legacy input only)."""
         if image.mode == 'RGBA':

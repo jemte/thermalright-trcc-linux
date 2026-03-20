@@ -21,6 +21,18 @@ if TYPE_CHECKING:
     from trcc.core.models import SensorInfo
 
 
+@dataclass
+class RawFrame:
+    """Raw decoded video frame — pure bytes, no framework deps.
+
+    Produced by media decoders (VideoDecoder, ThemeZtDecoder).
+    Converted to native renderer surfaces by the render adapter.
+    """
+    data: bytes
+    width: int
+    height: int
+
+
 class Renderer(ABC):
     """Port: rendering backend for the full image pipeline.
 
@@ -110,6 +122,10 @@ class Renderer(ABC):
         """Load image file into native surface."""
 
     # ── Legacy boundary ───────────────────────────────────────────
+
+    @abstractmethod
+    def from_raw_rgb24(self, frame: "RawFrame") -> Any:
+        """Convert RawFrame (RGB24 bytes) → native surface."""
 
     @abstractmethod
     def to_pil(self, surface: Any) -> Any:

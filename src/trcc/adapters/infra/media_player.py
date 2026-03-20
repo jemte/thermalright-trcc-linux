@@ -1,11 +1,12 @@
 """Media frame decoders for TRCC Linux.
 
-Pure infrastructure — decodes video/animation files into frames + metadata.
+Pure infrastructure — decodes video/animation files into RawFrame lists.
 No playback state (play/pause/stop/seek). That belongs in MediaService.
+No framework deps (no PIL, no Qt) — raw RGB24 bytes only.
 
 Decoders:
-    VideoDecoder   — FFmpeg pipe → list of PIL frames + fps
-    ThemeZtDecoder — Theme.zt binary → list of PIL frames + per-frame delays
+    VideoDecoder   — FFmpeg pipe → list[RawFrame] + fps
+    ThemeZtDecoder — Theme.zt binary → list[RawFrame] + per-frame delays
 """
 
 from __future__ import annotations
@@ -16,9 +17,8 @@ import os
 import struct
 import subprocess
 
-from PIL import Image
-
 from trcc.core.platform import SUBPROCESS_NO_WINDOW as _NO_WINDOW
+from trcc.core.ports import RawFrame
 
 log = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ class VideoDecoder:
             raise RuntimeError(
                 ControllerBuilder.build_setup().ffmpeg_install_help()
             )
-        self.frames: list[Image.Image] = []
+        self.frames: list[RawFrame] = []
         self.fps: int = 16  # Windows: originalImageHz = 16
 
         self._decode(video_path, target_size, fit_mode)
@@ -96,25 +96,35 @@ class VideoDecoder:
             chunk = raw[i:i + frame_size]
             if len(chunk) < frame_size:
                 break
-            frame = Image.frombytes('RGB', (scale_w, scale_h), chunk)
 
             if need_composite:
-                # Composite onto black canvas — letterbox or center-crop
-                canvas = Image.new('RGB', (w, h), (0, 0, 0))
+                # Letterbox / center-crop onto black canvas — pure bytes
+                canvas = bytearray(w * h * 3)  # black RGB24
                 px = (w - scale_w) // 2
                 py = (h - scale_h) // 2
+
                 if scale_w > w or scale_h > h:
                     # Center-crop: frame overflows canvas
-                    left = max(0, (scale_w - w) // 2)
-                    top = max(0, (scale_h - h) // 2)
-                    frame = frame.crop((left, top, left + w, top + h))
-                    canvas.paste(frame, (max(0, px), max(0, py)))
+                    src_x = max(0, (scale_w - w) // 2)
+                    src_y = max(0, (scale_h - h) // 2)
+                    copy_w = min(w, scale_w - src_x)
+                    copy_h = min(h, scale_h - src_y)
+                    dst_x = max(0, px)
+                    dst_y = max(0, py)
+                    for row in range(copy_h):
+                        src_off = ((src_y + row) * scale_w + src_x) * 3
+                        dst_off = ((dst_y + row) * w + dst_x) * 3
+                        canvas[dst_off:dst_off + copy_w * 3] = chunk[src_off:src_off + copy_w * 3]
                 else:
                     # Letterbox: frame fits inside canvas
-                    canvas.paste(frame, (px, py))
-                self.frames.append(canvas)
+                    for row in range(scale_h):
+                        src_off = row * scale_w * 3
+                        dst_off = ((py + row) * w + px) * 3
+                        canvas[dst_off:dst_off + scale_w * 3] = chunk[src_off:src_off + scale_w * 3]
+
+                self.frames.append(RawFrame(bytes(canvas), w, h))
             else:
-                self.frames.append(frame)
+                self.frames.append(RawFrame(bytes(chunk), scale_w, scale_h))
 
     @staticmethod
     def _probe_dimensions(video_path: str) -> tuple[int, int] | None:
@@ -197,7 +207,7 @@ class ThemeZtDecoder:
     """
 
     def __init__(self, zt_path: str, target_size: tuple[int, int] | None = None) -> None:
-        self.frames: list[Image.Image] = []
+        self.frames: list[RawFrame] = []
         self.timestamps: list[int] = []
         self.delays: list[int] = []
 
@@ -213,12 +223,9 @@ class ThemeZtDecoder:
 
             for _ in range(frame_count):
                 size = struct.unpack('<i', f.read(4))[0]
-                img = Image.open(io.BytesIO(f.read(size)))
-                if target_size and img.size != target_size:
-                    img = img.resize(target_size, Image.Resampling.LANCZOS)
-                if img.mode != 'RGB':
-                    img = img.convert('RGB')
-                self.frames.append(img)
+                jpeg_bytes = f.read(size)
+                frame = self._decode_jpeg(jpeg_bytes, target_size)
+                self.frames.append(frame)
 
         # Calculate delays from timestamps
         for i in range(len(self.timestamps)):
@@ -227,6 +234,19 @@ class ThemeZtDecoder:
             else:
                 delay = self.delays[-1] if self.delays else 42  # ~24fps default
             self.delays.append(max(1, delay))
+
+    @staticmethod
+    def _decode_jpeg(jpeg_bytes: bytes,
+                     target_size: tuple[int, int] | None) -> RawFrame:
+        """Decode JPEG bytes → RawFrame. PIL used once at load time only."""
+        from PIL import Image as _PILImage
+        img = _PILImage.open(io.BytesIO(jpeg_bytes))
+        if target_size and img.size != target_size:
+            img = img.resize(target_size, _PILImage.Resampling.LANCZOS)
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        w, h = img.size
+        return RawFrame(img.tobytes(), w, h)
 
     @property
     def frame_count(self) -> int:
@@ -241,9 +261,6 @@ class ThemeZtDecoder:
         return 1000.0 / avg_delay if avg_delay > 0 else 24.0
 
     def close(self) -> None:
-        for frame in self.frames:
-            if hasattr(frame, 'close'):
-                frame.close()
         self.frames = []
 
 

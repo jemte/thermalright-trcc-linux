@@ -181,21 +181,25 @@ class DisplayService:
     # -- Frame conversion --------------------------------------------------
 
     def _convert_media_frames(self) -> None:
-        """Convert MediaService's PIL frames to native renderer surfaces.
+        """Convert decoded frames to native renderer surfaces.
 
-        VideoDecoder produces PIL Images, but the rendering pipeline
-        (QtRenderer) needs QImage.  Convert in-place once at load time
-        so all downstream code (video_tick, _build_video_cache, overlay)
-        sees native surfaces.
+        RawFrame (from VideoDecoder/ThemeZtDecoder) → native surface via renderer.
+        PIL Images (legacy path) also handled via from_pil().
+        Converts in-place once at load time.
         """
+        from ..core.ports import RawFrame
         frames = self.media._frames
         if not frames:
             return
         r = ImageService._r()
-        try:
-            r.surface_size(frames[0])
-        except (AttributeError, TypeError):
-            self.media._frames = [r.from_pil(f) for f in frames]
+        first = frames[0]
+        if isinstance(first, RawFrame):
+            self.media._frames = [r.from_raw_rgb24(f) for f in frames]
+        else:
+            try:
+                r.surface_size(first)
+            except (AttributeError, TypeError):
+                self.media._frames = [r.from_pil(f) for f in frames]
 
     # -- Theme loading (delegates to ThemeLoader) --------------------------
 

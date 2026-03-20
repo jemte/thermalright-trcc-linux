@@ -1,15 +1,22 @@
 """Video frame cache — C#-matching per-frame compositing.
 
-Two-layer cache:
+Three-layer cache:
   L2: Frames + theme mask (pre-composited at load time, immutable)
-  L4: Device-encoded bytes (lazily computed per frame on access)
+  L3: Device-encoded bytes per frame (frame + mask + text overlay).
+      Fills naturally during the first playback loop — each frame is
+      encoded once on first access and reused on every subsequent loop.
+      After one full loop with stable metrics, playback is pure USB send
+      with zero compositing or encoding overhead.
+
+      L3 is keyed by (text_cache_key, brightness, rotation). A metrics
+      change that alters displayed text clears all slots; they refill
+      lazily over the next loop. Metrics change rarely (CPU rounds to
+      whole numbers, clock ticks once per minute) so L3 stays valid
+      the vast majority of the time.
 
 C# approach (FormCZTV.Timer_event): overlay text re-renders every ~1s
 (64 ticks × 15ms), but compositing + encoding happens per-frame at
 send time — NOT bulk re-encoding all frames.
-
-We match this: text overlay is a separate surface updated on metrics
-change. Per-tick, only the CURRENT frame is composited + encoded.
 """
 from __future__ import annotations
 
@@ -22,11 +29,12 @@ log = logging.getLogger(__name__)
 
 
 class VideoFrameCache:
-    """Video frame cache with lazy per-frame encoding.
+    """Video frame cache with lazy per-frame L3 encoding.
 
     L2 (video + mask) is built once at load time.
-    Text overlay, brightness, rotation are applied per-frame on access.
-    Only the current frame is encoded — not the entire set.
+    L3 (encoded bytes per frame, including text overlay) fills during the
+    first playback loop. After one full loop with stable metrics, every
+    get_encoded() call is a pure list lookup — no compositing, no encoding.
     """
 
     def __init__(self) -> None:
@@ -47,13 +55,14 @@ class VideoFrameCache:
         self._fbl: int | None = None
         self._use_jpeg: bool = False
 
-        # Per-frame encoding cache: only cache the last encoded frame
-        self._last_index: int = -1
-        self._last_encoded: bytes | None = None
-        self._last_preview: Any | None = None
-        self._last_text_key: tuple | None = None
-        self._last_brightness: int = 100
-        self._last_rotation: int = 0
+        # L3: per-frame encoded bytes + preview.
+        # None = not yet encoded for this frame index.
+        # Keyed by (_l3_text_key, _l3_brightness, _l3_rotation).
+        self._l3_encoded: list[bytes | None] = []
+        self._l3_preview: list[Any | None] = []
+        self._l3_text_key: tuple | None = None
+        self._l3_brightness: int = 100
+        self._l3_rotation: int = 0
 
         self._active: bool = False
 
@@ -86,11 +95,16 @@ class VideoFrameCache:
         from .image import ImageService
         r = ImageService._r()
 
-        # Convert PIL frames → native surfaces if needed
-        try:
-            r.surface_size(frames[0])
-        except (AttributeError, TypeError):
-            frames = [r.from_pil(f) for f in frames]
+        # Convert frames to native surfaces if needed
+        from ..core.ports import RawFrame
+        first = frames[0]
+        if isinstance(first, RawFrame):
+            frames = [r.from_raw_rgb24(f) for f in frames]
+        else:
+            try:
+                r.surface_size(first)
+            except (AttributeError, TypeError):
+                frames = [r.from_pil(f) for f in frames]
 
         self._brightness = brightness
         self._rotation = rotation
@@ -101,7 +115,7 @@ class VideoFrameCache:
 
         self._build_layer2(frames, mask, mask_position)
         self._render_text(overlay_svc, metrics)
-        self._invalidate_frame_cache()
+        self._reset_l3()
         self._active = True
         log.info("VideoFrameCache: built %d frames", len(self._masked_frames))
 
@@ -112,85 +126,89 @@ class VideoFrameCache:
         overlay_svc: Any | None,
         metrics: HardwareMetrics,
     ) -> None:
-        """Update text overlay surface. Next get_encoded() will re-encode."""
+        """Update text overlay surface. L3 slots refill naturally on next access."""
         if not self._masked_frames:
             return
         self._render_text(overlay_svc, metrics)
-        # Don't rebuild all frames — invalidate cache so next access re-encodes
+        # L3 validity check in _ensure_frame detects the key change and clears slots
 
     def rebuild_from_brightness(self, brightness: int) -> None:
-        """Update brightness. Next get_encoded() will re-encode."""
+        """Update brightness. L3 slots refill naturally on next access."""
         if not self._masked_frames:
             return
         self._brightness = brightness
-        self._invalidate_frame_cache()
+        self._reset_l3()
 
     def rebuild_from_rotation(self, rotation: int) -> None:
-        """Update rotation. Next get_encoded() will re-encode."""
+        """Update rotation. L3 slots refill naturally on next access."""
         if not self._masked_frames:
             return
         self._rotation = rotation
-        self._invalidate_frame_cache()
+        self._reset_l3()
 
     # -- Per-tick access -------------------------------------------------------
 
     def get_encoded(self, index: int) -> bytes | None:
-        """Get encoded bytes for frame index. Encodes on demand."""
+        """Get encoded bytes for frame index.
+
+        First access: composites text + encodes, stores in L3.
+        Subsequent accesses with same settings: pure list lookup.
+        """
         if not (0 <= index < len(self._masked_frames)):
             return None
         self._ensure_frame(index)
-        return self._last_encoded
+        return self._l3_encoded[index]
 
     def get_preview(self, index: int) -> Any | None:
-        """Get composited preview for frame index. Composites on demand."""
+        """Get composited preview for frame index. Pure lookup after first access."""
         if not (0 <= index < len(self._masked_frames)):
             return None
         self._ensure_frame(index)
-        return self._last_preview
+        return self._l3_preview[index]
 
     # -- Private ---------------------------------------------------------------
 
     def _ensure_frame(self, index: int) -> None:
-        """Composite + encode a single frame if not already cached."""
-        if (index == self._last_index
-                and self._text_cache_key == self._last_text_key
-                and self._brightness == self._last_brightness
-                and self._rotation == self._last_rotation
-                and self._last_encoded is not None):
-            return  # Cache hit
+        """Composite + encode frame into L3 if not already cached.
+
+        Detects settings changes (text/brightness/rotation) and clears all
+        L3 slots so they refill with the new settings over the next loop.
+        """
+        if (self._text_cache_key != self._l3_text_key
+                or self._brightness != self._l3_brightness
+                or self._rotation != self._l3_rotation):
+            self._reset_l3()
+
+        if self._l3_encoded[index] is not None:
+            return  # L3 hit — pure list lookup
 
         from .image import ImageService
         r = ImageService._r()
 
         frame = r.copy_surface(self._masked_frames[index])
 
-        # Composite text overlay
         if self._text_overlay is not None:
             frame = r.composite(frame, self._text_overlay, (0, 0))
 
-        # Apply brightness
         if self._brightness < 100:
             frame = ImageService.apply_brightness(frame, self._brightness)
 
-        # Apply rotation
         if self._rotation:
             frame = ImageService.apply_rotation(frame, self._rotation)
 
-        # Cache preview + encoded
-        self._last_preview = frame
-        self._last_encoded = ImageService.encode_for_device(
+        self._l3_preview[index] = frame
+        self._l3_encoded[index] = ImageService.encode_for_device(
             frame, self._protocol, self._resolution,
             self._fbl, self._use_jpeg)
-        self._last_index = index
-        self._last_text_key = self._text_cache_key
-        self._last_brightness = self._brightness
-        self._last_rotation = self._rotation
 
-    def _invalidate_frame_cache(self) -> None:
-        """Force re-encode on next access."""
-        self._last_index = -1
-        self._last_encoded = None
-        self._last_preview = None
+    def _reset_l3(self) -> None:
+        """Clear all L3 slots. They refill lazily during the next playback loop."""
+        n = len(self._masked_frames)
+        self._l3_encoded = [None] * n
+        self._l3_preview = [None] * n
+        self._l3_text_key = self._text_cache_key
+        self._l3_brightness = self._brightness
+        self._l3_rotation = self._rotation
 
     def _build_layer2(
         self,

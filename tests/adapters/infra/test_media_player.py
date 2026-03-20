@@ -14,6 +14,7 @@ from trcc.adapters.infra.media_player import (
     VideoDecoder,
     _check_ffmpeg,
 )
+from trcc.core.ports import RawFrame
 
 
 def _make_theme_zt(frames=4, size=(8, 8), quality=50):
@@ -48,8 +49,8 @@ def _make_video_decoder(frame_count=5, fps=16, size=(320, 320)):
     with patch.object(VideoDecoder, '__init__', lambda self, *a, **kw: None):
         decoder = VideoDecoder.__new__(VideoDecoder)
     decoder.fps = fps
-    decoder.frames = [Image.new('RGB', size, (i * 50, 0, 0))
-                      for i in range(frame_count)]
+    w, h = size
+    decoder.frames = [RawFrame(bytes(w * h * 3), w, h) for _ in range(frame_count)]
     return decoder
 
 
@@ -90,10 +91,10 @@ class TestVideoDecoderProperties(unittest.TestCase):
         d.close()
         self.assertEqual(len(d.frames), 0)
 
-    def test_frames_are_images(self):
+    def test_frames_are_raw_frames(self):
         d = _make_video_decoder()
         for frame in d.frames:
-            self.assertIsInstance(frame, Image.Image)
+            self.assertIsInstance(frame, RawFrame)
 
 
 class TestVideoDecoderInit(unittest.TestCase):
@@ -122,7 +123,7 @@ class TestVideoDecoderDecode(unittest.TestCase):
         decoder = VideoDecoder('/fake/video.mp4', target_size=(w, h))
         self.assertEqual(decoder.frame_count, 3)
         self.assertEqual(len(decoder.frames), 3)
-        self.assertEqual(decoder.frames[0].size, (w, h))
+        self.assertEqual((decoder.frames[0].width, decoder.frames[0].height), (w, h))
         self.assertEqual(decoder.fps, 16)
         decoder.close()
 
@@ -281,9 +282,9 @@ class TestThemeZtDecoder(unittest.TestCase):
         # [42, 42, 42, 42] -- last frame reuses previous delay
         self.assertEqual(self.decoder.delays, [42, 42, 42, 42])
 
-    def test_frames_are_rgb(self):
+    def test_frames_are_raw_frames(self):
         for frame in self.decoder.frames:
-            self.assertEqual(frame.mode, 'RGB')
+            self.assertIsInstance(frame, RawFrame)
 
     def test_fps_from_delays(self):
         # avg delay = 42ms → fps ≈ 23.8
@@ -300,7 +301,7 @@ class TestThemeZtDecoder(unittest.TestCase):
 
     def test_resize_on_load(self):
         decoder = ThemeZtDecoder(self.path, target_size=(4, 4))
-        self.assertEqual(decoder.frames[0].size, (4, 4))
+        self.assertEqual((decoder.frames[0].width, decoder.frames[0].height), (4, 4))
         decoder.close()
 
 

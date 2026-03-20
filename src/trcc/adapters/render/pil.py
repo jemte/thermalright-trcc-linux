@@ -145,6 +145,9 @@ class PilRenderer(Renderer):
 
     # ── Legacy boundary (identity — already PIL) ──────────────────
 
+    def from_raw_rgb24(self, frame: Any) -> Any:
+        return Image.frombytes('RGB', (frame.width, frame.height), frame.data)
+
     def to_pil(self, surface: Any) -> Any:
         return surface
 

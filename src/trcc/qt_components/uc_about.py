@@ -161,7 +161,7 @@ class UCAbout(BasePanel):
         self._autostart = autostart_manager.is_enabled() if autostart_manager else False
         from ..conf import settings
         self._read_hdd = settings.hdd_enabled
-        self._refresh_interval = 1
+        self._refresh_interval = settings.refresh_interval
 
         # Load checkbox pixmaps
         sz = Layout.ABOUT_CHECKBOX_SIZE
@@ -201,7 +201,7 @@ class UCAbout(BasePanel):
         self.hdd_btn.clicked.connect(self._on_hdd_clicked)
 
         # === Data refresh interval input (textBoxTimer) ===
-        self.refresh_input = QLineEdit("1", self)
+        self.refresh_input = QLineEdit(str(self._refresh_interval), self)
         self.refresh_input.setGeometry(*Layout.ABOUT_REFRESH_INPUT)
         self.refresh_input.setMaxLength(3)
         self.refresh_input.setAlignment(Qt.AlignmentFlag.AlignCenter)

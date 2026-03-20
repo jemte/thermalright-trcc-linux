@@ -441,6 +441,10 @@ class TRCCApp(QMainWindow):
     def instance(cls) -> TRCCApp | None:
         return cls._instance
 
+    def is_app_visible(self) -> bool:
+        """True only when the main window is on screen and not minimized."""
+        return self.isVisible() and not self._minimized_to_taskbar
+
     def __init__(self, data_dir: Path | None = None, decorated: bool = False):
         super().__init__()
 
@@ -495,6 +499,9 @@ class TRCCApp(QMainWindow):
 
         # Metrics mediator
         self._setup_mediator()
+        saved_interval = _conf.settings.refresh_interval
+        if saved_interval != 1:
+            self._mediator.set_interval(saved_interval * 1000)
 
         # Restore temp unit
         saved_unit = _conf.settings.temp_unit
@@ -544,7 +551,7 @@ class TRCCApp(QMainWindow):
         }
         self._lcd_handler = LCDHandler(
             display, widgets, self._make_timer, self._data_dir,
-            is_visible_fn=lambda: not self.isMinimized())
+            is_visible_fn=self.is_app_visible)
 
     # ── Timers ─────────────────────────────────────────────────────
 
@@ -1812,6 +1819,7 @@ class TRCCApp(QMainWindow):
             f"HDD info: {'Enabled' if on else 'Disabled'}")
 
     def _on_refresh_changed(self, interval: int):
+        _conf.settings.set_refresh_interval(interval)
         self._mediator.set_interval(interval * 1000)
         self.uc_preview.set_status(f"Refresh: {interval}s")
 
@@ -1895,10 +1903,10 @@ class TRCCApp(QMainWindow):
             guard=lambda: self._led.active)
         self._mediator.subscribe(
             self.uc_info_module.update_from_metrics, period=3,
-            guard=lambda: self.uc_info_module.isVisible())
+            guard=lambda: self.is_app_visible() and self.uc_info_module.isVisible())
         self._mediator.subscribe(
             self.uc_activity_sidebar.update_from_metrics, period=1,
-            guard=lambda: self.uc_activity_sidebar.isVisible())
+            guard=lambda: self.is_app_visible() and self.uc_activity_sidebar.isVisible())
 
     def _on_overlay_tick(self, metrics) -> None:
         if self._lcd_handler:
