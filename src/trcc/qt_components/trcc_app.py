@@ -447,6 +447,7 @@ class TRCCApp(QMainWindow):
         self._decorated = decorated
         self._drag_pos = None
         self._force_quit = False
+        self._minimized_to_taskbar = False
         self._data_dir = data_dir or _conf.settings.user_data_dir
 
         self.setWindowTitle("TRCC-Linux - Thermalright LCD Control Center")
@@ -619,6 +620,7 @@ class TRCCApp(QMainWindow):
         if self.isVisible():
             self.hide()
         else:
+            self._minimized_to_taskbar = False
             self.show()
             self.activateWindow()
             self.raise_()
@@ -1936,13 +1938,15 @@ class TRCCApp(QMainWindow):
         if (not self._force_quit
                 and self._tray.isSystemTrayAvailable()
                 and self._tray.isVisible()
-                and not (WINDOWS and self.isMinimized())):
+                and not (WINDOWS and self._minimized_to_taskbar)):
             event.ignore()
             if WINDOWS:
+                self._minimized_to_taskbar = True
                 self.showMinimized()
             else:
                 self.hide()
             return
+        self._minimized_to_taskbar = False
 
         # Full quit
         self._tray.hide()
