@@ -285,6 +285,7 @@ class DeviceEntry:
     button_image: str = "A1CZTV"
     protocol: str = "scsi"
     device_type: int = 1  # 1=SCSI, 2=HID Type 2, 3=HID Type 3, 4=Raw USB Bulk
+    fbl: int = 100         # FBL code (resolution identifier) — used by Windows SCSI poll fallback
 
 
 @dataclass

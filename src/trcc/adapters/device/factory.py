@@ -403,11 +403,13 @@ class WindowsScsiProtocol(DeviceProtocol):
                     fbl, self._vid, self._pid,
                 )
             else:
-                fbl = 100
+                from trcc.adapters.device.detector import KNOWN_DEVICES
+                entry = KNOWN_DEVICES[(self._vid, self._pid)]
+                fbl = entry.fbl
                 log.warning(
                     "Windows SCSI poll returned empty on %s (VID=%04X PID=%04X)"
-                    " — defaulting to FBL 100 (320x320)",
-                    self._path, self._vid, self._pid,
+                    " — using registry FBL %d",
+                    self._path, self._vid, self._pid, fbl,
                 )
 
             # Step 2: Init write — wakes device for frame reception
