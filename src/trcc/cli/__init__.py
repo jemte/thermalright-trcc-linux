@@ -86,17 +86,23 @@ def _ensure_system() -> None:
 
 
 def _cli_handler(func):
-    """Decorator: catches Exception, prints error, returns 1."""
+    """Decorator: logs entry/exit, catches Exception, prints error, returns 1."""
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
             _ensure_settings()
             _ensure_renderer()
-            return func(*args, **kwargs)
+            log.info("CLI %s %s %s", func.__name__,
+                     ' '.join(str(a) for a in args),
+                     ' '.join(f'{k}={v}' for k, v in kwargs.items()))
+            result = func(*args, **kwargs)
+            log.info("CLI %s → %s", func.__name__, result)
+            return result
         except KeyboardInterrupt:
             print("\nInterrupted.")
             return 0
         except Exception as e:
+            log.exception("CLI %s raised", func.__name__)
             print(f"Error: {e}")
             return 1
     return wrapper

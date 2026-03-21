@@ -192,9 +192,15 @@ class DeviceProtocol(ABC):
         """Execute a send operation with error handling and observer notification."""
         try:
             success = fn()
+            if success:
+                log.debug("Frame sent: %s", label)
+            else:
+                log.debug("Frame send returned False: %s", label)
             self._notify_send_complete(success)
             return success
         except Exception as e:
+            log.warning("Frame send failed (%s): %s — device may be disconnected",
+                        label, e)
             self._notify_error(f"{label} send failed: {e}")
             self._notify_send_complete(False)
             return False

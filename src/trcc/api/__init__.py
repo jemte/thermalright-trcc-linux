@@ -335,6 +335,18 @@ _AUTH_EXEMPT = {"/health", "/pair"}
 
 
 @app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log every HTTP request with method, path, status, and latency."""
+    import time
+    start = time.monotonic()
+    response = await call_next(request)
+    ms = (time.monotonic() - start) * 1000
+    log.info("API %s %s → %d (%.0fms)",
+             request.method, request.url.path, response.status_code, ms)
+    return response
+
+
+@app.middleware("http")
 async def check_token(request: Request, call_next):
     """Reject requests without valid token (if token is configured)."""
     if _api_token and request.url.path not in _AUTH_EXEMPT:

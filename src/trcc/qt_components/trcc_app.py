@@ -469,6 +469,7 @@ class TRCCApp(QMainWindow):
         self._lcd_handler: LCDHandler | None = None
         self._active_device_key = ''
         self._handshake_pending = False  # guard against duplicate handshakes
+        self._prev_had_lcd = False  # tracks last known LCD connected state for disconnect log
         self._cut_mode = 'background'  # 'background' or 'mask' — what image cut is for
         self._mask_upload_filename = ''  # original filename for mask naming
 
@@ -1341,8 +1342,12 @@ class TRCCApp(QMainWindow):
 
     def _on_device_poll(self):
         try:
-            has_lcd = self._lcd_handler and self._lcd_handler.display.connected
+            has_lcd = bool(self._lcd_handler and self._lcd_handler.display.connected)
             has_device = has_lcd or self._led.active
+
+            if self._prev_had_lcd and not has_lcd:
+                log.info("LCD device disconnected — resuming scan")
+            self._prev_had_lcd = has_lcd
 
             if not has_device:
                 devices = find_lcd_devices()
