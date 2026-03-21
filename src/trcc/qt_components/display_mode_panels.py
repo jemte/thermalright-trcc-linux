@@ -93,7 +93,7 @@ class DataTablePanel(QFrame):
         self.text_input = QLineEdit(self)
         self.text_input.setGeometry(15, 15, 200, 22)
         self.text_input.setStyleSheet(Styles.INPUT_FIELD)
-        self.text_input.setPlaceholderText("Text...")
+        self.text_input.setPlaceholderText("Text/Value")
         self.text_input.setToolTip("Custom text")
         self.text_input.setMaxLength(100)
         self.text_input.editingFinished.connect(

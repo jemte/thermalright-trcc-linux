@@ -803,7 +803,6 @@ class TRCCApp(QMainWindow):
             MEDIA_PLAYER_LOAD_POS,
             ONLINE_THEME_POS,
             OVERLAY_GRID_HINT_POS,
-            OVERLAY_GRID_TITLE_POS,
             PARAM_COLOUR_POS,
             PARAM_COORDINATE_POS,
             PARAM_FONT_POS,
@@ -854,7 +853,6 @@ class TRCCApp(QMainWindow):
         # Overlay grid — on uc_theme_setting.data_table
         grid = self.uc_theme_setting.data_table
         for key, pos in [
-            ('Text/Value', OVERLAY_GRID_TITLE_POS),
             ('Double-click to delete card', OVERLAY_GRID_HINT_POS),
         ]:
             x, y, w, h, pt = pos
