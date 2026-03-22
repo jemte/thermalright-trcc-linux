@@ -227,6 +227,11 @@ def uninstall(*, yes: bool = False):
             os.remove(path_str)
             removed.append(path_str)
 
+    # Shut down logging before deleting ~/.trcc — on Windows the log file
+    # handle stays open and blocks rmtree with WinError 32.
+    import logging as _logging
+    _logging.shutdown()
+
     # Handle user files/dirs
     for path in user_items:
         if path.exists():
