@@ -53,8 +53,17 @@ Log "--- Downloading 7-Zip standalone ---"
 if (Test-Path "7z-standalone/7za.exe") {
   Log "7za.exe already present - skipping download"
 } else {
+  # Find system 7z to bootstrap extraction (CI has it; local installs may not)
+  $sys7z = Get-Command 7z -ErrorAction SilentlyContinue
+  if (-not $sys7z) {
+    $sys7z = Get-Command "C:\Program Files\7-Zip\7z.exe" -ErrorAction SilentlyContinue
+  }
+  if (-not $sys7z) {
+    Log "ERROR: 7-Zip not found. Install from https://www.7-zip.org and re-run."
+    exit 1
+  }
   Invoke-WebRequest -Uri "https://www.7-zip.org/a/7z2409-extra.7z" -OutFile 7z-extra.7z
-  7z x 7z-extra.7z -o7z-standalone 7za.exe 7za.dll
+  & $sys7z.Source x 7z-extra.7z -o7z-standalone 7za.exe 7za.dll
   Remove-Item 7z-extra.7z -Force
   Log "7z standalone downloaded OK"
 }
