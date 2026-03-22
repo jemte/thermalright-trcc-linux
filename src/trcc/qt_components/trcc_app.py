@@ -706,10 +706,14 @@ class TRCCApp(QMainWindow):
         self._set_panel_bg(self.uc_theme_local, Assets.THEME_LOCAL_BG)
         self.panel_stack.addWidget(self.uc_theme_local)
 
+        from ..adapters.infra.data_repository import DataManager
         from ..adapters.infra.theme_cloud import CloudThemeDownloader
         def _download_theme(theme_id: str, resolution: str, cache_dir: str) -> str | None:
             return CloudThemeDownloader(resolution=resolution, cache_dir=cache_dir).download_theme(theme_id)
-        self.uc_theme_web = UCThemeWeb(download_fn=_download_theme)  # panel 1
+        def _extract_theme(archive: str, dest: str) -> None:
+            DataManager.extract_7z(archive, dest)
+            DataManager._unwrap_nested_dir(dest)
+        self.uc_theme_web = UCThemeWeb(download_fn=_download_theme, extract_fn=_extract_theme)  # panel 1
         self._set_panel_bg(self.uc_theme_web, Assets.THEME_WEB_BG)
         self.panel_stack.addWidget(self.uc_theme_web)
 

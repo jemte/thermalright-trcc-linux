@@ -16,12 +16,15 @@ Matches Windows TRCC UCSystemInfoOptions:
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QIcon, QPainter
 from PySide6.QtWidgets import QLabel, QLineEdit, QPushButton, QWidget
 
-from ..adapters.system.config import SysInfoConfig
+if TYPE_CHECKING:
+    from ..adapters.system.config import SysInfoConfig
+
 from ..core.models import (
     CATEGORY_COLORS,
     CATEGORY_IMAGES,
@@ -235,14 +238,14 @@ class UCSystemInfo(QWidget):
     panel_clicked = Signal(object)  # SystemInfoPanel
 
     def __init__(self, enumerator: SensorEnumerator,
-                 sysinfo_config: SysInfoConfig | None = None,
+                 sysinfo_config: SysInfoConfig,
                  parent=None):
         super().__init__(parent)
         _, _, w, h = Layout.SYSINFO_PANEL
         self.setFixedSize(w, h)
 
         self._enumerator = enumerator
-        self._config = sysinfo_config if sysinfo_config is not None else SysInfoConfig()
+        self._config = sysinfo_config
         self._page = 0
         self._temp_unit = 0  # 0=Celsius, 1=Fahrenheit
         self._panels_list: list[SystemInfoPanel] = []

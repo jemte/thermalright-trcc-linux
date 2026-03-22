@@ -469,7 +469,7 @@ class TestUCSystemInfo:
         ):
             mock_assets.load_pixmap.return_value = QPixmap()
             mock_assets.SYSINFO_BG = "A0test.png"
-            widget = UCSystemInfo(mock_enum)
+            widget = UCSystemInfo(mock_enum, SysInfoConfig())
         return widget
 
     def test_construction(self, sysinfo):

@@ -105,11 +105,13 @@ class UCThemeWeb(DownloadableThemeBrowser):
 
     def __init__(self,
                  download_fn: Callable[[str, str, str], str | None] | None = None,
+                 extract_fn: Callable[[str, str], None] | None = None,
                  parent=None):
         self.current_category = 'all'
         self.web_directory = None
         self._resolution = "320x320"
         self._download_fn = download_fn
+        self._extract_fn = extract_fn
         super().__init__(parent)
 
     def showEvent(self, event) -> None:  # noqa: N802
@@ -175,9 +177,8 @@ class UCThemeWeb(DownloadableThemeBrowser):
         archive = self.web_directory.parent / f"{self.web_directory.name}.7z"
         if not archive.exists():
             return
-        from ..adapters.infra.data_repository import DataManager
-        DataManager.extract_7z(str(archive), str(self.web_directory))
-        DataManager._unwrap_nested_dir(str(self.web_directory))
+        if self._extract_fn:
+            self._extract_fn(str(archive), str(self.web_directory))
 
     def load_themes(self):
         """Load cloud themes from preview PNGs in Web directory.
