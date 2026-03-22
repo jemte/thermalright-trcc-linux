@@ -211,12 +211,11 @@ class UCThemeLocal(BaseThemeBrowser):
             self._show_empty_message()
             return
 
-        # Scan primary dir + user data dir (merge, dedup by name).
-        # This ensures Custom_ themes saved to ~/.trcc/data/ are visible
-        # even when the primary dir is the package data dir.
+        # Scan primary dir + user content dir (merge, dedup by name).
+        # Custom themes are saved to ~/.trcc-user/ so they survive uninstall.
         from ..conf import settings
         dirs_to_scan = [self.theme_directory]
-        user_theme_dir = settings.user_data_dir / self.theme_directory.name
+        user_theme_dir = settings.user_content_dir / self.theme_directory.name
         if user_theme_dir != self.theme_directory and user_theme_dir.exists():
             dirs_to_scan.append(user_theme_dir)
 

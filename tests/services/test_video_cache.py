@@ -272,7 +272,8 @@ class TestRebuild:
 
         original_encoded = cache.get_encoded(0)
         cache.rebuild_from_metrics(overlay_svc, HardwareMetrics())
-        # New cache key should produce different encoding on next access
+        if cache._rebuild_thread:
+            cache._rebuild_thread.join(timeout=5)
         assert cache.get_encoded(0) != original_encoded
 
     def test_rebuild_from_metrics_same_key_skips(self):

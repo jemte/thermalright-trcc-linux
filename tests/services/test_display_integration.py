@@ -291,6 +291,7 @@ class TestThemeSaveRoundTrip:
                       'color': '#FF0000', 'enabled': True},
         })
 
+        mock_settings.user_content_dir = tmp_path
         ok, msg = display_svc.save_theme('OverlayTest', tmp_path)
         assert ok is True
 
@@ -323,13 +324,12 @@ class TestThemeSaveRoundTrip:
         display_svc._mask_source_dir = mask_dir
         display_svc.overlay.enabled = True
 
-        save_dir = tmp_path / 'save_data'
-        save_dir.mkdir()
-        ok, msg = display_svc.save_theme('MaskSave', save_dir)
+        mock_settings.user_content_dir = tmp_path
+        ok, msg = display_svc.save_theme('MaskSave', tmp_path)
         assert ok is True
 
         config = json.loads(
-            (save_dir / 'theme320320' / 'Custom_MaskSave' / 'config.json').read_text())
+            (tmp_path / 'theme320320' / 'Custom_MaskSave' / 'config.json').read_text())
         assert config['mask'] == str(mask_dir)
 
     def test_cloud_load_preserves_mask_source_dir(
@@ -359,6 +359,7 @@ class TestThemeSaveRoundTrip:
         assert display_svc._mask_source_dir == mask_dir
 
         # Save should reference the mask
+        mock_settings.user_content_dir = tmp_path
         with patch.object(ThemePersistence, 'save', return_value=(True, 'ok')) as mock_save:
             display_svc.save_theme('CloudSave', tmp_path)
         assert mock_save.call_args.kwargs.get('mask_source_dir') == mask_dir
@@ -374,6 +375,7 @@ class TestThemeSaveRoundTrip:
 
         display_svc.set_brightness(25)
 
+        mock_settings.user_content_dir = tmp_path
         ok, msg = display_svc.save_theme('BrightSave', tmp_path)
         assert ok is True
 
@@ -431,6 +433,7 @@ class TestLCDDeviceIntegration:
         display_svc.current_image = blue
         display_svc._clean_background = blue
 
+        mock_settings.user_content_dir = tmp_path
         result = lcd.save('RoundTrip', tmp_path)
         assert result['success'] is True
 

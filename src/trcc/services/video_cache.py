@@ -21,6 +21,7 @@ send time — NOT bulk re-encoding all frames.
 from __future__ import annotations
 
 import logging
+import threading
 from typing import Any
 
 from ..core.models import HardwareMetrics
@@ -65,6 +66,10 @@ class VideoFrameCache:
         self._l3_rotation: int = 0
 
         self._active: bool = False
+
+        # Background L3 pre-render (double-buffer, blink-free rebuild)
+        self._cancel_event: threading.Event = threading.Event()
+        self._rebuild_thread: threading.Thread | None = None
 
     # -- Properties ------------------------------------------------------------
 
@@ -126,11 +131,31 @@ class VideoFrameCache:
         overlay_svc: Any | None,
         metrics: HardwareMetrics,
     ) -> None:
-        """Update text overlay surface. L3 slots refill naturally on next access."""
+        """Rebuild L3 cache in background — old frames serve until new ones are ready."""
         if not self._masked_frames:
             return
-        self._render_text(overlay_svc, metrics)
-        # L3 validity check in _ensure_frame detects the key change and clears slots
+
+        # Render text overlay on main thread (fast — no encoding)
+        if overlay_svc is None or not overlay_svc.enabled:
+            text_surface, cache_key = None, None
+        else:
+            text_surface, cache_key = overlay_svc.render_text_only(metrics)
+
+        if cache_key == self._text_cache_key:
+            return  # Text unchanged — nothing to do
+
+        # Cancel any in-flight background rebuild
+        self._cancel_event.set()
+        cancel = threading.Event()
+        self._cancel_event = cancel
+
+        t = threading.Thread(
+            target=self._pre_render_l3,
+            args=(text_surface, cache_key, cancel),
+            daemon=True,
+        )
+        self._rebuild_thread = t
+        t.start()
 
     def rebuild_from_brightness(self, brightness: int) -> None:
         """Update brightness. L3 slots refill naturally on next access."""
@@ -207,6 +232,53 @@ class VideoFrameCache:
         self._l3_encoded[index] = ImageService.encode_for_device(
             frame, self._protocol, self._resolution,
             self._fbl, self._use_jpeg)
+
+    def _pre_render_l3(
+        self,
+        text_overlay: Any | None,
+        text_key: tuple | None,
+        cancel: threading.Event,
+    ) -> None:
+        """Background thread: pre-encode all frames with new text overlay.
+
+        On completion, atomically swaps L3 so _ensure_frame never sees a
+        stale key — old frames keep playing with zero blink during the build.
+        """
+        from .image import ImageService
+        r = ImageService._r()
+        n = len(self._masked_frames)
+        encoded: list[bytes | None] = [None] * n
+        preview: list[Any | None] = [None] * n
+
+        for i, base_frame in enumerate(self._masked_frames):
+            if cancel.is_set():
+                return
+
+            frame = r.copy_surface(base_frame)
+            if text_overlay is not None:
+                frame = r.composite(frame, text_overlay, (0, 0))
+            if self._brightness < 100:
+                frame = ImageService.apply_brightness(frame, self._brightness)
+            if self._rotation:
+                frame = ImageService.apply_rotation(frame, self._rotation)
+
+            preview[i] = frame
+            encoded[i] = ImageService.encode_for_device(
+                frame, self._protocol, self._resolution,
+                self._fbl, self._use_jpeg)
+
+        if cancel.is_set():
+            return
+
+        # Atomic swap — GIL ensures readers see a consistent state
+        self._text_overlay = text_overlay
+        self._text_cache_key = text_key
+        self._l3_text_key = text_key
+        self._l3_brightness = self._brightness
+        self._l3_rotation = self._rotation
+        self._l3_encoded = encoded
+        self._l3_preview = preview
+        log.debug("VideoFrameCache: background L3 rebuild complete (%d frames)", n)
 
     def _reset_l3(self) -> None:
         """Clear all L3 slots. They refill lazily during the next playback loop."""

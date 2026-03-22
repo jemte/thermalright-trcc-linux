@@ -447,6 +447,7 @@ class Settings:
 
         # Static paths
         self.user_data_dir = Path(path_resolver.data_dir())
+        self.user_content_dir = Path(path_resolver.user_content_dir())
 
         # Resolve for initial resolution
         if w and h:

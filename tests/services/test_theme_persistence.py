@@ -202,6 +202,7 @@ class TestDisplayServiceSaveTheme:
         display_svc._clean_background = clean
         display_svc.current_image = dirty
 
+        mock_settings.user_content_dir = tmp_path
         with patch.object(ThemePersistence, 'save', return_value=(True, 'ok')) as mock_save:
             display_svc.save_theme('Test', tmp_path)
 
@@ -217,6 +218,7 @@ class TestDisplayServiceSaveTheme:
         display_svc._clean_background = None
         display_svc.current_image = current
 
+        mock_settings.user_content_dir = tmp_path
         with patch.object(ThemePersistence, 'save', return_value=(True, 'ok')) as mock_save:
             display_svc.save_theme('Fallback', tmp_path)
 
@@ -247,13 +249,12 @@ class TestLoadMaskStandaloneWiring:
         """Full flow: load_mask_standalone → save → config.json has mask."""
         lcd.load_mask_standalone(str(mask_dir))
 
-        data_dir = tmp_path / 'save_data'
-        data_dir.mkdir()
-        ok, msg = display_svc.save_theme('MaskTest', data_dir)
+        mock_settings.user_content_dir = tmp_path
+        ok, msg = display_svc.save_theme('MaskTest', tmp_path)
         assert ok is True
 
         config = json.loads(
-            (data_dir / 'theme320320' / 'Custom_MaskTest' / 'config.json').read_text())
+            (tmp_path / 'theme320320' / 'Custom_MaskTest' / 'config.json').read_text())
         assert config['mask'] == str(mask_dir), \
             f"Expected mask={mask_dir}, got {config['mask']}"
 
@@ -332,6 +333,7 @@ class TestCloudThemeStateWiring:
         with patch.object(display_svc._loader, 'load_cloud_theme', return_value=cloud_result):
             display_svc.load_cloud_theme(MagicMock())
 
+        mock_settings.user_content_dir = tmp_path
         with patch.object(ThemePersistence, 'save', return_value=(True, 'ok')) as mock_save:
             display_svc.save_theme('CloudSave', tmp_path)
 

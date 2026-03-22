@@ -76,6 +76,9 @@ Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environmen
 Type: files; Name: "{userappdata}\Microsoft\Windows\Start Menu\Programs\Startup\trcc-linux.desktop"
 Type: files; Name: "{userstartup}\trcc-linux.desktop"
 Type: filesandordirs; Name: "{app}"
+; Remove user config and data (~/.trcc)
+; ~/.trcc-user is intentionally kept — contains user-created custom content
+Type: filesandordirs; Name: "{userprofile}\.trcc"
 
 [UninstallRun]
 ; Kill TRCC processes before uninstall
@@ -111,4 +114,41 @@ begin
     exit;
   end;
   Result := Pos(';' + UpperCase(Param) + ';', ';' + UpperCase(OrigPath) + ';') = 0;
+end;
+
+procedure RemoveFromPath(AppPath: string);
+var
+  OrigPath: string;
+  NewPath: string;
+  P: Integer;
+begin
+  if not RegQueryStringValue(HKEY_LOCAL_MACHINE,
+    'SYSTEM\CurrentControlSet\Control\Session Manager\Environment',
+    'Path', OrigPath)
+  then exit;
+
+  { Remove ;AppPath from path — handles both middle and trailing positions }
+  NewPath := OrigPath;
+  P := Pos(';' + UpperCase(AppPath), UpperCase(NewPath));
+  if P > 0 then
+    Delete(NewPath, P, 1 + Length(AppPath));
+
+  if NewPath <> OrigPath then
+    RegWriteExpandStringValue(HKEY_LOCAL_MACHINE,
+      'SYSTEM\CurrentControlSet\Control\Session Manager\Environment',
+      'Path', NewPath);
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usUninstall then
+  begin
+    { Remove TRCC from system PATH }
+    RemoveFromPath(ExpandConstant('{app}'));
+
+    { Remove autostart registry key if TRCC set it }
+    RegDeleteValue(HKEY_CURRENT_USER,
+      'Software\Microsoft\Windows\CurrentVersion\Run',
+      'TRCC Linux');
+  end;
 end;

@@ -653,10 +653,12 @@ class DisplayService:
     # -- Theme save (delegates to ThemePersistence) ------------------------
 
     def save_theme(self, name: str, data_dir: Path) -> Tuple[bool, str]:
-        """Save current config as a custom theme."""
-        # Fall back to user-writable dir on system-wide installs (#51)
-        if not os.access(data_dir, os.W_OK):
-            data_dir = _conf.settings.user_data_dir
+        """Save current config as a custom theme.
+
+        Custom themes always go to user_content_dir (~/.trcc-user/) so they
+        survive uninstall and data re-downloads.
+        """
+        data_dir = _conf.settings.user_content_dir
         ok, msg = ThemePersistence.save(
             name, data_dir, self.lcd_size,
             current_image=self._clean_background or self.current_image,
