@@ -319,7 +319,22 @@ class OverlayService:
         Lightweight check — computes cache key without actually rendering.
         Used by metrics timer to skip render+send when nothing changed.
         """
-        return self._build_cache_key(metrics) != self._cache_key
+        new_key = self._build_cache_key(metrics)
+        if new_key == self._cache_key:
+            return False
+        if log.isEnabledFor(logging.DEBUG) and self._cache_key is not None:
+            _CACHE_KEY_NAMES = (
+                'config', 'theme_mask', 'mask_visible', 'mask_position',
+                'time_format', 'date_format', 'temp_unit', 'flash_skip',
+                'scale_factor', 'metrics_hash',
+            )
+            changed = [
+                name for name, old, new in zip(
+                    _CACHE_KEY_NAMES, self._cache_key, new_key)
+                if old != new
+            ]
+            log.debug("overlay cache invalidated — changed: %s", ', '.join(changed))
+        return True
 
     def _build_cache_key(self, metrics: HardwareMetrics) -> tuple:
         """Build cache key from all inputs that affect overlay appearance."""
