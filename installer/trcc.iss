@@ -78,7 +78,7 @@ Type: files; Name: "{userstartup}\trcc-linux.desktop"
 Type: filesandordirs; Name: "{app}"
 ; Remove user config and data (~/.trcc)
 ; ~/.trcc-user is intentionally kept — contains user-created custom content
-Type: filesandordirs; Name: "{userprofile}\.trcc"
+Type: filesandordirs; Name: "{%USERPROFILE}\.trcc"
 
 [UninstallRun]
 ; Kill TRCC processes before uninstall
