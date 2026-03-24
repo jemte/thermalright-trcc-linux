@@ -512,24 +512,21 @@ class TestDisplaySettings:
 
     def test_set_brightness_updates_level(self):
         h = _make_handler()
-        h._lcd.settings.set_brightness.return_value = {
-            'success': True, 'image': MagicMock()}
+        h._lcd.set_brightness.return_value = {'success': True, 'image': MagicMock()}
         h.set_brightness(1)
         assert h.brightness_level == 1
 
     def test_set_brightness_updates_preview(self):
         h = _make_handler()
         img = MagicMock()
-        h._lcd.settings.set_brightness.return_value = {
-            'success': True, 'image': img}
+        h._lcd.set_brightness.return_value = {'success': True, 'image': img}
         h.set_brightness(3)
         h._w['preview'].set_image.assert_called_with(img)
 
     def test_set_brightness_sends_if_auto_send(self):
         h = _make_handler()
         img = MagicMock()
-        h._lcd.settings.set_brightness.return_value = {
-            'success': True, 'image': img}
+        h._lcd.set_brightness.return_value = {'success': True, 'image': img}
         h._lcd.auto_send = True
         h.set_brightness(2)
         h._lcd.frame.send.assert_called_with(img)
@@ -537,8 +534,7 @@ class TestDisplaySettings:
     def test_set_brightness_no_send_if_no_auto(self):
         h = _make_handler()
         img = MagicMock()
-        h._lcd.settings.set_brightness.return_value = {
-            'success': True, 'image': img}
+        h._lcd.set_brightness.return_value = {'success': True, 'image': img}
         h._lcd.auto_send = False
         h.set_brightness(2)
         h._lcd.frame.send.assert_not_called()
@@ -547,8 +543,7 @@ class TestDisplaySettings:
     def test_set_rotation_persists(self, mock_settings):
         h = _make_handler()
         h._device_key = 'dev0'
-        h._lcd.settings.set_rotation.return_value = {
-            'success': True, 'image': MagicMock()}
+        h._lcd.set_rotation.return_value = {'success': True, 'image': MagicMock()}
         h.set_rotation(90)
         mock_settings.save_device_setting.assert_called_with('dev0', 'rotation', 90)
 
@@ -556,7 +551,7 @@ class TestDisplaySettings:
     @patch('trcc.conf.settings')
     def test_set_rotation_resolves_cloud_dirs(self, mock_conf, mock_settings):
         h = _make_handler()
-        h._lcd.settings.set_rotation.return_value = {'success': True}
+        h._lcd.set_rotation.return_value = {'success': True}
         h.set_rotation(270)
         mock_conf.resolve_cloud_dirs.assert_called_with(270)
 
@@ -564,8 +559,7 @@ class TestDisplaySettings:
     def test_set_split_mode_updates_state(self, mock_settings):
         h = _make_handler()
         h._device_key = 'dev0'
-        h._lcd.settings.set_split_mode.return_value = {
-            'success': True, 'image': MagicMock()}
+        h._lcd.set_split_mode.return_value = {'success': True, 'image': MagicMock()}
         h.set_split_mode(2)
         assert h.split_mode == 2
         mock_settings.save_device_setting.assert_called_with('dev0', 'split_mode', 2)

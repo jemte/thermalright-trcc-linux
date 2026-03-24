@@ -201,7 +201,20 @@ class TestBuildLedGuiBus:
         bus = app.build_led_gui_bus(_mock_led())
         assert any(isinstance(m, RateLimitMiddleware) for m in bus._middleware)
 
-    def test_dispatches_set_led_color(self, app):
+    def test_dispatches_update_color(self, app):
+        """GUI bus calls update_color (state-only) not set_color (immediate send)."""
         led = _mock_led()
         app.build_led_gui_bus(led).dispatch(SetLEDColorCommand(r=128, g=128, b=128))
-        led.set_color.assert_called_once_with(128, 128, 128)
+        led.update_color.assert_called_once_with(128, 128, 128)
+        led.set_color.assert_not_called()
+
+    def test_dispatches_update_brightness(self, app):
+        led = _mock_led()
+        app.build_led_gui_bus(led).dispatch(SetLEDBrightnessCommand(level=75))
+        led.update_brightness.assert_called_once_with(75)
+
+    def test_dispatches_update_mode(self, app):
+        from trcc.core.models import LEDMode
+        led = _mock_led()
+        app.build_led_gui_bus(led).dispatch(SetLEDModeCommand(mode=LEDMode.BREATHING))
+        led.update_mode.assert_called_once_with(LEDMode.BREATHING)

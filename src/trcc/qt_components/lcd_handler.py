@@ -20,6 +20,8 @@ from PySide6.QtGui import QIcon, QPixmap
 import trcc.conf as _conf
 from trcc.conf import Settings
 
+from ..core.command_bus import CommandBus
+from ..core.commands.lcd import SetBrightnessCommand, SetRotationCommand, SetSplitModeCommand
 from ..core.lcd_device import LCDDevice
 from ..core.models import (
     DEFAULT_BRIGHTNESS_LEVEL,
@@ -57,8 +59,10 @@ class LCDHandler:
         make_timer: Any,
         data_dir: Path,
         is_visible_fn: Any = None,
+        bus: CommandBus | None = None,
     ) -> None:
         self._lcd = lcd
+        self._bus = bus
         self._w = widgets  # preview, theme_setting, theme_local, etc.
         self._data_dir = data_dir
         self._is_visible = is_visible_fn or (lambda: True)
@@ -570,7 +574,10 @@ class LCDHandler:
 
     def set_brightness(self, level: int) -> None:
         self._brightness_level = level
-        result = self._lcd.settings.set_brightness(level)
+        if self._bus:
+            result = self._bus.dispatch(SetBrightnessCommand(level=level)).payload
+        else:
+            result = self._lcd.set_brightness(level)
         image = result.get('image')
         if image:
             self._w['preview'].set_image(image)
@@ -578,7 +585,10 @@ class LCDHandler:
                 self._lcd.frame.send(image)
 
     def set_rotation(self, degrees: int) -> None:
-        result = self._lcd.settings.set_rotation(degrees)
+        if self._bus:
+            result = self._bus.dispatch(SetRotationCommand(degrees=degrees)).payload
+        else:
+            result = self._lcd.set_rotation(degrees)
         image = result.get('image')
         if image:
             self._w['preview'].set_image(image)
@@ -590,7 +600,10 @@ class LCDHandler:
 
     def set_split_mode(self, mode: int) -> None:
         self._split_mode = mode
-        result = self._lcd.settings.set_split_mode(mode)
+        if self._bus:
+            result = self._bus.dispatch(SetSplitModeCommand(mode=mode)).payload
+        else:
+            result = self._lcd.set_split_mode(mode)
         image = result.get('image')
         if image:
             self._w['preview'].set_image(image)

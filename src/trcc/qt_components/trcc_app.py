@@ -34,6 +34,8 @@ from trcc.conf import Settings
 
 from ..adapters.infra.dc_writer import read_carousel_config
 from ..core.app import AppEvent
+from ..core.command_bus import CommandBus
+from ..core.commands.led import SetLEDBrightnessCommand, SetLEDColorCommand, SetLEDModeCommand
 from ..core.lcd_device import LCDDevice
 from ..core.led_device import LEDDevice
 from ..core.models import DeviceInfo
@@ -76,10 +78,17 @@ class LEDHandler:
 
     _SAVE_INTERVAL = 20  # save config every N ticks (~3 s)
 
-    def __init__(self, led: LEDDevice, panel: UCLedControl, on_temp_unit_changed: Any):
+    def __init__(
+        self,
+        led: LEDDevice,
+        panel: UCLedControl,
+        on_temp_unit_changed: Any,
+        bus: CommandBus | None = None,
+    ):
         self._panel = panel
         self._on_temp_unit_changed = on_temp_unit_changed
         self._led = led
+        self._bus = bus
         self._active = False
         self._style_id = 0
         self._save_counter = 0
@@ -189,7 +198,10 @@ class LEDHandler:
     def _on_mode_changed(self, mode: Any) -> None:
         if not self._led:
             return
-        self._led.update_mode(mode)
+        if self._bus:
+            self._bus.dispatch(SetLEDModeCommand(mode=mode))
+        else:
+            self._led.update_mode(mode)
         if self._led.state.zones:
             self._led.update_zone_mode(self._panel.selected_zone, mode)
         self._save_counter = self._SAVE_INTERVAL
@@ -197,14 +209,20 @@ class LEDHandler:
     def _on_color_changed(self, r: int, g: int, b: int) -> None:
         if not self._led:
             return
-        self._led.update_color(r, g, b)
+        if self._bus:
+            self._bus.dispatch(SetLEDColorCommand(r=r, g=g, b=b))
+        else:
+            self._led.update_color(r, g, b)
         if self._led.state.zones:
             self._led.update_zone_color(self._panel.selected_zone, r, g, b)
 
     def _on_brightness_changed(self, val: int) -> None:
         if not self._led:
             return
-        self._led.update_brightness(val)
+        if self._bus:
+            self._bus.dispatch(SetLEDBrightnessCommand(level=val))
+        else:
+            self._led.update_brightness(val)
         if self._led.state.zones:
             self._led.update_zone_brightness(self._panel.selected_zone, val)
 
@@ -568,11 +586,16 @@ class TRCCApp(QMainWindow):
 
         if isinstance(device, LEDDevice):
             if path not in self._led_handlers:
-                handler = LEDHandler(device, self.uc_led_control, self._on_temp_unit_changed)
+                from ..core.app import TrccApp
+                led_bus = TrccApp.get().build_led_gui_bus(device)
+                handler = LEDHandler(
+                    device, self.uc_led_control, self._on_temp_unit_changed, bus=led_bus)
                 self._led_handlers[path] = handler
                 log.info("LED handler added: %s", path)
         elif isinstance(device, LCDDevice):
             if path not in self._lcd_handlers:
+                from ..core.app import TrccApp
+                lcd_bus = TrccApp.get().build_lcd_gui_bus(device)
                 widgets = {
                     'preview': self.uc_preview,
                     'theme_setting': self.uc_theme_setting,
@@ -585,7 +608,7 @@ class TRCCApp(QMainWindow):
                 }
                 handler = LCDHandler(
                     device, widgets, self._make_timer, self._data_dir,
-                    is_visible_fn=self.is_app_visible)
+                    is_visible_fn=self.is_app_visible, bus=lcd_bus)
                 self._lcd_handlers[path] = handler
                 log.info("LCD handler added: %s", path)
                 # Wire IPC frame capture if server is already running

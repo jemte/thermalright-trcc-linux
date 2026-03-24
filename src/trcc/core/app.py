@@ -353,9 +353,47 @@ class TrccApp:
                 .register(UpdateMetricsLEDCommand, _update_metrics))
 
     def build_led_gui_bus(self, led: LEDDevice) -> CommandBus:
-        """Return a CommandBus wired for GUI LED — adds RateLimitMiddleware."""
-        from .command_bus import RateLimitMiddleware
-        return self.build_led_bus(led).add_middleware(RateLimitMiddleware(min_interval_ms=50.0))
+        """Return a CommandBus wired for GUI LED sliders.
+
+        GUI signal handlers update device state only — the 150ms animation tick
+        handles sending.  Handlers here call update_* (state-only) instead of
+        set_* (immediate send), matching the tick-based LED architecture.
+        RateLimitMiddleware prevents USB saturation when sliders move rapidly.
+        """
+        from .command_bus import (
+            Command,
+            CommandBus,
+            CommandResult,
+            LoggingMiddleware,
+            RateLimitMiddleware,
+            TimingMiddleware,
+        )
+        from .commands.led import (
+            SetLEDBrightnessCommand,
+            SetLEDColorCommand,
+            SetLEDModeCommand,
+        )
+
+        def _update_color(cmd: Command) -> CommandResult:
+            c = cast(SetLEDColorCommand, cmd)
+            led.update_color(c.r, c.g, c.b)
+            return CommandResult.ok(message="color updated")
+
+        def _update_brightness(cmd: Command) -> CommandResult:
+            led.update_brightness(cast(SetLEDBrightnessCommand, cmd).level)
+            return CommandResult.ok(message="brightness updated")
+
+        def _update_mode(cmd: Command) -> CommandResult:
+            led.update_mode(cast(SetLEDModeCommand, cmd).mode)
+            return CommandResult.ok(message="mode updated")
+
+        return (CommandBus()
+                .add_middleware(LoggingMiddleware())
+                .add_middleware(TimingMiddleware(threshold_ms=200.0))
+                .add_middleware(RateLimitMiddleware(min_interval_ms=50.0))
+                .register(SetLEDColorCommand, _update_color)
+                .register(SetLEDBrightnessCommand, _update_brightness)
+                .register(SetLEDModeCommand, _update_mode))
 
     # ── Observer registration ────────────────────────────────────────────────
 
