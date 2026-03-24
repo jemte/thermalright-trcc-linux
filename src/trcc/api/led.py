@@ -43,10 +43,14 @@ def _led_route(method: str, *args, **kwargs) -> dict:
 def set_color(body: HexColorRequest) -> dict:
     """Set LED static color."""
     from trcc.api import stop_led_loop
+    from trcc.core.app import TrccApp
+    from trcc.core.commands.led import SetLEDColorCommand
 
     stop_led_loop()
     r, g, b = parse_hex_or_400(body.hex)
-    return _led_route("set_color", r, g, b)
+    led = _get_led()
+    result = TrccApp.get().build_led_bus(led).dispatch(SetLEDColorCommand(r=r, g=g, b=b))
+    return dispatch_result(result.payload)
 
 
 @router.post("/mode")
@@ -65,7 +69,12 @@ def set_mode(body: ModeRequest) -> dict:
 @router.post("/brightness")
 def set_brightness(body: LEDBrightnessRequest) -> dict:
     """Set LED brightness (0-100)."""
-    return _led_route("set_brightness", body.level)
+    from trcc.core.app import TrccApp
+    from trcc.core.commands.led import SetLEDBrightnessCommand
+
+    led = _get_led()
+    result = TrccApp.get().build_led_bus(led).dispatch(SetLEDBrightnessCommand(level=body.level))
+    return dispatch_result(result.payload)
 
 
 @router.post("/off")
@@ -80,7 +89,12 @@ def turn_off() -> dict:
 @router.post("/sensor")
 def set_sensor(body: LEDSensorRequest) -> dict:
     """Set CPU/GPU sensor source for temp/load linked modes."""
-    return _led_route("set_sensor_source", body.source)
+    from trcc.core.app import TrccApp
+    from trcc.core.commands.led import SetLEDSensorSourceCommand
+
+    led = _get_led()
+    result = TrccApp.get().build_led_bus(led).dispatch(SetLEDSensorSourceCommand(source=body.source))
+    return dispatch_result(result.payload)
 
 
 # ── Zone operations ────────────────────────────────────────────────────
@@ -88,8 +102,13 @@ def set_sensor(body: LEDSensorRequest) -> dict:
 @router.post("/zones/{zone}/color")
 def set_zone_color(zone: int, body: HexColorRequest) -> dict:
     """Set color for a specific LED zone."""
+    from trcc.core.app import TrccApp
+    from trcc.core.commands.led import SetZoneColorCommand
+
     r, g, b = parse_hex_or_400(body.hex)
-    return _led_route("set_zone_color", zone, r, g, b)
+    led = _get_led()
+    result = TrccApp.get().build_led_bus(led).dispatch(SetZoneColorCommand(zone=zone, r=r, g=g, b=b))
+    return dispatch_result(result.payload)
 
 
 @router.post("/zones/{zone}/mode")

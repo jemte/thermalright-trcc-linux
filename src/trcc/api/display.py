@@ -61,26 +61,49 @@ def _display_settings_route(method: str, *args, **kwargs) -> dict:
 @router.post("/color")
 def set_color(body: HexColorRequest) -> dict:
     """Send solid color to LCD."""
+    from trcc.api import stop_overlay_loop, stop_video_playback
+    from trcc.core.app import TrccApp
+    from trcc.core.commands.lcd import SendColorCommand
+
+    stop_video_playback()
+    stop_overlay_loop()
     r, g, b = parse_hex_or_400(body.hex)
-    return _display_frame_route("send_color", r, g, b)
+    lcd = _get_display()
+    result = TrccApp.get().build_lcd_bus(lcd).dispatch(SendColorCommand(r=r, g=g, b=b))
+    return dispatch_result(result.payload)
 
 
 @router.post("/brightness")
 def set_brightness(body: BrightnessRequest) -> dict:
     """Set display brightness (1=25%, 2=50%, 3=100%). Persists to config."""
-    return _display_settings_route("set_brightness", body.level)
+    from trcc.core.app import TrccApp
+    from trcc.core.commands.lcd import SetBrightnessCommand
+
+    lcd = _get_display()
+    result = TrccApp.get().build_lcd_bus(lcd).dispatch(SetBrightnessCommand(level=body.level))
+    return dispatch_result(result.payload)
 
 
 @router.post("/rotation")
 def set_rotation(body: RotationRequest) -> dict:
     """Set display rotation (0, 90, 180, 270). Persists to config."""
-    return _display_settings_route("set_rotation", body.degrees)
+    from trcc.core.app import TrccApp
+    from trcc.core.commands.lcd import SetRotationCommand
+
+    lcd = _get_display()
+    result = TrccApp.get().build_lcd_bus(lcd).dispatch(SetRotationCommand(degrees=body.degrees))
+    return dispatch_result(result.payload)
 
 
 @router.post("/split")
 def set_split(body: SplitRequest) -> dict:
     """Set split mode (0=off, 1-3=Dynamic Island). Persists to config."""
-    return _display_settings_route("set_split_mode", body.mode)
+    from trcc.core.app import TrccApp
+    from trcc.core.commands.lcd import SetSplitModeCommand
+
+    lcd = _get_display()
+    result = TrccApp.get().build_lcd_bus(lcd).dispatch(SetSplitModeCommand(mode=body.mode))
+    return dispatch_result(result.payload)
 
 
 @router.post("/reset")
