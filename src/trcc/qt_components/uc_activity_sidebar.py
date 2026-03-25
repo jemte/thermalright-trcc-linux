@@ -11,12 +11,16 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
 
-from ..core.models import OverlayElementConfig, OverlayMode
+from ..core.models import (
+    SENSOR_TO_OVERLAY,  # noqa: F401  (re-exported for backwards compat)
+    SENSORS,  # noqa: F401  (re-exported for backwards compat)
+    OverlayElementConfig,
+    OverlayMode,
+)
 
 log = logging.getLogger(__name__)
 
-
-# Category colors matching Windows TRCC
+# Category colors for sidebar display — view-local (Qt layer, will be replaced)
 CATEGORY_COLORS = {
     'cpu': '#32C5FF',
     'gpu': '#44D7B6',
@@ -24,56 +28,6 @@ CATEGORY_COLORS = {
     'hdd': '#F7B501',
     'network': '#FA6401',
     'fan': '#E02020',
-}
-
-# Sensor definitions: category -> [(key_suffix, label, unit, metric_key)]
-SENSORS = {
-    'cpu': [
-        ('temp', 'TEMP', '\u00b0C', 'cpu_temp'),
-        ('usage', 'Usage', '%', 'cpu_percent'),
-        ('clock', 'Clock', 'MHz', 'cpu_freq'),
-        ('power', 'Power', 'W', 'cpu_power'),
-    ],
-    'gpu': [
-        ('temp', 'TEMP', '\u00b0C', 'gpu_temp'),
-        ('usage', 'Usage', '%', 'gpu_usage'),
-        ('clock', 'Clock', 'MHz', 'gpu_clock'),
-        ('power', 'Power', 'W', 'gpu_power'),
-    ],
-    'memory': [
-        ('temp', 'TEMP', '\u00b0C', 'mem_temp'),
-        ('usage', 'Usage', '%', 'mem_percent'),
-        ('clock', 'Clock', 'MHz', 'mem_clock'),
-        ('available', 'Available', 'MB', 'mem_available'),
-    ],
-    'hdd': [
-        ('temp', 'TEMP', '\u00b0C', 'disk_temp'),
-        ('activity', 'Activity', '%', 'disk_activity'),
-        ('read', 'Read', 'MB/s', 'disk_read'),
-        ('write', 'Write', 'MB/s', 'disk_write'),
-    ],
-    'network': [
-        ('upload', 'UP rate', 'KB/s', 'net_up'),
-        ('download', 'DL rate', 'KB/s', 'net_down'),
-        ('total_up', 'Total UP', 'MB', 'net_total_up'),
-        ('total_dl', 'Total DL', 'MB', 'net_total_down'),
-    ],
-    'fan': [
-        ('cpu_fan', 'CPUFAN', 'RPM', 'fan_cpu'),
-        ('gpu_fan', 'GPUFAN', 'RPM', 'fan_gpu'),
-        ('ssd_fan', 'SSDFAN', 'RPM', 'fan_ssd'),
-        ('fan2', 'FAN2', 'RPM', 'fan_sys2'),
-    ],
-}
-
-# Map sensor keys to overlay element main_count/sub_count
-SENSOR_TO_OVERLAY = {
-    'cpu_temp': (0, 1), 'cpu_usage': (0, 2), 'cpu_clock': (0, 3), 'cpu_power': (0, 4),
-    'gpu_temp': (1, 1), 'gpu_usage': (1, 2), 'gpu_clock': (1, 3), 'gpu_power': (1, 4),
-    'memory_temp': (2, 1), 'memory_usage': (2, 2), 'memory_clock': (2, 3), 'memory_available': (2, 4),
-    'hdd_temp': (3, 1), 'hdd_activity': (3, 2), 'hdd_read': (3, 3), 'hdd_write': (3, 4),
-    'network_upload': (4, 1), 'network_download': (4, 2), 'network_total_up': (4, 3), 'network_total_dl': (4, 4),
-    'fan_cpu_fan': (5, 1), 'fan_gpu_fan': (5, 2), 'fan_ssd_fan': (5, 3), 'fan_fan2': (5, 4),
 }
 
 
