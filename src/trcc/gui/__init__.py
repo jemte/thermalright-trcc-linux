@@ -91,10 +91,11 @@ def launch(verbosity: int = 0, decorated: bool = False,
     ipc_server.start()
     window._ipc_server = ipc_server
 
-    # ── Register window as observer, scan, start metrics ─────────────────
-    # scan() dispatches DEVICES_CHANGED → window.on_app_event → handlers created
+    # ── Register window as observer, discover devices, start metrics ─────
+    # DiscoverDevicesCommand dispatches DEVICES_CHANGED → window.on_app_event → handlers created
+    from trcc.core.commands.initialize import DiscoverDevicesCommand
     app.register(window)  # type: ignore[arg-type]
-    app.scan()
+    app.os_bus.dispatch(DiscoverDevicesCommand())
     app.start_metrics_loop()
 
     # ── IPC raise + signals ───────────────────────────────────────────────

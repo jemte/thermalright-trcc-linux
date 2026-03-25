@@ -238,6 +238,7 @@ class DataManager:
             return True
         except urllib.error.HTTPError as e:
             log.warning("Download failed (%d): %s", e.code, url)
+            e.close()
         except Exception as e:
             log.warning("Download failed: %s", e)
         finally:

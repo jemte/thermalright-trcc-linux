@@ -12,12 +12,6 @@ from ..command_bus import LCDCommand
 
 
 @dataclass(frozen=True)
-class ConnectLCDCommand(LCDCommand):
-    """Connect to a specific device or auto-select."""
-    detected: Any = None  # DetectedDevice | str | None
-
-
-@dataclass(frozen=True)
 class SendImageCommand(LCDCommand):
     """Send a static image file to the LCD."""
     image_path: str = ""
@@ -75,3 +69,61 @@ class EnableOverlayCommand(LCDCommand):
 class UpdateMetricsLCDCommand(LCDCommand):
     """Push fresh sensor metrics to the LCD overlay renderer."""
     metrics: Any = field(default=None, hash=False, compare=False)
+
+
+@dataclass(frozen=True)
+class SelectThemeCommand(LCDCommand):
+    """Select and load a ThemeInfo object (GUI — caller already has the object)."""
+    theme: Any = field(default=None, hash=False, compare=False)
+
+
+@dataclass(frozen=True)
+class SaveThemeCommand(LCDCommand):
+    """Save current display state as a named theme."""
+    name: str = ""
+    data_dir: str = ""
+
+
+@dataclass(frozen=True)
+class ExportThemeCommand(LCDCommand):
+    """Export a theme directory to a .tr archive."""
+    path: str = ""
+
+
+@dataclass(frozen=True)
+class ImportThemeCommand(LCDCommand):
+    """Import a .tr theme archive into the theme directory."""
+    path: str = ""
+    data_dir: str = ""
+
+
+@dataclass(frozen=True)
+class LoadMaskCommand(LCDCommand):
+    """Load a mask overlay and composite with current background."""
+    mask_path: str = ""
+
+
+@dataclass(frozen=True)
+class RenderOverlayFromDCCommand(LCDCommand):
+    """Render overlay from a DC config file (CLI/API standalone)."""
+    dc_path: str = ""
+    send: bool = False
+    output: str = ""
+
+
+@dataclass(frozen=True)
+class SetOverlayConfigCommand(LCDCommand):
+    """Apply an overlay element config dict to the overlay service."""
+    config: Any = field(default=None, hash=False, compare=False)
+
+
+@dataclass(frozen=True)
+class ResetDisplayCommand(LCDCommand):
+    """Reset the LCD display to a solid red frame (device test)."""
+
+
+@dataclass(frozen=True)
+class SetResolutionCommand(LCDCommand):
+    """Set the active display resolution."""
+    width: int = 320
+    height: int = 320

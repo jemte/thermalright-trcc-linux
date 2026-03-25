@@ -62,6 +62,11 @@ class Command:
 
 
 @dataclass(frozen=True)
+class OSCommand(Command):
+    """Marker base for OS/platform commands — platform init, device discovery, connect."""
+
+
+@dataclass(frozen=True)
 class LCDCommand(Command):
     """Marker base for all LCD commands (ISP — adapters import only this family)."""
 

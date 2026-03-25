@@ -111,15 +111,9 @@ class TestDeviceEndpoints(unittest.TestCase):
         self.assertEqual(resp.json()["selected"], "LCD1")
         self.assertEqual(_device_svc.selected, dev)
 
-    def test_select_device_calls_discover_resolution(self):
-        """Select triggers resolution discovery for LCD devices with (0,0) resolution."""
-        dev = DeviceInfo(name="FW", path="/dev/sg1", vid=0x0402, pid=0x3922,
-                         protocol="scsi", resolution=(0, 0))
-        _device_svc._devices = [dev]
-        with patch.object(_device_svc, '_discover_resolution') as mock_discover:
-            resp = self.client.post("/devices/0/select")
-        self.assertEqual(resp.status_code, 200)
-        mock_discover.assert_called_once_with(dev)
+    # test_select_device_calls_discover_resolution lives below as a standalone
+    # pytest function — it requires fixture injection (no_device_app) which is
+    # incompatible with unittest.TestCase method parameters.
 
     def test_select_led_device_skips_discover_resolution(self):
         """LED devices have no resolution — discover_resolution must not be called."""
@@ -1201,23 +1195,8 @@ class TestStandaloneThemeInit(unittest.TestCase):
         self.client.get("/themes/masks?resolution=320x320")
         mock_ensure.assert_called_once_with(320, 320)
 
-    @patch('trcc.ipc.IPCClient')
-    @patch('trcc.cli._device.discover_resolution')
-    @patch('trcc.adapters.infra.data_repository.DataManager.ensure_all')
-    def test_select_device_standalone_calls_ensure_all(
-        self, mock_ensure_all, mock_discover, mock_ipc,
-    ):
-        """select_device() standalone path calls DataManager.ensure_all()."""
-        mock_ipc.available.return_value = False
-
-        dev = DeviceInfo(name="LCD1", path="/dev/sg0", vid=0x0402, pid=0x3922,
-                         protocol="scsi", resolution=(320, 320))
-        _device_svc._devices = [dev]
-
-        resp = self.client.post("/devices/0/select")
-        self.assertEqual(resp.status_code, 200)
-        mock_ensure_all.assert_called_once_with(320, 320)
-        api_module._display_dispatcher = None
+    # test_select_device_standalone_calls_ensure_all lives below as a standalone
+    # pytest function — requires lcd_only_app fixture injection.
 
 
 class TestPairing(unittest.TestCase):
@@ -1524,18 +1503,8 @@ class TestDeviceEdgeCases(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertIn("selected", resp.json())
 
-    def test_select_led_device_failed_connect_clears_dispatcher(self) -> None:
-        from trcc.core.app import TrccApp
-        dev = DeviceInfo(name="HR10", path="hid:0416:8001", vid=0x0416, pid=0x8001,
-                         protocol="led", implementation="hid_led")
-        _device_svc._devices = [dev]
-        mock_inst = MagicMock()
-        mock_inst.connect.return_value = {"success": False, "error": "USB error"}
-        # API now uses TrccApp.get().build_led() — wire the mock through the singleton
-        TrccApp.get().build_led.return_value = mock_inst
-        resp = self.client.post("/devices/0/select")
-        self.assertEqual(resp.status_code, 200)
-        self.assertIsNone(api_module._led_dispatcher)
+    # test_select_led_device_failed_connect_clears_dispatcher lives below as a
+    # standalone pytest function — requires no_device_app fixture injection.
 
     def test_select_response_contains_resolution(self) -> None:
         dev = _scsi_dev(resolution=(480, 480))
@@ -2842,3 +2811,83 @@ class TestLEDTestEndpoint(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+# =============================================================================
+# Device-connection scenario tests — pytest functions with fixture injection.
+#
+# These tests exercise the full os→device→ui chain and require TrccApp state
+# fixtures (lcd_only_app, no_device_app) that cannot be injected into
+# unittest.TestCase methods. See tests/api/conftest.py for fixture definitions.
+# =============================================================================
+
+def test_select_device_calls_discover_resolution(no_device_app):
+    """Select triggers resolution discovery for LCD devices with (0,0) resolution.
+
+    Chain: os_bus.dispatch(DiscoverDevicesCommand)
+           → scan() finds nothing → has_lcd=False → lcd_from_service() fallback
+           → _discover_resolution() called on device service
+    """
+    from starlette.testclient import TestClient as SyncClient
+
+    from trcc.api import _device_svc
+    from trcc.api import app as fastapi_app
+
+    _app, _mock_lcd = no_device_app
+    dev = DeviceInfo(name="FW", path="/dev/sg1", vid=0x0402, pid=0x3922,
+                     protocol="scsi", resolution=(0, 0))
+    _device_svc._devices = [dev]
+
+    with patch.object(_device_svc, "_discover_resolution") as mock_discover:
+        resp = SyncClient(app=fastapi_app, base_url="http://test").post("/devices/0/select")
+
+    assert resp.status_code == 200
+    mock_discover.assert_called_once_with(dev)
+
+
+def test_select_device_standalone_calls_ensure_all(lcd_only_app):
+    """Standalone select calls DataManager.ensure_all() for the device resolution.
+
+    Chain: os_bus.dispatch(DiscoverDevicesCommand)
+           → scan() → _wire_bus() → has_lcd=True, has_led=False
+           → DataManager.ensure_all(320, 320) recorded by fixture spy
+    """
+    from starlette.testclient import TestClient as SyncClient
+
+    from trcc.api import _device_svc
+    from trcc.api import app as fastapi_app
+
+    app, _mock_lcd = lcd_only_app
+    dev = DeviceInfo(name="LCD1", path="/dev/sg0", vid=0x0402, pid=0x3922,
+                     protocol="scsi", resolution=(320, 320))
+    _device_svc._devices = [dev]
+
+    resp = SyncClient(app=fastapi_app, base_url="http://test").post("/devices/0/select")
+
+    assert resp.status_code == 200
+    assert (320, 320) in app.ensure_all_calls
+
+
+def test_select_led_device_failed_connect_clears_dispatcher(no_device_app):
+    """LED connect failure leaves _led_dispatcher as None.
+
+    Chain: os_bus.dispatch(DiscoverDevicesCommand)
+           → scan() finds nothing → has_lcd=False, has_led=False
+           → API never sets _led_dispatcher
+    """
+    from starlette.testclient import TestClient as SyncClient
+
+    import trcc.api as api_module
+    from trcc.api import _device_svc
+    from trcc.api import app as fastapi_app
+
+    _app, _mock_lcd = no_device_app
+    dev = DeviceInfo(name="HR10", path="hid:0416:8001", vid=0x0416, pid=0x8001,
+                     protocol="led", implementation="hid_led")
+    _device_svc._devices = [dev]
+    api_module._led_dispatcher = None
+
+    resp = SyncClient(app=fastapi_app, base_url="http://test").post("/devices/0/select")
+
+    assert resp.status_code == 200
+    assert api_module._led_dispatcher is None

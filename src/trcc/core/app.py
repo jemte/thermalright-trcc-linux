@@ -23,7 +23,15 @@ if TYPE_CHECKING:
     from .lcd_device import LCDDevice
     from .led_device import LEDDevice
     from .models import DetectedDevice
-    from .ports import AutostartManager, Device, GetDiskInfoFn, GetMemoryInfoFn, PlatformSetup
+    from .ports import (
+        AutostartManager,
+        Device,
+        FindActiveFn,
+        GetDiskInfoFn,
+        GetMemoryInfoFn,
+        PlatformSetup,
+        ProxyFactoryFn,
+    )
 
 log = logging.getLogger(__name__)
 
@@ -71,6 +79,15 @@ class TrccApp:
         self._system_svc: SystemService | None = None
         self._metrics_thread: threading.Thread | None = None
         self._metrics_stop: threading.Event = threading.Event()
+        # Active buses — built when a device connects, cleared when it disconnects
+        self._os_bus: CommandBus | None = None
+        self._lcd_bus: CommandBus | None = None
+        self._led_bus: CommandBus | None = None
+        self._lcd_device: LCDDevice | None = None
+        self._led_device: LEDDevice | None = None
+        # IPC handlers — injected by composition roots (CLI/API/GUI entry points)
+        self._find_active_fn: FindActiveFn | None = None
+        self._proxy_factory_fn: ProxyFactoryFn | None = None
 
     # ── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -85,6 +102,7 @@ class TrccApp:
             from .builder import ControllerBuilder
             builder = ControllerBuilder.bootstrap(verbosity)
             cls._instance = cls(builder)
+            cls._instance._os_bus = cls._instance.build_os_bus()
             log.debug("TrccApp initialized")
         return cls._instance
 
@@ -104,10 +122,12 @@ class TrccApp:
     # ── Device scanning ──────────────────────────────────────────────────────
 
     def scan(self) -> list[Device]:
-        """Detect hardware, build LCDDevice/LEDDevice per device, return all.
+        """Detect hardware, build and connect LCDDevice/LEDDevice, store buses.
 
-        Uses PROTOCOL_TRAITS.is_led to classify each DetectedDevice — no
-        string checks in callers. Notifies observers with DEVICES_CHANGED.
+        init() → OS → scan() is the correct sequence:
+          - LCD found → lcd_bus built and stored
+          - LED found → led_bus built and stored
+          - Notifies observers with DEVICES_CHANGED
         """
         detect_fn = self._builder.build_detect_fn()
         found: list[DetectedDevice] = detect_fn()
@@ -121,36 +141,176 @@ class TrccApp:
                 log.warning("scan: connect failed for %s — skipping", detected.path)
                 continue
             self._devices[detected.path] = device
+            self._wire_bus(device)
 
         log.debug("scan: %d device(s) found", len(self._devices))
         self._notify(AppEvent.DEVICES_CHANGED, list(self._devices.values()))
         return list(self._devices.values())
 
     def device_connected(self, detected: DetectedDevice) -> None:
-        """Build and register a newly connected device, notify observers."""
+        """Build, connect, and register a newly discovered device, notify observers."""
         device = self._builder.build_device(detected)
+        try:
+            device.connect(detected)
+        except Exception:
+            log.warning("device_connected: connect failed for %s", detected.path)
+            return
         self._devices[detected.path] = device
+        self._wire_bus(device)
         self._notify(AppEvent.DEVICE_CONNECTED, device)
 
     def device_lost(self, path: str) -> None:
-        """Remove a device by path and notify observers."""
+        """Remove a device by path, clear its bus, and notify observers."""
         device = self._devices.pop(path, None)
         if device is not None:
+            if device.is_lcd:
+                self._lcd_bus = None
+                self._lcd_device = None
+            elif device.is_led:
+                self._led_bus = None
+                self._led_device = None
             self._notify(AppEvent.DEVICE_LOST, device)
+
+    def _wire_bus(self, device: Device) -> None:
+        """Build and store the appropriate bus for a newly connected device.
+
+        IPC handlers (set via set_ipc_handlers) are injected here so that
+        devices built by scan() can proxy to a running GUI/API instance.
+        """
+        from .lcd_device import LCDDevice as _LCD
+        from .led_device import LEDDevice as _LED
+        if device.is_lcd and isinstance(device, _LCD):
+            if self._find_active_fn is not None:
+                device._find_active_fn = self._find_active_fn
+            if self._proxy_factory_fn is not None:
+                device._proxy_factory_fn = self._proxy_factory_fn
+            self._lcd_device = device
+            self._lcd_bus = self.build_lcd_bus(device)
+            log.debug("lcd_bus ready for %s", getattr(device, 'device_path', '?'))
+        elif device.is_led and isinstance(device, _LED):
+            self._led_device = device
+            self._led_bus = self.build_led_bus(device)
+            log.debug("led_bus ready for %s", getattr(device, 'device_path', '?'))
 
     @property
     def devices(self) -> list[Device]:
         """All currently known devices (snapshot). Call scan() first."""
         return list(self._devices.values())
 
+    @property
+    def has_lcd(self) -> bool:
+        """True if an LCD device is connected and its bus is ready."""
+        return self._lcd_bus is not None
+
+    @property
+    def has_led(self) -> bool:
+        """True if an LED device is connected and its bus is ready."""
+        return self._led_bus is not None
+
+    @property
+    def lcd_bus(self) -> CommandBus:
+        """CommandBus for LCD operations. Raises if no LCD device connected.
+
+        Sequence: TrccApp.init() → scan() → lcd_bus.dispatch(command)
+        """
+        if self._lcd_bus is None:
+            raise RuntimeError(
+                "No LCD device connected. Call scan() first.")
+        return self._lcd_bus
+
+    @property
+    def led_bus(self) -> CommandBus:
+        """CommandBus for LED operations. Raises if no LED device connected.
+
+        Sequence: TrccApp.init() → scan() → led_bus.dispatch(command)
+        """
+        if self._led_bus is None:
+            raise RuntimeError(
+                "No LED device connected. Call scan() first.")
+        return self._led_bus
+
+    @property
+    def os_bus(self) -> CommandBus:
+        """CommandBus for OS/platform operations (connect, discover, init).
+
+        Available immediately after TrccApp.init() — no device needed.
+        """
+        if self._os_bus is None:
+            self._os_bus = self.build_os_bus()
+        return self._os_bus
+
+    def build_os_bus(self) -> CommandBus:
+        """Return a CommandBus wired to OS/platform handlers.
+
+        Handles: InitPlatformCommand, DiscoverDevicesCommand.
+
+        DiscoverDevicesCommand is the single OS command — it calls scan()
+        which detects hardware, classifies by VID:PID/protocol, connects each
+        device, and wires lcd_bus or led_bus.  After dispatch, check has_lcd /
+        has_led.  Optional path field restricts connection to one device path.
+        """
+        from .command_bus import (
+            Command,
+            CommandBus,
+            CommandResult,
+            LoggingMiddleware,
+            TimingMiddleware,
+        )
+        from .commands.initialize import DiscoverDevicesCommand, InitPlatformCommand
+
+        def _init_platform(cmd: Command) -> CommandResult:
+            # Platform already bootstrapped in init() — nothing to do.
+            return CommandResult.ok(message="platform ready")
+
+        def _discover(cmd: Command) -> CommandResult:
+            path = getattr(cmd, 'path', None)
+            devices = self.scan()
+            if path and path not in self._devices:
+                return CommandResult.fail(f"Device not found: {path}")
+            return CommandResult.ok(
+                message=f"{len(devices)} device(s) found",
+                devices=[getattr(d, 'device_path', str(d)) for d in devices],
+            )
+
+        return (CommandBus()
+                .add_middleware(LoggingMiddleware())
+                .add_middleware(TimingMiddleware(threshold_ms=5000.0))
+                .register(InitPlatformCommand, _init_platform)
+                .register(DiscoverDevicesCommand, _discover))
+
     # ── DI: device construction ──────────────────────────────────────────────
 
-    def build_lcd(self) -> LCDDevice:
-        """Build an unconnected LCDDevice (auto-detects on connect())."""
-        return self._builder.build_lcd()
+    def set_ipc_handlers(
+        self,
+        find_active_fn: FindActiveFn,
+        proxy_factory_fn: ProxyFactoryFn,
+    ) -> None:
+        """Inject IPC handlers for multi-instance routing.
+
+        Call from composition roots (CLI, API, GUI) before dispatching
+        DiscoverDevicesCommand.  Handlers are injected into each device in
+        _wire_bus() so devices can detect a running instance and proxy commands.
+        """
+        self._find_active_fn = find_active_fn
+        self._proxy_factory_fn = proxy_factory_fn
+
+    @property
+    def lcd_device(self) -> LCDDevice | None:
+        """The active LCD device, or None if not connected."""
+        return self._lcd_device
+
+    @property
+    def led_device(self) -> LEDDevice | None:
+        """The active LED device, or None if not connected."""
+        return self._led_device
 
     def build_led(self) -> LEDDevice:
-        """Build an unconnected LEDDevice (auto-detects on connect())."""
+        """Build an unconnected LEDDevice (for IPC server use only).
+
+        Composition roots that need a direct device reference (e.g. IPC server
+        wiring) may call this.  Normal device access goes through scan() →
+        DiscoverDevicesCommand → led_device.
+        """
         return self._builder.build_led()
 
     def lcd_from_service(self, device_svc: Any) -> LCDDevice:
@@ -241,10 +401,20 @@ class TrccApp:
         )
         from .commands.lcd import (
             EnableOverlayCommand,
+            ExportThemeCommand,
+            ImportThemeCommand,
+            LoadMaskCommand,
             LoadThemeByNameCommand,
+            PlayVideoLoopCommand,
+            RenderOverlayFromDCCommand,
+            ResetDisplayCommand,
+            SaveThemeCommand,
+            SelectThemeCommand,
             SendColorCommand,
             SendImageCommand,
             SetBrightnessCommand,
+            SetOverlayConfigCommand,
+            SetResolutionCommand,
             SetRotationCommand,
             SetSplitModeCommand,
             UpdateMetricsLCDCommand,
@@ -268,6 +438,43 @@ class TrccApp:
             c = cast(LoadThemeByNameCommand, cmd)
             return CommandResult.from_dict(lcd.load_theme_by_name(c.name, c.width, c.height))
 
+        def _select_theme(cmd: Command) -> CommandResult:
+            return CommandResult.from_dict(lcd.select(cast(SelectThemeCommand, cmd).theme))
+
+        def _save_theme(cmd: Command) -> CommandResult:
+            c = cast(SaveThemeCommand, cmd)
+            return CommandResult.from_dict(lcd.save(c.name, c.data_dir))
+
+        def _export_theme(cmd: Command) -> CommandResult:
+            return CommandResult.from_dict(lcd.export_config(cast(ExportThemeCommand, cmd).path))
+
+        def _import_theme(cmd: Command) -> CommandResult:
+            c = cast(ImportThemeCommand, cmd)
+            return CommandResult.from_dict(lcd.import_config(c.path, c.data_dir))
+
+        def _load_mask(cmd: Command) -> CommandResult:
+            return CommandResult.from_dict(lcd.load_mask_standalone(cast(LoadMaskCommand, cmd).mask_path))
+
+        def _render_overlay(cmd: Command) -> CommandResult:
+            c = cast(RenderOverlayFromDCCommand, cmd)
+            return CommandResult.from_dict(
+                lcd.render_overlay_from_dc(c.dc_path, send=c.send, output=c.output or None))
+
+        def _set_overlay_config(cmd: Command) -> CommandResult:
+            return CommandResult.from_dict(lcd.set_config(cast(SetOverlayConfigCommand, cmd).config))
+
+        def _reset_display(cmd: Command) -> CommandResult:
+            return CommandResult.from_dict(lcd.reset())
+
+        def _set_resolution(cmd: Command) -> CommandResult:
+            c = cast(SetResolutionCommand, cmd)
+            return CommandResult.from_dict(lcd.set_resolution(c.width, c.height))
+
+        def _play_video_loop(cmd: Command) -> CommandResult:
+            c = cast(PlayVideoLoopCommand, cmd)
+            return CommandResult.from_dict(
+                lcd.play_video_loop(c.video_path, loop=c.loop, duration=c.duration))
+
         def _set_split_mode(cmd: Command) -> CommandResult:
             return CommandResult.from_dict(lcd.set_split_mode(cast(SetSplitModeCommand, cmd).mode))
 
@@ -285,6 +492,16 @@ class TrccApp:
                 .register(SendColorCommand, _send_color)
                 .register(SendImageCommand, _send_image)
                 .register(LoadThemeByNameCommand, _load_theme)
+                .register(SelectThemeCommand, _select_theme)
+                .register(SaveThemeCommand, _save_theme)
+                .register(ExportThemeCommand, _export_theme)
+                .register(ImportThemeCommand, _import_theme)
+                .register(LoadMaskCommand, _load_mask)
+                .register(RenderOverlayFromDCCommand, _render_overlay)
+                .register(SetOverlayConfigCommand, _set_overlay_config)
+                .register(ResetDisplayCommand, _reset_display)
+                .register(SetResolutionCommand, _set_resolution)
+                .register(PlayVideoLoopCommand, _play_video_loop)
                 .register(SetSplitModeCommand, _set_split_mode)
                 .register(EnableOverlayCommand, _enable_overlay)
                 .register(UpdateMetricsLCDCommand, _update_metrics))
@@ -309,12 +526,19 @@ class TrccApp:
             TimingMiddleware,
         )
         from .commands.led import (
+            SetClockFormatCommand,
             SetLEDBrightnessCommand,
             SetLEDColorCommand,
             SetLEDModeCommand,
             SetLEDSensorSourceCommand,
+            SetTempUnitLEDCommand,
+            SetZoneBrightnessCommand,
             SetZoneColorCommand,
+            SetZoneModeCommand,
+            SetZoneSyncCommand,
             ToggleLEDCommand,
+            ToggleSegmentCommand,
+            ToggleZoneCommand,
             UpdateMetricsLEDCommand,
         )
 
@@ -335,6 +559,32 @@ class TrccApp:
             c = cast(SetZoneColorCommand, cmd)
             return CommandResult.from_dict(led.set_zone_color(c.zone, c.r, c.g, c.b))
 
+        def _set_zone_mode(cmd: Command) -> CommandResult:
+            c = cast(SetZoneModeCommand, cmd)
+            return CommandResult.from_dict(led.set_zone_mode(c.zone, c.mode))
+
+        def _set_zone_brightness(cmd: Command) -> CommandResult:
+            c = cast(SetZoneBrightnessCommand, cmd)
+            return CommandResult.from_dict(led.set_zone_brightness(c.zone, c.level))
+
+        def _toggle_zone(cmd: Command) -> CommandResult:
+            c = cast(ToggleZoneCommand, cmd)
+            return CommandResult.from_dict(led.toggle_zone(c.zone, c.on))
+
+        def _set_zone_sync(cmd: Command) -> CommandResult:
+            c = cast(SetZoneSyncCommand, cmd)
+            return CommandResult.from_dict(led.set_zone_sync(c.enabled, c.interval))
+
+        def _toggle_segment(cmd: Command) -> CommandResult:
+            c = cast(ToggleSegmentCommand, cmd)
+            return CommandResult.from_dict(led.toggle_segment(c.index, c.on))
+
+        def _set_clock_format(cmd: Command) -> CommandResult:
+            return CommandResult.from_dict(led.set_clock_format(cast(SetClockFormatCommand, cmd).is_24h))
+
+        def _set_temp_unit(cmd: Command) -> CommandResult:
+            return CommandResult.from_dict(led.set_temp_unit(cast(SetTempUnitLEDCommand, cmd).unit))
+
         def _set_sensor_source(cmd: Command) -> CommandResult:
             return CommandResult.from_dict(led.set_sensor_source(cast(SetLEDSensorSourceCommand, cmd).source))
 
@@ -349,6 +599,13 @@ class TrccApp:
                 .register(SetLEDBrightnessCommand, _set_brightness)
                 .register(ToggleLEDCommand, _toggle)
                 .register(SetZoneColorCommand, _set_zone_color)
+                .register(SetZoneModeCommand, _set_zone_mode)
+                .register(SetZoneBrightnessCommand, _set_zone_brightness)
+                .register(ToggleZoneCommand, _toggle_zone)
+                .register(SetZoneSyncCommand, _set_zone_sync)
+                .register(ToggleSegmentCommand, _toggle_segment)
+                .register(SetClockFormatCommand, _set_clock_format)
+                .register(SetTempUnitLEDCommand, _set_temp_unit)
                 .register(SetLEDSensorSourceCommand, _set_sensor_source)
                 .register(UpdateMetricsLEDCommand, _update_metrics))
 

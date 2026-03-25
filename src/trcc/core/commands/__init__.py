@@ -1,50 +1,87 @@
-"""Command dataclasses for all LCD and LED operations.
+"""Command dataclasses for all TRCC operations.
 
-Import from here:
-    from trcc.core.commands import SetBrightnessCommand, SetLEDModeCommand
+Three layers — import from the appropriate module:
+    from trcc.core.commands.initialize import DiscoverDevicesCommand
+    from trcc.core.commands.lcd import SendImageCommand
+    from trcc.core.commands.led import SetLEDColorCommand
+
+Or import everything from here:
+    from trcc.core.commands import DiscoverDevicesCommand, SendImageCommand
 """
+from .initialize import DiscoverDevicesCommand, InitPlatformCommand
 from .lcd import (
-    ConnectLCDCommand,
     EnableOverlayCommand,
+    ExportThemeCommand,
+    ImportThemeCommand,
+    LoadMaskCommand,
     LoadThemeByNameCommand,
     PlayVideoLoopCommand,
+    RenderOverlayFromDCCommand,
+    ResetDisplayCommand,
+    SaveThemeCommand,
+    SelectThemeCommand,
     SendColorCommand,
     SendImageCommand,
     SetBrightnessCommand,
+    SetOverlayConfigCommand,
+    SetResolutionCommand,
     SetRotationCommand,
     SetSplitModeCommand,
     UpdateMetricsLCDCommand,
 )
 from .led import (
-    ConnectLEDCommand,
+    SetClockFormatCommand,
     SetLEDBrightnessCommand,
     SetLEDColorCommand,
     SetLEDModeCommand,
     SetLEDSensorSourceCommand,
+    SetTempUnitLEDCommand,
+    SetZoneBrightnessCommand,
     SetZoneColorCommand,
+    SetZoneModeCommand,
+    SetZoneSyncCommand,
     ToggleLEDCommand,
+    ToggleSegmentCommand,
+    ToggleZoneCommand,
     UpdateMetricsLEDCommand,
 )
 
 __all__ = [
+    # OS / initialize
+    "InitPlatformCommand",
+    "DiscoverDevicesCommand",
     # LCD
-    "ConnectLCDCommand",
     "EnableOverlayCommand",
+    "ExportThemeCommand",
+    "ImportThemeCommand",
+    "LoadMaskCommand",
     "LoadThemeByNameCommand",
     "PlayVideoLoopCommand",
+    "RenderOverlayFromDCCommand",
+    "ResetDisplayCommand",
+    "SaveThemeCommand",
+    "SelectThemeCommand",
     "SendColorCommand",
     "SendImageCommand",
     "SetBrightnessCommand",
+    "SetOverlayConfigCommand",
+    "SetResolutionCommand",
     "SetRotationCommand",
     "SetSplitModeCommand",
     "UpdateMetricsLCDCommand",
     # LED
-    "ConnectLEDCommand",
+    "SetClockFormatCommand",
     "SetLEDBrightnessCommand",
     "SetLEDColorCommand",
     "SetLEDModeCommand",
     "SetLEDSensorSourceCommand",
+    "SetTempUnitLEDCommand",
+    "SetZoneBrightnessCommand",
     "SetZoneColorCommand",
+    "SetZoneModeCommand",
+    "SetZoneSyncCommand",
     "ToggleLEDCommand",
+    "ToggleSegmentCommand",
+    "ToggleZoneCommand",
     "UpdateMetricsLEDCommand",
 ]

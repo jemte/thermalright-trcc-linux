@@ -90,6 +90,14 @@ class LCDDevice(Device):
 
     # ── Device ABC ─────────────────────────────────────────────────
 
+    @property
+    def is_lcd(self) -> bool:
+        return True
+
+    @property
+    def is_led(self) -> bool:
+        return False
+
     def connect(self, detected: Any = None) -> dict:
         """Connect to LCD device — or route through active instance.
 

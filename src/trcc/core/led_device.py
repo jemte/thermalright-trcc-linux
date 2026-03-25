@@ -56,6 +56,14 @@ class LEDDevice(Device):
 
     # ── Device ABC ─────────────────────────────────────────────────
 
+    @property
+    def is_lcd(self) -> bool:
+        return False
+
+    @property
+    def is_led(self) -> bool:
+        return True
+
     def connect(self, detected: Any = None) -> dict:
         """Detect LED device, probe model, initialize LEDService.
 

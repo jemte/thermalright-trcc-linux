@@ -167,6 +167,16 @@ class Device(ABC):
         - LEDDevice (core/led_device.py) — LED segment display devices
     """
 
+    @property
+    @abstractmethod
+    def is_lcd(self) -> bool:
+        """True if this device is an LCD display."""
+
+    @property
+    @abstractmethod
+    def is_led(self) -> bool:
+        """True if this device is an LED controller."""
+
     @abstractmethod
     def connect(self, detected: Any = None) -> dict:
         """Connect to device. Handshakes via protocol, fills DeviceInfo from models.

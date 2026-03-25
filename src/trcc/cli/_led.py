@@ -11,26 +11,25 @@ from trcc.core.models import parse_hex_color as _parse_hex
 # CLI presentation helpers
 # =========================================================================
 
-def _connect_or_fail(builder):  # -> tuple[LEDDevice, int]
-    """Build + connect LEDDevice. Returns (device, exit_code).
+def _connect_or_fail() -> int:
+    """Connect LED via os_bus. Returns exit code (0 = success).
 
-    Builder injected by the calling command (from ctx.obj at the CLI boundary).
+    DI chain: TrccApp.init() → set_ipc_handlers()
+              → os_bus.dispatch(DiscoverDevicesCommand) → scan()
+              → _wire_bus() → led_bus ready.
     """
+    from trcc.core.app import TrccApp
+    from trcc.core.commands.initialize import DiscoverDevicesCommand
     from trcc.core.instance import find_active
     from trcc.ipc import create_led_proxy
 
-    led = builder.build_led()
-    led._find_active_fn = find_active
-    led._proxy_factory_fn = create_led_proxy
-    result = led.connect()
-    if not result["success"]:
+    app = TrccApp.get()
+    app.set_ipc_handlers(find_active, create_led_proxy)
+    result = app.os_bus.dispatch(DiscoverDevicesCommand())
+    if not result.success or not app.has_led:
         print("No LED device found.")
-        return led, 1
-    if result.get("proxy"):
-        print(f"Routing through {result['proxy'].value} instance")
-    elif result.get("status"):
-        print(result["status"])
-    return led, 0
+        return 1
+    return 0
 
 
 def _print_result(result: dict, *, preview: bool = False) -> int:
@@ -47,9 +46,12 @@ def _print_result(result: dict, *, preview: bool = False) -> int:
 
 def _led_command(builder, method: str, *args, preview: bool = False, **kwargs) -> int:
     """Generic: connect LED, call device method, print result."""
-    led, rc = _connect_or_fail(builder)
+    rc = _connect_or_fail()
     if rc:
         return rc
+    from trcc.core.app import TrccApp
+    led = TrccApp.get().led_device
+    assert led is not None
     return _print_result(getattr(led, method)(*args, **kwargs), preview=preview)
 
 
@@ -77,11 +79,11 @@ def set_color(builder, hex_color, *, preview=False):
     if not rgb:
         print("Error: Invalid hex color. Use format: ff0000")
         return 1
-    led, rc = _connect_or_fail(builder)
+    rc = _connect_or_fail()
     if rc:
         return rc
     r, g, b = rgb
-    result = TrccApp.get().build_led_bus(led).dispatch(SetLEDColorCommand(r=r, g=g, b=b))
+    result = TrccApp.get().led_bus.dispatch(SetLEDColorCommand(r=r, g=g, b=b))
     return _print_result(result.payload, preview=preview)
 
 
@@ -90,9 +92,12 @@ def set_mode(builder, mode_name, *, preview=False):
     """Set LED effect mode."""
     import time
 
-    led, rc = _connect_or_fail(builder)
+    rc = _connect_or_fail()
     if rc:
         return rc
+    from trcc.core.app import TrccApp
+    led = TrccApp.get().led_device
+    assert led is not None
 
     result = led.set_mode(mode_name)
     if not result["success"]:
@@ -137,10 +142,10 @@ def set_led_brightness(builder, level, *, preview=False):
     """Set LED brightness (0-100)."""
     from trcc.core.app import TrccApp
     from trcc.core.commands.led import SetLEDBrightnessCommand
-    led, rc = _connect_or_fail(builder)
+    rc = _connect_or_fail()
     if rc:
         return rc
-    result = TrccApp.get().build_led_bus(led).dispatch(SetLEDBrightnessCommand(level=level))
+    result = TrccApp.get().led_bus.dispatch(SetLEDBrightnessCommand(level=level))
     return _print_result(result.payload, preview=preview)
 
 
@@ -155,10 +160,10 @@ def set_sensor_source(builder, source):
     """Set CPU/GPU sensor source for temp/load linked LED modes."""
     from trcc.core.app import TrccApp
     from trcc.core.commands.led import SetLEDSensorSourceCommand
-    led, rc = _connect_or_fail(builder)
+    rc = _connect_or_fail()
     if rc:
         return rc
-    result = TrccApp.get().build_led_bus(led).dispatch(SetLEDSensorSourceCommand(source=source))
+    result = TrccApp.get().led_bus.dispatch(SetLEDSensorSourceCommand(source=source))
     return _print_result(result.payload)
 
 
@@ -171,11 +176,11 @@ def set_zone_color(builder, zone: int, hex_color: str, *, preview: bool = False)
     if not rgb:
         print("Error: Invalid hex color. Use format: ff0000")
         return 1
-    led, rc = _connect_or_fail(builder)
+    rc = _connect_or_fail()
     if rc:
         return rc
     r, g, b = rgb
-    result = TrccApp.get().build_led_bus(led).dispatch(SetZoneColorCommand(zone=zone, r=r, g=g, b=b))
+    result = TrccApp.get().led_bus.dispatch(SetZoneColorCommand(zone=zone, r=r, g=g, b=b))
     return _print_result(result.payload, preview=preview)
 
 

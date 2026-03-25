@@ -101,21 +101,24 @@ def select_device(device_id: int) -> dict:
         # Standalone mode — API manages device directly
         _device_svc.on_frame_sent = api.set_current_image
 
-        from trcc.core.models import PROTOCOL_TRAITS
-        traits = PROTOCOL_TRAITS.get(dev.protocol or 'scsi')
-        if (traits and traits.is_led) or getattr(dev, 'implementation', '') == 'hid_led':
-            from trcc.core.app import TrccApp
-            api._led_dispatcher = TrccApp.get().build_led()
-            result = api._led_dispatcher.connect()
-            if not result["success"]:
-                api._led_dispatcher = None
+        from trcc.core.app import TrccApp
+        from trcc.core.commands.initialize import DiscoverDevicesCommand
+        app = TrccApp.get()
+        app.os_bus.dispatch(DiscoverDevicesCommand(path=getattr(dev, 'path', None)))
+
+        if app.has_led:
+            api._led_dispatcher = app.led_device
         else:
             _device_svc._discover_resolution(dev)
+            # Fallback: wire LCD from existing device service if os_bus didn't find one
+            if not app.has_lcd:
+                api._display_dispatcher = app.lcd_from_service(_device_svc)
+            else:
+                api._display_dispatcher = app.lcd_device
 
-            from trcc.core.app import TrccApp
-            lcd = TrccApp.get().lcd_from_service(_device_svc)
-            api._display_dispatcher = lcd
-
+            lcd = api._display_dispatcher
+            if lcd is None:
+                return {"selected": dev.name, "resolution": dev.resolution}
             w_res, h_res = dev.resolution or (320, 320)
 
             # Download/extract theme data for this resolution (no-op if cached)

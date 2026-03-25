@@ -91,16 +91,23 @@ def lcd_empty():
 
 @pytest.fixture
 def mock_connect(lcd):
-    """Patch _connect_or_fail to return a connected LCD."""
-    with patch(_CONNECT, return_value=(lcd, 0)):
+    """Patch _connect_or_fail to return 0 (success) and wire TrccApp.lcd_device + lcd_bus.
+
+    lcd_bus is a REAL CommandBus wired to the mock lcd so tests can verify
+    that bus dispatch reaches the right service methods.
+    """
+    from trcc.core.app import TrccApp
+    mock_app = TrccApp._instance
+    mock_app.lcd_device = lcd
+    mock_app.lcd_bus = TrccApp.build_lcd_bus(mock_app, lcd)  # type: ignore[arg-type]
+    with patch(_CONNECT, return_value=0):
         yield lcd
 
 
 @pytest.fixture
 def mock_connect_fail():
-    """Patch _connect_or_fail to simulate no device."""
-    dev = MagicMock()
-    with patch(_CONNECT, return_value=(dev, 1)):
+    """Patch _connect_or_fail to simulate no device (returns 1)."""
+    with patch(_CONNECT, return_value=1):
         yield
 
 
@@ -573,35 +580,49 @@ class TestOverlayOps:
 # =========================================================================
 
 class TestCLIHelpers:
-    def test_connect_or_fail_success(self, _mock_builder, capsys):
+    def test_connect_or_fail_success(self, capsys):
         from trcc.cli._display import _connect_or_fail
+        from trcc.core.app import TrccApp
+        from trcc.core.command_bus import CommandResult
 
-        _mock_builder.build_lcd.return_value.connect.return_value = {"success": True}
-
-        lcd, rc = _connect_or_fail(_mock_builder)
+        mock_app = TrccApp.get()
+        mock_app.os_bus.dispatch.return_value = CommandResult.ok(message="1 device(s) found")  # type: ignore[union-attr]
+        mock_app.has_lcd = True  # type: ignore[union-attr]
+        with patch("trcc.cli._ensure_renderer"), \
+             patch("trcc.services.image.ImageService._r", return_value=MagicMock()):
+            rc = _connect_or_fail()
 
         assert rc == 0
 
-    def test_connect_or_fail_no_device(self, _mock_builder, capsys):
+    def test_connect_or_fail_no_device(self, capsys):
         from trcc.cli._display import _connect_or_fail
+        from trcc.core.app import TrccApp
+        from trcc.core.command_bus import CommandResult
 
-        _mock_builder.build_lcd.return_value.connect.return_value = {
-            "success": False, "error": "No LCD device found."}
-
-        lcd, rc = _connect_or_fail(_mock_builder)
+        mock_app = TrccApp.get()
+        mock_app.os_bus.dispatch.return_value = CommandResult.fail("No LCD device found.")  # type: ignore[union-attr]
+        mock_app.has_lcd = False  # type: ignore[union-attr]
+        with patch("trcc.cli._ensure_renderer"), \
+             patch("trcc.services.image.ImageService._r", return_value=MagicMock()):
+            rc = _connect_or_fail()
 
         assert rc == 1
         assert "trcc report" in capsys.readouterr().out
 
-    def test_connect_or_fail_passes_device_arg(self, _mock_builder):
+    def test_connect_or_fail_passes_device_arg(self):
         from trcc.cli._display import _connect_or_fail
+        from trcc.core.app import TrccApp
+        from trcc.core.command_bus import CommandResult
+        from trcc.core.commands.initialize import DiscoverDevicesCommand
 
-        mock_lcd = _mock_builder.build_lcd.return_value
-        mock_lcd.connect.return_value = {"success": True}
+        mock_app = TrccApp.get()
+        mock_app.os_bus.dispatch.return_value = CommandResult.ok(message="ok")  # type: ignore[union-attr]
+        mock_app.has_lcd = True  # type: ignore[union-attr]
+        with patch("trcc.cli._ensure_renderer"), \
+             patch("trcc.services.image.ImageService._r", return_value=MagicMock()):
+            _connect_or_fail("/dev/sg2")
 
-        _connect_or_fail(_mock_builder, "/dev/sg2")
-
-        mock_lcd.connect.assert_called_once_with("/dev/sg2")
+        mock_app.os_bus.dispatch.assert_called_once_with(DiscoverDevicesCommand(path="/dev/sg2"))  # type: ignore[union-attr]
 
     def test_print_result_success(self, capsys):
         from trcc.cli._display import _print_result
@@ -644,12 +665,14 @@ class TestCLIHelpers:
 
     def test_display_command_delegates(self, _mock_builder):
         from trcc.cli._display import _display_command
+        from trcc.core.app import TrccApp
 
         mock_lcd = MagicMock()
         mock_lcd.frame.some_method.return_value = {
             "success": True, "message": "OK"}
+        TrccApp.get().lcd_device = mock_lcd  # type: ignore[union-attr]
 
-        with patch(_CONNECT, return_value=(mock_lcd, 0)), \
+        with patch(_CONNECT, return_value=0), \
              patch("trcc.cli._display._print_result", return_value=0):
             rc = _display_command(_mock_builder, "some_method", "arg1", device=None)
 
@@ -659,8 +682,7 @@ class TestCLIHelpers:
     def test_display_command_returns_1_on_connect_failure(self, _mock_builder):
         from trcc.cli._display import _display_command
 
-        mock_lcd = MagicMock()
-        with patch(_CONNECT, return_value=(mock_lcd, 1)):
+        with patch(_CONNECT, return_value=1):
             rc = _display_command(_mock_builder, "any_method", device=None)
         assert rc == 1
 
@@ -682,11 +704,8 @@ class TestCLIImageCommands:
 
     def test_send_image_cli_missing_file(self, _mock_builder, mock_connect, capsys):
         from trcc.cli._display import send_image
-        from trcc.core.app import TrccApp
-        from trcc.core.command_bus import CommandResult
 
-        TrccApp.get().build_lcd_bus.return_value.dispatch.return_value = (  # type: ignore[union-attr]
-            CommandResult.fail("File not found: /nonexistent/file.png"))
+        # Real bus + real lcd: send_image("/nonexistent") → lcd.send_image fails → rc=1
         rc = send_image(_mock_builder, "/nonexistent/file.png")
         assert rc == 1
         assert "Error" in capsys.readouterr().out
@@ -758,11 +777,8 @@ class TestCLISettingCommands:
 
     def test_set_brightness_cli_invalid_prints_help(self, _mock_builder, mock_connect, capsys):
         from trcc.cli._display import set_brightness
-        from trcc.core.app import TrccApp
-        from trcc.core.command_bus import CommandResult
 
-        TrccApp.get().build_lcd_bus.return_value.dispatch.return_value = (  # type: ignore[union-attr]
-            CommandResult.fail("Brightness: 1-3 (level) or 0-100 (percent)"))
+        # Real bus + real lcd: set_brightness(-1) → lcd.set_brightness(-1) fails
         rc = set_brightness(_mock_builder, -1)
         assert rc == 1
         out = capsys.readouterr().out
@@ -810,11 +826,8 @@ class TestCLISettingCommands:
 
     def test_set_rotation_cli_invalid_45(self, _mock_builder, mock_connect, capsys):
         from trcc.cli._display import set_rotation
-        from trcc.core.app import TrccApp
-        from trcc.core.command_bus import CommandResult
 
-        TrccApp.get().build_lcd_bus.return_value.dispatch.return_value = (  # type: ignore[union-attr]
-            CommandResult.fail("Rotation must be 0, 90, 180, or 270"))
+        # Real bus + real lcd: set_rotation(45) → lcd.set_rotation(45) fails
         rc = set_rotation(_mock_builder, 45)
         assert rc == 1
         assert "Error" in capsys.readouterr().out
@@ -829,11 +842,8 @@ class TestCLISettingCommands:
 
     def test_set_split_mode_cli_invalid(self, _mock_builder, mock_connect, capsys):
         from trcc.cli._display import set_split_mode
-        from trcc.core.app import TrccApp
-        from trcc.core.command_bus import CommandResult
 
-        TrccApp.get().build_lcd_bus.return_value.dispatch.return_value = (  # type: ignore[union-attr]
-            CommandResult.fail("Split mode must be 0, 1, 2, or 3"))
+        # Real bus + real lcd: set_split_mode(5) → lcd.set_split_mode(5) fails
         rc = set_split_mode(_mock_builder, 5)
         assert rc == 1
 

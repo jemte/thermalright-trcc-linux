@@ -13,11 +13,6 @@ from ..models import LEDMode
 
 
 @dataclass(frozen=True)
-class ConnectLEDCommand(LEDCommand):
-    """Connect to the LED device."""
-
-
-@dataclass(frozen=True)
 class SetLEDColorCommand(LEDCommand):
     """Set all zones to a solid RGB colour."""
     r: int = 0
@@ -62,3 +57,50 @@ class SetLEDSensorSourceCommand(LEDCommand):
 class UpdateMetricsLEDCommand(LEDCommand):
     """Push fresh sensor metrics to the LED controller."""
     metrics: Any = field(default=None, hash=False, compare=False)
+
+
+@dataclass(frozen=True)
+class SetZoneModeCommand(LEDCommand):
+    """Set the effect mode for a specific zone."""
+    zone: int = 0
+    mode: LEDMode = LEDMode.STATIC
+
+
+@dataclass(frozen=True)
+class SetZoneBrightnessCommand(LEDCommand):
+    """Set the brightness for a specific zone (0–100)."""
+    zone: int = 0
+    level: int = 100
+
+
+@dataclass(frozen=True)
+class ToggleZoneCommand(LEDCommand):
+    """Turn a specific zone on or off."""
+    zone: int = 0
+    on: bool = True
+
+
+@dataclass(frozen=True)
+class SetZoneSyncCommand(LEDCommand):
+    """Enable or disable zone sync with interval."""
+    enabled: bool = False
+    interval: int = 0
+
+
+@dataclass(frozen=True)
+class ToggleSegmentCommand(LEDCommand):
+    """Turn a segment display index on or off."""
+    index: int = 0
+    on: bool = True
+
+
+@dataclass(frozen=True)
+class SetClockFormatCommand(LEDCommand):
+    """Set the segment display clock format (24h or 12h)."""
+    is_24h: bool = True
+
+
+@dataclass(frozen=True)
+class SetTempUnitLEDCommand(LEDCommand):
+    """Set the temperature unit shown on the segment display."""
+    unit: str = "C"  # "C" | "F"

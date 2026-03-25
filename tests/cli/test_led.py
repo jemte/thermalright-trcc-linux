@@ -65,16 +65,23 @@ def led_no_segments(mock_svc):
 
 @pytest.fixture()
 def mock_connect(led):
-    """Patch _connect_or_fail to return a connected LEDDevice."""
-    with patch(_CONNECT, return_value=(led, 0)):
+    """Patch _connect_or_fail to return 0 (success) and wire TrccApp.led_device + led_bus.
+
+    led_bus is a REAL CommandBus wired to the mock led so tests can verify
+    that bus dispatch reaches the right service methods.
+    """
+    from trcc.core.app import TrccApp
+    mock_app = TrccApp._instance
+    mock_app.led_device = led
+    mock_app.led_bus = TrccApp.build_led_bus(mock_app, led)  # type: ignore[arg-type]
+    with patch(_CONNECT, return_value=0):
         yield led
 
 
 @pytest.fixture()
 def mock_connect_fail():
-    """Patch _connect_or_fail to simulate no device."""
-    dev = MagicMock()
-    with patch(_CONNECT, return_value=(dev, 1)):
+    """Patch _connect_or_fail to simulate no device (returns 1)."""
+    with patch(_CONNECT, return_value=1):
         yield
 
 
@@ -642,54 +649,49 @@ class TestLEDDeviceTick:
 class TestCLIHelpers:
     """CLI presentation helpers in _led.py."""
 
-    # _connect_or_fail takes builder directly — no ControllerBuilder patching needed.
-
     def test_connect_or_fail_success(self, capsys):
+        """_connect_or_fail returns 0 when os_bus dispatch succeeds and has_led is True."""
         from trcc.cli._led import _connect_or_fail
+        from trcc.core.app import TrccApp
+        from trcc.core.command_bus import CommandResult
 
-        fake_led = LEDDevice()
-        fake_led._svc = MagicMock()
-        fake_led._init_status = "AX120"
-        mock_builder = MagicMock()
-        mock_builder.build_led.return_value = fake_led
+        mock_app = TrccApp._instance
+        mock_app.os_bus.dispatch.return_value = CommandResult.ok(message="ok")
+        mock_app.has_led = True
 
-        with patch.object(fake_led, "connect",
-                          return_value={"success": True, "status": "AX120"}), \
-             patch(_IPC, return_value=None):
-            led, rc = _connect_or_fail(mock_builder)
+        with patch(_IPC, return_value=None):
+            rc = _connect_or_fail()
 
         assert rc == 0
-        assert led.connected is True
-        assert "AX120" in capsys.readouterr().out
 
     def test_connect_or_fail_no_device(self, capsys):
+        """_connect_or_fail returns 1 and prints error when no LED device found."""
         from trcc.cli._led import _connect_or_fail
+        from trcc.core.app import TrccApp
+        from trcc.core.command_bus import CommandResult
 
-        fake_led = LEDDevice()
-        mock_builder = MagicMock()
-        mock_builder.build_led.return_value = fake_led
+        mock_app = TrccApp._instance
+        mock_app.os_bus.dispatch.return_value = CommandResult.fail("No LED device found")
+        mock_app.has_led = False
 
-        with patch.object(fake_led, "connect",
-                          return_value={"success": False,
-                                        "error": "No LED device found"}), \
-             patch(_IPC, return_value=None):
-            led, rc = _connect_or_fail(mock_builder)
+        with patch(_IPC, return_value=None):
+            rc = _connect_or_fail()
 
         assert rc == 1
         assert "No LED device" in capsys.readouterr().out
 
     def test_connect_or_fail_no_status_printed(self, capsys):
+        """_connect_or_fail returns 0 with no extra output when no status in result."""
         from trcc.cli._led import _connect_or_fail
+        from trcc.core.app import TrccApp
+        from trcc.core.command_bus import CommandResult
 
-        fake_led = LEDDevice()
-        fake_led._svc = MagicMock()
-        mock_builder = MagicMock()
-        mock_builder.build_led.return_value = fake_led
+        mock_app = TrccApp._instance
+        mock_app.os_bus.dispatch.return_value = CommandResult.ok(message="ok")
+        mock_app.has_led = True
 
-        with patch.object(fake_led, "connect",
-                          return_value={"success": True}), \
-             patch(_IPC, return_value=None):
-            _, rc = _connect_or_fail(mock_builder)
+        with patch(_IPC, return_value=None):
+            rc = _connect_or_fail()
 
         assert rc == 0
         assert capsys.readouterr().out.strip() == ""

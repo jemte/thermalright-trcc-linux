@@ -121,11 +121,19 @@ def _mock_builder(mock_platform):
     mock_app.builder = mock_builder
 
     # Default bus dispatch result — success so CLI commands don't print "Error".
-    # Tests that need a failure result should override
-    # mock_app.build_lcd_bus.return_value.dispatch.return_value explicitly.
+    # Tests that need a failure result should override explicitly.
     _ok = CommandResult.ok(message="ok")
     mock_app.build_lcd_bus.return_value.dispatch.return_value = _ok
     mock_app.build_led_bus.return_value.dispatch.return_value = _ok
+    # lcd_bus/led_bus — stored buses used by CLI after connect
+    mock_app.lcd_bus.dispatch.return_value = _ok
+    mock_app.led_bus.dispatch.return_value = _ok
+    # os_bus — routes DiscoverDevicesCommand, InitPlatformCommand
+    # Default: discover succeeds (has_lcd=True, has_led=True after dispatch)
+    mock_app.os_bus.dispatch.return_value = _ok
+    # has_lcd/has_led — True by default so _connect_or_fail passes
+    mock_app.has_lcd = True
+    mock_app.has_led = True
 
     # Set the singleton so TrccApp.get() returns mock_app without needing init().
     # Composition roots call TrccApp.get() in CLI commands — this prevents RuntimeError.
