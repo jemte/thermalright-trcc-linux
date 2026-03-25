@@ -141,32 +141,62 @@ class TestUdevRulesExtra:
 # ---------------------------------------------------------------------------
 
 class TestSelinuxExtra:
-    """Additional _selinux coverage."""
+    """_selinux() section coverage — delegates to check_selinux()."""
 
-    @patch("trcc.adapters.infra.diagnostics.subprocess.run")
-    def test_permissive_mode(self, mock_run):
-        mock_run.return_value = MagicMock(stdout="Permissive\n")
+    @patch("trcc.adapters.infra.diagnostics.check_selinux")
+    def test_permissive_mode(self, mock_check):
+        from trcc.adapters.infra.diagnostics import SelinuxResult
+        mock_check.return_value = SelinuxResult(ok=True, message='SELinux permissive (no policy needed)')
         rpt = DebugReport()
         rpt._selinux()
         _, body = _section(rpt)
-        assert "Permissive" in body
+        assert "permissive" in body
 
-    @patch("trcc.adapters.infra.diagnostics.subprocess.run")
-    def test_disabled_mode(self, mock_run):
-        mock_run.return_value = MagicMock(stdout="Disabled\n")
+    @patch("trcc.adapters.infra.diagnostics.check_selinux")
+    def test_disabled_mode(self, mock_check):
+        from trcc.adapters.infra.diagnostics import SelinuxResult
+        mock_check.return_value = SelinuxResult(ok=True, message='SELinux disabled (no policy needed)')
         rpt = DebugReport()
         rpt._selinux()
         _, body = _section(rpt)
-        assert "Disabled" in body
+        assert "disabled" in body
 
-    @patch("trcc.adapters.infra.diagnostics.subprocess.run")
-    def test_generic_exception(self, mock_run):
-        """Non-FileNotFoundError exceptions fall into getenforce-failed branch."""
-        mock_run.side_effect = RuntimeError("unexpected")
+    @patch("trcc.adapters.infra.diagnostics.check_selinux")
+    def test_status_unknown(self, mock_check):
+        from trcc.adapters.infra.diagnostics import SelinuxResult
+        mock_check.return_value = SelinuxResult(ok=True, message='SELinux status unknown')
         rpt = DebugReport()
         rpt._selinux()
         _, body = _section(rpt)
-        assert "failed" in body
+        assert "unknown" in body
+
+    @patch("trcc.adapters.infra.diagnostics.check_selinux")
+    def test_enforcing_policy_loaded(self, mock_check):
+        """Enforcing with trcc_usb loaded — no setup hint shown."""
+        from trcc.adapters.infra.diagnostics import SelinuxResult
+        mock_check.return_value = SelinuxResult(
+            ok=True, message='SELinux enforcing — trcc_usb module loaded',
+            enforcing=True, module_loaded=True,
+        )
+        rpt = DebugReport()
+        rpt._selinux()
+        _, body = _section(rpt)
+        assert "trcc_usb module loaded" in body
+        assert "setup-selinux" not in body
+
+    @patch("trcc.adapters.infra.diagnostics.check_selinux")
+    def test_enforcing_policy_missing(self, mock_check):
+        """Enforcing without USB policy — setup hint must appear."""
+        from trcc.adapters.infra.diagnostics import SelinuxResult
+        mock_check.return_value = SelinuxResult(
+            ok=False, message='SELinux enforcing — USB policy not installed',
+            enforcing=True, module_loaded=False,
+        )
+        rpt = DebugReport()
+        rpt._selinux()
+        _, body = _section(rpt)
+        assert "USB policy not installed" in body
+        assert "setup-selinux" in body
 
 
 # ---------------------------------------------------------------------------
@@ -328,7 +358,7 @@ class TestDevicePermissionsExtra:
         _, body = _section(rpt)
         # sg0 failed stat, so it's not in output and we still show no sg
         # Actually the code skips on any Exception, so sg_found stays False
-        assert "no /dev/sg*" in body
+        assert "/dev/sg*: (none found)" in body
 
     @patch("os.listdir", return_value=["sg0", "sg1"])
     @patch("os.stat")
@@ -348,7 +378,7 @@ class TestDevicePermissionsExtra:
         rpt = DebugReport()
         rpt._device_permissions()
         _, body = _section(rpt)
-        assert "no /dev/sg*" in body
+        assert "/dev/sg*: (none found)" in body
         assert "sda" not in body
 
 
@@ -1151,12 +1181,12 @@ class TestConfigExtra:
         assert "Error" in body
 
     @patch("trcc.conf.load_config", return_value={"resolution": [320, 240]})
-    def test_no_devices_key_not_shown(self, _):
-        """Missing 'devices' key → no device count line."""
+    def test_no_devices_key_shows_none(self, _):
+        """Missing 'devices' key → shows 'none configured'."""
         rpt = DebugReport()
         rpt._app_config()
         _, body = _section(rpt)
-        assert "configured" not in body
+        assert "none configured" in body
 
 
 # ---------------------------------------------------------------------------

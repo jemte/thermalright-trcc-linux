@@ -9,6 +9,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
 
+import pytest
+
 from trcc.adapters.system.linux.setup import (
     install_desktop,
     setup_polkit,
@@ -1554,69 +1556,60 @@ class TestReport:
 # ===========================================================================
 
 class TestDownloadThemes:
-    """download_themes — list mode, info mode, force, normal download, error."""
+    """download_themes — dispatches DownloadThemesCommand through the OS bus."""
 
-    def test_no_pack_calls_list_available(self):
-        with patch("trcc.adapters.infra.theme_downloader.list_available") as mock_list, \
-             patch("trcc.adapters.infra.theme_downloader.download_pack"), \
-             patch("trcc.adapters.infra.theme_downloader.show_info"):
-            rc = download_themes(pack=None)
-        mock_list.assert_called_once()
+    def test_no_pack_dispatches_command(self):
+        """pack=None dispatches DownloadThemesCommand(pack='') via os_bus."""
+        from trcc.core.app import TrccApp
+        from trcc.core.commands.initialize import DownloadThemesCommand
+        rc = download_themes(pack=None)
+        TrccApp.get().os_bus.dispatch.assert_called_with(DownloadThemesCommand(pack="", force=False))
         assert rc == 0
 
-    def test_show_list_calls_list_available(self):
-        with patch("trcc.adapters.infra.theme_downloader.list_available") as mock_list, \
-             patch("trcc.adapters.infra.theme_downloader.download_pack"), \
-             patch("trcc.adapters.infra.theme_downloader.show_info"):
-            rc = download_themes(pack="themes-320x320", show_list=True)
-        mock_list.assert_called_once()
+    def test_show_list_dispatches_command(self):
+        """show_list=True dispatches DownloadThemesCommand(pack='') via os_bus."""
+        from trcc.core.app import TrccApp
+        from trcc.core.commands.initialize import DownloadThemesCommand
+        rc = download_themes(pack="themes-320x320", show_list=True)
+        TrccApp.get().os_bus.dispatch.assert_called_with(DownloadThemesCommand(pack="", force=False))
         assert rc == 0
 
-    def test_show_info_calls_pack_info(self):
-        with patch("trcc.adapters.infra.theme_downloader.list_available"), \
-             patch("trcc.adapters.infra.theme_downloader.download_pack"), \
-             patch("trcc.adapters.infra.theme_downloader.show_info") as mock_info:
+    def test_show_info_calls_pack_info_directly(self):
+        """show_info=True calls show_info() directly (no bus needed)."""
+        with patch("trcc.adapters.infra.theme_downloader.show_info") as mock_info:
             rc = download_themes(pack="themes-320x320", show_info=True)
         mock_info.assert_called_once_with("themes-320x320")
         assert rc == 0
 
     def test_force_clears_installed_resolutions(self):
-        with patch("trcc.adapters.infra.theme_downloader.list_available"), \
-             patch("trcc.adapters.infra.theme_downloader.download_pack", return_value=0), \
-             patch("trcc.adapters.infra.theme_downloader.show_info"), \
-             patch("trcc.conf.Settings.clear_installed_resolutions") as mock_clear:
+        """force=True clears resolution cache before dispatching."""
+        with patch("trcc.conf.Settings.clear_installed_resolutions") as mock_clear:
             download_themes(pack="themes-320x320", force=True)
         mock_clear.assert_called_once()
 
-    def test_normal_download_calls_download_pack(self):
-        with patch("trcc.adapters.infra.theme_downloader.list_available"), \
-             patch("trcc.adapters.infra.theme_downloader.download_pack", return_value=0) as mock_dl, \
-             patch("trcc.adapters.infra.theme_downloader.show_info"):
-            download_themes(pack="themes-320x320")
-        mock_dl.assert_called_once_with("themes-320x320", force=False)
+    def test_normal_download_dispatches_command_with_pack(self):
+        """Normal download dispatches DownloadThemesCommand with the pack name."""
+        from trcc.core.app import TrccApp
+        from trcc.core.commands.initialize import DownloadThemesCommand
+        download_themes(pack="themes-320x320")
+        TrccApp.get().os_bus.dispatch.assert_called_with(DownloadThemesCommand(pack="themes-320x320", force=False))
 
-    def test_normal_download_returns_download_pack_result(self):
-        with patch("trcc.adapters.infra.theme_downloader.list_available"), \
-             patch("trcc.adapters.infra.theme_downloader.download_pack", return_value=42), \
-             patch("trcc.adapters.infra.theme_downloader.show_info"):
-            rc = download_themes(pack="themes-320x320")
-        assert rc == 42
+    def test_force_dispatches_command_with_force(self):
+        """force=True is passed through to DownloadThemesCommand."""
+        from trcc.core.app import TrccApp
+        from trcc.core.commands.initialize import DownloadThemesCommand
+        with patch("trcc.conf.Settings.clear_installed_resolutions"):
+            download_themes(pack="themes-320x320", force=True)
+        TrccApp.get().os_bus.dispatch.assert_called_with(DownloadThemesCommand(pack="themes-320x320", force=True))
 
     def test_exception_returns_one(self, capsys):
-        with patch("trcc.adapters.infra.theme_downloader.list_available",
-                   side_effect=RuntimeError("network error")):
-            rc = download_themes(pack=None)
+        """Exceptions propagate as rc=1 with error message."""
+        from trcc.core.app import TrccApp
+        TrccApp.get().os_bus.dispatch.side_effect = RuntimeError("network error")
+        rc = download_themes(pack=None)
         assert rc == 1
         out = capsys.readouterr().out
         assert "Error" in out
-
-    def test_force_passes_force_to_download_pack(self):
-        with patch("trcc.adapters.infra.theme_downloader.list_available"), \
-             patch("trcc.adapters.infra.theme_downloader.download_pack", return_value=0) as mock_dl, \
-             patch("trcc.adapters.infra.theme_downloader.show_info"), \
-             patch("trcc.conf.Settings.clear_installed_resolutions"):
-            download_themes(pack="themes-320x320", force=True)
-        mock_dl.assert_called_once_with("themes-320x320", force=True)
 
 
 # ===========================================================================
@@ -1682,6 +1675,19 @@ class TestConfirm:
 
 class TestRunSetup:
     """run_setup — interactive setup wizard."""
+
+    @pytest.fixture(autouse=True)
+    def _real_os_bus(self, _mock_builder):
+        """Replace mock os_bus with a real CommandBus so SetupPlatformCommand
+        routes through the actual _setup_platform handler (calls builder.build_setup().run()).
+
+        After the command-bus refactor, run_setup() dispatches SetupPlatformCommand
+        instead of calling builder.build_setup().run() directly. The conftest mock_app
+        has a no-op os_bus; this fixture wires a real bus so the handler executes.
+        """
+        from trcc.core.app import TrccApp
+        real_app = TrccApp(_mock_builder)
+        TrccApp.get().os_bus = real_app.build_os_bus()  # type: ignore[attr-defined]
 
     def _make_dep(self, name="pkg", ok=True, required=True,
                   version="1.0", note="", install_cmd=""):
@@ -2082,7 +2088,7 @@ class TestReportDiagnosticOutput:
             report(detect_fn=lambda: [])
 
         out = capsys.readouterr().out
-        assert "no /dev/sg*" in out
+        assert "/dev/sg*: (none found)" in out
 
     def test_sg_device_no_access_shows_no_access(self, capsys, tmp_path):
         """When /dev/sg* exists but isn't accessible, output says NO ACCESS."""

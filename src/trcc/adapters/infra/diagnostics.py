@@ -1283,6 +1283,8 @@ class DebugReport:
             self._device_permissions()
         self._handshakes()
         self._app_config()
+        self._installed_themes()
+        self._sensor_availability()
         self._last_cpu_baseline()
         self._recent_log()
 
@@ -1373,15 +1375,10 @@ class DebugReport:
 
     def _selinux(self) -> None:
         sec = self._add("SELinux")
-        try:
-            result = subprocess.run(
-                ["getenforce"], capture_output=True, text=True, timeout=5,
-            )
-            sec.lines.append(f"  {result.stdout.strip()}")
-        except FileNotFoundError:
-            sec.lines.append("  not installed")
-        except Exception as e:
-            sec.lines.append(f"  getenforce failed: {e}")
+        se = check_selinux()
+        sec.lines.append(f"  {se.message}")
+        if not se.ok:
+            sec.lines.append("         run: sudo trcc setup-selinux")
 
     def _rapl_permissions(self) -> None:
         sec = self._add("RAPL power sensors")
@@ -1433,6 +1430,21 @@ class DebugReport:
 
     def _device_permissions(self) -> None:
         sec = self._add("Device permissions")
+        # User group membership
+        try:
+            import grp
+            user = os.environ.get("USER") or os.environ.get("LOGNAME") or ""
+            relevant_groups = ("plugdev", "dialout", "disk", "usb")
+            for group_name in relevant_groups:
+                try:
+                    grp_entry = grp.getgrnam(group_name)
+                    member = user in grp_entry.gr_mem
+                    sec.lines.append(f"  group {group_name}: {'member' if member else 'NOT member'}")
+                except KeyError:
+                    sec.lines.append(f"  group {group_name}: (does not exist on this system)")
+        except Exception as e:
+            sec.lines.append(f"  groups: error ({e})")
+        # /dev/sg* device access
         sg_found = False
         for entry in sorted(os.listdir("/dev")):
             if entry.startswith("sg"):
@@ -1446,7 +1458,7 @@ class DebugReport:
                 except Exception:
                     pass
         if not sg_found:
-            sec.lines.append("  (no /dev/sg* devices)")
+            sec.lines.append("  /dev/sg*: (none found)")
 
     # ── Protocol handshake sections ──────────────────────────────────────────
 
@@ -1500,7 +1512,7 @@ class DebugReport:
 
     def _handshake_scsi(self, dev: Any, sec: _Section) -> None:
         from trcc.adapters.device.factory import DeviceProtocolFactory
-        from trcc.core.models import FBL_TO_RESOLUTION
+        from trcc.core.models import FBL_PROFILES, FBL_TO_RESOLUTION
 
         protocol = DeviceProtocolFactory.create_protocol(dev)
         try:
@@ -1511,8 +1523,15 @@ class DebugReport:
             fbl = result.model_id
             known = "KNOWN" if fbl in FBL_TO_RESOLUTION else "UNKNOWN"
             res = result.resolution or (0, 0)
-            sec.lines.append(
-                f"    FBL={fbl} ({known}), resolution={res[0]}x{res[1]}")
+            profile = FBL_PROFILES.get(fbl)
+            if profile:
+                enc = "JPEG" if profile.jpeg else ("RGB565-BE" if profile.big_endian else "RGB565-LE")
+                rot = " rotated" if profile.rotate else ""
+                sec.lines.append(
+                    f"    FBL={fbl} ({known}), resolution={res[0]}x{res[1]}, encoding={enc}{rot}")
+            else:
+                sec.lines.append(
+                    f"    FBL={fbl} ({known}), resolution={res[0]}x{res[1]}")
             if result.raw_response:
                 sec.lines.append(f"    raw[0:64]={result.raw_response[:64].hex()}")
         finally:
@@ -1526,7 +1545,7 @@ class DebugReport:
             _has_usb_errno,
         )
         from trcc.adapters.device.hid import HidHandshakeInfo
-        from trcc.core.models import fbl_to_resolution, pm_to_fbl
+        from trcc.core.models import FBL_PROFILES, fbl_to_resolution, pm_to_fbl
 
         protocol = HidProtocol(vid=dev.vid, pid=dev.pid, device_type=dev.device_type)
         try:
@@ -1546,9 +1565,15 @@ class DebugReport:
             sub = info.mode_byte_2
             fbl = info.fbl if info.fbl is not None else pm_to_fbl(pm, sub)
             resolution = info.resolution or fbl_to_resolution(fbl, pm)
+            profile = FBL_PROFILES.get(fbl)
+            enc_str = ""
+            if profile:
+                enc = "JPEG" if profile.jpeg else ("RGB565-BE" if profile.big_endian else "RGB565-LE")
+                rot = " rotated" if profile.rotate else ""
+                enc_str = f", encoding={enc}{rot}"
             sec.lines.append(
                 f"    PM={pm} (0x{pm:02x}), SUB={sub} (0x{sub:02x}), "
-                f"FBL={fbl}, resolution={resolution[0]}x{resolution[1]}")
+                f"FBL={fbl}, resolution={resolution[0]}x{resolution[1]}{enc_str}")
             if info.serial:
                 sec.lines.append(f"    serial={info.serial}")
             if info.raw_response:
@@ -1599,6 +1624,7 @@ class DebugReport:
             BulkProtocol,
             _has_usb_errno,
         )
+        from trcc.core.models import FBL_PROFILES
 
         protocol = BulkProtocol(vid=dev.vid, pid=dev.pid)
         try:
@@ -1612,9 +1638,16 @@ class DebugReport:
                 else:
                     sec.lines.append(f"    Result: None ({error or 'no response'})")
                 return
+            fbl = result.model_id
+            profile = FBL_PROFILES.get(fbl)
+            enc_str = ""
+            if profile:
+                enc = "JPEG" if profile.jpeg else ("RGB565-BE" if profile.big_endian else "RGB565-LE")
+                rot = " rotated" if profile.rotate else ""
+                enc_str = f", encoding={enc}{rot}"
             sec.lines.append(
                 f"    PM={result.pm_byte}, SUB={result.sub_byte}, "
-                f"FBL={result.model_id}, resolution={result.resolution}, "
+                f"FBL={fbl}, resolution={result.resolution}{enc_str}, "
                 f"serial={result.serial}")
             if result.raw_response:
                 sec.lines.append(f"    raw[0:64]={result.raw_response[:64].hex()}")
@@ -1628,6 +1661,7 @@ class DebugReport:
             LyProtocol,
             _has_usb_errno,
         )
+        from trcc.core.models import FBL_PROFILES
 
         protocol = LyProtocol(vid=dev.vid, pid=dev.pid)
         try:
@@ -1641,9 +1675,16 @@ class DebugReport:
                 else:
                     sec.lines.append(f"    Result: None ({error or 'no response'})")
                 return
+            fbl = result.model_id
+            profile = FBL_PROFILES.get(fbl)
+            enc_str = ""
+            if profile:
+                enc = "JPEG" if profile.jpeg else ("RGB565-BE" if profile.big_endian else "RGB565-LE")
+                rot = " rotated" if profile.rotate else ""
+                enc_str = f", encoding={enc}{rot}"
             sec.lines.append(
                 f"    PM={result.pm_byte}, SUB={result.sub_byte}, "
-                f"FBL={result.model_id}, resolution={result.resolution}, "
+                f"FBL={fbl}, resolution={result.resolution}{enc_str}, "
                 f"serial={result.serial}")
             if result.raw_response:
                 sec.lines.append(f"    raw[0:64]={result.raw_response[:64].hex()}")
@@ -1667,12 +1708,139 @@ class DebugReport:
                 sec.lines.append(f"  {CONFIG_PATH}: (empty or missing)")
                 return
             sec.lines.append(f"  path: {CONFIG_PATH}")
-            for key in ("resolution", "temp_unit", "format_prefs"):
+            # Top-level scalar settings
+            for key in ("resolution", "temp_unit", "lang", "selected_device",
+                        "show_info_module", "installed_resolutions"):
                 if key in app_config:
                     sec.lines.append(f"  {key}: {app_config[key]}")
+            if "format_prefs" in app_config:
+                fp = app_config["format_prefs"]
+                sec.lines.append(f"  format_prefs: {fp}")
+            if "install_info" in app_config:
+                ii = app_config["install_info"]
+                sec.lines.append(f"  install_info: method={ii.get('method','?')}, distro={ii.get('distro','?')}")
+            # Per-device settings
             devices = app_config.get("devices", {})
             if devices:
-                sec.lines.append(f"  devices: {len(devices)} configured")
+                sec.lines.append(f"  devices ({len(devices)} configured):")
+                for dev_key, dev_cfg in devices.items():
+                    vid_pid = dev_cfg.get("vid_pid", "?")
+                    parts = [f"vid_pid={vid_pid}"]
+                    for field in ("brightness_level", "rotation", "split_mode", "theme_path", "fbl"):
+                        if field in dev_cfg:
+                            parts.append(f"{field}={dev_cfg[field]}")
+                    sec.lines.append(f"    [{dev_key}] {', '.join(parts)}")
+            else:
+                sec.lines.append("  devices: (none configured)")
+        except Exception as e:
+            sec.lines.append(f"  Error: {e}")
+
+    def _installed_themes(self) -> None:
+        sec = self._add("Installed themes")
+        try:
+            from trcc.core.models import FBL_PROFILES
+            from trcc.core.paths import USER_DATA_DIR
+
+            # Collect unique resolutions from FBL_PROFILES
+            seen: set[tuple[int, int]] = set()
+            resolutions: list[tuple[int, int]] = []
+            for p in FBL_PROFILES.values():
+                if p.resolution not in seen:
+                    seen.add(p.resolution)
+                    resolutions.append(p.resolution)
+            resolutions.sort()
+
+            found_any = False
+            for w, h in resolutions:
+                theme_dir = os.path.join(USER_DATA_DIR, f"theme{w}{h}")
+                web_dir = os.path.join(USER_DATA_DIR, "web", f"zt{w}{h}")
+                has_themes = os.path.isdir(theme_dir)
+                has_masks = os.path.isdir(web_dir)
+                if not has_themes and not has_masks:
+                    continue
+                found_any = True
+                theme_count = 0
+                if has_themes:
+                    try:
+                        theme_count = sum(
+                            1 for e in os.listdir(theme_dir)
+                            if os.path.isdir(os.path.join(theme_dir, e))
+                            and not e.startswith('.')
+                        )
+                    except OSError:
+                        pass
+                mask_count = 0
+                if has_masks:
+                    try:
+                        mask_count = sum(
+                            1 for e in os.listdir(web_dir)
+                            if os.path.isdir(os.path.join(web_dir, e))
+                            and not e.startswith('.')
+                        )
+                    except OSError:
+                        pass
+                parts = [f"{w}x{h}:"]
+                if has_themes:
+                    parts.append(f"themes={theme_count}")
+                if has_masks:
+                    parts.append(f"masks={mask_count}")
+                sec.lines.append(f"  {' '.join(parts)}")
+
+            if not found_any:
+                sec.lines.append("  (no themes installed — download themes in the GUI)")
+        except Exception as e:
+            sec.lines.append(f"  Error: {e}")
+
+    def _sensor_availability(self) -> None:
+        sec = self._add("Sensor availability")
+        try:
+            # psutil — CPU%, memory, disk
+            try:
+                import psutil
+                cpu = psutil.cpu_percent(interval=0.05)
+                sec.lines.append(f"  psutil: OK (cpu={cpu:.1f}%)")
+                # Temperature sensors (Linux hwmon / macOS IOKit)
+                if hasattr(psutil, 'sensors_temperatures'):
+                    try:
+                        temps = psutil.sensors_temperatures()
+                        if temps:
+                            sensors = list(temps.keys())[:4]
+                            sec.lines.append(f"  psutil temps: {sensors}")
+                        else:
+                            sec.lines.append("  psutil temps: none (no hwmon sensors visible)")
+                    except Exception as e:
+                        sec.lines.append(f"  psutil temps: error ({e})")
+                else:
+                    sec.lines.append("  psutil temps: not supported on this platform")
+            except ImportError:
+                sec.lines.append("  psutil: MISSING — install psutil")
+
+            # pynvml — NVIDIA GPU
+            try:
+                import pynvml  # type: ignore[import]
+                pynvml.nvmlInit()
+                count = pynvml.nvmlDeviceGetCount()
+                sec.lines.append(f"  pynvml (NVIDIA): OK ({count} GPU(s))")
+            except ImportError:
+                sec.lines.append("  pynvml (NVIDIA): not installed (optional)")
+            except Exception as e:
+                sec.lines.append(f"  pynvml (NVIDIA): {e}")
+
+            # /sys/class/hwmon (Linux)
+            hwmon_path = Path("/sys/class/hwmon")
+            if hwmon_path.exists():
+                try:
+                    hwmon_dirs = list(hwmon_path.iterdir())
+                    names = []
+                    for d in hwmon_dirs[:8]:
+                        name_file = d / "name"
+                        if name_file.exists():
+                            names.append(name_file.read_text().strip())
+                    sec.lines.append(f"  hwmon nodes: {len(hwmon_dirs)} ({', '.join(names[:6])})")
+                except Exception as e:
+                    sec.lines.append(f"  hwmon: error ({e})")
+            else:
+                sec.lines.append("  hwmon: not present (non-Linux)")
         except Exception as e:
             sec.lines.append(f"  Error: {e}")
 

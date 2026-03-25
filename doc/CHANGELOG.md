@@ -1,5 +1,14 @@
 # Changelog
 
+## v9.2.0
+
+### Enhancements
+- **`trcc report` comprehensive diagnostics**: report now contains everything needed to diagnose user issues without follow-up questions — full config dump with all per-device settings (brightness, rotation, split_mode, theme_path, fbl per VID/PID), installed theme inventory per resolution, sensor availability (psutil CPU%, hwmon node list, NVIDIA/pynvml status), FBL encoding decoded inline (`FBL=100 → RGB565-BE`, `FBL=54 → JPEG`, `FBL=72 → RGB565-LE rotated`), and Linux user group membership (plugdev, dialout, disk)
+
+### Internal
+- **Model-parametrized tests**: `test_encoding.py`, `test_device.py`, `test_perf.py` now derive all domain values from `FBL_PROFILES`, `LED_STYLES`, `ALL_DEVICES` — adding a new device to models automatically adds test coverage. 171 new parametrized test cases
+- **pytest-xdist coverage**: added `concurrency = ["multiprocessing", "thread"]` + `parallel = true` to coverage config so `--cov` collects correctly across xdist worker subprocesses
+
 ## v9.1.6
 
 ### Internal

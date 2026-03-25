@@ -17,7 +17,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from trcc.core.models import DetectedDevice, DeviceInfo
+from trcc.core.models import (
+    ALL_DEVICES,
+    FBL_PROFILES,
+    HID_LCD_DEVICES,
+    SCSI_DEVICES,
+    DetectedDevice,
+    DeviceInfo,
+)
 from trcc.services.device import DeviceService
 
 
@@ -181,12 +188,14 @@ class TestSelection:
 
 class TestDiscoverResolution:
     def test_handshake_sets_resolution(self):
+        fbl = 72
+        expected_res = FBL_PROFILES[fbl].resolution   # (480, 480) per the profile
         raw = [_make_detected('LCD')]
         svc = _make_service(raw)
         protocol = MagicMock()
         handshake_result = MagicMock()
-        handshake_result.resolution = (480, 480)
-        handshake_result.fbl = 72
+        handshake_result.resolution = expected_res
+        handshake_result.fbl = fbl
         protocol.handshake.return_value = handshake_result
         svc._get_protocol.return_value = protocol
 
@@ -194,13 +203,13 @@ class TestDiscoverResolution:
         dev = svc.devices[0]
         dev.resolution = (0, 0)
         svc._discover_resolution(dev)
-        assert dev.resolution == (480, 480)
-        assert dev.fbl_code == 72
+        assert dev.resolution == expected_res
+        assert dev.fbl_code == fbl
 
     def test_no_op_when_resolution_known(self):
         svc = _make_service()
         dev = DeviceInfo(name='t', path='p', vid=1, pid=2, device_index=0)
-        dev.resolution = (320, 320)
+        dev.resolution = FBL_PROFILES[100].resolution  # any non-zero resolution
         svc._discover_resolution(dev)
         svc._get_protocol.assert_not_called()
 
@@ -220,10 +229,12 @@ class TestDiscoverResolution:
 
 class TestSend:
     def test_send_rgb565_no_device(self):
+        w, h = FBL_PROFILES[100].resolution
         svc = _make_service()
-        assert svc.send_rgb565(b'\x00' * 100, 320, 320) is False
+        assert svc.send_rgb565(b'\x00' * 100, w, h) is False
 
     def test_send_rgb565_success(self):
+        w, h = FBL_PROFILES[100].resolution
         svc = _make_service()
         dev = DeviceInfo(name='t', path='p', vid=1, pid=2, device_index=0)
         svc.select(dev)
@@ -231,22 +242,23 @@ class TestSend:
         protocol.send_image.return_value = True
         svc._get_protocol.return_value = protocol
 
-        assert svc.send_rgb565(b'\x00' * 100, 320, 320) is True
+        assert svc.send_rgb565(b'\x00' * 100, w, h) is True
         protocol.send_image.assert_called_once()
 
     def test_send_rgb565_busy_skips(self):
+        w, h = FBL_PROFILES[100].resolution
         svc = _make_service()
         dev = DeviceInfo(name='t', path='p', vid=1, pid=2, device_index=0)
         svc.select(dev)
 
-        # Simulate busy state
         svc._send_busy = True
-        assert svc.send_rgb565(b'\x00', 320, 320) is False
+        assert svc.send_rgb565(b'\x00', w, h) is False
 
     def test_send_pil_cache_hit(self):
+        w, h = FBL_PROFILES[100].resolution
         svc = _make_service()
         dev = DeviceInfo(name='t', path='p', vid=1, pid=2, device_index=0)
-        dev.resolution = (320, 320)
+        dev.resolution = (w, h)
         svc.select(dev)
         protocol = MagicMock()
         protocol.send_image.return_value = True
@@ -257,11 +269,11 @@ class TestSend:
         svc._last_encode_id = id(img)
         svc._last_encode_data = cached_data
 
-        svc.send_pil(img, 320, 320)
-        # Should use cached data, not re-encode
-        protocol.send_image.assert_called_once_with(cached_data, 320, 320)
+        svc.send_pil(img, w, h)
+        protocol.send_image.assert_called_once_with(cached_data, w, h)
 
     def test_send_pil_callback(self):
+        w, h = FBL_PROFILES[100].resolution
         svc = _make_service()
         dev = DeviceInfo(name='t', path='p', vid=1, pid=2, device_index=0)
         svc.select(dev)
@@ -275,17 +287,18 @@ class TestSend:
         img = MagicMock()
         svc._last_encode_id = id(img)
         svc._last_encode_data = b'\x00'
-        svc.send_pil(img, 320, 320)
+        svc.send_pil(img, w, h)
         callback.assert_called_once_with(img)
 
     def test_send_error_returns_false(self):
+        w, h = FBL_PROFILES[100].resolution
         svc = _make_service()
         dev = DeviceInfo(name='t', path='p', vid=1, pid=2, device_index=0)
         svc.select(dev)
         svc._get_protocol.side_effect = RuntimeError("disconnected")
 
-        assert svc.send_rgb565(b'\x00', 320, 320) is False
-        assert svc.is_busy is False  # Lock released on error
+        assert svc.send_rgb565(b'\x00', w, h) is False
+        assert svc.is_busy is False
 
 
 # =========================================================================
@@ -295,19 +308,20 @@ class TestSend:
 
 class TestAsyncSend:
     def test_send_rgb565_async_queues(self):
+        w, h = FBL_PROFILES[100].resolution
         svc = _make_service()
         dev = DeviceInfo(name='t', path='p', vid=1, pid=2, device_index=0)
         svc.select(dev)
-        # Don't actually start worker
         svc._ensure_send_worker = MagicMock()
-        svc.send_rgb565_async(b'\x00', 320, 320)
+        svc.send_rgb565_async(b'\x00', w, h)
         assert len(svc._send_queue) == 1
 
     def test_queue_maxlen_1_latest_wins(self):
+        w, h = FBL_PROFILES[100].resolution
         svc = _make_service()
         svc._ensure_send_worker = MagicMock()
-        svc.send_rgb565_async(b'\x01', 320, 320)
-        svc.send_rgb565_async(b'\x02', 320, 320)
+        svc.send_rgb565_async(b'\x01', w, h)
+        svc.send_rgb565_async(b'\x02', w, h)
         assert len(svc._send_queue) == 1
         assert svc._send_queue[0][0] == b'\x02'
 
@@ -334,3 +348,48 @@ class TestProtocolInfo:
         dev = DeviceInfo(name='t', path='p', vid=1, pid=2, device_index=0)
         svc.select(dev)
         assert svc.get_protocol_info() == "scsi_v2"
+
+
+# =========================================================================
+# Model-driven: every device in ALL_DEVICES is detectable
+# =========================================================================
+
+
+@pytest.mark.parametrize("vid_pid,entry", list(ALL_DEVICES.items()),
+                         ids=[f"{v:04X}:{p:04X}" for v, p in ALL_DEVICES])
+def test_every_known_device_in_registry(vid_pid, entry):
+    """Every VID/PID in ALL_DEVICES has an implementation name — no orphan entries."""
+    assert entry.implementation, \
+        f"{vid_pid}: DeviceEntry has no implementation name"
+
+
+@pytest.mark.parametrize("vid_pid,entry", list(SCSI_DEVICES.items()),
+                         ids=[f"{v:04X}:{p:04X}" for v, p in SCSI_DEVICES])
+def test_scsi_devices_have_scsi_protocol(vid_pid, entry):
+    """Every entry in SCSI_DEVICES uses scsi protocol (default on DeviceEntry)."""
+    assert entry.protocol == 'scsi', \
+        f"{vid_pid}: SCSI device has unexpected protocol '{entry.protocol}'"
+
+
+@pytest.mark.parametrize("vid_pid,entry", list(HID_LCD_DEVICES.items()),
+                         ids=[f"{v:04X}:{p:04X}" for v, p in HID_LCD_DEVICES])
+def test_hid_devices_have_hid_protocol(vid_pid, entry):
+    """Every entry in HID_LCD_DEVICES uses hid protocol."""
+    assert entry.protocol == 'hid', \
+        f"{vid_pid}: HID device has unexpected protocol '{entry.protocol}'"
+
+
+@pytest.mark.parametrize("fbl,profile", list(FBL_PROFILES.items()),
+                         ids=[str(f) for f in FBL_PROFILES])
+def test_every_fbl_profile_has_positive_resolution(fbl, profile):
+    """Every FBL profile declares a positive width and height."""
+    assert profile.width > 0, f"FBL {fbl}: width={profile.width}"
+    assert profile.height > 0, f"FBL {fbl}: height={profile.height}"
+
+
+@pytest.mark.parametrize("fbl,profile", list(FBL_PROFILES.items()),
+                         ids=[str(f) for f in FBL_PROFILES])
+def test_jpeg_and_big_endian_are_mutually_exclusive(fbl, profile):
+    """No profile is both JPEG and big-endian — JPEG encoding ignores byte order."""
+    assert not (profile.jpeg and profile.big_endian), \
+        f"FBL {fbl}: jpeg=True and big_endian=True simultaneously"

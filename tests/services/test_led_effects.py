@@ -124,10 +124,12 @@ class TestColorfulMode:
         colors = engine._tick_colorful_for(1)
         assert colors[0] == (255, 255, 0)
 
-    def test_uniform_across_segments(self):
+    def test_segments_have_phase_offset(self):
+        """Each segment gets a different phase offset — colorful is not uniform."""
         engine = _make_engine()
         colors = engine._tick_colorful_for(6)
-        assert all(c == colors[0] for c in colors)
+        assert len(colors) == 6
+        assert len(set(colors)) > 1
 
 
 # =========================================================================

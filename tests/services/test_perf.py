@@ -32,10 +32,12 @@ class TestRunDeviceBenchmarks:
     """run_device_benchmarks — LCD and LED hardware benchmarking."""
 
     def _mock_lcd_device(self):
+        from trcc.core.models import FBL_PROFILES
+        profile = FBL_PROFILES[100]   # canonical SCSI 320x320 big-endian device
         dev = MagicMock()
         dev.implementation = 'scsi'
-        dev.resolution = (320, 320)
-        dev.encoding_params = ('scsi', (320, 320), None, True)
+        dev.resolution = profile.resolution
+        dev.encoding_params = ('scsi', profile.resolution, 100, not profile.jpeg)
         return dev
 
     def _mock_led_device(self):
@@ -244,10 +246,12 @@ class TestIPCPauseResume:
     def test_resumes_even_on_error(self):
         """GUI resumes even if benchmarks crash."""
         mock_svc = MagicMock()
+        from trcc.core.models import FBL_PROFILES
+        profile = FBL_PROFILES[100]
         lcd_dev = MagicMock()
         lcd_dev.implementation = 'scsi'
-        lcd_dev.resolution = (320, 320)
-        lcd_dev.encoding_params = ('scsi', (320, 320), None, True)
+        lcd_dev.resolution = profile.resolution
+        lcd_dev.encoding_params = ('scsi', profile.resolution, 100, not profile.jpeg)
         mock_svc.devices = [lcd_dev]
 
         mock_factory = MagicMock()

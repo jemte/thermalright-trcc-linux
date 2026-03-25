@@ -63,9 +63,11 @@ def launch(verbosity: int = 0, decorated: bool = False,
 
     setup.configure_dpi()
 
+    from typing import cast
+
     from PySide6.QtGui import QFont
     from PySide6.QtWidgets import QApplication
-    qapp = QApplication(sys.argv)
+    qapp = cast(QApplication, QApplication.instance() or QApplication(sys.argv))
     qapp.setQuitOnLastWindowClosed(False)
     qapp.setDesktopFileName("trcc-linux")
     qapp.setProperty("_instance_lock", lock)
