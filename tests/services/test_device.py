@@ -7,7 +7,7 @@ Covers:
 - scan_and_select() — priority: explicit path > saved > first
 - _discover_resolution() — handshake, no-op when already known
 - send_rgb565() — thread-safe, busy guard
-- send_pil() — encode cache by id()
+- send_frame() — encode cache by id()
 - send_rgb565_async() — persistent send worker queue
 - is_busy property
 """
@@ -254,7 +254,7 @@ class TestSend:
         svc._send_busy = True
         assert svc.send_rgb565(b'\x00', w, h) is False
 
-    def test_send_pil_cache_hit(self):
+    def test_send_frame_cache_hit(self):
         w, h = FBL_PROFILES[100].resolution
         svc = _make_service()
         dev = DeviceInfo(name='t', path='p', vid=1, pid=2, device_index=0)
@@ -269,10 +269,10 @@ class TestSend:
         svc._last_encode_id = id(img)
         svc._last_encode_data = cached_data
 
-        svc.send_pil(img, w, h)
+        svc.send_frame(img, w, h)
         protocol.send_image.assert_called_once_with(cached_data, w, h)
 
-    def test_send_pil_callback(self):
+    def test_send_frame_callback(self):
         w, h = FBL_PROFILES[100].resolution
         svc = _make_service()
         dev = DeviceInfo(name='t', path='p', vid=1, pid=2, device_index=0)
@@ -287,7 +287,7 @@ class TestSend:
         img = MagicMock()
         svc._last_encode_id = id(img)
         svc._last_encode_data = b'\x00'
-        svc.send_pil(img, w, h)
+        svc.send_frame(img, w, h)
         callback.assert_called_once_with(img)
 
     def test_send_error_returns_false(self):

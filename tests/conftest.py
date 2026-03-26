@@ -210,7 +210,7 @@ def mock_service(device_info):
         svc.selected = dev
         svc.devices = [dev]
         svc.detect.return_value = svc.devices
-        svc.send_pil.return_value = True
+        svc.send_frame.return_value = True
         return svc
     return _make
 
@@ -407,7 +407,7 @@ def make_mock_service(device: DeviceInfo | None = None) -> MagicMock:
     svc.selected = dev
     svc.devices = [dev]
     svc.detect.return_value = svc.devices
-    svc.send_pil.return_value = True
+    svc.send_frame.return_value = True
     return svc
 
 

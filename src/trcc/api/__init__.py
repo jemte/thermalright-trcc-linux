@@ -125,7 +125,7 @@ def start_video_playback(
             if frame is None:
                 break
             if should_send:
-                _device_svc.send_pil(frame, width, height)
+                _device_svc.send_frame(frame, width, height)
             stop_event.wait(interval)
 
     _video_thread = threading.Thread(target=_pump, daemon=True, name="api-video")
@@ -195,7 +195,7 @@ def start_overlay_loop(
                 overlay.update_metrics(metrics)
                 frame = overlay.render(metrics=metrics)
                 if frame is not None:
-                    _device_svc.send_pil(frame, width, height)
+                    _device_svc.send_frame(frame, width, height)
             stop_event.wait(2.0)
 
     _overlay_thread = threading.Thread(target=_loop, daemon=True, name="api-overlay")

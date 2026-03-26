@@ -127,7 +127,7 @@ class TestCLISendPipeline(unittest.TestCase):
 class TestCLIResumePipeline(unittest.TestCase):
     """CLI resume() → DeviceService.detect → load config → ImageService → send."""
 
-    @patch("trcc.services.device.DeviceService.send_pil_async")
+    @patch("trcc.services.device.DeviceService.send_frame_async")
     @patch("trcc.adapters.device.factory.DeviceProtocolFactory.get_protocol")
     @patch("trcc.core.builder.ControllerBuilder.build_detect_fn")
     @patch("trcc.conf.Settings.get_device_config")
@@ -158,7 +158,7 @@ class TestCLIResumePipeline(unittest.TestCase):
             from trcc.core.builder import ControllerBuilder
             result = resume(ControllerBuilder(LinuxPlatform()))
             self.assertEqual(result, 0)
-            # send_pil_async is called synchronously by lcd.send() —
+            # send_frame_async is called synchronously by lcd.send() —
             # no race condition with background worker thread
             mock_send_async.assert_called_once()
             image = mock_send_async.call_args[0][0]

@@ -427,10 +427,10 @@ async def create_theme(
         api._overlay_svc = overlay_svc
         from trcc.services.system import get_all_metrics
         frame = overlay_svc.render(get_all_metrics())
-        lcd.frame.send_pil(frame)
+        lcd.frame.send_frame(frame)
         api.set_current_image(frame)
     else:
-        lcd.frame.send_pil(img)
+        lcd.frame.send_frame(img)
         api.set_current_image(img)
 
     return {"success": True, "animated": False, "resolution": f"{w}x{h}"}

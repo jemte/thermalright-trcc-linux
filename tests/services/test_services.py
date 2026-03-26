@@ -627,7 +627,7 @@ class TestLEDZonesAnsiWithMetrics(unittest.TestCase):
 
 
 class TestDeviceServiceSendPilBulk(unittest.TestCase):
-    """Test that send_pil routes bulk devices through JPEG encoding."""
+    """Test that send_frame routes bulk devices through JPEG encoding."""
 
     def test_bulk_sends_jpeg(self):
         """Bulk protocol → ImageService.to_jpeg() path."""
@@ -638,7 +638,7 @@ class TestDeviceServiceSendPilBulk(unittest.TestCase):
 
         with patch.object(svc, 'send_rgb565', return_value=True) as mock_send:
             img = make_test_surface(480, 480, (255, 0, 0))
-            result = svc.send_pil(img, 480, 480)
+            result = svc.send_frame(img, 480, 480)
 
         self.assertTrue(result)
         call_data = mock_send.call_args[0][0]
@@ -654,7 +654,7 @@ class TestDeviceServiceSendPilBulk(unittest.TestCase):
 
         with patch.object(svc, 'send_rgb565', return_value=True) as mock_send:
             img = make_test_surface(320, 320, (255, 0, 0))
-            result = svc.send_pil(img, 320, 320)
+            result = svc.send_frame(img, 320, 320)
 
         self.assertTrue(result)
         call_data = mock_send.call_args[0][0]
@@ -672,7 +672,7 @@ class TestDeviceServiceSendPilBulk(unittest.TestCase):
 
         with patch.object(svc, 'send_rgb565', return_value=True) as mock_send:
             img = make_test_surface(320, 320, (255, 0, 0))
-            result = svc.send_pil(img, 320, 320)
+            result = svc.send_frame(img, 320, 320)
 
         self.assertTrue(result)
         call_data = mock_send.call_args[0][0]

@@ -209,7 +209,7 @@ class DeviceService:
             with self._send_lock:
                 self._send_busy = False
 
-    def send_pil(self, image: Any, width: int, height: int) -> bool:
+    def send_frame(self, image: Any, width: int, height: int) -> bool:
         """Encode image for device and send.
 
         Delegates encoding strategy to ImageService.encode_for_device() —
@@ -247,7 +247,7 @@ class DeviceService:
         self._send_queue.append((data, width, height))
         self._send_event.set()
 
-    def send_pil_async(self, image: Any, width: int, height: int) -> None:
+    def send_frame_async(self, image: Any, width: int, height: int) -> None:
         """Encode image and queue for the persistent send worker.
 
         Encoding runs inline (~0.5ms), then routes through the same

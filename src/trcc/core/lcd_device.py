@@ -412,14 +412,14 @@ class LCDDevice(Device):
         from ..services import ImageService
         w, h = self.lcd_size
         img = ImageService.open_and_resize(image_path, w, h)
-        self._device_svc.send_pil(img, w, h)
+        self._device_svc.send_frame(img, w, h)
         return {"success": True, "image": img, "message": f"Sent {image_path}"}
 
     def send_color(self, r: int, g: int, b: int) -> dict:
         from ..services import ImageService
         w, h = self.lcd_size
         img = ImageService.solid_color(r, g, b, w, h)
-        self._device_svc.send_pil(img, w, h)
+        self._device_svc.send_frame(img, w, h)
         return {"success": True, "image": img,
                 "message": f"Sent color #{r:02x}{g:02x}{b:02x}"}
 
@@ -428,13 +428,13 @@ class LCDDevice(Device):
         if not self._device_svc.selected:
             return {"success": False, "error": "No device selected"}
         w, h = self.lcd_size
-        self._device_svc.send_pil_async(image, w, h)
+        self._device_svc.send_frame_async(image, w, h)
         return {"success": True}
 
     def send_async(self, image: Any, width: int, height: int) -> None:
         if self._device_svc.is_busy:
             return
-        self._device_svc.send_pil_async(image, width, height)
+        self._device_svc.send_frame_async(image, width, height)
 
     def load_image(self, path: Any) -> dict:
         image = self._display_svc.load_image_file(Path(path))
@@ -447,7 +447,7 @@ class LCDDevice(Device):
         from ..services import ImageService
         w, h = self.lcd_size
         img = ImageService.solid_color(255, 0, 0, w, h)
-        self._device_svc.send_pil(img, w, h)
+        self._device_svc.send_frame(img, w, h)
         return {"success": True, "image": img, "message": "Device reset — RED"}
 
     # ── Display settings (brightness/rotation/split) ─────────────

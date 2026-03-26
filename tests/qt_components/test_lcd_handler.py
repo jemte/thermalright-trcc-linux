@@ -92,6 +92,7 @@ def _make_bus(lcd: MagicMock | None = None) -> MagicMock:
     def _dispatch(cmd: object) -> CommandResult:
         from trcc.core.commands.lcd import (
             SetBrightnessCommand,
+            SetResolutionCommand,
             SetRotationCommand,
             SetSplitModeCommand,
         )
@@ -101,6 +102,8 @@ def _make_bus(lcd: MagicMock | None = None) -> MagicMock:
             return CommandResult.from_dict(_lcd.set_rotation(cmd.degrees))
         if isinstance(cmd, SetSplitModeCommand):
             return CommandResult.from_dict(_lcd.set_split_mode(cmd.mode))
+        if isinstance(cmd, SetResolutionCommand):
+            return CommandResult.from_dict(_lcd.set_resolution(cmd.width, cmd.height))
         return CommandResult.ok(message="ok")
 
     bus.dispatch.side_effect = _dispatch
@@ -221,7 +224,9 @@ class TestApplyDeviceConfig:
         lcd.lcd_size = (320, 320)
         h = _make_handler(lcd=lcd)
         h.apply_device_config(self._device(), 480, 480)
-        lcd.set_resolution.assert_called_with(480, 480)
+        # Resolution change goes via bus (SetResolutionCommand → EnsureDataCommand auto-fires)
+        from trcc.core.commands.lcd import SetResolutionCommand
+        h._bus.dispatch.assert_any_call(SetResolutionCommand(width=480, height=480))
         h._w['preview'].set_resolution.assert_called_with(480, 480)
 
     @patch('trcc.qt_components.lcd_handler.Settings')
@@ -232,7 +237,9 @@ class TestApplyDeviceConfig:
         lcd.lcd_size = (320, 320)
         h = _make_handler(lcd=lcd)
         h.apply_device_config(self._device(), 320, 320)
-        lcd.set_resolution.assert_not_called()
+        from trcc.core.commands.lcd import SetResolutionCommand
+        dispatched = [c.args[0] for c in h._bus.dispatch.call_args_list]
+        assert not any(isinstance(c, SetResolutionCommand) for c in dispatched)
 
     @patch('trcc.qt_components.lcd_handler.Settings')
     def test_split_mode_restored_for_split_resolution(self, mock_settings):

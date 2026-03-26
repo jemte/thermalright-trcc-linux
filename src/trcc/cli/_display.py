@@ -84,7 +84,7 @@ def test(device=None, loop=False, preview=False):
             for (r, g, b), name in colors:
                 print(f"  Displaying: {name}")
                 img = ImageService.solid_color(r, g, b, w, h)
-                svc.send_pil(img, w, h)
+                svc.send_frame(img, w, h)
                 if preview:
                     print(ImageService.to_ansi(img))
                 time.sleep(1)
@@ -165,7 +165,7 @@ def play_video(builder, video_path, *, device=None, loop=True, duration=0,
         def _on_frame(img):
             svc = lcd._device_svc
             if svc:
-                svc.send_pil(img, w, h)
+                svc.send_frame(img, w, h)
             if preview:
                 from trcc.services import ImageService
                 print(ImageService.to_ansi_cursor_home(img), flush=True)
@@ -252,10 +252,10 @@ def screencast(builder, *, device=None, x=0, y=0, w=0, h=0, fps=10, preview=Fals
             raw = proc.stdout.read(frame_size)
             if len(raw) < frame_size:
                 break
-            # Detach from raw buffer immediately — send_pil may hold a ref
+            # Detach from raw buffer immediately — send_frame may hold a ref
             qimg = QImage(raw, lcd_w, lcd_h, lcd_w * 3,
                           QImage.Format.Format_RGB888).copy()
-            svc.send_pil(qimg, lcd_w, lcd_h)
+            svc.send_frame(qimg, lcd_w, lcd_h)
             frames += 1
             if preview:
                 print(ImageService.to_ansi_cursor_home(qimg), flush=True)

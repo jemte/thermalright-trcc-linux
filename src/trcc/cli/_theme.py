@@ -104,7 +104,7 @@ def load_theme(builder, name, *, device=None, preview=False):
 
         loop_result = lcd._display_svc._run_tick_loop(
             metrics_fn=metrics_fn,
-            on_frame=lambda img: svc.send_pil(img, w, h),
+            on_frame=lambda img: svc.send_frame(img, w, h),
             on_progress=lambda p, c, t: print(
                 f"\r  {c} / {t} ({p:.0f}%)", end="", flush=True),
         )

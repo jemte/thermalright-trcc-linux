@@ -205,7 +205,7 @@ class TestLCDDeviceFrame(unittest.TestCase):
         lcd = _make_lcd(display_svc=disp)
         result = lcd.send_image('/tmp/test.png')
         self.assertTrue(result['success'])
-        lcd._device_svc.send_pil.assert_called_once()
+        lcd._device_svc.send_frame.assert_called_once()
 
     @patch('trcc.services.image.ImageService.solid_color')
     def test_send_color_delegates(self, mock_solid):
@@ -216,7 +216,7 @@ class TestLCDDeviceFrame(unittest.TestCase):
         lcd = _make_lcd(display_svc=disp)
         result = lcd.send_color(255, 0, 0)
         self.assertTrue(result['success'])
-        lcd._device_svc.send_pil.assert_called_once()
+        lcd._device_svc.send_frame.assert_called_once()
 
     def test_send_no_device_selected(self):
         svc = MagicMock()
@@ -234,7 +234,7 @@ class TestLCDDeviceFrame(unittest.TestCase):
         lcd = _make_lcd(device_svc=svc, display_svc=disp)
         result = lcd.send(MagicMock())
         self.assertTrue(result['success'])
-        svc.send_pil_async.assert_called_once()
+        svc.send_frame_async.assert_called_once()
 
 
 # =============================================================================
@@ -531,8 +531,8 @@ class TestLoadThemeByName:
         result = lcd_with_mocks.load_theme_by_name("Static001")
 
         assert result["success"] is True
-        # send_pil_async called (via LCDDevice.send → device_svc.send_pil_async)
-        lcd_with_mocks._device_svc.send_pil_async.assert_called_once()
+        # send_frame_async called (via LCDDevice.send → device_svc.send_frame_async)
+        lcd_with_mocks._device_svc.send_frame_async.assert_called_once()
 
     @patch("trcc.conf.Settings.save_device_setting")
     @patch("trcc.conf.Settings.device_config_key", return_value="0")
@@ -561,8 +561,8 @@ class TestLoadThemeByName:
 
         assert result["success"] is True
         assert result["is_animated"] is True
-        # send_pil_async NOT called — caller handles video loop
-        lcd_with_mocks._device_svc.send_pil_async.assert_not_called()
+        # send_frame_async NOT called — caller handles video loop
+        lcd_with_mocks._device_svc.send_frame_async.assert_not_called()
 
     @patch("trcc.conf.Settings.save_device_setting")
     @patch("trcc.conf.Settings.device_config_key", return_value="0")

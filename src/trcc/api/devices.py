@@ -203,7 +203,7 @@ async def send_image(device_id: int, image: UploadFile, rotation: int = 0,
 
     # Encode and send via service (handles JPEG vs RGB565, rotation, byte order)
     # Frame capture is automatic via on_frame_sent callback
-    ok = _device_svc.send_pil(img, w, h)
+    ok = _device_svc.send_frame(img, w, h)
 
     if not ok:
         raise HTTPException(status_code=500, detail="Send failed (device busy or error)")

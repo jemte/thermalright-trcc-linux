@@ -21,7 +21,12 @@ import trcc.conf as _conf
 from trcc.conf import Settings
 
 from ..core.command_bus import CommandBus
-from ..core.commands.lcd import SetBrightnessCommand, SetRotationCommand, SetSplitModeCommand
+from ..core.commands.lcd import (
+    SetBrightnessCommand,
+    SetResolutionCommand,
+    SetRotationCommand,
+    SetSplitModeCommand,
+)
 from ..core.lcd_device import LCDDevice
 from ..core.models import (
     DEFAULT_BRIGHTNESS_LEVEL,
@@ -121,10 +126,10 @@ class LCDHandler(BaseHandler):
         self._device_key = Settings.device_config_key(
             device.device_index, device.vid, device.pid)
 
-        # Resolution change — update Settings + DisplayService (triggers data download)
+        # Resolution change — dispatch via bus so EnsureDataCommand fires automatically
         cur_w, cur_h = self._lcd.lcd_size
         if (w, h) != (cur_w, cur_h):
-            self._lcd.set_resolution(w, h)
+            self._bus.dispatch(SetResolutionCommand(width=w, height=h))
             self._w['preview'].set_resolution(w, h)
             self._w['image_cut'].set_resolution(w, h)
             self._w['video_cut'].set_resolution(w, h)

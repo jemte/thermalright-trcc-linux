@@ -47,7 +47,7 @@ def mock_device_svc(mock_device_info):
     """Mock DeviceService with a pre-selected device."""
     svc = MagicMock()
     svc.selected = mock_device_info
-    svc.send_pil.return_value = True
+    svc.send_frame.return_value = True
     svc.is_busy = False
     return svc
 
@@ -256,7 +256,7 @@ class TestFrameOps:
         assert result["success"] is True
         assert "image" in result
         assert "Sent" in result["message"]
-        mock_device_svc.send_pil.assert_called_once()
+        mock_device_svc.send_frame.assert_called_once()
 
     def test_send_color_success(self, lcd, mock_device_svc):
         mock_img = make_test_surface(320, 320, (255, 0, 0))
@@ -266,7 +266,7 @@ class TestFrameOps:
 
         assert result["success"] is True
         assert "ff0000" in result["message"]
-        mock_device_svc.send_pil.assert_called_once_with(mock_img, 320, 320)
+        mock_device_svc.send_frame.assert_called_once_with(mock_img, 320, 320)
 
     def test_send_color_args(self, lcd):
         mock_img = make_test_surface(320, 320)
@@ -285,7 +285,7 @@ class TestFrameOps:
         assert result["success"] is True
         assert "RED" in result["message"]
         mock_sc.assert_called_once_with(255, 0, 0, 320, 320)
-        mock_device_svc.send_pil.assert_called_once_with(mock_img, 320, 320)
+        mock_device_svc.send_frame.assert_called_once_with(mock_img, 320, 320)
 
 
 # =========================================================================

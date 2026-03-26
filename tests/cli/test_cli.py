@@ -399,7 +399,7 @@ class TestTestDisplay(unittest.TestCase):
             result = cli_test_display(device='/dev/sg0', loop=False)
         self.assertEqual(result, 0)
         # 7 colors displayed
-        self.assertEqual(svc.send_pil.call_count, 7)
+        self.assertEqual(svc.send_frame.call_count, 7)
 
     def test_display_error(self):
         """Exception returns 1."""
@@ -413,7 +413,7 @@ class TestTestDisplayExtra(unittest.TestCase):
 
     def test_keyboard_interrupt(self):
         svc = _mock_service()
-        svc.send_pil.side_effect = KeyboardInterrupt
+        svc.send_frame.side_effect = KeyboardInterrupt
         with patch('trcc.cli._device._get_service', return_value=svc):
             result = cli_test_display()
         self.assertEqual(result, 0)

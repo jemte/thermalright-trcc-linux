@@ -173,7 +173,7 @@ class TestSendImage(unittest.TestCase):
         _device_svc._devices = [self.dev]
         _device_svc._selected = None
 
-    @patch.object(_device_svc, 'send_pil', return_value=True)
+    @patch.object(_device_svc, 'send_frame', return_value=True)
     def test_send_image_success(self, mock_send):
         buf = io.BytesIO(_png_bytes(100, 100))
         buf.seek(0)
@@ -186,7 +186,7 @@ class TestSendImage(unittest.TestCase):
         self.assertTrue(resp.json()["sent"])
         mock_send.assert_called_once()
 
-    @patch.object(_device_svc, 'send_pil', return_value=False)
+    @patch.object(_device_svc, 'send_frame', return_value=False)
     def test_send_image_failure(self, mock_send):
         buf = io.BytesIO(_png_bytes(100, 100))
         buf.seek(0)
@@ -224,7 +224,7 @@ class TestSendImage(unittest.TestCase):
         )
         self.assertEqual(resp.status_code, 404)
 
-    @patch.object(_device_svc, 'send_pil', return_value=True)
+    @patch.object(_device_svc, 'send_frame', return_value=True)
     def test_send_with_rotation(self, mock_send):
         buf = io.BytesIO(_png_bytes(100, 100))
         buf.seek(0)
@@ -236,7 +236,7 @@ class TestSendImage(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
 
 
-    @patch.object(_device_svc, 'send_pil', return_value=True)
+    @patch.object(_device_svc, 'send_frame', return_value=True)
     def test_send_propagates_fbl_from_handshake(self, mock_send):
         """Handshake fbl_code propagates to DeviceInfo for JPEG mode detection."""
         dev = DeviceInfo(name="HID", path="hid:0416:5302", vid=0x0416, pid=0x5302,
@@ -993,7 +993,7 @@ class TestOverlayLoop(unittest.TestCase):
         mock_system = MagicMock()
         mock_system.all_metrics = HardwareMetrics()
         api_module._system_svc = mock_system
-        mock_svc.send_pil.return_value = True
+        mock_svc.send_frame.return_value = True
 
         bg = make_test_surface(320, 320, (0, 0, 0))
 
@@ -1544,7 +1544,7 @@ class TestSendImageEdgeCases(unittest.TestCase):
         _device_svc._selected = None
 
     def test_send_with_brightness_param(self) -> None:
-        with patch.object(_device_svc, "send_pil", return_value=True):
+        with patch.object(_device_svc, "send_frame", return_value=True):
             resp = self.client.post(
                 "/devices/0/send?brightness=50",
                 files={"image": ("t.png", io.BytesIO(_png_bytes()), "image/png")},
@@ -1579,7 +1579,7 @@ class TestSendImageEdgeCases(unittest.TestCase):
         self.assertEqual(resp.status_code, 400)
 
     def test_send_response_has_resolution_field(self) -> None:
-        with patch.object(_device_svc, "send_pil", return_value=True):
+        with patch.object(_device_svc, "send_frame", return_value=True):
             resp = self.client.post(
                 "/devices/0/send",
                 files={"image": ("t.png", io.BytesIO(_png_bytes()), "image/png")},
