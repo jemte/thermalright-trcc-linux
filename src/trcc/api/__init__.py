@@ -78,11 +78,10 @@ def configure_app() -> None:
     global _system_svc  # noqa: PLW0603
     from trcc.adapters.render.qt import QtRenderer
     from trcc.core.app import TrccApp
-    from trcc.core.commands.initialize import InitPlatformCommand
     from trcc.services.system import set_instance
 
     trcc_app = TrccApp.init()
-    trcc_app.os_bus.dispatch(InitPlatformCommand(renderer_factory=QtRenderer))
+    trcc_app.bootstrap(renderer_factory=QtRenderer)
     _system_svc = trcc_app.build_system()
     set_instance(_system_svc)
 

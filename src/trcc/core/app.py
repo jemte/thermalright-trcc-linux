@@ -129,9 +129,13 @@ class TrccApp:
     # ── Device scanning ──────────────────────────────────────────────────────
 
     def scan(self) -> list[Device]:
-        """Detect hardware, build and connect LCDDevice/LEDDevice, store buses.
+        """Detect hardware, build and connect LCDDevice/LEDDevice in parallel.
 
-        init() → OS → scan() is the correct sequence:
+        Detection is sequential (single USB enumerate call), then one thread
+        per device for connect + _wire_bus (USB handshakes run concurrently).
+        _wire_bus fires EnsureDataCommand per resolution in a background thread.
+
+        Sequence: bootstrap() or init() → OS → scan()
           - LCD found → lcd_bus built and stored
           - LED found → led_bus built and stored
           - Notifies observers with DEVICES_CHANGED
@@ -140,19 +144,46 @@ class TrccApp:
         found: list[DetectedDevice] = detect_fn()
 
         self._devices = {}
-        for detected in found:
+        lock = threading.Lock()
+
+        def _connect_one(detected: DetectedDevice) -> None:
             device = self._builder.build_device(detected)
             try:
                 device.connect(detected)
             except Exception:
                 log.warning("scan: connect failed for %s — skipping", detected.path)
-                continue
-            self._devices[detected.path] = device
-            self._wire_bus(device)
+                return
+            with lock:
+                self._devices[detected.path] = device
+                self._wire_bus(device)
+
+        threads = [
+            threading.Thread(target=_connect_one, args=(d,), daemon=True)
+            for d in found
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=30)
 
         log.debug("scan: %d device(s) found", len(self._devices))
         self._notify(AppEvent.DEVICES_CHANGED, list(self._devices.values()))
         return list(self._devices.values())
+
+    def bootstrap(self, renderer_factory: Any = None) -> list[Device]:
+        """Init platform + connect all devices in parallel.
+
+        Single call that every composition root (GUI, API, CLI serve) makes
+        before starting its UI. After this returns:
+          - Platform initialized (logging, OS, settings, renderer)
+          - All devices connected and their buses ready
+          - EnsureDataCommand running in background per resolution
+
+        Returns the list of connected devices (same as scan()).
+        """
+        from .commands.initialize import InitPlatformCommand
+        self.os_bus.dispatch(InitPlatformCommand(renderer_factory=renderer_factory))
+        return self.scan()
 
     def device_connected(self, detected: DetectedDevice) -> None:
         """Build, connect, and register a newly discovered device, notify observers."""

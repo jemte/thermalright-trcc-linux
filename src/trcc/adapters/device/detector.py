@@ -19,13 +19,13 @@ from typing import Any, Callable, List, Optional
 
 from trcc.core.models import (
     ALL_DEVICES,
-    BULK_DEVICES,
-    HID_LCD_DEVICES,
-    LED_DEVICES,
-    LY_DEVICES,
-    SCSI_DEVICES,
+    BULK_DEVICES,  # noqa: F401 — re-exported for downstream importers
+    HID_LCD_DEVICES,  # noqa: F401
+    LED_DEVICES,  # noqa: F401
+    LY_DEVICES,  # noqa: F401
+    SCSI_DEVICES,  # noqa: F401
     DetectedDevice,
-    DeviceEntry,  # noqa: F401 — re-export for downstream importers
+    DeviceEntry,  # noqa: F401
 )
 
 log = logging.getLogger(__name__)
@@ -51,13 +51,7 @@ def enable_hid_testing() -> None:
 
 ScsiResolver = Callable[[int, int], Optional[str]]
 
-_REGISTRIES: list[tuple[dict[tuple[int, int], DeviceEntry], str]] = [
-    (SCSI_DEVICES, 'scsi'),
-    (HID_LCD_DEVICES, 'hid'),
-    (BULK_DEVICES, 'bulk'),
-    (LY_DEVICES, 'ly'),
-    (LED_DEVICES, 'hid'),
-]
+# Protocol comes from DeviceEntry.protocol — models.py is the single source of truth.
 
 
 class DeviceDetector:
@@ -96,31 +90,29 @@ class DeviceDetector:
             return []
 
         devices: List[DetectedDevice] = []
-        for registry, protocol in _REGISTRIES:
-            for (vid, pid), entry in registry.items():
-                usb_dev: Any = usb.core.find(idVendor=vid, idProduct=pid)
-                if usb_dev is None:
-                    continue
+        for (vid, pid), entry in ALL_DEVICES.items():
+            usb_dev: Any = usb.core.find(idVendor=vid, idProduct=pid)
+            if usb_dev is None:
+                continue
 
-                impl = 'hid_led' if registry is LED_DEVICES else entry.implementation
-                usb_path = f'usb:{usb_dev.bus}:{usb_dev.address}'
-                scsi_dev = (
-                    scsi_resolver(vid, pid)
-                    if scsi_resolver and protocol == 'scsi'
-                    else None
-                )
+            usb_path = f'usb:{usb_dev.bus}:{usb_dev.address}'
+            scsi_dev = (
+                scsi_resolver(vid, pid)
+                if scsi_resolver and entry.protocol == 'scsi'
+                else None
+            )
 
-                devices.append(DetectedDevice(
-                    vid=vid, pid=pid,
-                    vendor_name=entry.vendor, product_name=entry.product,
-                    usb_path=usb_path,
-                    scsi_device=scsi_dev,
-                    implementation=impl,
-                    model=entry.model,
-                    button_image=entry.button_image,
-                    protocol=protocol,
-                    device_type=entry.device_type,
-                ))
+            devices.append(DetectedDevice(
+                vid=vid, pid=pid,
+                vendor_name=entry.vendor, product_name=entry.product,
+                usb_path=usb_path,
+                scsi_device=scsi_dev,
+                implementation=entry.implementation,
+                model=entry.model,
+                button_image=entry.button_image,
+                protocol=entry.protocol,
+                device_type=entry.device_type,
+            ))
 
         log.info(
             "Detected %d device(s): %s", len(devices),

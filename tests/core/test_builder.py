@@ -185,5 +185,92 @@ class TestControllerBuilderFluent(unittest.TestCase):
         self.assertIsInstance(lcd, LCDDevice)
 
 
+class TestControllerBuilderBootstrap(unittest.TestCase):
+    """ControllerBuilder.bootstrap() — logging + setup + settings init."""
+
+    def test_bootstrap_calls_logging_configurator(self):
+        with (patch('trcc.adapters.infra.logging_setup.StandardLoggingConfigurator.configure') as mock_log,
+              patch.object(ControllerBuilder, 'build_setup', return_value=MagicMock()),
+              patch('trcc.conf.init_settings')):
+            _make_builder().bootstrap()
+        mock_log.assert_called_once()
+
+    def test_bootstrap_passes_verbosity(self):
+        with (patch('trcc.adapters.infra.logging_setup.StandardLoggingConfigurator.configure') as mock_log,
+              patch.object(ControllerBuilder, 'build_setup', return_value=MagicMock()),
+              patch('trcc.conf.init_settings')):
+            _make_builder().bootstrap(verbosity=2)
+        mock_log.assert_called_once_with(verbosity=2)
+
+    def test_bootstrap_calls_configure_stdout(self):
+        mock_setup = MagicMock()
+        with (patch('trcc.adapters.infra.logging_setup.StandardLoggingConfigurator.configure'),
+              patch.object(ControllerBuilder, 'build_setup', return_value=mock_setup),
+              patch('trcc.conf.init_settings')):
+            _make_builder().bootstrap()
+        mock_setup.configure_stdout.assert_called_once()
+
+    def test_bootstrap_calls_init_settings_with_setup(self):
+        mock_setup = MagicMock()
+        with (patch('trcc.adapters.infra.logging_setup.StandardLoggingConfigurator.configure'),
+              patch.object(ControllerBuilder, 'build_setup', return_value=mock_setup),
+              patch('trcc.conf.init_settings') as mock_init):
+            _make_builder().bootstrap()
+        mock_init.assert_called_once_with(mock_setup)
+
+
+class TestControllerBuilderSystem(unittest.TestCase):
+    """ControllerBuilder.build_system() — SystemService assembly."""
+
+    def test_build_system_returns_system_service(self):
+        from trcc.services.system import SystemService
+        system = _make_builder().build_system()
+        self.assertIsInstance(system, SystemService)
+
+    def test_build_system_uses_platform_enumerator(self):
+        platform = MagicMock()
+        ControllerBuilder(platform).build_system()
+        platform.create_sensor_enumerator.assert_called_once()
+
+
+class TestControllerBuilderExtra(unittest.TestCase):
+    """ControllerBuilder auxiliary build methods."""
+
+    def test_build_ensure_data_fn_returns_callable(self):
+        fn = _make_builder().build_ensure_data_fn()
+        self.assertTrue(callable(fn))
+
+    def test_build_autostart_delegates_to_platform(self):
+        platform = MagicMock()
+        ControllerBuilder(platform).build_autostart()
+        platform.create_autostart_manager.assert_called_once()
+
+    def test_build_hardware_fns_returns_two_callables(self):
+        platform = MagicMock()
+        platform.get_memory_info_fn.return_value = lambda: {}
+        platform.get_disk_info_fn.return_value = lambda: {}
+        mem_fn, disk_fn = ControllerBuilder(platform).build_hardware_fns()
+        self.assertTrue(callable(mem_fn))
+        self.assertTrue(callable(disk_fn))
+
+    def test_build_detect_fn_returns_callable(self):
+        fn = _make_builder().build_detect_fn()
+        self.assertTrue(callable(fn))
+
+
+class TestBuilderPsutilFallback(unittest.TestCase):
+    """_make_build_services_fn: psutil ImportError → lcd still builds."""
+
+    @patch('trcc.adapters.infra.data_repository.DataManager.ensure_all')
+    def test_psutil_unavailable_still_builds_lcd(self, _):
+        import sys
+
+        from trcc.services.image import ImageService
+        renderer = ImageService._r()
+        with patch.dict(sys.modules, {'psutil': None}):
+            lcd = _make_builder().with_renderer(renderer).build_lcd()
+        self.assertIsNotNone(lcd._display_svc)
+
+
 if __name__ == '__main__':
     unittest.main()

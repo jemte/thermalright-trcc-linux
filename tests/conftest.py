@@ -86,6 +86,21 @@ def get_pixel(surface: Any, x: int, y: int) -> tuple[int, ...]:
 # Tier 0: Environment — disable live IPC daemon + builder
 # =========================================================================
 
+@pytest.fixture(autouse=True)
+def _restore_renderer():
+    """Save and restore ImageService._renderer around every test.
+
+    ImageService._renderer is class-level state. Any test that calls
+    set_renderer() — directly or via builder.build_lcd() / app.set_renderer()
+    — would permanently corrupt it for all subsequent tests in the same
+    worker process, causing unrelated tests to fail with MagicMock instead
+    of a real Renderer.  This fixture makes the renderer restore automatic.
+    """
+    from trcc.services.image import ImageService
+    saved = ImageService._renderer
+    yield
+    ImageService.set_renderer(saved)
+
 @pytest.fixture
 def mock_platform():
     """MagicMock PlatformAdapter — inject into ControllerBuilder for tests."""
@@ -414,6 +429,49 @@ def make_mock_service(device: DeviceInfo | None = None) -> MagicMock:
 def save_test_png(path: str, w: int = 320, h: int = 320) -> None:
     """Write a minimal PNG at path. Used by test_integration."""
     make_test_surface(w, h).save(path, "PNG")
+
+
+# =========================================================================
+# Tier 5: Platform builder fixtures — real adapters, no patching
+#
+# The autouse _mock_builder patches ControllerBuilder.for_current_os for all
+# tests. These fixtures bypass that by constructing a real ControllerBuilder
+# with the appropriate PlatformAdapter injected directly.
+#
+# Available everywhere (root conftest) — adapters, services, core, cli, api
+# tests all share the same platform contract.
+# =========================================================================
+
+@pytest.fixture()
+def linux_builder():
+    """ControllerBuilder wired with the real LinuxPlatform adapter."""
+    from trcc.adapters.system.linux.platform import LinuxPlatform
+    from trcc.core.builder import ControllerBuilder
+    return ControllerBuilder(LinuxPlatform())
+
+
+@pytest.fixture()
+def windows_builder():
+    """ControllerBuilder wired with the real WindowsPlatform adapter."""
+    from trcc.adapters.system.windows.platform import WindowsPlatform
+    from trcc.core.builder import ControllerBuilder
+    return ControllerBuilder(WindowsPlatform())
+
+
+@pytest.fixture()
+def macos_builder():
+    """ControllerBuilder wired with the real MacOSPlatform adapter."""
+    from trcc.adapters.system.macos.platform import MacOSPlatform
+    from trcc.core.builder import ControllerBuilder
+    return ControllerBuilder(MacOSPlatform())
+
+
+@pytest.fixture()
+def bsd_builder():
+    """ControllerBuilder wired with the real BSDPlatform adapter."""
+    from trcc.adapters.system.bsd.platform import BSDPlatform
+    from trcc.core.builder import ControllerBuilder
+    return ControllerBuilder(BSDPlatform())
 
 
 def make_device_service(**overrides):

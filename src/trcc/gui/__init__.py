@@ -22,18 +22,11 @@ def launch(verbosity: int = 0, decorated: bool = False,
 
     Returns the Qt exit code.
     """
-    from trcc.core.app import TrccApp
-
-    # ── Bootstrap via commands ────────────────────────────────────────────
-    # 1. InitPlatformCommand  — logging, OS, settings, renderer
-    # 2. DiscoverDevicesCommand — dispatched after Qt + IPC are ready (below)
-    from trcc.core.commands.initialize import InitPlatformCommand
-    app = TrccApp.init()
+    # ── Bootstrap — platform init + parallel device scan ─────────────────
     from trcc.adapters.render.qt import QtRenderer
-    app.os_bus.dispatch(InitPlatformCommand(
-        verbosity=verbosity,
-        renderer_factory=QtRenderer,
-    ))
+    from trcc.core.app import AppEvent, TrccApp
+    app = TrccApp.init()
+    app.bootstrap(renderer_factory=QtRenderer)
 
     # ── Platform deps ─────────────────────────────────────────────────────
     setup    = app.build_setup()
@@ -97,11 +90,11 @@ def launch(verbosity: int = 0, decorated: bool = False,
     ipc_server.start()
     window._ipc_server = ipc_server
 
-    # ── Register window as observer, discover devices, start metrics ─────
-    # DiscoverDevicesCommand dispatches DEVICES_CHANGED → window.on_app_event → handlers created
-    from trcc.core.commands.initialize import DiscoverDevicesCommand
+    # ── Register window as observer, replay scan results, start metrics ──
+    # bootstrap() already ran scan(); registering now replays DEVICES_CHANGED
+    # so window.on_app_event creates handlers for all pre-discovered devices.
     app.register(window)  # type: ignore[arg-type]
-    app.os_bus.dispatch(DiscoverDevicesCommand())
+    app._notify(AppEvent.DEVICES_CHANGED, list(app._devices.values()))
     app.start_metrics_loop()
 
     # ── IPC raise + signals ───────────────────────────────────────────────

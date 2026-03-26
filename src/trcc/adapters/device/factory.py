@@ -25,7 +25,6 @@ from typing import Any, Callable, ClassVar, Dict, List, Optional, Tuple
 
 from trcc.core.models import (
     DEVICE_TYPE_NAMES,
-    LED_DEVICE_TYPE_NAME,
     PROTOCOL_NAMES,
     HandshakeResult,
 )
@@ -626,12 +625,12 @@ class DeviceProtocolFactory:
     # ControllerBuilder calls configure_scsi() to inject the platform-specific
     # implementation (e.g. WindowsScsiProtocol) at composition time.
     _PROTOCOL_REGISTRY: ClassVar[Dict[Tuple[str, str], Callable[..., DeviceProtocol]]] = {
-        ('scsi', ''):       lambda di: ScsiProtocol(di.path),
-        ('bulk', ''):       lambda di: BulkProtocol(vid=di.vid, pid=di.pid),
-        ('ly', ''):         lambda di: LyProtocol(vid=di.vid, pid=di.pid),
-        ('hid', 'hid_led'): lambda di: LedProtocol(vid=di.vid, pid=di.pid),
-        ('hid', ''):        lambda di: HidProtocol(vid=di.vid, pid=di.pid,
-                                device_type=getattr(di, 'device_type', 2)),
+        ('scsi', ''):  lambda di: ScsiProtocol(di.path),
+        ('bulk', ''):  lambda di: BulkProtocol(vid=di.vid, pid=di.pid),
+        ('ly', ''):    lambda di: LyProtocol(vid=di.vid, pid=di.pid),
+        ('led', ''):   lambda di: LedProtocol(vid=di.vid, pid=di.pid),
+        ('hid', ''):   lambda di: HidProtocol(vid=di.vid, pid=di.pid,
+                           device_type=getattr(di, 'device_type', 2)),
     }
 
     @classmethod
@@ -805,8 +804,6 @@ class DeviceProtocolFactory:
         protocol = getattr(device_info, 'protocol', 'scsi')
         device_type = getattr(device_info, 'device_type', 1)
 
-        implementation = getattr(device_info, 'implementation', '')
-
         from trcc.core.models import PROTOCOL_TRAITS
         traits = PROTOCOL_TRAITS.get(protocol)
         if traits is None:
@@ -817,18 +814,6 @@ class DeviceProtocolFactory:
             active = traits.fallback_backend
         else:
             active = "none"
-
-        # LED devices report as "led" protocol
-        if implementation == "hid_led":
-            return ProtocolInfo(
-                protocol="led",
-                device_type=1,
-                protocol_display=PROTOCOL_NAMES.get("led", "LED"),
-                device_type_display=LED_DEVICE_TYPE_NAME,
-                active_backend=active,
-                backends=backends,
-                transport_open=False,
-            )
 
         return ProtocolInfo(
             protocol=protocol,

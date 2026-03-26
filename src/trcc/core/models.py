@@ -350,7 +350,7 @@ LED_DEVICES: dict[tuple[int, int], DeviceEntry] = {
     (0x0416, 0x8001): DeviceEntry(
         vendor="Winbond", product="LED Controller",
         model="LED_DIGITAL", implementation="hid_led",
-        protocol="hid", device_type=1,
+        protocol="led", device_type=1,
     ),
 }
 
