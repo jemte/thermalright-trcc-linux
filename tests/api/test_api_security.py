@@ -20,8 +20,16 @@ class _ApiSecurityBase(unittest.TestCase):
     """Shared setup for security tests."""
 
     def setUp(self):
+        from trcc.core.models import HardwareMetrics
         configure_auth(None)
         self.client = TestClient(app)
+        self._saved_system_svc = api_module._system_svc
+        mock_svc = MagicMock()
+        mock_svc.all_metrics = HardwareMetrics()
+        api_module._system_svc = mock_svc
+
+    def tearDown(self):
+        api_module._system_svc = self._saved_system_svc
 
 
 # ===========================================================================

@@ -156,8 +156,8 @@ async def render_overlay(dc_path: str, send: bool = True) -> dict:
     import trcc.api as api
 
     lcd = _get_display()
-    result = lcd.render_overlay_from_dc(
-        safe_path, send=send, metrics=api._system_svc.all_metrics)
+    metrics = api._system_svc.all_metrics if api._system_svc is not None else None
+    result = lcd.render_overlay_from_dc(safe_path, send=send, metrics=metrics)
     return dispatch_result(result)
 
 

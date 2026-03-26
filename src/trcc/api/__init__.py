@@ -34,23 +34,10 @@ from trcc.adapters.device.factory import DeviceProtocolFactory
 from trcc.adapters.device.led import probe_led_model
 from trcc.adapters.infra.dc_config import DcConfig
 from trcc.adapters.infra.dc_parser import load_config_json
-from trcc.adapters.render.qt import QtRenderer
 from trcc.services import DeviceService, MediaService, OverlayService
-from trcc.services.system import set_instance
+from trcc.services.system import SystemService
 
 log = logging.getLogger(__name__)
-
-# ── Initialization via commands (composition root) ────────────────────
-# 1. InitPlatformCommand  — logging, OS, settings, renderer
-# 2. DiscoverDevicesCommand — triggered per endpoint that needs a device
-
-from trcc.core.app import TrccApp  # noqa: E402
-from trcc.core.commands.initialize import InitPlatformCommand  # noqa: E402
-
-_trcc_app = TrccApp.init()
-_trcc_app.os_bus.dispatch(InitPlatformCommand(
-    renderer_factory=QtRenderer,
-))
 
 # ── App ────────────────────────────────────────────────────────────────
 
@@ -65,9 +52,8 @@ _device_svc = DeviceService(
     get_protocol_info=DeviceProtocolFactory.get_protocol_info,
 )
 
-# System service (composition root — adapter wired here)
-_system_svc = _trcc_app.build_system()
-set_instance(_system_svc)
+# System service — None until configure_app() is called by trcc serve
+_system_svc: SystemService | None = None
 
 # Lazy-initialized devices (set when device is selected)
 _display_dispatcher = None  # LCDDevice | None
@@ -81,6 +67,24 @@ def set_current_image(img) -> None:
     """Update the tracked LCD frame (called by display/theme endpoints)."""
     global _current_image  # noqa: PLW0603
     _current_image = img
+
+
+def configure_app() -> None:
+    """Initialize platform, renderer, and system service.
+
+    Called once by CLI serve command before uvicorn starts. Not called at
+    import time so tests can import the module without triggering side effects.
+    """
+    global _system_svc  # noqa: PLW0603
+    from trcc.adapters.render.qt import QtRenderer
+    from trcc.core.app import TrccApp
+    from trcc.core.commands.initialize import InitPlatformCommand
+    from trcc.services.system import set_instance
+
+    trcc_app = TrccApp.init()
+    trcc_app.os_bus.dispatch(InitPlatformCommand(renderer_factory=QtRenderer))
+    _system_svc = trcc_app.build_system()
+    set_instance(_system_svc)
 
 
 # ── Video playback (background thread) ───────────────────────────────
@@ -190,6 +194,9 @@ def start_overlay_loop(
 
     def _loop() -> None:
         while not stop_event.is_set():
+            if _system_svc is None:
+                stop_event.wait(2.0)
+                continue
             metrics = _system_svc.all_metrics
             if overlay.would_change(metrics):
                 overlay.update_metrics(metrics)
@@ -242,7 +249,7 @@ def start_led_loop() -> None:
     def _loop() -> None:
         tick_count = 0
         while not stop_event.is_set():
-            if tick_count % 20 == 0:
+            if tick_count % 20 == 0 and _system_svc is not None:
                 try:
                     led.update_metrics(_system_svc.all_metrics)
                 except Exception:

@@ -12,8 +12,12 @@ router = APIRouter(prefix="/system", tags=["system"])
 
 
 def _get_system_svc():
-    """Get the shared SystemService instance (initialized in api/__init__.py)."""
+    """Get the shared SystemService instance (initialized by configure_app())."""
+    from fastapi import HTTPException
+
     import trcc.api as api
+    if api._system_svc is None:
+        raise HTTPException(status_code=503, detail="System service not initialized")
     return api._system_svc
 
 
@@ -29,10 +33,6 @@ def get_metrics() -> dict:
 def get_metrics_by_category(category: str) -> dict:
     """Filtered metrics by category (cpu, gpu, mem, disk, net, fan)."""
     from fastapi import HTTPException
-
-    svc = _get_system_svc()
-    m = svc.all_metrics
-    all_data = dataclasses.asdict(m)
 
     prefix_map = {
         "cpu": "cpu_",
@@ -52,6 +52,9 @@ def get_metrics_by_category(category: str) -> dict:
             detail=f"Unknown category '{category}'. Use: {', '.join(sorted(prefix_map.keys()))}",
         )
 
+    svc = _get_system_svc()
+    m = svc.all_metrics
+    all_data = dataclasses.asdict(m)
     return {k: v for k, v in all_data.items() if k.startswith(prefix)}
 
 

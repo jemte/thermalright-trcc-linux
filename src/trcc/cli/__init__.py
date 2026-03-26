@@ -1011,7 +1011,7 @@ def _cmd_serve(
 
     import uvicorn
 
-    from trcc.api import app as api_app, configure_auth, set_pairing_code  # noqa: I001
+    from trcc.api import app as api_app, configure_app, configure_auth, set_pairing_code  # noqa: I001
     from trcc.conf import Settings
 
     # Token resolution: explicit --token > persistent config > auto-generate
@@ -1052,6 +1052,7 @@ def _cmd_serve(
         print("  After pairing, the phone stays connected across restarts.\n")
 
     _print_serve_qr(host, port, token, bool(ssl_kwargs))
+    configure_app()
     uvicorn.run(api_app, host=host, port=port, **ssl_kwargs)
     return 0
 
