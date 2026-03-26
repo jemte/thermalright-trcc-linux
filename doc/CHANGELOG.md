@@ -1,5 +1,10 @@
 # Changelog
 
+## v9.2.2
+
+### Fixes
+- **`trcc uninstall` logging error on Python 3.14**: `autostart.disable()` logged after `~/.trcc/` was deleted, causing `RotatingFileHandler` to crash trying to reopen the log file. Autostart is now disabled before logging shutdown
+
 ## v9.2.1
 
 ### Fixes

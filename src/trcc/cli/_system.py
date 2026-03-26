@@ -211,6 +211,14 @@ def uninstall(*, yes: bool = False):
             os.remove(path_str)
             removed.append(path_str)
 
+    # Disable autostart before shutting down logging — autostart only touches
+    # ~/.config/autostart/, not ~/.trcc/, so order is safe here.
+    from trcc.core.builder import ControllerBuilder
+    autostart = ControllerBuilder.for_current_os().build_autostart()
+    if autostart.is_enabled():
+        autostart.disable()
+        removed.append("autostart entry")
+
     # Shut down logging before deleting ~/.trcc — on Windows the log file
     # handle stays open and blocks rmtree with WinError 32.
     import logging as _logging
@@ -224,13 +232,6 @@ def uninstall(*, yes: bool = False):
             else:
                 path.unlink()
             removed.append(str(path))
-
-    # Disable autostart via platform manager
-    from trcc.core.builder import ControllerBuilder
-    autostart = ControllerBuilder.for_current_os().build_autostart()
-    if autostart.is_enabled():
-        autostart.disable()
-        removed.append("autostart entry")
 
     if removed:
         print("Removed:")

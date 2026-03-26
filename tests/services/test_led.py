@@ -272,10 +272,10 @@ class TestLEDServiceConfigureForStyle:
         assert len(svc.state.zones) == style.zone_count
 
     @pytest.mark.parametrize("style_id,style",
-                             [(sid, s) for sid, s in LED_STYLES.items() if s.zone_count == 1],
-                             ids=[str(sid) for sid, s in LED_STYLES.items() if s.zone_count == 1])
-    def test_single_zone_styles_have_empty_zones(self, style_id, style):
-        """Single-zone styles leave zones list empty."""
+                             [(sid, s) for sid, s in LED_STYLES.items() if s.zone_count == 0],
+                             ids=[str(sid) for sid, s in LED_STYLES.items() if s.zone_count == 0])
+    def test_zero_zone_styles_have_empty_zones(self, style_id, style):
+        """Zero-zone styles leave zones list empty."""
         svc = LEDService()
         svc.configure_for_style(style_id)
         assert svc.state.zones == []
