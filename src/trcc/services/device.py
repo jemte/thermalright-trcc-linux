@@ -3,6 +3,7 @@
 Pure Python, no Qt dependencies.
 Handles USB device lifecycle — detection, handshake, frame encoding + send.
 """
+
 from __future__ import annotations
 
 import logging
@@ -34,7 +35,8 @@ class DeviceService:
         if detect_fn is None or probe_led_fn is None or get_protocol is None:
             raise RuntimeError(
                 "DeviceService requires detect_fn, probe_led_fn, get_protocol. "
-                "Use ControllerBuilder to wire dependencies.")
+                "Use ControllerBuilder to wire dependencies."
+            )
         self._detect_fn = detect_fn
         self._probe_led_fn = probe_led_fn
         self._get_protocol = get_protocol
@@ -66,7 +68,12 @@ class DeviceService:
             self._devices = [
                 DeviceInfo(
                     name=f"{d.vendor_name} {d.product_name}",
-                    path=d.scsi_device or f"hid:{d.vid:04x}:{d.pid:04x}",
+                    # Use the canonical DetectedDevice.path so that DeviceInfo.path
+                    # matches what LCDDevice.connect() passes to scan_and_select().
+                    # SCSI devices: d.scsi_device (/dev/sgN) — stable node identifier.
+                    # Non-SCSI (HID, Bulk, LY): d.usb_path (usb:BUS:ADDR) — the same
+                    # string DetectedDevice.path returns, keeping both sides in sync.
+                    path=d.scsi_device or d.usb_path,
                     vendor=d.vendor_name,
                     product=d.product_name,
                     model=d.model,
@@ -84,13 +91,12 @@ class DeviceService:
 
         # Enrich LED devices with probe data (PM → style, model name).
         for d, raw_d in zip(self._devices, raw):
-            if d.implementation == 'hid_led':
+            if d.implementation == "hid_led":
                 self._enrich_led_device(d, raw_d.usb_path)
 
         log.info("DeviceService: found %d device(s)", len(self._devices))
         for d in self._devices:
-            log.debug("  %s [%04X:%04X] %s res=%s",
-                      d.name, d.vid, d.pid, d.protocol, d.resolution)
+            log.debug("  %s [%04X:%04X] %s res=%s", d.name, d.vid, d.pid, d.protocol, d.resolution)
 
         return self._devices
 
@@ -105,11 +111,15 @@ class DeviceService:
             info = self._probe_led_fn(device.vid, device.pid, usb_path=usb_path)
             if info and info.style:
                 device.led_style_id = info.style.style_id
-                device.led_style_sub = getattr(info, 'style_sub', 0)
+                device.led_style_sub = getattr(info, "style_sub", 0)
                 device.model = info.style.model_name
-                log.info("LED probe: PM=%d → style=%d sub=%d model=%s",
-                         info.pm, info.style.style_id,
-                         device.led_style_sub, info.style.model_name)
+                log.info(
+                    "LED probe: PM=%d → style=%d sub=%d model=%s",
+                    info.pm,
+                    info.style.style_id,
+                    device.led_style_sub,
+                    info.style.model_name,
+                )
         except Exception as e:
             log.warning("LED probe failed for %04X:%04X: %s", device.vid, device.pid, e)
 
@@ -145,6 +155,7 @@ class DeviceService:
                 self.select(self._devices[0])
         elif not self._selected:
             from ..conf import Settings
+
             saved = Settings.get_selected_device()
             matched = False
             if saved:
@@ -171,16 +182,19 @@ class DeviceService:
             protocol = self._get_protocol(dev)
             result = protocol.handshake()
             if result:
-                res = getattr(result, 'resolution', None)
+                res = getattr(result, "resolution", None)
                 if isinstance(res, tuple) and len(res) == 2 and res != (0, 0):
                     dev.resolution = res
-                fbl = getattr(result, 'fbl', None) or getattr(result, 'model_id', None)
+                fbl = getattr(result, "fbl", None) or getattr(result, "model_id", None)
                 if fbl:
                     dev.fbl_code = fbl
         except Exception as e:
             log.warning(
                 "Resolution discovery failed for %s [%04X:%04X]: %s",
-                dev.path, dev.vid, dev.pid, e,
+                dev.path,
+                dev.vid,
+                dev.pid,
+                e,
             )
 
     # ── Send ─────────────────────────────────────────────────────────
@@ -265,8 +279,7 @@ class DeviceService:
                 raise RuntimeError("Cannot encode for device — no device selected")
             protocol, resolution, fbl, use_jpeg = self._selected.encoding_params
 
-            data = ImageService.encode_for_device(
-                image, protocol, resolution, fbl, use_jpeg)
+            data = ImageService.encode_for_device(image, protocol, resolution, fbl, use_jpeg)
             self._last_encode_id = img_id
             self._last_encode_data = data
 
@@ -279,8 +292,7 @@ class DeviceService:
         if self._send_worker and self._send_worker.is_alive():
             return
         self._send_shutdown = False
-        self._send_worker = threading.Thread(
-            target=self._send_worker_loop, daemon=True)
+        self._send_worker = threading.Thread(target=self._send_worker_loop, daemon=True)
         self._send_worker.start()
 
     def _send_worker_loop(self) -> None:
@@ -304,6 +316,7 @@ class DeviceService:
             self._send_worker.join(timeout=timeout)
         # Spin-wait for any in-progress send_rgb565 to release _send_busy
         import time
+
         deadline = time.monotonic() + timeout
         while self._send_busy and time.monotonic() < deadline:
             time.sleep(0.01)

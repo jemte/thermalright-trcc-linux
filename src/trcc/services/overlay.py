@@ -325,8 +325,24 @@ class OverlayService:
         Used by DisplayService.render_overlay() as part of its composite cache
         key so the display-level cache is invalidated in lock-step with the
         overlay layer (metrics text changes, config changes, mask changes, etc.).
+
+        Note: this reflects the *last rendered* state.  Use
+        ``prospective_cache_version`` when you need the key that would result
+        from rendering with the current stored metrics (i.e. forward-looking).
         """
         return self._cache_key
+
+    @property
+    def prospective_cache_version(self) -> tuple:
+        """Overlay cache key that *would* result from rendering right now.
+
+        Unlike ``cache_version`` (which returns the key from the last completed
+        render), this computes the key from the current stored metrics without
+        triggering a render.  DisplayService uses this so its own render cache
+        key reflects pending overlay changes and does not produce a stale hit
+        when metrics have updated but no render has occurred yet.
+        """
+        return self._build_cache_key(self._metrics)
 
     def _invalidate_cache(self) -> None:
         """Force overlay re-render on next frame."""
@@ -585,12 +601,12 @@ class OverlayService:
             else:
                 continue
 
-            style = font_cfg.get('style') if isinstance(font_cfg, dict) else None
-            bold = style == 'bold'
-            italic = style == 'italic'
-            font_name = font_cfg.get('name') if isinstance(font_cfg, dict) else None
+            style = font_cfg.get("style") if isinstance(font_cfg, dict) else None
+            bold = style == "bold"
+            italic = style == "italic"
+            font_name = font_cfg.get("name") if isinstance(font_cfg, dict) else None
             font = r.get_font(font_size, bold=bold, italic=italic, font_name=font_name)
-            r.draw_text(surface, x, y, text, color, font, anchor='mm')
+            r.draw_text(surface, x, y, text, color, font, anchor="mm")
             drew_any = True
 
         return drew_any

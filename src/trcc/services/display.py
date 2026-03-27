@@ -88,26 +88,48 @@ class DisplayService:
         self._masks_dir: Path | None = None
         self._mask_source_dir: Path | None = None
 
+        # Per-instance resolution — independent of the global settings singleton.
+        # Initialised to the singleton value on first use; overwritten by
+        # set_resolution() so two simultaneous LCD devices each own their own
+        # dimensions without trampling each other via the singleton.
+        self._width: int = 0
+        self._height: int = 0
+
     # -- Properties --------------------------------------------------------
 
     @property
     def lcd_width(self) -> int:
-        return _conf.settings.width
+        return self._width if self._width else _conf.settings.width
 
     @property
     def lcd_height(self) -> int:
-        return _conf.settings.height
+        return self._height if self._height else _conf.settings.height
 
     @property
     def lcd_size(self) -> tuple[int, int]:
+        if self._width and self._height:
+            return (self._width, self._height)
         return (_conf.settings.width, _conf.settings.height)
 
     # -- Initialization ----------------------------------------------------
 
-    def initialize(self, data_dir: Path) -> None:
-        """Initialize service with data directory."""
-        log.debug("DisplayService: init data_dir=%s", data_dir)
+    def initialize(self, data_dir: Path, width: int = 0, height: int = 0) -> None:
+        """Initialize service with data directory and optional resolution.
+
+        Pass width/height when the device resolution is already known from the
+        handshake so this instance is seeded with the correct dimensions before
+        any call to lcd_width/lcd_height.  Falls back to the settings singleton
+        when not provided (single-device / legacy path).
+        """
+        log.debug("DisplayService: init data_dir=%s w=%d h=%d", data_dir, width, height)
         self._data_dir = data_dir
+
+        if width and height:
+            self._width = width
+            self._height = height
+        elif not self._width:
+            self._width = _conf.settings.width
+            self._height = _conf.settings.height
 
         self.media.set_target_size(self.lcd_width, self.lcd_height)
         self.overlay.set_resolution(self.lcd_width, self.lcd_height)
@@ -153,12 +175,18 @@ class DisplayService:
     # -- Resolution --------------------------------------------------------
 
     def set_resolution(self, width: int, height: int, persist: bool = True) -> None:
-        """Set LCD resolution and update sub-services."""
-        if width == self.lcd_width and height == self.lcd_height:
+        """Set LCD resolution for this device instance and update sub-services.
+
+        Also updates the global settings singleton so that path resolution
+        (theme_dir, web_dir, masks_dir) and persistence work correctly for
+        this device.  Each DisplayService instance owns its own _width/_height
+        so simultaneous devices do not overwrite each other's dimensions.
+        """
+        if width == self._width and height == self._height:
             return
-        log.info(
-            "Resolution changed: %dx%d -> %dx%d", self.lcd_width, self.lcd_height, width, height
-        )
+        log.info("Resolution changed: %dx%d -> %dx%d", self._width, self._height, width, height)
+        self._width = width
+        self._height = height
         _conf.settings.set_resolution(width, height, persist=persist)
         self.media.set_target_size(width, height)
         self.overlay.set_resolution(width, height)
@@ -368,13 +396,16 @@ class DisplayService:
     def _render_cache_key(self, bg: Any) -> tuple[Any, ...]:
         """Build a cache key from all inputs that affect render_overlay() output.
 
-        ``overlay.cache_version`` is the overlay's own internal cache key tuple
-        — it changes whenever metrics text, mask, config, format, or scale
-        changes, so the display-level cache invalidates in lock-step.
+        Uses ``overlay.prospective_cache_version`` — the key the overlay *would*
+        produce on the next render given current stored metrics — rather than
+        ``overlay.cache_version`` (the key from the last completed render).
+        This ensures the display-level cache is invalidated as soon as metrics
+        change, even before the overlay layer has been re-rendered, preventing
+        stale cache hits that cause visual freezes on the physical display.
         """
         return (
             id(bg),
-            self.overlay.cache_version,
+            self.overlay.prospective_cache_version,
             self.brightness,
             self.rotation,
             self.split_mode,

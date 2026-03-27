@@ -85,8 +85,14 @@ class TestDeviceEndpoints(unittest.TestCase):
 
     def test_list_devices_with_device(self):
         _device_svc._devices = [
-            DeviceInfo(name="LCD1", path="/dev/sg0", vid=0x0402, pid=0x3922,
-                       protocol="scsi", resolution=(320, 320)),
+            DeviceInfo(
+                name="LCD1",
+                path="/dev/sg0",
+                vid=0x0402,
+                pid=0x3922,
+                protocol="scsi",
+                resolution=(320, 320),
+            ),
         ]
         resp = self.client.get("/devices")
         self.assertEqual(resp.status_code, 200)
@@ -95,7 +101,7 @@ class TestDeviceEndpoints(unittest.TestCase):
         self.assertEqual(data[0]["name"], "LCD1")
         self.assertEqual(data[0]["vid"], 0x0402)
 
-    @patch.object(_device_svc, 'detect')
+    @patch.object(_device_svc, "detect")
     def test_detect_devices(self, mock_detect):
         mock_detect.return_value = []
         resp = self.client.post("/devices/detect")
@@ -103,8 +109,14 @@ class TestDeviceEndpoints(unittest.TestCase):
         mock_detect.assert_called_once()
 
     def test_select_device(self):
-        dev = DeviceInfo(name="LCD1", path="/dev/sg0", vid=0x0402, pid=0x3922,
-                         protocol="scsi", resolution=(320, 320))
+        dev = DeviceInfo(
+            name="LCD1",
+            path="/dev/sg0",
+            vid=0x0402,
+            pid=0x3922,
+            protocol="scsi",
+            resolution=(320, 320),
+        )
         _device_svc._devices = [dev]
         resp = self.client.post("/devices/0/select")
         self.assertEqual(resp.status_code, 200)
@@ -117,22 +129,36 @@ class TestDeviceEndpoints(unittest.TestCase):
 
     def test_select_led_device_skips_discover_resolution(self):
         """LED devices have no resolution — discover_resolution must not be called."""
-        dev = DeviceInfo(name="HR10", path="hid:0416:8001", vid=0x0416, pid=0x8001,
-                         protocol="led", implementation="hid_led")
+        dev = DeviceInfo(
+            name="HR10",
+            path="hid:0416:8001",
+            vid=0x0416,
+            pid=0x8001,
+            protocol="led",
+            implementation="hid_led",
+        )
         _device_svc._devices = [dev]
-        with patch.object(_device_svc, '_discover_resolution') as mock_discover, \
-             patch("trcc.core.led_device.LEDDevice") as mock_led:
+        with (
+            patch.object(_device_svc, "_discover_resolution") as mock_discover,
+            patch("trcc.core.led_device.LEDDevice") as mock_led,
+        ):
             mock_led.return_value.connect.return_value = {"success": True}
             resp = self.client.post("/devices/0/select")
         self.assertEqual(resp.status_code, 200)
         mock_discover.assert_not_called()
 
-    @patch('trcc.api.stop_overlay_loop')
-    @patch('trcc.api.stop_video_playback')
+    @patch("trcc.api.stop_overlay_loop")
+    @patch("trcc.api.stop_video_playback")
     def test_reselect_same_device_preserves_overlay(self, mock_stop_video, mock_stop_overlay):
         """Re-selecting the already-active device does NOT tear down overlay/video."""
-        dev = DeviceInfo(name="LCD1", path="/dev/sg0", vid=0x0402, pid=0x3922,
-                         protocol="scsi", resolution=(320, 320))
+        dev = DeviceInfo(
+            name="LCD1",
+            path="/dev/sg0",
+            vid=0x0402,
+            pid=0x3922,
+            protocol="scsi",
+            resolution=(320, 320),
+        )
         _device_svc._devices = [dev]
         _device_svc._selected = dev
         api_module._display_dispatcher = MagicMock()
@@ -148,8 +174,14 @@ class TestDeviceEndpoints(unittest.TestCase):
 
     def test_get_device(self):
         _device_svc._devices = [
-            DeviceInfo(name="LCD1", path="/dev/sg0", vid=0x0402, pid=0x3922,
-                       protocol="scsi", resolution=(480, 480)),
+            DeviceInfo(
+                name="LCD1",
+                path="/dev/sg0",
+                vid=0x0402,
+                pid=0x3922,
+                protocol="scsi",
+                resolution=(480, 480),
+            ),
         ]
         resp = self.client.get("/devices/0")
         self.assertEqual(resp.status_code, 200)
@@ -168,12 +200,18 @@ class TestSendImage(unittest.TestCase):
     def setUp(self):
         configure_auth(None)
         self.client = TestClient(app)
-        self.dev = DeviceInfo(name="LCD1", path="/dev/sg0", vid=0x0402, pid=0x3922,
-                              protocol="scsi", resolution=(320, 320))
+        self.dev = DeviceInfo(
+            name="LCD1",
+            path="/dev/sg0",
+            vid=0x0402,
+            pid=0x3922,
+            protocol="scsi",
+            resolution=(320, 320),
+        )
         _device_svc._devices = [self.dev]
         _device_svc._selected = None
 
-    @patch.object(_device_svc, 'send_frame', return_value=True)
+    @patch.object(_device_svc, "send_frame", return_value=True)
     def test_send_image_success(self, mock_send):
         buf = io.BytesIO(_png_bytes(100, 100))
         buf.seek(0)
@@ -186,7 +224,7 @@ class TestSendImage(unittest.TestCase):
         self.assertTrue(resp.json()["sent"])
         mock_send.assert_called_once()
 
-    @patch.object(_device_svc, 'send_frame', return_value=False)
+    @patch.object(_device_svc, "send_frame", return_value=False)
     def test_send_image_failure(self, mock_send):
         buf = io.BytesIO(_png_bytes(100, 100))
         buf.seek(0)
@@ -206,7 +244,7 @@ class TestSendImage(unittest.TestCase):
 
     def test_send_image_too_large(self):
         # 11 MB of zeros
-        big = io.BytesIO(b'\x00' * (11 * 1024 * 1024))
+        big = io.BytesIO(b"\x00" * (11 * 1024 * 1024))
         resp = self.client.post(
             "/devices/0/send",
             files={"image": ("big.bin", big, "image/png")},
@@ -224,7 +262,7 @@ class TestSendImage(unittest.TestCase):
         )
         self.assertEqual(resp.status_code, 404)
 
-    @patch.object(_device_svc, 'send_frame', return_value=True)
+    @patch.object(_device_svc, "send_frame", return_value=True)
     def test_send_with_rotation(self, mock_send):
         buf = io.BytesIO(_png_bytes(100, 100))
         buf.seek(0)
@@ -235,12 +273,17 @@ class TestSendImage(unittest.TestCase):
         )
         self.assertEqual(resp.status_code, 200)
 
-
-    @patch.object(_device_svc, 'send_frame', return_value=True)
+    @patch.object(_device_svc, "send_frame", return_value=True)
     def test_send_propagates_fbl_from_handshake(self, mock_send):
         """Handshake fbl_code propagates to DeviceInfo for JPEG mode detection."""
-        dev = DeviceInfo(name="HID", path="hid:0416:5302", vid=0x0416, pid=0x5302,
-                         protocol="hid", resolution=(0, 0))
+        dev = DeviceInfo(
+            name="HID",
+            path="hid:0416:5302",
+            vid=0x0416,
+            pid=0x5302,
+            protocol="hid",
+            resolution=(0, 0),
+        )
         _device_svc._devices = [dev]
 
         mock_result = MagicMock()
@@ -248,7 +291,7 @@ class TestSendImage(unittest.TestCase):
         mock_result.fbl = 128
         mock_result.model_id = 128
 
-        with patch('trcc.adapters.device.factory.DeviceProtocolFactory') as mock_factory:
+        with patch("trcc.adapters.device.factory.DeviceProtocolFactory") as mock_factory:
             mock_protocol = MagicMock()
             mock_protocol.handshake.return_value = mock_result
             mock_factory.get_protocol.return_value = mock_protocol
@@ -273,18 +316,21 @@ class TestThemesEndpoint(unittest.TestCase):
         configure_auth(None)
         self.client = TestClient(app)
 
-    @patch('trcc.api.themes.ThemeService.discover_local', return_value=[])
-    @patch('trcc.adapters.infra.data_repository.ThemeDir.for_resolution', return_value=MagicMock(__str__=lambda s: '/tmp/themes'))
+    @patch("trcc.api.themes.ThemeService.discover_local", return_value=[])
+    @patch(
+        "trcc.adapters.infra.data_repository.ThemeDir.for_resolution",
+        return_value=MagicMock(__str__=lambda s: "/tmp/themes"),
+    )
     def test_list_themes_empty(self, mock_dir, mock_discover):
         resp = self.client.get("/themes?resolution=320x320")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json(), [])
 
-    @patch('trcc.api.themes.ThemeService.discover_local')
-    @patch('trcc.adapters.infra.data_repository.ThemeDir.for_resolution')
+    @patch("trcc.api.themes.ThemeService.discover_local")
+    @patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution")
     def test_list_themes_with_results(self, mock_dir, mock_discover):
-        mock_td = MagicMock(__str__=lambda s: '/tmp/themes')
-        mock_td.path = '/tmp/themes'
+        mock_td = MagicMock(__str__=lambda s: "/tmp/themes")
+        mock_td.path = "/tmp/themes"
         mock_dir.return_value = mock_td
         mock_theme = MagicMock()
         mock_theme.name = "Theme001"
@@ -306,6 +352,7 @@ class TestThemesEndpoint(unittest.TestCase):
 
 
 # ── Display endpoints ──────────────────────────────────────────────────
+
 
 class TestDisplayEndpoints(unittest.TestCase):
     """Display control endpoints (POST /display/*)."""
@@ -353,7 +400,9 @@ class TestDisplayEndpoints(unittest.TestCase):
 
     def test_set_rotation_invalid(self):
         self.mock_lcd.set_rotation.return_value = {
-            "success": False, "error": "Rotation must be 0, 90, 180, or 270"}
+            "success": False,
+            "error": "Rotation must be 0, 90, 180, or 270",
+        }
         resp = self.client.post("/display/rotation", json={"degrees": 45})
         self.assertEqual(resp.status_code, 400)
 
@@ -398,16 +447,14 @@ class TestPreviewEndpoints(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.headers["content-type"], "image/png")
         # Verify it's a valid PNG (starts with PNG magic bytes)
-        self.assertTrue(resp.content[:4] == b'\x89PNG')
+        self.assertTrue(resp.content[:4] == b"\x89PNG")
 
     def test_preview_stream_rejects_bad_token(self):
         from starlette.websockets import WebSocketDisconnect as WSDisconnect
 
         configure_auth("secret123")
         with pytest.raises(WSDisconnect) as exc_info:
-            with self.client.websocket_connect(
-                "/display/preview/stream?token=wrong"
-            ):
+            with self.client.websocket_connect("/display/preview/stream?token=wrong"):
                 pass
         self.assertEqual(exc_info.value.code, 4001)
         configure_auth(None)
@@ -417,7 +464,7 @@ class TestPreviewEndpoints(unittest.TestCase):
         with self.client.websocket_connect("/display/preview/stream") as ws:
             data = ws.receive_bytes()
             # Should be JPEG (starts with FF D8)
-            self.assertTrue(data[:2] == b'\xff\xd8')
+            self.assertTrue(data[:2] == b"\xff\xd8")
 
     def test_preview_stream_accepts_control_message(self):
         api_module._current_image = make_test_surface(100, 100, (0, 0, 255))
@@ -429,10 +476,11 @@ class TestPreviewEndpoints(unittest.TestCase):
             # Change image to trigger another frame
             api_module._current_image = make_test_surface(100, 100, (255, 0, 0))
             data = ws.receive_bytes()
-            self.assertTrue(data[:2] == b'\xff\xd8')
+            self.assertTrue(data[:2] == b"\xff\xd8")
 
 
 # ── LED endpoints ──────────────────────────────────────────────────────
+
 
 class TestLEDEndpoints(unittest.TestCase):
     """LED control endpoints (POST /led/*)."""
@@ -473,8 +521,7 @@ class TestLEDEndpoints(unittest.TestCase):
         self.assertEqual(resp.status_code, 400)
 
     def test_set_mode_invalid(self):
-        self.mock_led.set_mode.return_value = {
-            "success": False, "error": "Unknown mode 'invalid'"}
+        self.mock_led.set_mode.return_value = {"success": False, "error": "Unknown mode 'invalid'"}
         resp = self.client.post("/led/mode", json={"mode": "invalid"})
         self.assertEqual(resp.status_code, 400)
 
@@ -484,13 +531,17 @@ class TestLEDEndpoints(unittest.TestCase):
 
     def test_set_sensor_invalid(self):
         self.mock_led.set_sensor_source.return_value = {
-            "success": False, "error": "Source must be 'cpu' or 'gpu'"}
+            "success": False,
+            "error": "Source must be 'cpu' or 'gpu'",
+        }
         resp = self.client.post("/led/sensor", json={"source": "ram"})
         self.assertEqual(resp.status_code, 400)
 
     def test_set_temp_unit_invalid(self):
         self.mock_led.set_temp_unit.return_value = {
-            "success": False, "error": "Unit must be 'C' or 'F'"}
+            "success": False,
+            "error": "Unit must be 'C' or 'F'",
+        }
         resp = self.client.post("/led/temp-unit", json={"unit": "K"})
         self.assertEqual(resp.status_code, 400)
 
@@ -501,6 +552,7 @@ class TestLEDEndpoints(unittest.TestCase):
 
 
 # ── Theme operation endpoints ──────────────────────────────────────────
+
 
 class TestThemeOperations(unittest.TestCase):
     """Theme load/save/import endpoints."""
@@ -523,7 +575,8 @@ class TestThemeOperations(unittest.TestCase):
         mock_lcd.connected = True
         mock_lcd.resolution = (320, 320)
         mock_lcd.load_theme_by_name.return_value = {
-            "success": True, "message": "Theme: CyberPunk",
+            "success": True,
+            "message": "Theme: CyberPunk",
         }
         api_module._display_dispatcher = mock_lcd
 
@@ -539,8 +592,7 @@ class TestThemeOperations(unittest.TestCase):
         mock_lcd.load_theme_by_name.return_value = {"success": True}
         api_module._display_dispatcher = mock_lcd
 
-        resp = self.client.post(
-            "/themes/load", json={"name": "Theme001", "resolution": "480x480"})
+        resp = self.client.post("/themes/load", json={"name": "Theme001", "resolution": "480x480"})
         self.assertEqual(resp.status_code, 200)
         mock_lcd.load_theme_by_name.assert_called_once_with("Theme001", 480, 480)
 
@@ -549,7 +601,8 @@ class TestThemeOperations(unittest.TestCase):
         mock_lcd.connected = True
         mock_lcd.resolution = (320, 320)
         mock_lcd.load_theme_by_name.return_value = {
-            "success": False, "error": "Theme 'NonExistent' not found",
+            "success": False,
+            "error": "Theme 'NonExistent' not found",
         }
         api_module._display_dispatcher = mock_lcd
 
@@ -562,11 +615,10 @@ class TestThemeOperations(unittest.TestCase):
         mock_lcd.resolution = (320, 320)
         api_module._display_dispatcher = mock_lcd
 
-        resp = self.client.post("/themes/load",
-                                json={"name": "Theme001", "resolution": "bad"})
+        resp = self.client.post("/themes/load", json={"name": "Theme001", "resolution": "bad"})
         self.assertEqual(resp.status_code, 400)
 
-    @patch('trcc.conf.load_config', return_value={"some": "config"})
+    @patch("trcc.conf.load_config", return_value={"some": "config"})
     def test_save_theme(self, mock_load):
         resp = self.client.post("/themes/save", json={"name": "MyTheme"})
         self.assertEqual(resp.status_code, 200)
@@ -583,6 +635,7 @@ class TestThemeOperations(unittest.TestCase):
 
 # ── System endpoints ───────────────────────────────────────────────────
 
+
 class TestSystemEndpoints(unittest.TestCase):
     """System metrics and report endpoints."""
 
@@ -596,6 +649,7 @@ class TestSystemEndpoints(unittest.TestCase):
 
     def test_get_metrics(self):
         from trcc.core.models import HardwareMetrics
+
         mock_svc = MagicMock()
         m = HardwareMetrics()
         m.cpu_temp = 65.0
@@ -612,6 +666,7 @@ class TestSystemEndpoints(unittest.TestCase):
 
     def test_get_metrics_by_category_cpu(self):
         from trcc.core.models import HardwareMetrics
+
         mock_svc = MagicMock()
         m = HardwareMetrics()
         m.cpu_temp = 65.0
@@ -630,12 +685,13 @@ class TestSystemEndpoints(unittest.TestCase):
     def test_get_metrics_invalid_category(self):
         api_module._system_svc = MagicMock()
         from trcc.core.models import HardwareMetrics
+
         api_module._system_svc.all_metrics = HardwareMetrics()
 
         resp = self.client.get("/system/metrics/invalid")
         self.assertEqual(resp.status_code, 400)
 
-    @patch('trcc.adapters.infra.debug_report.DebugReport')
+    @patch("trcc.adapters.infra.debug_report.DebugReport")
     def test_get_report(self, mock_report_class):
         mock_rpt = MagicMock()
         mock_rpt.__str__ = lambda s: "TRCC Linux Diagnostic Report\n..."
@@ -647,6 +703,7 @@ class TestSystemEndpoints(unittest.TestCase):
 
 
 # ── Language endpoints ─────────────────────────────────────────────────
+
 
 class TestI18nEndpoints(unittest.TestCase):
     """GET/PUT /i18n/language(s) endpoints."""
@@ -664,9 +721,9 @@ class TestI18nEndpoints(unittest.TestCase):
         self.assertIn("de", langs)
         self.assertEqual(langs["de"], "Deutsch")
 
-    @patch('trcc.conf.settings')
+    @patch("trcc.conf.settings")
     def test_get_language(self, mock_settings):
-        mock_settings.lang = 'en'
+        mock_settings.lang = "en"
         resp = self.client.get("/i18n/language")
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
@@ -680,7 +737,7 @@ class TestI18nEndpoints(unittest.TestCase):
 
         mock_app = MagicMock()
         mock_app.os_bus.dispatch.return_value = CommandResult.ok(message="Language set to de")
-        with patch.object(TrccApp, 'get', return_value=mock_app):
+        with patch.object(TrccApp, "get", return_value=mock_app):
             resp = self.client.put("/i18n/language/de")
 
         self.assertEqual(resp.status_code, 200)
@@ -695,7 +752,7 @@ class TestI18nEndpoints(unittest.TestCase):
 
         mock_app = MagicMock()
         mock_app.os_bus.dispatch.return_value = CommandResult.fail("Unknown language code: zzz")
-        with patch.object(TrccApp, 'get', return_value=mock_app):
+        with patch.object(TrccApp, "get", return_value=mock_app):
             resp = self.client.put("/i18n/language/zzz")
 
         self.assertEqual(resp.status_code, 400)
@@ -704,6 +761,7 @@ class TestI18nEndpoints(unittest.TestCase):
 
 # ── Web/mask theme endpoints ─────────────────────────────────────────
 
+
 class TestWebThemeEndpoints(unittest.TestCase):
     """GET /themes/web and /themes/masks."""
 
@@ -711,16 +769,18 @@ class TestWebThemeEndpoints(unittest.TestCase):
         configure_auth(None)
         self.client = TestClient(app)
 
-    @patch('trcc.adapters.infra.data_repository.DataManager.get_web_dir', return_value='/nonexistent')
+    @patch(
+        "trcc.adapters.infra.data_repository.DataManager.get_web_dir", return_value="/nonexistent"
+    )
     def test_list_web_themes_empty_dir(self, mock_dir):
         resp = self.client.get("/themes/web?resolution=320x320")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json(), [])
 
-    @patch('trcc.api.themes.os.listdir', return_value=['a001.png', 'b002.png', 'readme.txt'])
-    @patch('trcc.api.themes.os.path.isfile', return_value=False)
-    @patch('trcc.api.themes.os.path.isdir', return_value=True)
-    @patch('trcc.adapters.infra.data_repository.DataManager.get_web_dir', return_value='/tmp/web')
+    @patch("trcc.api.themes.os.listdir", return_value=["a001.png", "b002.png", "readme.txt"])
+    @patch("trcc.api.themes.os.path.isfile", return_value=False)
+    @patch("trcc.api.themes.os.path.isdir", return_value=True)
+    @patch("trcc.adapters.infra.data_repository.DataManager.get_web_dir", return_value="/tmp/web")
     def test_list_web_themes_with_pngs(self, mock_dir, mock_isdir, mock_isfile, mock_listdir):
         resp = self.client.get("/themes/web?resolution=320x320")
         self.assertEqual(resp.status_code, 200)
@@ -735,7 +795,10 @@ class TestWebThemeEndpoints(unittest.TestCase):
         resp = self.client.get("/themes/web?resolution=bad")
         self.assertEqual(resp.status_code, 400)
 
-    @patch('trcc.adapters.infra.data_repository.DataManager.get_web_masks_dir', return_value='/nonexistent')
+    @patch(
+        "trcc.adapters.infra.data_repository.DataManager.get_web_masks_dir",
+        return_value="/nonexistent",
+    )
     def test_list_masks_empty_dir(self, mock_dir):
         resp = self.client.get("/themes/masks?resolution=320x320")
         self.assertEqual(resp.status_code, 200)
@@ -745,19 +808,22 @@ class TestWebThemeEndpoints(unittest.TestCase):
         resp = self.client.get("/themes/masks?resolution=nope")
         self.assertEqual(resp.status_code, 400)
 
-    @patch('trcc.api.themes.os.listdir', return_value=['a001.png'])
-    @patch('trcc.api.themes.os.path.isfile', return_value=False)
-    @patch('trcc.api.themes.os.path.isdir', return_value=True)
-    @patch('trcc.adapters.infra.data_repository.DataManager.get_web_dir', return_value='/tmp/web')
+    @patch("trcc.api.themes.os.listdir", return_value=["a001.png"])
+    @patch("trcc.api.themes.os.path.isfile", return_value=False)
+    @patch("trcc.api.themes.os.path.isdir", return_value=True)
+    @patch("trcc.adapters.infra.data_repository.DataManager.get_web_dir", return_value="/tmp/web")
     def test_list_web_themes_includes_download_url(self, *_mocks):
         resp = self.client.get("/themes/web?resolution=320x320")
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertEqual(data[0]["download_url"], "/themes/web/a001/download")
 
-    @patch('trcc.adapters.infra.theme_cloud.CloudThemeDownloader.download_theme', return_value='/tmp/web/a001.mp4')
-    @patch('trcc.adapters.infra.theme_cloud.CloudThemeDownloader.is_cached', return_value=False)
-    @patch('trcc.adapters.infra.data_repository.DataManager.get_web_dir', return_value='/tmp/web')
+    @patch(
+        "trcc.adapters.infra.theme_cloud.CloudThemeDownloader.download_theme",
+        return_value="/tmp/web/a001.mp4",
+    )
+    @patch("trcc.adapters.infra.theme_cloud.CloudThemeDownloader.is_cached", return_value=False)
+    @patch("trcc.adapters.infra.data_repository.DataManager.get_web_dir", return_value="/tmp/web")
     def test_download_web_theme_success(self, *_mocks):
         resp = self.client.post("/themes/web/a001/download?resolution=320x320")
         self.assertEqual(resp.status_code, 200)
@@ -767,17 +833,20 @@ class TestWebThemeEndpoints(unittest.TestCase):
         self.assertEqual(data["resolution"], "320x320")
         self.assertFalse(data["already_cached"])
 
-    @patch('trcc.adapters.infra.theme_cloud.CloudThemeDownloader.download_theme', return_value='/tmp/web/a001.mp4')
-    @patch('trcc.adapters.infra.theme_cloud.CloudThemeDownloader.is_cached', return_value=True)
-    @patch('trcc.adapters.infra.data_repository.DataManager.get_web_dir', return_value='/tmp/web')
+    @patch(
+        "trcc.adapters.infra.theme_cloud.CloudThemeDownloader.download_theme",
+        return_value="/tmp/web/a001.mp4",
+    )
+    @patch("trcc.adapters.infra.theme_cloud.CloudThemeDownloader.is_cached", return_value=True)
+    @patch("trcc.adapters.infra.data_repository.DataManager.get_web_dir", return_value="/tmp/web")
     def test_download_web_theme_already_cached(self, *_mocks):
         resp = self.client.post("/themes/web/a001/download?resolution=320x320")
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["already_cached"])
 
-    @patch('trcc.adapters.infra.theme_cloud.CloudThemeDownloader.download_theme', return_value=None)
-    @patch('trcc.adapters.infra.theme_cloud.CloudThemeDownloader.is_cached', return_value=False)
-    @patch('trcc.adapters.infra.data_repository.DataManager.get_web_dir', return_value='/tmp/web')
+    @patch("trcc.adapters.infra.theme_cloud.CloudThemeDownloader.download_theme", return_value=None)
+    @patch("trcc.adapters.infra.theme_cloud.CloudThemeDownloader.is_cached", return_value=False)
+    @patch("trcc.adapters.infra.data_repository.DataManager.get_web_dir", return_value="/tmp/web")
     def test_download_web_theme_not_found(self, *_mocks):
         resp = self.client.post("/themes/web/z999/download?resolution=320x320")
         self.assertEqual(resp.status_code, 404)
@@ -792,11 +861,14 @@ class TestWebThemeEndpoints(unittest.TestCase):
         resp = self.client.post("/themes/web/a001/download?resolution=bad")
         self.assertEqual(resp.status_code, 400)
 
-    @patch('trcc.api.start_video_playback', return_value=True)
-    @patch('trcc.api.stop_video_playback')
-    @patch('trcc.adapters.infra.theme_cloud.CloudThemeDownloader.download_theme', return_value='/tmp/web/a001.mp4')
-    @patch('trcc.adapters.infra.theme_cloud.CloudThemeDownloader.is_cached', return_value=False)
-    @patch('trcc.adapters.infra.data_repository.DataManager.get_web_dir', return_value='/tmp/web')
+    @patch("trcc.api.start_video_playback", return_value=True)
+    @patch("trcc.api.stop_video_playback")
+    @patch(
+        "trcc.adapters.infra.theme_cloud.CloudThemeDownloader.download_theme",
+        return_value="/tmp/web/a001.mp4",
+    )
+    @patch("trcc.adapters.infra.theme_cloud.CloudThemeDownloader.is_cached", return_value=False)
+    @patch("trcc.adapters.infra.data_repository.DataManager.get_web_dir", return_value="/tmp/web")
     def test_download_web_theme_with_send(self, *_mocks):
         # Set up mock display dispatcher
         mock_disp = MagicMock()
@@ -809,11 +881,13 @@ class TestWebThemeEndpoints(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         # Video playback should have been started with the downloaded file
         from trcc.api import start_video_playback
+
         start_video_playback.assert_called_once()  # type: ignore[union-attr]
         api_module._display_dispatcher = None
 
 
 # ── Video playback endpoints ─────────────────────────────────────────
+
 
 class TestVideoPlaybackEndpoints(unittest.TestCase):
     """Video playback control endpoints (POST /display/video/*)."""
@@ -889,7 +963,8 @@ class TestVideoPlaybackEndpoints(unittest.TestCase):
         mock_lcd.connected = True
         mock_lcd.resolution = (320, 320)
         mock_lcd.load_theme_by_name.return_value = {
-            "success": True, "is_animated": True,
+            "success": True,
+            "is_animated": True,
             "message": "Theme: VideoTheme",
         }
         api_module._display_dispatcher = mock_lcd
@@ -906,8 +981,7 @@ class TestVideoPlaybackEndpoints(unittest.TestCase):
         """Sending a static color stops any running video playback."""
         mock_lcd = MagicMock()
         mock_lcd.connected = True
-        mock_lcd.frame.send_color.return_value = {
-            "success": True, "message": "Sent"}
+        mock_lcd.frame.send_color.return_value = {"success": True, "message": "Sent"}
         api_module._display_dispatcher = mock_lcd
 
         # Simulate running video
@@ -927,6 +1001,7 @@ class TestVideoPlaybackEndpoints(unittest.TestCase):
 # Overlay metrics loop
 # =============================================================================
 
+
 class TestOverlayLoop(unittest.TestCase):
     """Overlay metrics loop (background thread for static themes)."""
 
@@ -940,8 +1015,8 @@ class TestOverlayLoop(unittest.TestCase):
         api_module._overlay_stop_event = None
         api_module._display_dispatcher = None
 
-    @patch('trcc.api.stop_overlay_loop')
-    @patch('trcc.api.stop_video_playback')
+    @patch("trcc.api.stop_overlay_loop")
+    @patch("trcc.api.stop_video_playback")
     def test_display_route_stops_overlay_on_static_send(self, mock_stop_video, mock_stop_overlay):
         """Sending a static color stops any running overlay loop."""
         mock_lcd = MagicMock()
@@ -985,7 +1060,7 @@ class TestOverlayLoop(unittest.TestCase):
         self.assertIsNone(api_module._overlay_thread)
         self.assertIsNone(api_module._overlay_stop_event)
 
-    @patch('trcc.api._device_svc')
+    @patch("trcc.api._device_svc")
     def test_start_overlay_loop_runs(self, mock_svc):
         """start_overlay_loop() starts a daemon thread, stop cleans up."""
         from trcc.core.models import HardwareMetrics
@@ -1010,6 +1085,7 @@ class TestOverlayLoop(unittest.TestCase):
 # =============================================================================
 # IPC frame sharing (GUI daemon mode)
 # =============================================================================
+
 
 class TestIPCFrameSharing(unittest.TestCase):
     """IPC daemon detection and direct frame reading."""
@@ -1037,7 +1113,7 @@ class TestIPCFrameSharing(unittest.TestCase):
         self.assertIn("frame", result)
         # Verify it's valid JPEG
         raw = base64.b64decode(result["frame"])
-        self.assertTrue(raw[:2] == b'\xff\xd8')  # JPEG magic
+        self.assertTrue(raw[:2] == b"\xff\xd8")  # JPEG magic
 
     def test_ipc_server_get_frame_no_image(self):
         """IPCServer._get_frame() returns error when no frame captured."""
@@ -1047,42 +1123,52 @@ class TestIPCFrameSharing(unittest.TestCase):
         result = server._get_frame()
         self.assertFalse(result["success"])
 
-    @patch('trcc.core.instance.find_active')
-    @patch('trcc.ipc.IPCClient')
+    @patch("trcc.core.instance.find_active")
+    @patch("trcc.ipc.IPCClient")
     def test_select_device_uses_ipc_when_daemon_available(self, mock_ipc, mock_find):
         """select_device() uses IPC proxies when GUI daemon is running."""
         from trcc.core.instance import InstanceKind
+
         mock_find.return_value = InstanceKind.GUI
         mock_ipc.send.return_value = {
             "lcd": {"resolution": [320, 320], "path": "/dev/sg0"},
         }
 
-        dev = DeviceInfo(name="LCD1", path="/dev/sg0", vid=0x0402, pid=0x3922,
-                         protocol="scsi", resolution=(320, 320))
+        dev = DeviceInfo(
+            name="LCD1",
+            path="/dev/sg0",
+            vid=0x0402,
+            pid=0x3922,
+            protocol="scsi",
+            resolution=(320, 320),
+        )
         _device_svc._devices = [dev]
 
         resp = self.client.post("/devices/0/select")
         self.assertEqual(resp.status_code, 200)
         # Should have IPC proxies, not direct dispatchers
         from trcc.ipc import IPCDisplayProxy
+
         self.assertIsInstance(api_module._display_dispatcher, IPCDisplayProxy)
 
         api_module._display_dispatcher = None
         api_module._led_dispatcher = None
 
-    @patch('trcc.core.instance.find_active')
-    @patch('trcc.ipc.IPCClient')
+    @patch("trcc.core.instance.find_active")
+    @patch("trcc.ipc.IPCClient")
     def test_select_device_ipc_syncs_resolution_from_daemon(self, mock_ipc, mock_find):
         """select_device() syncs real resolution from daemon when device has (0,0)."""
         from trcc.core.instance import InstanceKind
+
         mock_find.return_value = InstanceKind.GUI
         mock_ipc.send.return_value = {
             "lcd": {"resolution": [320, 320], "path": "/dev/sg0"},
         }
 
         # Device starts with (0, 0) — resolution not yet discovered
-        dev = DeviceInfo(name="LCD1", path="/dev/sg0", vid=0x0402, pid=0x3922,
-                         protocol="scsi", resolution=(0, 0))
+        dev = DeviceInfo(
+            name="LCD1", path="/dev/sg0", vid=0x0402, pid=0x3922, protocol="scsi", resolution=(0, 0)
+        )
         _device_svc._devices = [dev]
 
         resp = self.client.post("/devices/0/select")
@@ -1100,13 +1186,13 @@ class TestIPCFrameSharing(unittest.TestCase):
         """IPCLEDProxy.status returns a string, not a proxy function."""
         from trcc.ipc import IPCLEDProxy
 
-        with patch('trcc.ipc.IPCClient') as mock_ipc:
+        with patch("trcc.ipc.IPCClient") as mock_ipc:
             mock_ipc.send.return_value = {"led": {"connected": True}}
             proxy = IPCLEDProxy()
             self.assertIsInstance(proxy.status, str)
 
         api_module._led_dispatcher = IPCLEDProxy()
-        with patch('trcc.ipc.IPCClient') as mock_ipc:
+        with patch("trcc.ipc.IPCClient") as mock_ipc:
             mock_ipc.send.return_value = {"led": {"connected": True}}
             resp = self.client.get("/led/status")
             self.assertEqual(resp.status_code, 200)
@@ -1115,20 +1201,27 @@ class TestIPCFrameSharing(unittest.TestCase):
             self.assertIsInstance(data["status"], str)
         api_module._led_dispatcher = None
 
-    @patch('trcc.ipc.IPCClient')
-    @patch('trcc.cli._device.discover_resolution')
+    @patch("trcc.ipc.IPCClient")
+    @patch("trcc.cli._device.discover_resolution")
     def test_select_device_standalone_when_no_daemon(self, mock_discover, mock_ipc):
         """select_device() uses direct USB when no GUI daemon."""
         mock_ipc.available.return_value = False
 
-        dev = DeviceInfo(name="LCD1", path="/dev/sg0", vid=0x0402, pid=0x3922,
-                         protocol="scsi", resolution=(320, 320))
+        dev = DeviceInfo(
+            name="LCD1",
+            path="/dev/sg0",
+            vid=0x0402,
+            pid=0x3922,
+            protocol="scsi",
+            resolution=(320, 320),
+        )
         _device_svc._devices = [dev]
 
         resp = self.client.post("/devices/0/select")
         self.assertEqual(resp.status_code, 200)
         # Standalone mode — not using IPC proxies
         from trcc.ipc import IPCDisplayProxy
+
         self.assertNotIsInstance(api_module._display_dispatcher, IPCDisplayProxy)
 
         api_module._display_dispatcher = None
@@ -1139,7 +1232,7 @@ class TestIPCFrameSharing(unittest.TestCase):
 
         api_module._display_dispatcher = IPCDisplayProxy()
 
-        with patch('trcc.api.display._fetch_ipc_frame') as mock_fetch:
+        with patch("trcc.api.display._fetch_ipc_frame") as mock_fetch:
             mock_fetch.return_value = make_test_surface(320, 320, (255, 0, 0))
             resp = self.client.get("/display/preview")
             self.assertEqual(resp.status_code, 200)
@@ -1153,12 +1246,13 @@ class TestIPCFrameSharing(unittest.TestCase):
 
         resp = self.client.get("/display/preview")
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(resp.content[:4] == b'\x89PNG')
+        self.assertTrue(resp.content[:4] == b"\x89PNG")
 
 
 # =============================================================================
 # Standalone mode — theme data init + auto-token
 # =============================================================================
+
 
 class TestStandaloneThemeInit(unittest.TestCase):
     """API endpoints trigger theme data download in standalone mode."""
@@ -1171,7 +1265,7 @@ class TestStandaloneThemeInit(unittest.TestCase):
         api_module._display_dispatcher = None
         api_module._current_image = None
 
-    @patch('trcc.adapters.infra.data_repository.DataManager.ensure_all')
+    @patch("trcc.adapters.infra.data_repository.DataManager.ensure_all")
     def test_init_theme_data_calls_ensure_all(self, mock_ensure):
         """POST /themes/init triggers DataManager.ensure_all() for the resolution."""
         resp = self.client.post("/themes/init?resolution=320x320")
@@ -1179,30 +1273,37 @@ class TestStandaloneThemeInit(unittest.TestCase):
         self.assertTrue(resp.json()["success"])
         mock_ensure.assert_called_once_with(320, 320)
 
-    @patch('trcc.adapters.infra.data_repository.DataManager.ensure_all')
+    @patch("trcc.adapters.infra.data_repository.DataManager.ensure_all")
     def test_init_theme_data_invalid_resolution(self, mock_ensure):
         """POST /themes/init rejects bad resolution."""
         resp = self.client.post("/themes/init?resolution=bad")
         self.assertEqual(resp.status_code, 400)
         mock_ensure.assert_not_called()
 
-    @patch('trcc.api.themes.ThemeService.discover_local', return_value=[])
-    @patch('trcc.adapters.infra.data_repository.ThemeDir.for_resolution',
-           return_value=MagicMock(__str__=lambda s: '/tmp/themes', path='/tmp/themes'))
+    @patch("trcc.api.themes.ThemeService.discover_local", return_value=[])
+    @patch(
+        "trcc.adapters.infra.data_repository.ThemeDir.for_resolution",
+        return_value=MagicMock(__str__=lambda s: "/tmp/themes", path="/tmp/themes"),
+    )
     def test_list_themes_no_auto_download(self, _td, _discover):
         """GET /themes reads disk state only — data download happens via /themes/init or device select."""
         resp = self.client.get("/themes?resolution=320x320")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json(), [])
 
-    @patch('trcc.adapters.infra.data_repository.DataManager.get_web_dir', return_value='/nonexistent')
+    @patch(
+        "trcc.adapters.infra.data_repository.DataManager.get_web_dir", return_value="/nonexistent"
+    )
     def test_list_web_themes_no_auto_download(self, _dir):
         """GET /themes/web reads disk state only — no DataManager.ensure_web() side-effect."""
         resp = self.client.get("/themes/web?resolution=480x480")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json(), [])
 
-    @patch('trcc.adapters.infra.data_repository.DataManager.get_web_masks_dir', return_value='/nonexistent')
+    @patch(
+        "trcc.adapters.infra.data_repository.DataManager.get_web_masks_dir",
+        return_value="/nonexistent",
+    )
     def test_list_masks_no_auto_download(self, _dir):
         """GET /themes/masks reads disk state only — no DataManager.ensure_web_masks() side-effect."""
         resp = self.client.get("/themes/masks?resolution=320x320")
@@ -1265,6 +1366,7 @@ class TestPersistentToken:
         import string
 
         from trcc.conf import Settings
+
         token = Settings.get_api_token()
         assert len(token) == 16
         valid = set(string.ascii_letters + string.digits)
@@ -1273,6 +1375,7 @@ class TestPersistentToken:
     def test_get_api_token_returns_same_on_second_call(self):
         """Second call returns the same persisted token."""
         from trcc.conf import Settings
+
         t1 = Settings.get_api_token()
         t2 = Settings.get_api_token()
         assert t1 == t2
@@ -1280,6 +1383,7 @@ class TestPersistentToken:
     def test_save_api_token_overrides(self):
         """Explicit --token overrides the persisted token."""
         from trcc.conf import Settings
+
         Settings.save_api_token("explicit-override")
         assert Settings.get_api_token() == "explicit-override"
 
@@ -1293,10 +1397,10 @@ class TestPersistentToken:
             nonlocal captured_token
             captured_token = token
 
-        with patch('trcc.api.configure_auth', side_effect=capture_auth):
-            with patch('trcc.api.set_pairing_code'):
-                with patch('uvicorn.run'):
-                    with patch('trcc.cli._print_serve_qr'):
+        with patch("trcc.api.configure_auth", side_effect=capture_auth):
+            with patch("trcc.api.set_pairing_code"):
+                with patch("uvicorn.run"):
+                    with patch("trcc.cli._print_serve_qr"):
                         _cmd_serve(token=None)
 
         assert captured_token is not None
@@ -1307,10 +1411,10 @@ class TestPersistentToken:
         from trcc.cli import _cmd_serve
         from trcc.conf import Settings
 
-        with patch('trcc.api.configure_auth'):
-            with patch('trcc.api.set_pairing_code'):
-                with patch('uvicorn.run'):
-                    with patch('trcc.cli._print_serve_qr'):
+        with patch("trcc.api.configure_auth"):
+            with patch("trcc.api.set_pairing_code"):
+                with patch("uvicorn.run"):
+                    with patch("trcc.cli._print_serve_qr"):
                         _cmd_serve(token="myCustom99")
 
         assert Settings.get_api_token() == "myCustom99"
@@ -1325,10 +1429,10 @@ class TestPersistentToken:
             nonlocal captured_code
             captured_code = code
 
-        with patch('trcc.api.configure_auth'):
-            with patch('trcc.api.set_pairing_code', side_effect=capture_code):
-                with patch('uvicorn.run'):
-                    with patch('trcc.cli._print_serve_qr'):
+        with patch("trcc.api.configure_auth"):
+            with patch("trcc.api.set_pairing_code", side_effect=capture_code):
+                with patch("uvicorn.run"):
+                    with patch("trcc.cli._print_serve_qr"):
                         _cmd_serve(token=None)
 
         assert captured_code is not None
@@ -1338,10 +1442,10 @@ class TestPersistentToken:
         """trcc serve --token skips pairing code generation."""
         from trcc.cli import _cmd_serve
 
-        with patch('trcc.api.configure_auth'):
-            with patch('trcc.api.set_pairing_code') as mock_code:
-                with patch('uvicorn.run'):
-                    with patch('trcc.cli._print_serve_qr'):
+        with patch("trcc.api.configure_auth"):
+            with patch("trcc.api.set_pairing_code") as mock_code:
+                with patch("uvicorn.run"):
+                    with patch("trcc.cli._print_serve_qr"):
                         _cmd_serve(token="explicit")
 
         mock_code.assert_not_called()
@@ -1350,6 +1454,7 @@ class TestPersistentToken:
 # =============================================================================
 # dispatch_result — shared API helper
 # =============================================================================
+
 
 class TestDispatchResult:
     """dispatch_result() — strips non-serializable keys, raises on failure."""
@@ -1390,19 +1495,21 @@ def _png_bytes(w: int = 50, h: int = 50) -> bytes:
     ba = QByteArray()
     qbuf = QBuffer(ba)
     qbuf.open(QIODevice.OpenModeFlag.WriteOnly)
-    img.save(qbuf, 'PNG')
+    img.save(qbuf, "PNG")
     qbuf.close()
     return bytes(ba.data())
 
 
 def _scsi_dev(**overrides) -> DeviceInfo:
-    defaults = dict(name="LCD1", path="/dev/sg0", vid=0x0402, pid=0x3922,
-                    protocol="scsi", resolution=(320, 320))
+    defaults = dict(
+        name="LCD1", path="/dev/sg0", vid=0x0402, pid=0x3922, protocol="scsi", resolution=(320, 320)
+    )
     defaults.update(overrides)
     return DeviceInfo(**defaults)
 
 
 # ── Auth edge cases ──────────────────────────────────────────────────────────
+
 
 class TestAuthEdgeCases(unittest.TestCase):
     """Edge cases in token auth middleware."""
@@ -1444,6 +1551,7 @@ class TestAuthEdgeCases(unittest.TestCase):
 
 # ── Health response shape ────────────────────────────────────────────────────
 
+
 class TestHealthShape(unittest.TestCase):
     """Health endpoint response field types."""
 
@@ -1461,6 +1569,7 @@ class TestHealthShape(unittest.TestCase):
 
 
 # ── Device endpoint edge cases ───────────────────────────────────────────────
+
 
 class TestDeviceEdgeCases(unittest.TestCase):
     """Uncovered device endpoint paths."""
@@ -1508,9 +1617,11 @@ class TestDeviceEdgeCases(unittest.TestCase):
     def test_select_lcd_device_sets_display_dispatcher(self) -> None:
         dev = _scsi_dev(resolution=(320, 320))
         _device_svc._devices = [dev]
-        with patch("trcc.cli._device.discover_resolution"), \
-             patch("trcc.core.lcd_device.LCDDevice") as mock_disp_cls, \
-             patch("trcc.api.mount_static_dirs"):
+        with (
+            patch("trcc.cli._device.discover_resolution"),
+            patch("trcc.core.lcd_device.LCDDevice") as mock_disp_cls,
+            patch("trcc.api.mount_static_dirs"),
+        ):
             mock_disp = MagicMock()
             mock_disp_cls.return_value = mock_disp
             resp = self.client.post("/devices/0/select")
@@ -1523,15 +1634,18 @@ class TestDeviceEdgeCases(unittest.TestCase):
     def test_select_response_contains_resolution(self) -> None:
         dev = _scsi_dev(resolution=(480, 480))
         _device_svc._devices = [dev]
-        with patch("trcc.cli._device.discover_resolution"), \
-             patch("trcc.core.lcd_device.LCDDevice"), \
-             patch("trcc.api.mount_static_dirs"):
+        with (
+            patch("trcc.cli._device.discover_resolution"),
+            patch("trcc.core.lcd_device.LCDDevice"),
+            patch("trcc.api.mount_static_dirs"),
+        ):
             resp = self.client.post("/devices/0/select")
         self.assertEqual(resp.status_code, 200)
         self.assertIn("resolution", resp.json())
 
 
 # ── send_image edge cases ────────────────────────────────────────────────────
+
 
 class TestSendImageEdgeCases(unittest.TestCase):
     """Paths not covered in TestSendImage."""
@@ -1567,7 +1681,9 @@ class TestSendImageEdgeCases(unittest.TestCase):
     def test_send_corrupt_image_returns_400(self) -> None:
         resp = self.client.post(
             "/devices/0/send",
-            files={"image": ("broken.png", io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 8), "image/png")},
+            files={
+                "image": ("broken.png", io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 8), "image/png")
+            },
         )
         self.assertEqual(resp.status_code, 400)
 
@@ -1589,6 +1705,7 @@ class TestSendImageEdgeCases(unittest.TestCase):
 
 
 # ── Display endpoint error paths ─────────────────────────────────────────────
+
 
 class TestDisplayErrorPaths(unittest.TestCase):
     """409 / 422 paths and disconnected-dispatcher state."""
@@ -1652,6 +1769,7 @@ class TestDisplayErrorPaths(unittest.TestCase):
     def test_overlay_no_device_returns_409(self) -> None:
         api_module._display_dispatcher = None
         import trcc.conf as _conf
+
         safe_path = f"{_conf.settings.user_data_dir}/nope.dc"
         resp = self.client.post(f"/display/overlay?dc_path={safe_path}")
         self.assertEqual(resp.status_code, 409)
@@ -1665,6 +1783,7 @@ class TestDisplayErrorPaths(unittest.TestCase):
     def test_overlay_relative_traversal_returns_400(self) -> None:
         """dc_path with .. traversal must be rejected."""
         import trcc.conf as _conf
+
         traversal = f"{_conf.settings.user_data_dir}/../../etc/passwd"
         resp = self.client.post(f"/display/overlay?dc_path={traversal}")
         self.assertEqual(resp.status_code, 400)
@@ -1690,6 +1809,7 @@ class TestDisplayErrorPaths(unittest.TestCase):
 
 
 # ── LED endpoint error paths ─────────────────────────────────────────────────
+
 
 class TestLEDErrorPaths(unittest.TestCase):
     """LED 409 / 422 paths and dispatch-failure cases."""
@@ -1785,6 +1905,7 @@ class TestLEDErrorPaths(unittest.TestCase):
 
 # ── Theme endpoint edge cases ────────────────────────────────────────────────
 
+
 class TestThemeEdgeCases(unittest.TestCase):
     """Uncovered theme paths."""
 
@@ -1797,8 +1918,10 @@ class TestThemeEdgeCases(unittest.TestCase):
         api_module._display_dispatcher = None
 
     def test_list_themes_resolution_boundary_min(self) -> None:
-        with patch("trcc.api.themes.ThemeService.discover_local", return_value=[]), \
-             patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_td:
+        with (
+            patch("trcc.api.themes.ThemeService.discover_local", return_value=[]),
+            patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_td,
+        ):
             mock_td.return_value = MagicMock(path="/tmp/none", __str__=lambda s: "/tmp/none")
             resp = self.client.get("/themes?resolution=100x100")
         self.assertEqual(resp.status_code, 200)
@@ -1825,8 +1948,10 @@ class TestThemeEdgeCases(unittest.TestCase):
 
     def test_import_theme_correct_extension_accepted(self) -> None:
         data = b"not-a-real-tr-archive"
-        with patch("trcc.api.themes.ThemeService.import_tr", return_value=(True, "ok")), \
-             patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_td:
+        with (
+            patch("trcc.api.themes.ThemeService.import_tr", return_value=(True, "ok")),
+            patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_td,
+        ):
             mock_td.return_value = MagicMock(path="/tmp", __str__=lambda s: "/tmp")
             resp = self.client.post(
                 "/themes/import",
@@ -1843,8 +1968,10 @@ class TestThemeEdgeCases(unittest.TestCase):
         self.assertEqual(resp.status_code, 413)
 
     def test_import_theme_service_error_returns_400(self) -> None:
-        with patch("trcc.api.themes.ThemeService.import_tr", return_value=(False, "bad archive")), \
-             patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_td:
+        with (
+            patch("trcc.api.themes.ThemeService.import_tr", return_value=(False, "bad archive")),
+            patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_td,
+        ):
             mock_td.return_value = MagicMock(path="/tmp", __str__=lambda s: "/tmp")
             resp = self.client.post(
                 "/themes/import",
@@ -1856,9 +1983,13 @@ class TestThemeEdgeCases(unittest.TestCase):
 
     def test_import_theme_exception_no_stack_trace(self) -> None:
         """Internal exceptions must not leak tracebacks to API clients."""
-        with patch("trcc.api.themes.ThemeService.import_tr",
-                   side_effect=RuntimeError("/home/user/.trcc/data/secret")), \
-             patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_td:
+        with (
+            patch(
+                "trcc.api.themes.ThemeService.import_tr",
+                side_effect=RuntimeError("/home/user/.trcc/data/secret"),
+            ),
+            patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_td,
+        ):
             mock_td.return_value = MagicMock(path="/tmp", __str__=lambda s: "/tmp")
             resp = self.client.post(
                 "/themes/import",
@@ -1880,7 +2011,8 @@ class TestThemeEdgeCases(unittest.TestCase):
         mock_lcd.connected = True
         mock_lcd.resolution = (320, 320)
         mock_lcd.load_theme_by_name.return_value = {
-            "success": True, "message": "Theme: Theme001",
+            "success": True,
+            "message": "Theme: Theme001",
         }
         api_module._display_dispatcher = mock_lcd
 
@@ -1895,7 +2027,8 @@ class TestThemeEdgeCases(unittest.TestCase):
         mock_lcd.connected = True
         mock_lcd.resolution = (320, 320)
         mock_lcd.load_theme_by_name.return_value = {
-            "success": False, "error": "No image file in theme",
+            "success": False,
+            "error": "No image file in theme",
         }
         api_module._display_dispatcher = mock_lcd
 
@@ -1909,8 +2042,9 @@ class TestThemeEdgeCases(unittest.TestCase):
             mask_dir.mkdir()
             (mask_dir / "Theme.png").write_bytes(b"fake")
 
-            with patch("trcc.adapters.infra.data_repository.DataManager.get_web_masks_dir",
-                       return_value=td):
+            with patch(
+                "trcc.adapters.infra.data_repository.DataManager.get_web_masks_dir", return_value=td
+            ):
                 resp = self.client.get("/themes/masks?resolution=320x320")
 
         self.assertEqual(resp.status_code, 200)
@@ -1925,8 +2059,9 @@ class TestThemeEdgeCases(unittest.TestCase):
             mask_dir.mkdir()
             (mask_dir / "something.txt").write_text("ignored")
 
-            with patch("trcc.adapters.infra.data_repository.DataManager.get_web_masks_dir",
-                       return_value=td):
+            with patch(
+                "trcc.adapters.infra.data_repository.DataManager.get_web_masks_dir", return_value=td
+            ):
                 resp = self.client.get("/themes/masks?resolution=320x320")
 
         self.assertEqual(resp.status_code, 200)
@@ -1937,8 +2072,9 @@ class TestThemeEdgeCases(unittest.TestCase):
             (Path(td) / "a001.png").write_bytes(b"fake")
             (Path(td) / "a001.mp4").write_bytes(b"fake")
 
-            with patch("trcc.adapters.infra.data_repository.DataManager.get_web_dir",
-                       return_value=td):
+            with patch(
+                "trcc.adapters.infra.data_repository.DataManager.get_web_dir", return_value=td
+            ):
                 resp = self.client.get("/themes/web?resolution=320x320")
 
         self.assertEqual(resp.status_code, 200)
@@ -1950,8 +2086,9 @@ class TestThemeEdgeCases(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             (Path(td) / "b002.png").write_bytes(b"fake")
 
-            with patch("trcc.adapters.infra.data_repository.DataManager.get_web_dir",
-                       return_value=td):
+            with patch(
+                "trcc.adapters.infra.data_repository.DataManager.get_web_dir", return_value=td
+            ):
                 resp = self.client.get("/themes/web?resolution=480x480")
 
         self.assertEqual(resp.status_code, 200)
@@ -1961,6 +2098,7 @@ class TestThemeEdgeCases(unittest.TestCase):
 
 
 # ── System endpoint edge cases ───────────────────────────────────────────────
+
 
 class TestSystemEdgeCases(unittest.TestCase):
     """Additional system endpoint paths."""
@@ -1975,6 +2113,7 @@ class TestSystemEdgeCases(unittest.TestCase):
 
     def _mock_svc_with_metrics(self, **kw):
         from trcc.core.models import HardwareMetrics
+
         svc = MagicMock()
         m = HardwareMetrics()
         for attr, val in kw.items():
@@ -2055,6 +2194,7 @@ class TestSystemEdgeCases(unittest.TestCase):
 
 # ── Static mount edge cases ──────────────────────────────────────────────────
 
+
 class TestStaticMountEdgeCases(unittest.TestCase):
     """mount_static_dirs() with non-existent directories."""
 
@@ -2065,11 +2205,17 @@ class TestStaticMountEdgeCases(unittest.TestCase):
     def test_mount_static_dirs_nonexistent_web_dir_skipped(self) -> None:
         from trcc.api import _mounted_routes, mount_static_dirs
 
-        with patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_td, \
-             patch("trcc.adapters.infra.data_repository.DataManager.get_web_dir",
-                   return_value="/nonexistent/web"), \
-             patch("trcc.adapters.infra.data_repository.DataManager.get_web_masks_dir",
-                   return_value="/nonexistent/masks"):
+        with (
+            patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_td,
+            patch(
+                "trcc.adapters.infra.data_repository.DataManager.get_web_dir",
+                return_value="/nonexistent/web",
+            ),
+            patch(
+                "trcc.adapters.infra.data_repository.DataManager.get_web_masks_dir",
+                return_value="/nonexistent/masks",
+            ),
+        ):
             mock_td_obj = MagicMock()
             mock_td_obj.path = "/nonexistent/themes"
             mock_td.return_value = mock_td_obj
@@ -2081,11 +2227,17 @@ class TestStaticMountEdgeCases(unittest.TestCase):
     def test_mount_static_dirs_clears_old_routes(self) -> None:
         from trcc.api import _mounted_routes, mount_static_dirs
 
-        with patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_td, \
-             patch("trcc.adapters.infra.data_repository.DataManager.get_web_dir",
-                   return_value="/nonexistent"), \
-             patch("trcc.adapters.infra.data_repository.DataManager.get_web_masks_dir",
-                   return_value="/nonexistent"):
+        with (
+            patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_td,
+            patch(
+                "trcc.adapters.infra.data_repository.DataManager.get_web_dir",
+                return_value="/nonexistent",
+            ),
+            patch(
+                "trcc.adapters.infra.data_repository.DataManager.get_web_masks_dir",
+                return_value="/nonexistent",
+            ),
+        ):
             mock_td_obj = MagicMock()
             mock_td_obj.path = "/nonexistent"
             mock_td.return_value = mock_td_obj
@@ -2099,6 +2251,7 @@ class TestStaticMountEdgeCases(unittest.TestCase):
 
 
 # ── parse_hex_or_400 unit tests ──────────────────────────────────────────────
+
 
 class TestParseHexOr400:
     """Pure-unit tests for parse_hex_or_400."""
@@ -2152,6 +2305,7 @@ class TestDisplayHappyPaths(unittest.TestCase):
         self._saved_system_svc = api_module._system_svc
         if api_module._system_svc is None:
             from trcc.core.models import HardwareMetrics
+
             mock_sys = MagicMock()
             mock_sys.all_metrics = HardwareMetrics()
             api_module._system_svc = mock_sys
@@ -2166,28 +2320,31 @@ class TestDisplayHappyPaths(unittest.TestCase):
         api_module._system_svc = self._saved_system_svc
         TrccApp.reset()
 
-    @patch('trcc.api.stop_overlay_loop')
-    @patch('trcc.api.stop_video_playback')
+    @patch("trcc.api.stop_overlay_loop")
+    @patch("trcc.api.stop_video_playback")
     def test_set_color_success(self, _sv, _so) -> None:
         self.mock_lcd.send_color.return_value = {
-            "success": True, "message": "Sent color (255, 0, 0)"}
+            "success": True,
+            "message": "Sent color (255, 0, 0)",
+        }
         resp = self.client.post("/display/color", json={"hex": "ff0000"})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
         self.mock_lcd.send_color.assert_called_once_with(255, 0, 0)
 
-    @patch('trcc.api.stop_overlay_loop')
-    @patch('trcc.api.stop_video_playback')
+    @patch("trcc.api.stop_overlay_loop")
+    @patch("trcc.api.stop_video_playback")
     def test_set_color_with_hash_prefix(self, _sv, _so) -> None:
-        self.mock_lcd.send_color.return_value = {
-            "success": True, "message": "Sent"}
+        self.mock_lcd.send_color.return_value = {"success": True, "message": "Sent"}
         resp = self.client.post("/display/color", json={"hex": "#00ff00"})
         self.assertEqual(resp.status_code, 200)
         self.mock_lcd.send_color.assert_called_once_with(0, 255, 0)
 
     def test_set_brightness_level_1(self) -> None:
         self.mock_lcd.set_brightness.return_value = {
-            "success": True, "message": "Brightness set to 25%"}
+            "success": True,
+            "message": "Brightness set to 25%",
+        }
         resp = self.client.post("/display/brightness", json={"level": 1})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
@@ -2195,59 +2352,63 @@ class TestDisplayHappyPaths(unittest.TestCase):
 
     def test_set_brightness_level_3(self) -> None:
         self.mock_lcd.set_brightness.return_value = {
-            "success": True, "message": "Brightness set to 100%"}
+            "success": True,
+            "message": "Brightness set to 100%",
+        }
         resp = self.client.post("/display/brightness", json={"level": 3})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
 
     def test_set_rotation_0(self) -> None:
-        self.mock_lcd.set_rotation.return_value = {
-            "success": True, "message": "Rotation set to 0°"}
+        self.mock_lcd.set_rotation.return_value = {"success": True, "message": "Rotation set to 0°"}
         resp = self.client.post("/display/rotation", json={"degrees": 0})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
 
     def test_set_rotation_90(self) -> None:
         self.mock_lcd.set_rotation.return_value = {
-            "success": True, "message": "Rotation set to 90°"}
+            "success": True,
+            "message": "Rotation set to 90°",
+        }
         resp = self.client.post("/display/rotation", json={"degrees": 90})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
 
     def test_set_rotation_180(self) -> None:
         self.mock_lcd.set_rotation.return_value = {
-            "success": True, "message": "Rotation set to 180°"}
+            "success": True,
+            "message": "Rotation set to 180°",
+        }
         resp = self.client.post("/display/rotation", json={"degrees": 180})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
 
     def test_set_rotation_270(self) -> None:
         self.mock_lcd.set_rotation.return_value = {
-            "success": True, "message": "Rotation set to 270°"}
+            "success": True,
+            "message": "Rotation set to 270°",
+        }
         resp = self.client.post("/display/rotation", json={"degrees": 270})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
 
     def test_set_split_mode_0(self) -> None:
-        self.mock_lcd.set_split_mode.return_value = {
-            "success": True, "message": "Split mode off"}
+        self.mock_lcd.set_split_mode.return_value = {"success": True, "message": "Split mode off"}
         resp = self.client.post("/display/split", json={"mode": 0})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
 
     def test_set_split_mode_1(self) -> None:
-        self.mock_lcd.set_split_mode.return_value = {
-            "success": True, "message": "Split mode 1"}
+        self.mock_lcd.set_split_mode.return_value = {"success": True, "message": "Split mode 1"}
         resp = self.client.post("/display/split", json={"mode": 1})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
         self.mock_lcd.set_split_mode.assert_called_once_with(1)
 
-    @patch('trcc.api.stop_overlay_loop')
-    @patch('trcc.api.stop_video_playback')
+    @patch("trcc.api.stop_overlay_loop")
+    @patch("trcc.api.stop_video_playback")
     def test_reset_success(self, _sv, _so) -> None:
-        self.mock_lcd.frame.reset.return_value = {
-            "success": True, "message": "Device reset"}
+        self.mock_lcd.frame.reset.return_value = {"success": True, "message": "Device reset"}
         resp = self.client.post("/display/reset")
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
@@ -2255,7 +2416,9 @@ class TestDisplayHappyPaths(unittest.TestCase):
 
     def test_mask_upload_success(self) -> None:
         self.mock_lcd.load_mask_standalone.return_value = {
-            "success": True, "message": "Mask applied"}
+            "success": True,
+            "message": "Mask applied",
+        }
         # Small valid PNG-like data (under 10MB)
         png_data = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)
         resp = self.client.post(
@@ -2268,8 +2431,11 @@ class TestDisplayHappyPaths(unittest.TestCase):
 
     def test_overlay_success(self) -> None:
         import trcc.conf as _conf
+
         self.mock_lcd.render_overlay_from_dc.return_value = {
-            "success": True, "message": "Overlay rendered"}
+            "success": True,
+            "message": "Overlay rendered",
+        }
         safe_dc = f"{_conf.settings.user_data_dir}/themes/config1.dc"
         resp = self.client.post(f"/display/overlay?dc_path={safe_dc}&send=true")
         self.assertEqual(resp.status_code, 200)
@@ -2280,19 +2446,20 @@ class TestDisplayHappyPaths(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
 
-    @patch('trcc.api.stop_overlay_loop')
-    @patch('trcc.api.stop_video_playback')
+    @patch("trcc.api.stop_overlay_loop")
+    @patch("trcc.api.stop_video_playback")
     def test_color_stops_video_and_overlay(self, mock_sv, mock_so) -> None:
         """Sending color stops any running video/overlay."""
-        self.mock_lcd.send_color.return_value = {
-            "success": True, "message": "Sent"}
+        self.mock_lcd.send_color.return_value = {"success": True, "message": "Sent"}
         self.client.post("/display/color", json={"hex": "0000ff"})
         mock_sv.assert_called_once()
         mock_so.assert_called_once()
 
     def test_brightness_response_contains_message(self) -> None:
         self.mock_lcd.set_brightness.return_value = {
-            "success": True, "message": "Brightness set to 50%"}
+            "success": True,
+            "message": "Brightness set to 50%",
+        }
         resp = self.client.post("/display/brightness", json={"level": 2})
         self.assertIn("message", resp.json())
 
@@ -2328,44 +2495,44 @@ class TestLEDHappyPaths(unittest.TestCase):
 
     def test_set_color_success(self) -> None:
         self.mock_led.set_color.return_value = {
-            "success": True, "message": "Color set to (255, 0, 0)"}
+            "success": True,
+            "message": "Color set to (255, 0, 0)",
+        }
         resp = self.client.post("/led/color", json={"hex": "ff0000"})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
         self.mock_led.set_color.assert_called_once_with(255, 0, 0)
 
     def test_set_color_with_hash(self) -> None:
-        self.mock_led.set_color.return_value = {
-            "success": True, "message": "Color set"}
+        self.mock_led.set_color.return_value = {"success": True, "message": "Color set"}
         resp = self.client.post("/led/color", json={"hex": "#00ff00"})
         self.assertEqual(resp.status_code, 200)
         self.mock_led.set_color.assert_called_once_with(0, 255, 0)
 
     def test_set_mode_static(self) -> None:
-        self.mock_led.set_mode.return_value = {
-            "success": True, "message": "Mode set to static"}
+        self.mock_led.set_mode.return_value = {"success": True, "message": "Mode set to static"}
         resp = self.client.post("/led/mode", json={"mode": "static"})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
         self.mock_led.set_mode.assert_called_once_with("static")
 
     def test_set_mode_breathing(self) -> None:
-        self.mock_led.set_mode.return_value = {
-            "success": True, "message": "Mode set to breathing"}
+        self.mock_led.set_mode.return_value = {"success": True, "message": "Mode set to breathing"}
         resp = self.client.post("/led/mode", json={"mode": "breathing"})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
 
     def test_set_mode_rainbow(self) -> None:
-        self.mock_led.set_mode.return_value = {
-            "success": True, "message": "Mode set to rainbow"}
+        self.mock_led.set_mode.return_value = {"success": True, "message": "Mode set to rainbow"}
         resp = self.client.post("/led/mode", json={"mode": "rainbow"})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
 
     def test_set_brightness_0(self) -> None:
         self.mock_led.set_brightness.return_value = {
-            "success": True, "message": "Brightness set to 0%"}
+            "success": True,
+            "message": "Brightness set to 0%",
+        }
         resp = self.client.post("/led/brightness", json={"level": 0})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
@@ -2373,21 +2540,24 @@ class TestLEDHappyPaths(unittest.TestCase):
 
     def test_set_brightness_100(self) -> None:
         self.mock_led.set_brightness.return_value = {
-            "success": True, "message": "Brightness set to 100%"}
+            "success": True,
+            "message": "Brightness set to 100%",
+        }
         resp = self.client.post("/led/brightness", json={"level": 100})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
 
     def test_set_brightness_50(self) -> None:
         self.mock_led.set_brightness.return_value = {
-            "success": True, "message": "Brightness set to 50%"}
+            "success": True,
+            "message": "Brightness set to 50%",
+        }
         resp = self.client.post("/led/brightness", json={"level": 50})
         self.assertEqual(resp.status_code, 200)
         self.mock_led.set_brightness.assert_called_once_with(50)
 
     def test_off_success(self) -> None:
-        self.mock_led.off.return_value = {
-            "success": True, "message": "LEDs turned off"}
+        self.mock_led.off.return_value = {"success": True, "message": "LEDs turned off"}
         resp = self.client.post("/led/off")
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
@@ -2395,7 +2565,9 @@ class TestLEDHappyPaths(unittest.TestCase):
 
     def test_set_sensor_cpu(self) -> None:
         self.mock_led.set_sensor_source.return_value = {
-            "success": True, "message": "Sensor source set to cpu"}
+            "success": True,
+            "message": "Sensor source set to cpu",
+        }
         resp = self.client.post("/led/sensor", json={"source": "cpu"})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
@@ -2403,7 +2575,9 @@ class TestLEDHappyPaths(unittest.TestCase):
 
     def test_set_sensor_gpu(self) -> None:
         self.mock_led.set_sensor_source.return_value = {
-            "success": True, "message": "Sensor source set to gpu"}
+            "success": True,
+            "message": "Sensor source set to gpu",
+        }
         resp = self.client.post("/led/sensor", json={"source": "gpu"})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
@@ -2411,38 +2585,39 @@ class TestLEDHappyPaths(unittest.TestCase):
     # ── Zone operations ────────────────────────────────────────────────
 
     def test_zone_color_success(self) -> None:
-        self.mock_led.set_zone_color.return_value = {
-            "success": True, "message": "Zone 0 color set"}
+        self.mock_led.set_zone_color.return_value = {"success": True, "message": "Zone 0 color set"}
         resp = self.client.post("/led/zones/0/color", json={"hex": "ff0000"})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
         self.mock_led.set_zone_color.assert_called_once_with(0, 255, 0, 0)
 
     def test_zone_color_zone_1(self) -> None:
-        self.mock_led.set_zone_color.return_value = {
-            "success": True, "message": "Zone 1 color set"}
+        self.mock_led.set_zone_color.return_value = {"success": True, "message": "Zone 1 color set"}
         resp = self.client.post("/led/zones/1/color", json={"hex": "00ff00"})
         self.assertEqual(resp.status_code, 200)
         self.mock_led.set_zone_color.assert_called_once_with(1, 0, 255, 0)
 
     def test_zone_mode_success(self) -> None:
         self.mock_led.set_zone_mode.return_value = {
-            "success": True, "message": "Zone 0 mode set to breathing"}
+            "success": True,
+            "message": "Zone 0 mode set to breathing",
+        }
         resp = self.client.post("/led/zones/0/mode", json={"mode": "breathing"})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
         self.mock_led.set_zone_mode.assert_called_once_with(0, "breathing")
 
     def test_zone_mode_zone_2(self) -> None:
-        self.mock_led.set_zone_mode.return_value = {
-            "success": True, "message": "Zone 2 mode set"}
+        self.mock_led.set_zone_mode.return_value = {"success": True, "message": "Zone 2 mode set"}
         resp = self.client.post("/led/zones/2/mode", json={"mode": "rainbow"})
         self.assertEqual(resp.status_code, 200)
         self.mock_led.set_zone_mode.assert_called_once_with(2, "rainbow")
 
     def test_zone_brightness_success(self) -> None:
         self.mock_led.set_zone_brightness.return_value = {
-            "success": True, "message": "Zone 0 brightness set to 75%"}
+            "success": True,
+            "message": "Zone 0 brightness set to 75%",
+        }
         resp = self.client.post("/led/zones/0/brightness", json={"level": 75})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
@@ -2450,29 +2625,28 @@ class TestLEDHappyPaths(unittest.TestCase):
 
     def test_zone_brightness_zone_3(self) -> None:
         self.mock_led.set_zone_brightness.return_value = {
-            "success": True, "message": "Zone 3 brightness set"}
+            "success": True,
+            "message": "Zone 3 brightness set",
+        }
         resp = self.client.post("/led/zones/3/brightness", json={"level": 100})
         self.assertEqual(resp.status_code, 200)
         self.mock_led.set_zone_brightness.assert_called_once_with(3, 100)
 
     def test_zone_toggle_on(self) -> None:
-        self.mock_led.toggle_zone.return_value = {
-            "success": True, "message": "Zone 0 enabled"}
+        self.mock_led.toggle_zone.return_value = {"success": True, "message": "Zone 0 enabled"}
         resp = self.client.post("/led/zones/0/toggle", json={"on": True})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
         self.mock_led.toggle_zone.assert_called_once_with(0, True)
 
     def test_zone_toggle_off(self) -> None:
-        self.mock_led.toggle_zone.return_value = {
-            "success": True, "message": "Zone 0 disabled"}
+        self.mock_led.toggle_zone.return_value = {"success": True, "message": "Zone 0 disabled"}
         resp = self.client.post("/led/zones/0/toggle", json={"on": False})
         self.assertEqual(resp.status_code, 200)
         self.mock_led.toggle_zone.assert_called_once_with(0, False)
 
     def test_sync_enabled(self) -> None:
-        self.mock_led.set_zone_sync.return_value = {
-            "success": True, "message": "Zone sync enabled"}
+        self.mock_led.set_zone_sync.return_value = {"success": True, "message": "Zone sync enabled"}
         resp = self.client.post("/led/sync", json={"enabled": True})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
@@ -2480,14 +2654,18 @@ class TestLEDHappyPaths(unittest.TestCase):
 
     def test_sync_with_interval(self) -> None:
         self.mock_led.set_zone_sync.return_value = {
-            "success": True, "message": "Zone sync enabled with interval 500ms"}
+            "success": True,
+            "message": "Zone sync enabled with interval 500ms",
+        }
         resp = self.client.post("/led/sync", json={"enabled": True, "interval": 500})
         self.assertEqual(resp.status_code, 200)
         self.mock_led.set_zone_sync.assert_called_once_with(True, 500)
 
     def test_sync_disabled(self) -> None:
         self.mock_led.set_zone_sync.return_value = {
-            "success": True, "message": "Zone sync disabled"}
+            "success": True,
+            "message": "Zone sync disabled",
+        }
         resp = self.client.post("/led/sync", json={"enabled": False})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
@@ -2496,7 +2674,9 @@ class TestLEDHappyPaths(unittest.TestCase):
 
     def test_segment_toggle_on(self) -> None:
         self.mock_led.toggle_segment.return_value = {
-            "success": True, "message": "Segment 0 enabled"}
+            "success": True,
+            "message": "Segment 0 enabled",
+        }
         resp = self.client.post("/led/segments/0/toggle", json={"on": True})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
@@ -2504,14 +2684,18 @@ class TestLEDHappyPaths(unittest.TestCase):
 
     def test_segment_toggle_off(self) -> None:
         self.mock_led.toggle_segment.return_value = {
-            "success": True, "message": "Segment 0 disabled"}
+            "success": True,
+            "message": "Segment 0 disabled",
+        }
         resp = self.client.post("/led/segments/0/toggle", json={"on": False})
         self.assertEqual(resp.status_code, 200)
         self.mock_led.toggle_segment.assert_called_once_with(0, False)
 
     def test_clock_24h(self) -> None:
         self.mock_led.set_clock_format.return_value = {
-            "success": True, "message": "Clock format set to 24h"}
+            "success": True,
+            "message": "Clock format set to 24h",
+        }
         resp = self.client.post("/led/clock", json={"is_24h": True})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
@@ -2519,14 +2703,18 @@ class TestLEDHappyPaths(unittest.TestCase):
 
     def test_clock_12h(self) -> None:
         self.mock_led.set_clock_format.return_value = {
-            "success": True, "message": "Clock format set to 12h"}
+            "success": True,
+            "message": "Clock format set to 12h",
+        }
         resp = self.client.post("/led/clock", json={"is_24h": False})
         self.assertEqual(resp.status_code, 200)
         self.mock_led.set_clock_format.assert_called_once_with(False)
 
     def test_temp_unit_celsius(self) -> None:
         self.mock_led.set_temp_unit.return_value = {
-            "success": True, "message": "Temperature unit set to C"}
+            "success": True,
+            "message": "Temperature unit set to C",
+        }
         resp = self.client.post("/led/temp-unit", json={"unit": "C"})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
@@ -2534,7 +2722,9 @@ class TestLEDHappyPaths(unittest.TestCase):
 
     def test_temp_unit_fahrenheit(self) -> None:
         self.mock_led.set_temp_unit.return_value = {
-            "success": True, "message": "Temperature unit set to F"}
+            "success": True,
+            "message": "Temperature unit set to F",
+        }
         resp = self.client.post("/led/temp-unit", json={"unit": "F"})
         self.assertEqual(resp.status_code, 200)
         self.mock_led.set_temp_unit.assert_called_once_with("F")
@@ -2542,32 +2732,36 @@ class TestLEDHappyPaths(unittest.TestCase):
     # ── Dispatch failure paths ─────────────────────────────────────────
 
     def test_color_failure_returns_400(self) -> None:
-        self.mock_led.set_color.return_value = {
-            "success": False, "error": "Protocol error"}
+        self.mock_led.set_color.return_value = {"success": False, "error": "Protocol error"}
         resp = self.client.post("/led/color", json={"hex": "ff0000"})
         self.assertEqual(resp.status_code, 400)
 
     def test_mode_failure_returns_400(self) -> None:
-        self.mock_led.set_mode.return_value = {
-            "success": False, "error": "Unknown mode"}
+        self.mock_led.set_mode.return_value = {"success": False, "error": "Unknown mode"}
         resp = self.client.post("/led/mode", json={"mode": "invalid"})
         self.assertEqual(resp.status_code, 400)
 
     def test_zone_color_failure_returns_400(self) -> None:
         self.mock_led.set_zone_color.return_value = {
-            "success": False, "error": "Zone 99 out of range"}
+            "success": False,
+            "error": "Zone 99 out of range",
+        }
         resp = self.client.post("/led/zones/99/color", json={"hex": "ff0000"})
         self.assertEqual(resp.status_code, 400)
 
     def test_zone_mode_failure_returns_400(self) -> None:
         self.mock_led.set_zone_mode.return_value = {
-            "success": False, "error": "Zone 99 out of range"}
+            "success": False,
+            "error": "Zone 99 out of range",
+        }
         resp = self.client.post("/led/zones/99/mode", json={"mode": "static"})
         self.assertEqual(resp.status_code, 400)
 
     def test_zone_brightness_failure_returns_400(self) -> None:
         self.mock_led.set_zone_brightness.return_value = {
-            "success": False, "error": "Zone 99 out of range"}
+            "success": False,
+            "error": "Zone 99 out of range",
+        }
         resp = self.client.post("/led/zones/99/brightness", json={"level": 50})
         self.assertEqual(resp.status_code, 400)
 
@@ -2582,6 +2776,7 @@ class TestPerfEndpoints(unittest.TestCase):
     def test_perf_software(self) -> None:
         """GET /system/perf returns software benchmark results."""
         from trcc.core.perf import PerfReport
+
         report = PerfReport()
         report.record_cpu("test_op", 0.001, 0.01)
 
@@ -2596,11 +2791,11 @@ class TestPerfEndpoints(unittest.TestCase):
     def test_perf_device(self) -> None:
         """GET /system/perf/device returns device benchmark results."""
         from trcc.core.perf import PerfReport
+
         report = PerfReport()
         report.record_device("LCD handshake", 0.5, 2.0)
 
-        with patch("trcc.services.perf.run_device_benchmarks",
-                    return_value=report):
+        with patch("trcc.services.perf.run_device_benchmarks", return_value=report):
             resp = self.client.get("/system/perf/device")
 
         self.assertEqual(resp.status_code, 200)
@@ -2614,8 +2809,7 @@ class TestPerfEndpoints(unittest.TestCase):
         """GET /system/perf/device with no devices returns empty."""
         from trcc.core.perf import PerfReport
 
-        with patch("trcc.services.perf.run_device_benchmarks",
-                    return_value=PerfReport()):
+        with patch("trcc.services.perf.run_device_benchmarks", return_value=PerfReport()):
             resp = self.client.get("/system/perf/device")
 
         self.assertEqual(resp.status_code, 200)
@@ -2629,6 +2823,7 @@ class TestIPCPauseResume(unittest.TestCase):
 
     def test_pause_sets_auto_send_false(self) -> None:
         from trcc.ipc import IPCServer
+
         mock_display = MagicMock()
         mock_display.connected = True
         mock_display.auto_send = True
@@ -2640,6 +2835,7 @@ class TestIPCPauseResume(unittest.TestCase):
 
     def test_resume_sets_auto_send_true(self) -> None:
         from trcc.ipc import IPCServer
+
         mock_display = MagicMock()
         mock_display.connected = True
         mock_display.auto_send = False
@@ -2651,6 +2847,7 @@ class TestIPCPauseResume(unittest.TestCase):
 
     def test_pause_no_display(self) -> None:
         from trcc.ipc import IPCServer
+
         server = IPCServer(None, None)
 
         result = server._pause_display()
@@ -2658,6 +2855,7 @@ class TestIPCPauseResume(unittest.TestCase):
 
     def test_resume_no_display(self) -> None:
         from trcc.ipc import IPCServer
+
         server = IPCServer(None, None)
 
         result = server._resume_display()
@@ -2665,6 +2863,7 @@ class TestIPCPauseResume(unittest.TestCase):
 
     def test_dispatch_pause(self) -> None:
         from trcc.ipc import IPCServer
+
         mock_display = MagicMock()
         mock_display.connected = True
         server = IPCServer(mock_display, None)
@@ -2675,6 +2874,7 @@ class TestIPCPauseResume(unittest.TestCase):
 
     def test_dispatch_resume(self) -> None:
         from trcc.ipc import IPCServer
+
         mock_display = MagicMock()
         mock_display.connected = True
         server = IPCServer(mock_display, None)
@@ -2703,32 +2903,33 @@ class TestThemeExportEndpoint(unittest.TestCase):
         resp = self.client.post("/themes/export?theme_name=Theme001&resolution=bad")
         self.assertEqual(resp.status_code, 400)
 
-    @patch('trcc.services.ThemeService.discover_local', return_value=[])
-    @patch('trcc.adapters.infra.data_repository.DataManager.ensure_themes')
-    @patch('trcc.adapters.infra.data_repository.ThemeDir.for_resolution')
+    @patch("trcc.services.ThemeService.discover_local", return_value=[])
+    @patch("trcc.adapters.infra.data_repository.DataManager.ensure_themes")
+    @patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution")
     def test_export_theme_not_found(self, mock_td, mock_ensure, mock_discover):
-        mock_td.return_value = MagicMock(__str__=lambda s: '/tmp/themes')
+        mock_td.return_value = MagicMock(__str__=lambda s: "/tmp/themes")
         resp = self.client.post("/themes/export?theme_name=NonExistent")
         self.assertEqual(resp.status_code, 404)
 
-    @patch('trcc.services.ThemeService.discover_local')
-    @patch('trcc.adapters.infra.data_repository.DataManager.ensure_themes')
-    @patch('trcc.adapters.infra.data_repository.ThemeDir.for_resolution')
-    @patch('trcc.services.ThemeService.export_tr')
+    @patch("trcc.services.ThemeService.discover_local")
+    @patch("trcc.adapters.infra.data_repository.DataManager.ensure_themes")
+    @patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution")
+    @patch("trcc.services.ThemeService.export_tr")
     def test_export_theme_success(self, mock_export, mock_td, mock_ensure, mock_discover):
         from trcc.core.models import ThemeInfo
+
         theme = ThemeInfo(name="CyberPunk", path=Path("/tmp/themes/CyberPunk"))
         mock_discover.return_value = [theme]
-        mock_td.return_value = MagicMock(__str__=lambda s: '/tmp/themes')
+        mock_td.return_value = MagicMock(__str__=lambda s: "/tmp/themes")
 
         # Create a real temp file for FileResponse
-        with tempfile.NamedTemporaryFile(suffix='.tr', delete=False) as f:
+        with tempfile.NamedTemporaryFile(suffix=".tr", delete=False) as f:
             f.write(b"fake theme archive")
             tmp_path = f.name
 
         mock_export.return_value = (True, f"Exported to {tmp_path}")
 
-        with patch('tempfile.NamedTemporaryFile') as mock_tmp:
+        with patch("tempfile.NamedTemporaryFile") as mock_tmp:
             mock_file = MagicMock()
             mock_file.name = tmp_path
             mock_file.close = MagicMock()
@@ -2755,10 +2956,10 @@ class TestDisplayTestEndpoint(unittest.TestCase):
         resp = self.client.post("/display/test")
         self.assertEqual(resp.status_code, 409)
 
-    @patch('time.sleep')
-    @patch('trcc.services.ImageService.solid_color')
-    @patch('trcc.api.stop_overlay_loop')
-    @patch('trcc.api.stop_video_playback')
+    @patch("time.sleep")
+    @patch("trcc.services.ImageService.solid_color")
+    @patch("trcc.api.stop_overlay_loop")
+    @patch("trcc.api.stop_video_playback")
     def test_display_test_success(self, mock_stop_v, mock_stop_o, mock_solid, mock_sleep):
         mock_lcd = MagicMock()
         mock_lcd.connected = True
@@ -2823,7 +3024,7 @@ class TestLEDTestEndpoint(unittest.TestCase):
         self.assertEqual(data["segments"], 64)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
 
 
@@ -2834,6 +3035,7 @@ if __name__ == '__main__':
 # fixtures (lcd_only_app, no_device_app) that cannot be injected into
 # unittest.TestCase methods. See tests/api/conftest.py for fixture definitions.
 # =============================================================================
+
 
 def test_select_device_calls_discover_resolution(no_device_app):
     """Select triggers resolution discovery for LCD devices with (0,0) resolution.
@@ -2848,8 +3050,9 @@ def test_select_device_calls_discover_resolution(no_device_app):
     from trcc.api import app as fastapi_app
 
     _app, _mock_lcd = no_device_app
-    dev = DeviceInfo(name="FW", path="/dev/sg1", vid=0x0402, pid=0x3922,
-                     protocol="scsi", resolution=(0, 0))
+    dev = DeviceInfo(
+        name="FW", path="/dev/sg1", vid=0x0402, pid=0x3922, protocol="scsi", resolution=(0, 0)
+    )
     _device_svc._devices = [dev]
 
     with patch.object(_device_svc, "_discover_resolution") as mock_discover:
@@ -2873,14 +3076,17 @@ def test_select_device_standalone_calls_ensure_all(lcd_only_app):
     from trcc.core.commands.lcd import EnsureDataCommand
 
     app, _mock_lcd = lcd_only_app
-    dev = DeviceInfo(name="LCD1", path="/dev/sg0", vid=0x0402, pid=0x3922,
-                     protocol="scsi", resolution=(320, 320))
+    dev = DeviceInfo(
+        name="LCD1", path="/dev/sg0", vid=0x0402, pid=0x3922, protocol="scsi", resolution=(320, 320)
+    )
     _device_svc._devices = [dev]
 
     resp = SyncClient(app=fastapi_app, base_url="http://test").post("/devices/0/select")
 
     assert resp.status_code == 200
-    app._lcd_bus.dispatch.assert_called_with(EnsureDataCommand(width=320, height=320))
+    # lcd_buses is now a dict keyed by path; grab the (only) mock bus
+    mock_bus = next(iter(app._lcd_buses.values()))
+    mock_bus.dispatch.assert_called_with(EnsureDataCommand(width=320, height=320))
 
 
 def test_select_led_device_failed_connect_clears_dispatcher(no_device_app):
@@ -2897,8 +3103,14 @@ def test_select_led_device_failed_connect_clears_dispatcher(no_device_app):
     from trcc.api import app as fastapi_app
 
     _app, _mock_lcd = no_device_app
-    dev = DeviceInfo(name="HR10", path="hid:0416:8001", vid=0x0416, pid=0x8001,
-                     protocol="led", implementation="hid_led")
+    dev = DeviceInfo(
+        name="HR10",
+        path="hid:0416:8001",
+        vid=0x0416,
+        pid=0x8001,
+        protocol="led",
+        implementation="hid_led",
+    )
     _device_svc._devices = [dev]
     api_module._led_dispatcher = None
 

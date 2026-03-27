@@ -8,6 +8,7 @@ Fixtures:
   lcd_only_app  — LCD device connected, LED absent
   no_device_app — no device found (scan returns nothing)
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -32,7 +33,8 @@ def lcd_only_app(monkeypatch):
 
     ensure_all_calls: list = []
     monkeypatch.setattr(
-        DataManager, "ensure_all",
+        DataManager,
+        "ensure_all",
         classmethod(lambda cls, w, h: ensure_all_calls.append((w, h))),
     )
 
@@ -44,8 +46,9 @@ def lcd_only_app(monkeypatch):
 
     # Fake os_bus: DiscoverDevicesCommand wires lcd_device + lcd_bus
     def _fake_dispatch(cmd):
-        app._lcd_device = mock_lcd
-        app._lcd_bus = MagicMock(spec=CommandBus)
+        _fake_path = "usb:1:1"
+        app._lcd_devices[_fake_path] = mock_lcd
+        app._lcd_buses[_fake_path] = MagicMock(spec=CommandBus)
         return CommandResult.ok(message="1 device(s) found")
 
     fake_os_bus = MagicMock(spec=CommandBus)

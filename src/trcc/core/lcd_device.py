@@ -5,6 +5,7 @@ settings) are methods directly on LCDDevice. Delegates to services internally.
 
 CLI, GUI, and API all consume this directly (DIP — core/, not adapter/).
 """
+
 from __future__ import annotations
 
 import logging
@@ -16,7 +17,6 @@ from typing import Any
 from .ports import Device
 
 log = logging.getLogger(__name__)
-
 
 
 class LCDDevice(Device):
@@ -78,18 +78,20 @@ class LCDDevice(Device):
         if self._build_services_fn is None:
             raise RuntimeError(
                 "LCDDevice requires build_services_fn. "
-                "Use ControllerBuilder.build_lcd() to wire dependencies.")
+                "Use ControllerBuilder.build_lcd() to wire dependencies."
+            )
         result = self._build_services_fn(device_svc, self._renderer)
         self._device_svc = device_svc
-        self._display_svc = result['display_svc']
-        self._theme_svc = result['theme_svc']
-        self._renderer = result['renderer']
-        self._dc_config_cls = result['dc_config_cls']
-        self._load_config_json_fn = result['load_config_json_fn']
+        self._display_svc = result["display_svc"]
+        self._theme_svc = result["theme_svc"]
+        self._renderer = result["renderer"]
+        self._dc_config_cls = result["dc_config_cls"]
+        self._load_config_json_fn = result["load_config_json_fn"]
 
     @classmethod
-    def from_service(cls, device_svc: Any, renderer: Any = None,
-                     build_services_fn: Any = None) -> LCDDevice:
+    def from_service(
+        cls, device_svc: Any, renderer: Any = None, build_services_fn: Any = None
+    ) -> LCDDevice:
         """Create a fully-wired LCDDevice from an existing DeviceService.
 
         Use when the caller already has a connected DeviceService (e.g. CLI
@@ -133,21 +135,21 @@ class LCDDevice(Device):
                 return {
                     "success": True,
                     "proxy": active,
-                    "resolution": getattr(self._proxy, 'resolution', (0, 0)),
-                    "device_path": getattr(self._proxy, 'device_path', ''),
+                    "resolution": getattr(self._proxy, "resolution", (0, 0)),
+                    "device_path": getattr(self._proxy, "device_path", ""),
                 }
 
         if self._device_svc is None:
             raise RuntimeError(
                 "LCDDevice requires a DeviceService. "
-                "Use ControllerBuilder.build_lcd() to wire dependencies.")
+                "Use ControllerBuilder.build_lcd() to wire dependencies."
+            )
 
         device_path = None
         if isinstance(detected, str):
             device_path = detected
         elif detected is not None:
-            device_path = getattr(detected, 'scsi_device', None) or \
-                          getattr(detected, 'path', None)
+            device_path = getattr(detected, "scsi_device", None) or getattr(detected, "path", None)
 
         svc = self._device_svc
         svc.scan_and_select(device_path)
@@ -165,9 +167,8 @@ class LCDDevice(Device):
     @property
     def connected(self) -> bool:
         if self._proxy is not None:
-            return getattr(self._proxy, 'connected', True)
-        return (self._device_svc is not None
-                and self._device_svc.selected is not None)
+            return getattr(self._proxy, "connected", True)
+        return self._device_svc is not None and self._device_svc.selected is not None
 
     @property
     def device_info(self) -> Any:
@@ -242,7 +243,9 @@ class LCDDevice(Device):
             return {"success": False, "error": "Not connected"}
         devices = self._device_svc.detect()
         return {
-            "success": True, "devices": devices, "count": len(devices),
+            "success": True,
+            "devices": devices,
+            "count": len(devices),
             "message": f"Found {len(devices)} device(s)",
         }
 
@@ -250,14 +253,13 @@ class LCDDevice(Device):
         if not self._device_svc:
             return {"success": False, "error": "Not connected"}
         self._device_svc.select(device)
-        return {"success": True, "device": device,
-                "message": f"Selected: {device.path}"}
+        return {"success": True, "device": device, "message": f"Selected: {device.path}"}
 
     # ── Standalone operations (CLI overlay/mask without GUI) ──────
 
-    def render_overlay_from_dc(self, dc_path: str, *, send: bool = False,
-                               output: str | None = None,
-                               metrics: Any = None) -> dict:
+    def render_overlay_from_dc(
+        self, dc_path: str, *, send: bool = False, output: str | None = None, metrics: Any = None
+    ) -> dict:
         """Render overlay from DC config file (CLI standalone).
 
         Args:
@@ -271,7 +273,9 @@ class LCDDevice(Device):
 
         w, h = self.resolution if self.connected else (320, 320)
         overlay = OverlayService(
-            w, h, renderer=self._renderer,
+            w,
+            h,
+            renderer=self._renderer,
             load_config_json_fn=self._load_config_json_fn,
             dc_config_cls=self._dc_config_cls,
         )
@@ -301,8 +305,9 @@ class LCDDevice(Device):
             "image": result_img,
             "elements": elements,
             "display_opts": display_opts or {},
-            "message": "; ".join(messages) if messages else
-                       f"Overlay config loaded: {elements} elements ({w}x{h})",
+            "message": "; ".join(messages)
+            if messages
+            else f"Overlay config loaded: {elements} elements ({w}x{h})",
         }
 
     def load_mask_standalone(self, mask_path: str) -> dict:
@@ -324,8 +329,7 @@ class LCDDevice(Device):
             if not mask_file.exists():
                 mask_file = next(p.glob("*.png"), None)
             if not mask_file:
-                return {"success": False,
-                        "error": f"No PNG files in {mask_path}"}
+                return {"success": False, "error": f"No PNG files in {mask_path}"}
         else:
             mask_file = p
 
@@ -334,7 +338,7 @@ class LCDDevice(Device):
 
         # Parse mask position from DC file (C# stores center coords)
         mask_w, mask_h = r.surface_size(mask_img)
-        dc_path = (p if p.is_dir() else p.parent) / 'config1.dc'
+        dc_path = (p if p.is_dir() else p.parent) / "config1.dc"
         position = self._parse_mask_position(dc_path, mask_w, mask_h, w, h)
 
         # Use existing overlay service (GUI) or create fresh one (CLI)
@@ -345,18 +349,24 @@ class LCDDevice(Device):
             ovl.enabled = True
             # Track mask source for theme save
             self._display_svc._mask_source_dir = p if p.is_dir() else p.parent
-            log.debug("load_mask_standalone: _mask_source_dir=%s", self._display_svc._mask_source_dir)
+            log.debug(
+                "load_mask_standalone: _mask_source_dir=%s", self._display_svc._mask_source_dir
+            )
             # Use current theme bg, fall back to black
-            bg = self._display_svc._clean_background or \
-                self._display_svc.current_image or \
-                ImageService.solid_color(0, 0, 0, w, h)
+            bg = (
+                self._display_svc._clean_background
+                or self._display_svc.current_image
+                or ImageService.solid_color(0, 0, 0, w, h)
+            )
             self._display_svc.current_image = bg
             # Invalidate video cache (old mask baked in)
             self._display_svc._cache = None
             result_img = self._display_svc.render_overlay()
         else:
             ovl = OverlayService(
-                w, h, renderer=self._renderer,
+                w,
+                h,
+                renderer=self._renderer,
                 load_config_json_fn=self._load_config_json_fn,
                 dc_config_cls=self._dc_config_cls,
             )
@@ -375,8 +385,12 @@ class LCDDevice(Device):
         }
 
     def _parse_mask_position(
-        self, dc_path: Path | None, mask_w: int, mask_h: int,
-        lcd_w: int, lcd_h: int,
+        self,
+        dc_path: Path | None,
+        mask_w: int,
+        mask_h: int,
+        lcd_w: int,
+        lcd_h: int,
     ) -> tuple[int, int] | None:
         """Parse mask position from DC file (center→top-left).
 
@@ -394,15 +408,16 @@ class LCDDevice(Device):
         try:
             dc = self._dc_config_cls(dc_path)
             if dc.mask_enabled:
-                center_pos = dc.mask_settings.get('mask_position')
+                center_pos = dc.mask_settings.get("mask_position")
                 if center_pos:
                     return (
                         center_pos[0] - mask_w // 2,
                         center_pos[1] - mask_h // 2,
                     )
         except Exception as e:
-            log.warning("DC config parse failed for %s — using centered mask position: %s",
-                        dc_path, e)
+            log.warning(
+                "DC config parse failed for %s — using centered mask position: %s", dc_path, e
+            )
         # Fallback: center the mask
         return ((lcd_w - mask_w) // 2, (lcd_h - mask_h) // 2)
 
@@ -412,6 +427,7 @@ class LCDDevice(Device):
         if not os.path.exists(image_path):
             return {"success": False, "error": f"File not found: {image_path}"}
         from ..services import ImageService
+
         w, h = self.lcd_size
         img = ImageService.open_and_resize(image_path, w, h)
         self._device_svc.send_frame(img, w, h)
@@ -419,11 +435,11 @@ class LCDDevice(Device):
 
     def send_color(self, r: int, g: int, b: int) -> dict:
         from ..services import ImageService
+
         w, h = self.lcd_size
         img = ImageService.solid_color(r, g, b, w, h)
         self._device_svc.send_frame(img, w, h)
-        return {"success": True, "image": img,
-                "message": f"Sent color #{r:02x}{g:02x}{b:02x}"}
+        return {"success": True, "image": img, "message": f"Sent color #{r:02x}{g:02x}{b:02x}"}
 
     def send(self, image: Any) -> dict:
         """Encode and async-send image to LCD device."""
@@ -441,12 +457,12 @@ class LCDDevice(Device):
     def load_image(self, path: Any) -> dict:
         image = self._display_svc.load_image_file(Path(path))
         if image:
-            return {"success": True, "image": image,
-                    "message": f"Loaded: {Path(path).name}"}
+            return {"success": True, "image": image, "message": f"Loaded: {Path(path).name}"}
         return {"success": False, "error": f"Failed to load: {path}"}
 
     def reset(self) -> dict:
         from ..services import ImageService
+
         w, h = self.lcd_size
         img = ImageService.solid_color(255, 0, 0, w, h)
         self._device_svc.send_frame(img, w, h)
@@ -456,6 +472,7 @@ class LCDDevice(Device):
 
     def _persist(self, field: str, value: object) -> None:
         from ..conf import Settings
+
         dev = self._device_svc.selected if self._device_svc else None
         if dev:
             key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
@@ -469,47 +486,47 @@ class LCDDevice(Device):
         """
         from ..conf import Settings
         from .models import DEFAULT_BRIGHTNESS_LEVEL
+
         dev = self._device_svc.selected if self._device_svc else None
         if not dev:
             return
         key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
         cfg = Settings.get_device_config(key)
-        self.set_brightness(cfg.get('brightness_level', DEFAULT_BRIGHTNESS_LEVEL))
-        rotation = cfg.get('rotation', 0)
+        self.set_brightness(cfg.get("brightness_level", DEFAULT_BRIGHTNESS_LEVEL))
+        rotation = cfg.get("rotation", 0)
         if rotation in (0, 90, 180, 270):
             self.set_rotation(rotation)
 
     def set_brightness(self, level: int) -> dict:
         from .models import BRIGHTNESS_LEVELS
+
         if level in BRIGHTNESS_LEVELS:
             percent = BRIGHTNESS_LEVELS[level]
         elif 0 <= level <= 100:
             percent = level
         else:
-            return {"success": False,
-                    "error": "Brightness: 1-3 (level) or 0-100 (percent)"}
+            return {"success": False, "error": "Brightness: 1-3 (level) or 0-100 (percent)"}
         image = self._display_svc.set_brightness(percent)
-        self._persist('brightness_level', level)
-        return {"success": True, "image": image,
-                "message": f"Brightness set to {percent}%"}
+        self._persist("brightness_level", level)
+        return {"success": True, "image": image, "message": f"Brightness set to {percent}%"}
 
     def set_rotation(self, degrees: int) -> dict:
         if degrees not in (0, 90, 180, 270):
-            return {"success": False,
-                    "error": "Rotation must be 0, 90, 180, or 270"}
+            return {"success": False, "error": "Rotation must be 0, 90, 180, or 270"}
         image = self._display_svc.set_rotation(degrees)
-        self._persist('rotation', degrees)
-        return {"success": True, "image": image,
-                "message": f"Rotation set to {degrees}°"}
+        self._persist("rotation", degrees)
+        return {"success": True, "image": image, "message": f"Rotation set to {degrees}°"}
 
     def set_split_mode(self, mode: int) -> dict:
         if mode not in (0, 1, 2, 3):
-            return {"success": False,
-                    "error": "Split mode must be 0, 1, 2, or 3"}
+            return {"success": False, "error": "Split mode must be 0, 1, 2, or 3"}
         image = self._display_svc.set_split_mode(mode)
-        self._persist('split_mode', mode)
-        return {"success": True, "image": image,
-                "message": f"Split mode: {'off' if mode == 0 else f'style {mode}'}"}
+        self._persist("split_mode", mode)
+        return {
+            "success": True,
+            "image": image,
+            "message": f"Split mode: {'off' if mode == 0 else f'style {mode}'}",
+        }
 
     def set_resolution(self, width: int, height: int) -> dict:
         self._display_svc.set_resolution(width, height)
@@ -520,8 +537,11 @@ class LCDDevice(Device):
         )
         if width and height:
             self._theme_svc.load_local_themes((width, height))
-        return {"success": True, "resolution": (width, height),
-                "message": f"Resolution: {width}x{height}"}
+        return {
+            "success": True,
+            "resolution": (width, height),
+            "message": f"Resolution: {width}x{height}",
+        }
 
     def load_last_theme(self) -> dict:
         """Load the last-used theme from per-device config.
@@ -530,6 +550,7 @@ class LCDDevice(Device):
         DisplayService pipeline (brightness + rotation applied automatically).
         """
         from ..conf import Settings
+
         dev = self._device_svc.selected if self._device_svc else None
         if not dev:
             return {"success": False, "error": "No device selected"}
@@ -567,16 +588,16 @@ class LCDDevice(Device):
         else:
             result = self._display_svc.load_local_theme(theme)
 
-        image = result.get('image')
-        is_animated = result.get('is_animated', False)
+        image = result.get("image")
+        is_animated = result.get("is_animated", False)
 
         return {
             "success": True,
             "image": image,
             "is_animated": is_animated,
             "interval": self._display_svc.get_video_interval() if is_animated else 0,
-            "status": result.get('status', ''),
-            "message": f"Theme: {theme.name}" if hasattr(theme, 'name') else "Theme loaded",
+            "status": result.get("status", ""),
+            "message": f"Theme: {theme.name}" if hasattr(theme, "name") else "Theme loaded",
         }
 
     def load_theme_by_name(self, name: str, width: int = 0, height: int = 0) -> dict:
@@ -621,8 +642,8 @@ class LCDDevice(Device):
         dev = self._device_svc.selected if self._device_svc else None
         if dev and match.path:
             key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
-            Settings.save_device_setting(key, 'theme_path', str(match.path))
-            Settings.save_device_setting(key, 'mask_path', '')
+            Settings.save_device_setting(key, "theme_path", str(match.path))
+            Settings.save_device_setting(key, "mask_path", "")
 
         return result
 
@@ -807,9 +828,14 @@ class LCDDevice(Device):
         """
         if not self._display_svc:
             return {"success": False, "error": "DisplayService not initialized"}
-        log.info("play_video_loop: %s overlay=%s mask=%s",
-                 video_path, bool(overlay_config), bool(mask_path))
+        log.info(
+            "play_video_loop: %s overlay=%s mask=%s",
+            video_path,
+            bool(overlay_config),
+            bool(mask_path),
+        )
         from pathlib import Path
+
         return self._display_svc.run_video_loop(
             Path(video_path),
             overlay_config=overlay_config,
@@ -839,8 +865,7 @@ class LCDDevice(Device):
 
     def enable(self, on: bool) -> dict:
         self._display_svc.overlay.enabled = on
-        return {"success": True, "enabled": on,
-                "message": f"Overlay: {'on' if on else 'off'}"}
+        return {"success": True, "enabled": on, "message": f"Overlay: {'on' if on else 'off'}"}
 
     def set_config(self, config: dict) -> dict:
         self._display_svc.overlay.set_config(config)
@@ -853,19 +878,16 @@ class LCDDevice(Device):
         # Use overlay.background (already converted to native QImage)
         # to avoid re-conversion on every render tick.
         if image is not None:
-            self._display_svc.set_clean_background(
-                self._display_svc.overlay.background)
+            self._display_svc.set_clean_background(self._display_svc.overlay.background)
         return {"success": True, "message": "Overlay background set"}
 
-    def set_mask(self, image: Any,
-                 position: tuple[int, int] | None = None) -> dict:
+    def set_mask(self, image: Any, position: tuple[int, int] | None = None) -> dict:
         self._display_svc.overlay.set_theme_mask(image, position)
         return {"success": True, "message": "Mask set"}
 
     def set_mask_visible(self, visible: bool) -> dict:
         self._display_svc.overlay.set_mask_visible(visible)
-        return {"success": True,
-                "message": f"Mask: {'visible' if visible else 'hidden'}"}
+        return {"success": True, "message": f"Mask: {'visible' if visible else 'hidden'}"}
 
     def set_temp_unit(self, unit: int) -> dict:
         self._display_svc.overlay.set_temp_unit(unit)
@@ -886,8 +908,7 @@ class LCDDevice(Device):
 
     def apply_mask_dir(self, mask_dir: Any) -> dict:
         image = self._display_svc.apply_mask(Path(mask_dir))
-        return {"success": True, "image": image,
-                "message": f"Mask: {Path(mask_dir).name}"}
+        return {"success": True, "image": image, "message": f"Mask: {Path(mask_dir).name}"}
 
     def rebuild_video_cache(self, metrics: Any) -> dict:
         self._display_svc.rebuild_video_cache_metrics(metrics)
@@ -922,8 +943,7 @@ class LCDDevice(Device):
     def set_overlay_background(self, image: Any) -> dict:
         return self.set_background(image)
 
-    def set_overlay_mask(self, mask: Any,
-                         position: tuple[int, int] | None = None) -> dict:
+    def set_overlay_mask(self, mask: Any, position: tuple[int, int] | None = None) -> dict:
         return self.set_mask(mask, position)
 
     def set_overlay_mask_visible(self, visible: bool) -> dict:
@@ -936,7 +956,11 @@ class LCDDevice(Device):
             return {"success": False, "error": "Not connected"}
         data_dir = Path(data_dir)
         log.debug("LCDDevice: initializing, data_dir=%s", data_dir)
-        self._display_svc.initialize(data_dir)
+        # Pass resolution from the device handshake so DisplayService owns its
+        # own per-instance dimensions (multi-device: avoids singleton collision).
+        dev = self._device_svc.selected if self._device_svc else None
+        dev_w, dev_h = dev.resolution if dev else (0, 0)
+        self._display_svc.initialize(data_dir, width=dev_w, height=dev_h)
         self._theme_svc.set_directories(
             local_dir=self._display_svc.local_dir,
             web_dir=self._display_svc.web_dir,

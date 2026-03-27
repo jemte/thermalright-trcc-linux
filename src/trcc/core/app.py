@@ -8,6 +8,7 @@ hands it to callers. Composition roots import only TrccApp and Device types.
 Observer pattern: interfaces register via register(observer). State changes
 (device found/lost) notify all registered observers automatically.
 """
+
 from __future__ import annotations
 
 import logging
@@ -37,6 +38,7 @@ log = logging.getLogger(__name__)
 
 
 # ── Observer contract ────────────────────────────────────────────────────────
+
 
 class AppEvent(Enum):
     DEVICES_CHANGED     = auto()  # device list rescanned
@@ -81,17 +83,19 @@ class TrccApp:
         self._system_svc: SystemService | None = None
         self._metrics_thread: threading.Thread | None = None
         self._metrics_stop: threading.Event = threading.Event()
-        # Active buses — built when a device connects, cleared when it disconnects
+        # Active buses — built when a device connects, cleared when it disconnects.
+        # LCD maps are keyed by USB path to support multiple simultaneous LCD devices.
         self._os_bus: CommandBus | None = None
-        self._lcd_bus: CommandBus | None = None
+        self._lcd_buses: dict[str, CommandBus] = {}
+        self._lcd_devices: dict[str, LCDDevice] = {}
         self._led_bus: CommandBus | None = None
-        self._lcd_device: LCDDevice | None = None
         self._led_device: LEDDevice | None = None
         # IPC handlers — injected by composition roots (CLI/API/GUI entry points)
         self._find_active_fn: FindActiveFn | None = None
         self._proxy_factory_fn: ProxyFactoryFn | None = None
         # Data extraction callable — injected via init() from builder (DIP)
         from .ports import EnsureDataFn
+
         self._ensure_data_fn: EnsureDataFn | None = None
 
     # ── Lifecycle ────────────────────────────────────────────────────────────
@@ -107,6 +111,7 @@ class TrccApp:
         """
         if cls._instance is None:
             from .builder import ControllerBuilder
+
             builder = ControllerBuilder.for_current_os()
             cls._instance = cls(builder)
             cls._instance._ensure_data_fn = builder.build_ensure_data_fn()
@@ -119,7 +124,8 @@ class TrccApp:
         """Return the singleton. Raises if init() was never called."""
         if cls._instance is None:
             raise RuntimeError(
-                "TrccApp not initialized — call TrccApp.init() from a composition root.")
+                "TrccApp not initialized — call TrccApp.init() from a composition root."
+            )
         return cls._instance
 
     @classmethod
@@ -145,6 +151,8 @@ class TrccApp:
         found: list[DetectedDevice] = detect_fn()
 
         self._devices = {}
+        self._lcd_buses = {}
+        self._lcd_devices = {}
         lock = threading.Lock()
 
         def _connect_one(detected: DetectedDevice) -> None:
@@ -158,10 +166,7 @@ class TrccApp:
                 self._devices[detected.path] = device
                 self._wire_bus(device)
 
-        threads = [
-            threading.Thread(target=_connect_one, args=(d,), daemon=True)
-            for d in found
-        ]
+        threads = [threading.Thread(target=_connect_one, args=(d,), daemon=True) for d in found]
         for t in threads:
             t.start()
         for t in threads:
@@ -192,9 +197,12 @@ class TrccApp:
         Returns the list of connected devices (same as scan()).
         """
         from .commands.initialize import InitPlatformCommand
-        self.os_bus.dispatch(InitPlatformCommand(
-            renderer_factory=renderer_factory,
-        ))
+
+        self.os_bus.dispatch(
+            InitPlatformCommand(
+                renderer_factory=renderer_factory,
+            )
+        )
         devices = self.scan()
         self._ensure_data_blocking()
         return devices
@@ -207,6 +215,7 @@ class TrccApp:
         Progress is reported via AppEvent.BOOTSTRAP_PROGRESS notifications.
         """
         from .lcd_device import LCDDevice as _LCD
+
         ensure_fn = self._ensure_data_fn
         if ensure_fn is None:
             return
@@ -217,8 +226,11 @@ class TrccApp:
             w, h = device.device_info.resolution
             if w and h and (w, h) not in seen:
                 seen.add((w, h))
-                ensure_fn(w, h, progress_fn=lambda msg: self._notify(AppEvent.BOOTSTRAP_PROGRESS, msg))
+                ensure_fn(
+                    w, h, progress_fn=lambda msg: self._notify(AppEvent.BOOTSTRAP_PROGRESS, msg)
+                )
                 import trcc.conf as _conf
+
                 _conf.settings._resolve_paths()
                 device.notify_data_ready()
 
@@ -238,11 +250,16 @@ class TrccApp:
         self._wire_bus(device)
         # Hotplug: ensure data in background (UI already running, can't block).
         from .lcd_device import LCDDevice as _LCD
-        if device.is_lcd and isinstance(device, _LCD) and self._lcd_bus is not None:
-            from .commands.lcd import EnsureDataCommand
-            w, h = device.device_info.resolution
-            if w and h:
-                self._lcd_bus.dispatch(EnsureDataCommand(width=w, height=h))
+
+        if device.is_lcd and isinstance(device, _LCD):
+            path = getattr(device, "device_path", None) or ""
+            bus = self._lcd_buses.get(path)
+            if bus is not None:
+                from .commands.lcd import EnsureDataCommand
+
+                w, h = device.device_info.resolution
+                if w and h:
+                    bus.dispatch(EnsureDataCommand(width=w, height=h))
         self._notify(AppEvent.DEVICE_CONNECTED, device)
 
     def device_lost(self, path: str) -> None:
@@ -250,8 +267,8 @@ class TrccApp:
         device = self._devices.pop(path, None)
         if device is not None:
             if device.is_lcd:
-                self._lcd_bus = None
-                self._lcd_device = None
+                self._lcd_buses.pop(path, None)
+                self._lcd_devices.pop(path, None)
             elif device.is_led:
                 self._led_bus = None
                 self._led_device = None
@@ -265,21 +282,23 @@ class TrccApp:
         """
         from .lcd_device import LCDDevice as _LCD
         from .led_device import LEDDevice as _LED
+
         if device.is_lcd and isinstance(device, _LCD):
             if self._find_active_fn is not None:
                 device._find_active_fn = self._find_active_fn
             if self._proxy_factory_fn is not None:
                 device._proxy_factory_fn = self._proxy_factory_fn
-            self._lcd_device = device
-            self._lcd_bus = self.build_lcd_bus(device)
-            log.debug("lcd_bus ready for %s", getattr(device, 'device_path', '?'))
+            path = getattr(device, "device_path", None) or ""
+            self._lcd_devices[path] = device
+            self._lcd_buses[path] = self.build_lcd_bus(device)
+            log.debug("lcd_bus ready for %s", path)
             # Data extraction is handled by bootstrap() → _ensure_data_blocking()
             # so the UI starts fully populated.  Hotplug (device_connected) and
             # SetResolutionCommand still dispatch EnsureDataCommand via lcd_bus.
         elif device.is_led and isinstance(device, _LED):
             self._led_device = device
             self._led_bus = self.build_led_bus(device)
-            log.debug("led_bus ready for %s", getattr(device, 'device_path', '?'))
+            log.debug("led_bus ready for %s", getattr(device, "device_path", "?"))
 
     @property
     def devices(self) -> list[Device]:
@@ -288,8 +307,8 @@ class TrccApp:
 
     @property
     def has_lcd(self) -> bool:
-        """True if an LCD device is connected and its bus is ready."""
-        return self._lcd_bus is not None
+        """True if at least one LCD device is connected and its bus is ready."""
+        return bool(self._lcd_buses)
 
     @property
     def has_led(self) -> bool:
@@ -298,14 +317,21 @@ class TrccApp:
 
     @property
     def lcd_bus(self) -> CommandBus:
-        """CommandBus for LCD operations. Raises if no LCD device connected.
+        """CommandBus for the first LCD device. Raises if no LCD device connected.
+
+        CLI and API use this for single-device operations. For multi-device
+        operations iterate lcd_buses.values() directly.
 
         Sequence: TrccApp.init() → scan() → lcd_bus.dispatch(command)
         """
-        if self._lcd_bus is None:
-            raise RuntimeError(
-                "No LCD device connected. Call scan() first.")
-        return self._lcd_bus
+        if not self._lcd_buses:
+            raise RuntimeError("No LCD device connected. Call scan() first.")
+        return next(iter(self._lcd_buses.values()))
+
+    @property
+    def lcd_buses(self) -> dict[str, CommandBus]:
+        """All active LCD CommandBuses keyed by USB path."""
+        return self._lcd_buses
 
     @property
     def led_bus(self) -> CommandBus:
@@ -314,8 +340,7 @@ class TrccApp:
         Sequence: TrccApp.init() → scan() → led_bus.dispatch(command)
         """
         if self._led_bus is None:
-            raise RuntimeError(
-                "No LED device connected. Call scan() first.")
+            raise RuntimeError("No LED device connected. Call scan() first.")
         return self._led_bus
 
     @property
@@ -333,6 +358,7 @@ class TrccApp:
         from trcc.adapters.infra.theme_downloader import download_pack, list_available
 
         from .handlers.os import build_os_bus as _build
+
         return _build(
             bootstrap_fn=self._builder.bootstrap,
             set_renderer_fn=self.set_renderer,
@@ -362,8 +388,19 @@ class TrccApp:
 
     @property
     def lcd_device(self) -> LCDDevice | None:
-        """The active LCD device, or None if not connected."""
-        return self._lcd_device
+        """The first active LCD device, or None if not connected.
+
+        CLI and API use this for single-device access. For multi-device
+        access iterate lcd_devices.values() directly.
+        """
+        if not self._lcd_devices:
+            return None
+        return next(iter(self._lcd_devices.values()))
+
+    @property
+    def lcd_devices(self) -> dict[str, LCDDevice]:
+        """All active LCD devices keyed by USB path."""
+        return self._lcd_devices
 
     @property
     def led_device(self) -> LEDDevice | None:
@@ -396,8 +433,7 @@ class TrccApp:
         Composition roots call this once after scan().
         """
         if self._system_svc is None:
-            raise RuntimeError(
-                "TrccApp.set_system() must be called before start_metrics_loop().")
+            raise RuntimeError("TrccApp.set_system() must be called before start_metrics_loop().")
         self.stop_metrics_loop()
         self._metrics_stop.clear()
 
@@ -410,8 +446,9 @@ class TrccApp:
                             device.update_metrics(metrics)
                             image = device.tick()
                             if image is not None:
-                                self._notify(AppEvent.FRAME_RENDERED,
-                                             {'path': path, 'image': image})
+                                self._notify(
+                                    AppEvent.FRAME_RENDERED, {"path": path, "image": image}
+                                )
                         except Exception:
                             log.exception("Device update error: %s", device)
                     self._notify(AppEvent.METRICS_UPDATED, metrics)
@@ -419,8 +456,7 @@ class TrccApp:
                     log.exception("Metrics poll error")
                 self._metrics_stop.wait(interval)
 
-        self._metrics_thread = threading.Thread(
-            target=_loop, daemon=True, name="trcc-metrics")
+        self._metrics_thread = threading.Thread(target=_loop, daemon=True, name="trcc-metrics")
         self._metrics_thread.start()
         log.debug("Metrics loop started (interval=%.1fs)", interval)
 
@@ -458,6 +494,7 @@ class TrccApp:
         is called — e.g. CLI theme-load goes through DeviceService, not LCDDevice.
         """
         from ..services.image import ImageService
+
         self._builder.with_renderer(renderer)
         ImageService.set_renderer(renderer)
 
@@ -466,21 +503,25 @@ class TrccApp:
     def build_lcd_bus(self, lcd: LCDDevice) -> CommandBus:
         """Return a CommandBus wired to lcd — logging + timing middleware."""
         from .handlers.lcd import build_lcd_bus as _build
+
         return _build(lcd, self._ensure_data_fn)
 
     def build_lcd_gui_bus(self, lcd: LCDDevice) -> CommandBus:
         """Return a CommandBus wired for GUI — adds RateLimitMiddleware."""
         from .handlers.lcd import build_lcd_gui_bus as _build
+
         return _build(lcd, self._ensure_data_fn)
 
     def build_led_bus(self, led: LEDDevice) -> CommandBus:
         """Return a CommandBus wired to led — logging + timing middleware."""
         from .handlers.led import build_led_bus as _build
+
         return _build(led)
 
     def build_led_gui_bus(self, led: LEDDevice) -> CommandBus:
         """Return a CommandBus wired for GUI LED sliders — state-only update_* calls."""
         from .handlers.led import build_led_gui_bus as _build
+
         return _build(led)
 
     # ── Observer registration ────────────────────────────────────────────────
