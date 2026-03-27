@@ -27,6 +27,7 @@ from ..commands.lcd import (
     PlayVideoLoopCommand,
     RenderOverlayFromDCCommand,
     ResetDisplayCommand,
+    RestoreLastThemeCommand,
     SaveThemeCommand,
     SelectThemeCommand,
     SendColorCommand,
@@ -55,6 +56,7 @@ class LCDCommandHandler(DeviceCommandHandler):
     __slots__ = ('_lcd', '_ensure_fn')
 
     handles: ClassVar[tuple[type[Command], ...]] = (
+        RestoreLastThemeCommand,
         SetBrightnessCommand,
         SetRotationCommand,
         SendColorCommand,
@@ -82,6 +84,9 @@ class LCDCommandHandler(DeviceCommandHandler):
 
     def __call__(self, cmd: Command) -> CommandResult:
         match cmd:
+            case RestoreLastThemeCommand():
+                return CommandResult.from_dict(self._lcd.restore_last_theme())
+
             case SetBrightnessCommand(level=level):
                 return CommandResult.from_dict(self._lcd.set_brightness(level))
 

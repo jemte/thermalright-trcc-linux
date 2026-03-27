@@ -8,6 +8,7 @@ Three layers — import from the appropriate module:
 Or import everything from here:
     from trcc.core.commands import DiscoverDevicesCommand, SendImageCommand
 """
+
 from .initialize import (
     DiscoverDevicesCommand,
     DownloadThemesCommand,
@@ -30,6 +31,7 @@ from .lcd import (
     PlayVideoLoopCommand,
     RenderOverlayFromDCCommand,
     ResetDisplayCommand,
+    RestoreLastThemeCommand,
     SaveThemeCommand,
     SelectThemeCommand,
     SendColorCommand,
@@ -80,6 +82,7 @@ __all__ = [
     "PlayVideoLoopCommand",
     "RenderOverlayFromDCCommand",
     "ResetDisplayCommand",
+    "RestoreLastThemeCommand",
     "SaveThemeCommand",
     "SelectThemeCommand",
     "SendColorCommand",

@@ -41,12 +41,12 @@ log = logging.getLogger(__name__)
 
 
 class AppEvent(Enum):
-    DEVICES_CHANGED     = auto()  # device list rescanned
-    DEVICE_CONNECTED    = auto()  # single device came online
-    FRAME_RENDERED      = auto()  # overlay frame rendered — data is {'path': str, 'image': Any}
-    DEVICE_LOST         = auto()  # single device went offline
-    METRICS_UPDATED     = auto()  # metrics polled — data is SystemMetrics
-    BOOTSTRAP_PROGRESS  = auto()  # download/extract progress — data is str message
+    DEVICES_CHANGED = auto()  # device list rescanned
+    DEVICE_CONNECTED = auto()  # single device came online
+    FRAME_RENDERED = auto()  # overlay frame rendered — data is {'path': str, 'image': Any}
+    DEVICE_LOST = auto()  # single device went offline
+    METRICS_UPDATED = auto()  # metrics polled — data is SystemMetrics
+    BOOTSTRAP_PROGRESS = auto()  # download/extract progress — data is str message
 
 
 class AppObserver(ABC):
@@ -57,6 +57,7 @@ class AppObserver(ABC):
 
 
 # ── Singleton / DI container ─────────────────────────────────────────────────
+
 
 class TrccApp:
     """Application-wide DI container and singleton.

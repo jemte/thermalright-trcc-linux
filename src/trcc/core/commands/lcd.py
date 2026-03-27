@@ -4,6 +4,7 @@ Each command corresponds to one LCDDevice operation.
 All are frozen + slotted — value objects with no behaviour.
 __post_init__ validates bounded fields at construction time.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -15,12 +16,14 @@ from ..command_bus import LCDCommand
 @dataclass(frozen=True, slots=True)
 class SendImageCommand(LCDCommand):
     """Send a static image file to the LCD."""
+
     image_path: str = ""
 
 
 @dataclass(frozen=True, slots=True)
 class SendColorCommand(LCDCommand):
     """Fill the LCD with a solid RGB colour."""
+
     r: int = 0
     g: int = 0
     b: int = 0
@@ -29,6 +32,7 @@ class SendColorCommand(LCDCommand):
 @dataclass(frozen=True, slots=True)
 class SetBrightnessCommand(LCDCommand):
     """Set display brightness (0–100)."""
+
     level: int = 3
 
     def __post_init__(self) -> None:
@@ -39,12 +43,14 @@ class SetBrightnessCommand(LCDCommand):
 @dataclass(frozen=True, slots=True)
 class SetRotationCommand(LCDCommand):
     """Rotate the display (0 | 90 | 180 | 270 degrees)."""
+
     degrees: int = 0
 
 
 @dataclass(frozen=True, slots=True)
 class SetSplitModeCommand(LCDCommand):
     """Set split-screen mode (0–3)."""
+
     mode: int = 0
 
     def __post_init__(self) -> None:
@@ -55,6 +61,7 @@ class SetSplitModeCommand(LCDCommand):
 @dataclass(frozen=True, slots=True)
 class LoadThemeByNameCommand(LCDCommand):
     """Load a named theme, optionally at a specific resolution."""
+
     name: str = ""
     width: int = 0
     height: int = 0
@@ -63,6 +70,7 @@ class LoadThemeByNameCommand(LCDCommand):
 @dataclass(frozen=True, slots=True)
 class PlayVideoLoopCommand(LCDCommand):
     """Start video/GIF/ZT playback."""
+
     video_path: str = ""
     loop: bool = True
     duration: float = 0.0
@@ -71,24 +79,28 @@ class PlayVideoLoopCommand(LCDCommand):
 @dataclass(frozen=True, slots=True)
 class EnableOverlayCommand(LCDCommand):
     """Enable or disable the overlay pipeline."""
+
     on: bool = True
 
 
 @dataclass(frozen=True, slots=True)
 class UpdateMetricsLCDCommand(LCDCommand):
     """Push fresh sensor metrics to the LCD overlay renderer."""
+
     metrics: Any = field(default=None, hash=False, compare=False)
 
 
 @dataclass(frozen=True, slots=True)
 class SelectThemeCommand(LCDCommand):
     """Select and load a ThemeInfo object (GUI — caller already has the object)."""
+
     theme: Any = field(default=None, hash=False, compare=False)
 
 
 @dataclass(frozen=True, slots=True)
 class SaveThemeCommand(LCDCommand):
     """Save current display state as a named theme."""
+
     name: str = ""
     data_dir: str = ""
 
@@ -96,12 +108,14 @@ class SaveThemeCommand(LCDCommand):
 @dataclass(frozen=True, slots=True)
 class ExportThemeCommand(LCDCommand):
     """Export a theme directory to a .tr archive."""
+
     path: str = ""
 
 
 @dataclass(frozen=True, slots=True)
 class ImportThemeCommand(LCDCommand):
     """Import a .tr theme archive into the theme directory."""
+
     path: str = ""
     data_dir: str = ""
 
@@ -109,12 +123,14 @@ class ImportThemeCommand(LCDCommand):
 @dataclass(frozen=True, slots=True)
 class LoadMaskCommand(LCDCommand):
     """Load a mask overlay and composite with current background."""
+
     mask_path: str = ""
 
 
 @dataclass(frozen=True, slots=True)
 class RenderOverlayFromDCCommand(LCDCommand):
     """Render overlay from a DC config file (CLI/API standalone)."""
+
     dc_path: str = ""
     send: bool = False
     output: str = ""
@@ -123,6 +139,7 @@ class RenderOverlayFromDCCommand(LCDCommand):
 @dataclass(frozen=True, slots=True)
 class SetOverlayConfigCommand(LCDCommand):
     """Apply an overlay element config dict to the overlay service."""
+
     config: Any = field(default=None, hash=False, compare=False)
 
 
@@ -134,6 +151,7 @@ class ResetDisplayCommand(LCDCommand):
 @dataclass(frozen=True, slots=True)
 class SetResolutionCommand(LCDCommand):
     """Set the active display resolution."""
+
     width: int = 320
     height: int = 320
 
@@ -146,5 +164,17 @@ class EnsureDataCommand(LCDCommand):
     is known. Safe to dispatch multiple times — no-op if already cached.
     All three adapters (CLI, API, GUI) get data via this single path.
     """
+
     width: int = 320
     height: int = 320
+
+
+@dataclass(frozen=True, slots=True)
+class RestoreLastThemeCommand(LCDCommand):
+    """Restore the last-used theme, mask, and overlay from per-device config.
+
+    All three adapters (CLI, GUI, API) dispatch this single command on device
+    connect to restore the previous session state. The handler reads config,
+    loads the theme, applies mask and overlay, and returns the result dict so
+    each adapter can update its own presentation layer.
+    """
