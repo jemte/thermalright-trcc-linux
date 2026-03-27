@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from pathlib import Path
 from typing import Any
 
@@ -54,6 +55,7 @@ class LCDDevice(Device):
         self._proxy_factory_fn = proxy_factory_fn
         self._build_services_fn = build_services_fn
         self._proxy: Any = None  # Set when routing through another instance
+        self._last_tick_sent: float = 0.0  # monotonic time of last tick()-initiated send
 
         # All capability accessors point to self — methods are on LCDDevice
         self.theme: LCDDevice = self  # type: ignore[assignment]
@@ -674,28 +676,74 @@ class LCDDevice(Device):
         self._display_svc.media.seek(percent)
         return {"success": True, "message": f"Seek: {percent:.0%}"}
 
-    def tick(self) -> Any:
-        """Core metrics loop hook: render + send overlay frame if metrics changed.
+    # Keepalive interval (seconds): how often tick() re-sends the current frame
+    # when nothing is changing.  Must be short enough that the device does not
+    # enter USB standby and revert to its boot logo between refreshes.
+    KEEPALIVE_INTERVAL_S: float = 1.0
 
-        Called by TrccApp metrics loop from a background thread.
+    def tick(self) -> Any:
+        """Core metrics loop hook: render + send overlay frame when needed.
+
+        Called by TrccApp metrics loop from a background thread (~1 s interval).
         Video playback is driven exclusively by the GUI animation timer
         (video_tick()) — this method does NOT advance video frames.
 
+        Three cases are handled:
+          1. Dynamic overlay — overlay.would_change() is True (clock, metrics,
+             etc.):  re-render and send the fresh frame.
+          2. Static display — overlay not enabled, or overlay content has not
+             changed:  re-send the last rendered frame every KEEPALIVE_INTERVAL_S
+             so the device stays awake and continues showing content.
+          3. Video playing — return immediately; animation timer owns sends.
+
+        Keepalive is handled here rather than in the GUI thread so that the
+        background loop is the sole sender for non-video content.  This
+        eliminates the race between the background tick and a GUI-thread
+        keepalive that would deliver two frames within milliseconds, causing
+        some Bulk devices (87AD:70DB) to reset and briefly show their boot logo.
+
         Returns:
-            Rendered image if a new frame was produced, None otherwise.
-            Callers (TrccApp) emit FRAME_RENDERED so GUI adapters can update
+            Rendered image if a new frame was produced or re-sent, else None.
+            Callers (TrccApp) emit FRAME_RENDERED so GUI adapters update
             their preview without re-rendering.
         """
         if not self._display_svc or self._display_svc.is_video_playing():
             return None
-        if self._display_svc.overlay.enabled and self._display_svc.overlay.would_change(
-            self._display_svc.overlay.metrics
-        ):
+
+        overlay = self._display_svc.overlay
+
+        # Dynamic overlay path: content has changed — re-render and send.
+        if overlay.enabled and overlay.would_change(overlay.metrics):
             image = self._display_svc.render_overlay()
             if image:
+                self._last_tick_sent = time.monotonic()
                 self.send(image)
                 return image
+
+        # Static keepalive path: nothing changed, but the device needs a
+        # periodic refresh to stay awake.  render_overlay() returns the cached
+        # image (same object, same encoded bytes) so there is no re-render or
+        # re-encode cost — only a USB send.
+        elapsed = time.monotonic() - self._last_tick_sent
+        if elapsed >= self.KEEPALIVE_INTERVAL_S:
+            image = self._display_svc.render_overlay()
+            if image:
+                self._last_tick_sent = time.monotonic()
+                self.send(image)
+                log.debug("tick: keepalive send (%.0fs since last)", elapsed)
+                return image
+
         return None
+
+    @property
+    def recently_active(self) -> bool:
+        """True if tick() sent a frame in the last 10 seconds.
+
+        Used by LCDHandler.keepalive() to skip the GUI-thread resend when the
+        background metrics loop has already refreshed the display recently.
+        This prevents a double-send race that causes some Bulk devices to reset.
+        """
+        return (time.monotonic() - self._last_tick_sent) < 10.0
 
     def video_tick(self) -> dict | None:
         """Animation timer hook: advance one video frame, return frame data.

@@ -6,6 +6,7 @@ Receives Device objects injected via on_app_event() from TrccApp (core).
 One LCDHandler or LEDHandler per connected device, keyed by USB path.
 Panel stack shows the currently selected device; all devices tick in background.
 """
+
 from __future__ import annotations
 
 import logging
@@ -68,6 +69,7 @@ log = logging.getLogger(__name__)
 # Screencast Handler
 # =============================================================================
 
+
 class ScreencastHandler:
     """Mediator for screencast (screen capture → LCD)."""
 
@@ -96,6 +98,7 @@ class ScreencastHandler:
         self._active = enabled
         if enabled:
             from .screen_capture import is_wayland
+
             if is_wayland() and self._pipewire_cast is None:
                 self._try_start_pipewire()
             self._timer.start(150)
@@ -119,14 +122,18 @@ class ScreencastHandler:
 
     def _try_start_pipewire(self) -> None:
         from .pipewire_capture import PIPEWIRE_AVAILABLE, PipeWireScreenCast
+
         if not PIPEWIRE_AVAILABLE:
             return
         import threading
+
         cast = PipeWireScreenCast()
         self._pipewire_cast = cast
+
         def _start() -> None:
             if not cast.start(timeout=30):
                 self._pipewire_cast = None
+
         threading.Thread(target=_start, daemon=True).start()
 
     def _stop_pipewire(self) -> None:
@@ -140,6 +147,7 @@ class ScreencastHandler:
         from PySide6.QtCore import QRect
         from PySide6.QtGui import QImage
         from PySide6.QtGui import Qt as QtGui_Qt
+
         frame_img: QImage | None = None
 
         if self._pipewire_cast is not None and self._pipewire_cast.is_running:
@@ -154,6 +162,7 @@ class ScreencastHandler:
 
         if frame_img is None:
             from .screen_capture import grab_screen_region
+
             pixmap = grab_screen_region(self._x, self._y, self._w, self._h)
             if pixmap.isNull():
                 if not self._capture_warn_logged:
@@ -164,15 +173,18 @@ class ScreencastHandler:
             frame_img = pixmap.toImage()
 
         frame_img = frame_img.scaled(
-            self._lcd_w, self._lcd_h,
+            self._lcd_w,
+            self._lcd_h,
             QtGui_Qt.AspectRatioMode.IgnoreAspectRatio,
-            QtGui_Qt.TransformationMode.SmoothTransformation)
+            QtGui_Qt.TransformationMode.SmoothTransformation,
+        )
         self._on_frame(frame_img)
 
 
 # =============================================================================
 # TRCCApp — Main Window / AppObserver
 # =============================================================================
+
 
 class TRCCApp(QMainWindow):
     """Main TRCC window — pure GUI adapter, AppObserver.
@@ -188,9 +200,9 @@ class TRCCApp(QMainWindow):
 
     # Thread-safe bridge: core metrics loop → Qt main thread
     _metrics_signal: Signal = Signal(object)
-    _frame_signal: Signal = Signal(object)          # {'path': str, 'image': Any}
-    _device_added_signal: Signal = Signal(object)   # Device
-    _device_removed_signal: Signal = Signal(object) # Device
+    _frame_signal: Signal = Signal(object)  # {'path': str, 'image': Any}
+    _device_added_signal: Signal = Signal(object)  # Device
+    _device_removed_signal: Signal = Signal(object)  # Device
 
     _instance: TRCCApp | None = None
 
@@ -219,6 +231,7 @@ class TRCCApp(QMainWindow):
     ) -> None:
         super().__init__()
         from trcc.__version__ import __version__
+
         log.info("TRCC v%s starting", __version__)
 
         # Injected platform deps — no builder, no OS imports
@@ -239,15 +252,17 @@ class TRCCApp(QMainWindow):
 
         # Per-device handlers keyed by USB path
         self._handlers: dict[str, BaseHandler] = {}
-        self._active_path = ''       # path of device currently shown in panel stack
+        self._active_path = ""  # path of device currently shown in panel stack
+        self._metrics_tick_count = 0  # drives period-multiplied callbacks (keepalive)
 
         self._handshake_pending = False
-        self._cut_mode = 'background'
-        self._mask_upload_filename = ''
+        self._cut_mode = "background"
+        self._mask_upload_filename = ""
         self._pixmap_refs: list = []
 
         # IPC server (set by composition root after construction)
         from ..ipc import IPCServer
+
         self._ipc_server: IPCServer | None = None
 
         # Build UI
@@ -271,8 +286,10 @@ class TRCCApp(QMainWindow):
         # Use a QObject notifier for handshake (thread → main thread)
         from PySide6.QtCore import QObject
         from PySide6.QtCore import Signal as _Signal
+
         class _HandshakeNotifier(QObject):
             done = _Signal(object, object)
+
         self._hs_notifier = _HandshakeNotifier(self)
         self._hs_notifier.done.connect(self._on_handshake_done)
 
@@ -281,7 +298,7 @@ class TRCCApp(QMainWindow):
         self.uc_system_info.set_temp_unit(saved_unit)
         self.uc_led_control.set_temp_unit(saved_unit)
         if saved_unit == 1:
-            self.uc_about._set_temp('F')
+            self.uc_about._set_temp("F")
 
         # Autostart
         autostart_state = ensure_autostart(self._autostart_manager)
@@ -300,9 +317,9 @@ class TRCCApp(QMainWindow):
         """Receive events from TrccApp (called from any thread)."""
         if event == AppEvent.DEVICES_CHANGED:
             # data = list[Device] — full rescan result
-            self._device_added_signal.emit(('changed', data))
+            self._device_added_signal.emit(("changed", data))
         elif event == AppEvent.DEVICE_CONNECTED:
-            self._device_added_signal.emit(('connected', data))
+            self._device_added_signal.emit(("connected", data))
         elif event == AppEvent.DEVICE_LOST:
             self._device_removed_signal.emit(data)
         elif event == AppEvent.FRAME_RENDERED:
@@ -314,13 +331,13 @@ class TRCCApp(QMainWindow):
 
     def _on_device_added_main_thread(self, payload: Any) -> None:
         kind, data = payload
-        if kind == 'changed':
+        if kind == "changed":
             self._rebuild_all_handlers(data)
         else:
             self._add_handler(data)
 
     def _on_device_removed_main_thread(self, device: Any) -> None:
-        path = device.device_info.path if device.device_info else ''
+        path = device.device_info.path if device.device_info else ""
         self._remove_handler(path)
 
     def _rebuild_all_handlers(self, devices: list) -> None:
@@ -328,7 +345,7 @@ class TRCCApp(QMainWindow):
         for handler in list(self._handlers.values()):
             handler.cleanup()
         self._handlers.clear()
-        self._active_path = ''
+        self._active_path = ""
 
         for device in devices:
             self._add_handler(device)
@@ -354,33 +371,43 @@ class TRCCApp(QMainWindow):
         if isinstance(device, LEDDevice):
             if path not in self._handlers:
                 from ..core.app import TrccApp
+
                 led_bus = TrccApp.get().build_led_gui_bus(device)
                 handler: BaseHandler = LEDHandler(
-                    device, self.uc_led_control, self._on_temp_unit_changed, bus=led_bus)
+                    device, self.uc_led_control, self._on_temp_unit_changed, bus=led_bus
+                )
                 self._handlers[path] = handler
                 log.info("LED handler added: %s", path)
         elif isinstance(device, LCDDevice):
             if path not in self._handlers:
                 from ..core.app import TrccApp
+
                 lcd_bus = TrccApp.get().build_lcd_gui_bus(device)
                 widgets = {
-                    'preview': self.uc_preview,
-                    'theme_setting': self.uc_theme_setting,
-                    'theme_local': self.uc_theme_local,
-                    'theme_web': self.uc_theme_web,
-                    'theme_mask': self.uc_theme_mask,
-                    'image_cut': self.uc_image_cut,
-                    'video_cut': self.uc_video_cut,
-                    'rotation_combo': self.rotation_combo,
+                    "preview": self.uc_preview,
+                    "theme_setting": self.uc_theme_setting,
+                    "theme_local": self.uc_theme_local,
+                    "theme_web": self.uc_theme_web,
+                    "theme_mask": self.uc_theme_mask,
+                    "image_cut": self.uc_image_cut,
+                    "video_cut": self.uc_video_cut,
+                    "rotation_combo": self.rotation_combo,
                 }
                 lcd_handler = LCDHandler(
-                    device, widgets, self._make_timer, self._data_dir,
-                    is_visible_fn=self.is_app_visible, bus=lcd_bus)
+                    device,
+                    widgets,
+                    self._make_timer,
+                    self._data_dir,
+                    is_visible_fn=self.is_app_visible,
+                    bus=lcd_bus,
+                )
                 self._handlers[path] = lcd_handler
                 log.info("LCD handler added: %s", path)
                 # Wire IPC frame capture if server is already running
                 if self._ipc_server and lcd_handler.display.device_service:
-                    lcd_handler.display.device_service.on_frame_sent = self._ipc_server.capture_frame
+                    lcd_handler.display.device_service.on_frame_sent = (
+                        self._ipc_server.capture_frame
+                    )
 
         self._refresh_sidebar()
 
@@ -393,7 +420,7 @@ class TRCCApp(QMainWindow):
         log.info("%s handler removed: %s", type(handler).__name__, path)
 
         if self._active_path == path:
-            self._active_path = ''
+            self._active_path = ""
             remaining = list(self._handlers)
             if remaining:
                 self._activate_device(remaining[0])
@@ -403,6 +430,7 @@ class TRCCApp(QMainWindow):
     def _refresh_sidebar(self) -> None:
         """Update UCDevice with current device list."""
         import dataclasses
+
         devices: list[dict] = []
         for handler in self._handlers.values():
             info = handler.device_info
@@ -436,8 +464,14 @@ class TRCCApp(QMainWindow):
 
     # ── Metrics (main thread only) ───────────────────────────────────
 
+    # Keepalive fires every 20 metrics ticks (~20 s at the default 1 s interval).
+    # Matches the period documented in LCDHandler.keepalive().
+    _KEEPALIVE_PERIOD = 20
+
     def _on_metrics_main_thread(self, metrics: Any) -> None:
         """Update GUI-only subscribers. Devices are already ticked by TrccApp."""
+        self._metrics_tick_count += 1
+
         if self.uc_info_module.isVisible():
             self.uc_info_module.update_from_metrics(metrics)
         if self.is_app_visible() and self.uc_activity_sidebar.isVisible():
@@ -448,14 +482,22 @@ class TRCCApp(QMainWindow):
         if isinstance(handler, LCDHandler):
             handler.on_overlay_tick(metrics)
 
+        # Keepalive: resend static-image frame every ~20 s to all LCD handlers.
+        # Prevents USB standby blank and recovers the display after any transient
+        # send failure — video is unaffected because keepalive() guards on playing.
+        if self._metrics_tick_count % self._KEEPALIVE_PERIOD == 0:
+            for h in self._handlers.values():
+                if isinstance(h, LCDHandler):
+                    h.keepalive()
+
     def _on_frame_main_thread(self, payload: Any) -> None:
         """Receive a rendered frame from the background tick loop and push to preview.
 
         tick() renders + sends to the LCD device. This handler mirrors that
         frame to the preview widget on the main thread — no re-render needed.
         """
-        path: str = payload['path']
-        image: Any = payload['image']
+        path: str = payload["path"]
+        image: Any = payload["image"]
         handler = self._handlers.get(path)
         if isinstance(handler, LCDHandler):
             handler.update_preview(image)
@@ -465,13 +507,17 @@ class TRCCApp(QMainWindow):
     def _setup_sleep_monitor(self) -> None:
         try:
             from PySide6.QtDBus import QDBusConnection  # pyright: ignore[reportMissingImports]
+
             bus = QDBusConnection.systemBus()
             if not bus.isConnected():
                 return
             bus.connect(  # pyright: ignore[reportCallIssue]
-                'org.freedesktop.login1', '/org/freedesktop/login1',
-                'org.freedesktop.login1.Manager', 'PrepareForSleep',
-                self._on_sleep_signal)
+                "org.freedesktop.login1",
+                "/org/freedesktop/login1",
+                "org.freedesktop.login1.Manager",
+                "PrepareForSleep",
+                self._on_sleep_signal,
+            )
             log.info("Sleep monitor: QDBus listener active")
         except Exception:
             log.debug("Sleep monitor: QDBus not available")
@@ -509,7 +555,7 @@ class TRCCApp(QMainWindow):
     # ── System tray ─────────────────────────────────────────────────
 
     def _setup_systray(self) -> None:
-        icon_path = Path(__file__).parent.parent / 'assets' / 'icons' / 'trcc.png'
+        icon_path = Path(__file__).parent.parent / "assets" / "icons" / "trcc.png"
         icon = QIcon(str(icon_path)) if icon_path.exists() else QIcon()
         self.setWindowIcon(icon)
 
@@ -552,9 +598,13 @@ class TRCCApp(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
 
-        pix_form1 = set_background_pixmap(central, Assets.FORM1_BG,
-            width=Sizes.WINDOW_W, height=Sizes.WINDOW_H,
-            fallback_style=f"background-color: {Colors.WINDOW_BG};")
+        pix_form1 = set_background_pixmap(
+            central,
+            Assets.FORM1_BG,
+            width=Sizes.WINDOW_W,
+            height=Sizes.WINDOW_H,
+            fallback_style=f"background-color: {Colors.WINDOW_BG};",
+        )
         if pix_form1:
             self._pixmap_refs.append(pix_form1)
 
@@ -565,14 +615,18 @@ class TRCCApp(QMainWindow):
         # FormCZTV container
         self.form_container = QWidget(central)
         self.form_container.setGeometry(*Layout.FORM_CONTAINER)
-        pix = set_background_pixmap(self.form_container, Assets.FORM_CZTV_BG,
-            fallback_style=f"background-color: {Colors.WINDOW_BG};")
+        pix = set_background_pixmap(
+            self.form_container,
+            Assets.FORM_CZTV_BG,
+            fallback_style=f"background-color: {Colors.WINDOW_BG};",
+        )
         if pix:
             self._pixmap_refs.append(pix)
 
         # Preview
         self.uc_preview = UCPreview(
-            _conf.settings.width, _conf.settings.height, self.form_container)
+            _conf.settings.width, _conf.settings.height, self.form_container
+        )
         self.uc_preview.setGeometry(*Layout.PREVIEW)
 
         # Info module
@@ -602,11 +656,16 @@ class TRCCApp(QMainWindow):
 
         from ..adapters.infra.data_repository import DataManager
         from ..adapters.infra.theme_cloud import CloudThemeDownloader
+
         def _download_theme(theme_id: str, resolution: str, cache_dir: str) -> str | None:
-            return CloudThemeDownloader(resolution=resolution, cache_dir=cache_dir).download_theme(theme_id)
+            return CloudThemeDownloader(resolution=resolution, cache_dir=cache_dir).download_theme(
+                theme_id
+            )
+
         def _extract_theme(archive: str, dest: str) -> None:
             DataManager.extract_7z(archive, dest)
             DataManager._unwrap_nested_dir(dest)
+
         self.uc_theme_web = UCThemeWeb(download_fn=_download_theme, extract_fn=_extract_theme)
         self._set_panel_bg(self.uc_theme_web, Assets.THEME_WEB_BG)
         self.panel_stack.addWidget(self.uc_theme_web)
@@ -635,10 +694,10 @@ class TRCCApp(QMainWindow):
 
         # System info dashboard
         from ..adapters.system.config import SysInfoConfig
+
         self.uc_system_info = UCSystemInfo(
-            self._system_svc.enumerator,
-            sysinfo_config=SysInfoConfig(),
-            parent=central)
+            self._system_svc.enumerator, sysinfo_config=SysInfoConfig(), parent=central
+        )
         self.uc_system_info.setGeometry(*Layout.SYSINFO_PANEL)
         self.uc_system_info.setVisible(False)
 
@@ -650,14 +709,18 @@ class TRCCApp(QMainWindow):
 
         # Form1 buttons
         self.form1_close_btn = create_image_button(
-            central, *Layout.FORM1_CLOSE_BTN,
-            Assets.BTN_POWER, Assets.BTN_POWER_HOVER, fallback_text="X")
+            central,
+            *Layout.FORM1_CLOSE_BTN,
+            Assets.BTN_POWER,
+            Assets.BTN_POWER_HOVER,
+            fallback_text="X",
+        )
         self.form1_close_btn.setToolTip("Close")
         self.form1_close_btn.clicked.connect(self.close)
 
         self.form1_help_btn = create_image_button(
-            central, *Layout.FORM1_HELP_BTN,
-            Assets.BTN_HELP, None, fallback_text="?")
+            central, *Layout.FORM1_HELP_BTN, Assets.BTN_HELP, None, fallback_text="?"
+        )
         self.form1_help_btn.setToolTip("Help")
         self.form1_help_btn.clicked.connect(self._on_help_clicked)
 
@@ -680,8 +743,8 @@ class TRCCApp(QMainWindow):
         for rect, normal_img, active_img, panel_idx, tooltip in tab_configs:
             x, y, w, h = rect
             btn = create_image_button(
-                self.form_container, x, y, w, h,
-                normal_img, active_img, checkable=True)
+                self.form_container, x, y, w, h, normal_img, active_img, checkable=True
+            )
             btn.setToolTip(tooltip)
             btn.clicked.connect(lambda checked, idx=panel_idx: self._show_panel(idx))
             self.mode_buttons.append(btn)
@@ -697,13 +760,14 @@ class TRCCApp(QMainWindow):
             " font-size: 10px; padding-left: 5px; }"
             "QComboBox::drop-down { border: none; width: 20px; }"
             "QComboBox QAbstractItemView { background-color: #2A2A2A; color: white;"
-            " selection-background-color: #4A6FA5; }")
+            " selection-background-color: #4A6FA5; }"
+        )
         self.rotation_combo.setToolTip("LCD rotation")
         self.rotation_combo.currentIndexChanged.connect(self._on_rotation_change)
 
         self._ldd_pixmaps: dict = {}
         for level in range(4):
-            pix = Assets.load_pixmap(f'PL{level}.png')
+            pix = Assets.load_pixmap(f"PL{level}.png")
             if not pix.isNull():
                 self._ldd_pixmaps[level] = pix
 
@@ -721,9 +785,11 @@ class TRCCApp(QMainWindow):
         self.theme_name_input.setAlignment(Qt.AlignmentFlag.AlignRight)
         self.theme_name_input.setStyleSheet(
             "background-color: #232227; color: white; border: none;"
-            " font-family: 'Microsoft YaHei'; font-size: 9pt;")
+            " font-family: 'Microsoft YaHei'; font-size: 9pt;"
+        )
         self.theme_name_input.setValidator(
-            QRegularExpressionValidator(QRE(r'[^/\\:*?"<>|\x00-\x1f]+')))
+            QRegularExpressionValidator(QRE(r'[^/\\:*?"<>|\x00-\x1f]+'))
+        )
 
         self.save_btn = self._icon_btn(*Layout.SAVE_BTN, Assets.BTN_SAVE, "S")
         self.save_btn.setToolTip("Save theme")
@@ -737,8 +803,9 @@ class TRCCApp(QMainWindow):
         self.import_btn.setToolTip("Import theme from file")
         self.import_btn.clicked.connect(self._on_import_clicked)
 
-    def _icon_btn(self, x: int, y: int, w: int, h: int,
-                  icon_name: str, fallback_text: str) -> QPushButton:
+    def _icon_btn(
+        self, x: int, y: int, w: int, h: int, icon_name: str, fallback_text: str
+    ) -> QPushButton:
         btn = QPushButton(self.form_container)
         btn.setGeometry(x, y, w, h)
         pix = Assets.load_pixmap(icon_name, w, h)
@@ -754,25 +821,30 @@ class TRCCApp(QMainWindow):
 
     def _create_title_buttons(self) -> None:
         help_btn = create_image_button(
-            self.form_container, *Layout.HELP_BTN, Assets.BTN_HELP, None, fallback_text="?")
+            self.form_container, *Layout.HELP_BTN, Assets.BTN_HELP, None, fallback_text="?"
+        )
         help_btn.setToolTip("Help")
         help_btn.clicked.connect(self._on_help_clicked)
 
         close_btn = create_image_button(
-            self.form_container, *Layout.CLOSE_BTN,
-            Assets.BTN_POWER, Assets.BTN_POWER_HOVER, fallback_text="X")
+            self.form_container,
+            *Layout.CLOSE_BTN,
+            Assets.BTN_POWER,
+            Assets.BTN_POWER_HOVER,
+            fallback_text="X",
+        )
         close_btn.setToolTip("Close")
         close_btn.clicked.connect(self.close)
 
     def _apply_settings_backgrounds(self) -> None:
         s = self.uc_theme_setting
         for panel, bg_name in [
-            (s.mask_panel, 'Panel_background.png'),
-            (s.background_panel, 'Panel_background.png'),
-            (s.screencast_panel, 'Panel_background.png'),
-            (s.video_panel, 'Panel_background.png'),
-            (s.overlay_grid, 'Panel_overlay.png'),
-            (s.color_panel, 'Panel_params.png'),
+            (s.mask_panel, "Panel_background.png"),
+            (s.background_panel, "Panel_background.png"),
+            (s.screencast_panel, "Panel_background.png"),
+            (s.video_panel, "Panel_background.png"),
+            (s.overlay_grid, "Panel_overlay.png"),
+            (s.color_panel, "Panel_params.png"),
         ]:
             self._set_panel_bg(panel, bg_name)
 
@@ -785,10 +857,10 @@ class TRCCApp(QMainWindow):
                 self._load_carousel_config(td.path)
         if _conf.settings.web_dir:
             self.uc_theme_web.set_web_directory(_conf.settings.web_dir)
-        self.uc_theme_web.set_resolution(f'{w}x{h}')
+        self.uc_theme_web.set_resolution(f"{w}x{h}")
         if _conf.settings.masks_dir:
             self.uc_theme_mask.set_mask_directory(_conf.settings.masks_dir)
-        self.uc_theme_mask.set_resolution(f'{w}x{h}')
+        self.uc_theme_mask.set_resolution(f"{w}x{h}")
 
     # ── i18n overlays ───────────────────────────────────────────────
 
@@ -831,20 +903,32 @@ class TRCCApp(QMainWindow):
             TITLE_BAR_TEXT,
             tr,
         )
+
         lang = _conf.settings.lang
         self._i18n_labels: list[tuple[QLabel, str | None]] = []
 
-        def _lbl(parent: QWidget, text: str, x: int, y: int, w: int, h: int,
-                 pt: int, key: str | None = None,
-                 bold: bool = False, color: str = 'white',
-                 wrap: bool = False, center: bool = False) -> QLabel:
+        def _lbl(
+            parent: QWidget,
+            text: str,
+            x: int,
+            y: int,
+            w: int,
+            h: int,
+            pt: int,
+            key: str | None = None,
+            bold: bool = False,
+            color: str = "white",
+            wrap: bool = False,
+            center: bool = False,
+        ) -> QLabel:
             y_offset = max(2, pt // 4)
             lbl = QLabel(text, parent)
             lbl.setGeometry(x, y - y_offset, w, h)
             weight = " font-weight: bold;" if bold else ""
             lbl.setStyleSheet(
                 f"color: {color}; font-family: 'Microsoft YaHei';"
-                f" font-size: {pt}pt;{weight} background: transparent;")
+                f" font-size: {pt}pt;{weight} background: transparent;"
+            )
             if wrap:
                 lbl.setWordWrap(True)
             if center:
@@ -854,91 +938,112 @@ class TRCCApp(QMainWindow):
             return lbl
 
         x, y, w, h, pt = TITLE_BAR_POS
-        _lbl(self.form_container, TITLE_BAR_TEXT, x, y, w, h, pt, bold=True, color='#434343')
+        _lbl(self.form_container, TITLE_BAR_TEXT, x, y, w, h, pt, bold=True, color="#434343")
 
         for key, pos in [
-            ('Display Angle', DISPLAY_ANGLE_POS),
-            ('Save As', SAVE_AS_POS),
-            ('Export/Import', EXPORT_IMPORT_POS),
+            ("Display Angle", DISPLAY_ANGLE_POS),
+            ("Save As", SAVE_AS_POS),
+            ("Export/Import", EXPORT_IMPORT_POS),
         ]:
             x, y, w, h, pt = pos
             _lbl(self.form_container, tr(key, lang), x, y, w, h, pt, key)
 
         grid = self.uc_theme_setting.data_table
         x, y, w, h, pt = OVERLAY_GRID_HINT_POS
-        _lbl(grid, tr('Double-click to delete card', lang), x, y, w, h, pt,
-             'Double-click to delete card')
+        _lbl(
+            grid,
+            tr("Double-click to delete card", lang),
+            x,
+            y,
+            w,
+            h,
+            pt,
+            "Double-click to delete card",
+        )
 
         rpanel = self.uc_theme_setting.right_stack
         for key, pos in [
-            ('Coordinate', PARAM_COORDINATE_POS),
-            ('Font', PARAM_FONT_POS),
-            ('Colour', PARAM_COLOUR_POS),
+            ("Coordinate", PARAM_COORDINATE_POS),
+            ("Font", PARAM_FONT_POS),
+            ("Colour", PARAM_COLOUR_POS),
         ]:
             x, y, w, h, pt = pos
             _lbl(rpanel, tr(key, lang), x, y, w, h, pt, key)
 
         s = self.uc_theme_setting
-        s.mask_panel.set_title(tr('Layer Mask', lang))
-        s.background_panel.set_title(tr('Background', lang))
-        s.screencast_panel.set_title(tr('Screencast', lang))
-        s.video_panel.set_title(tr('Media Player', lang))
+        s.mask_panel.set_title(tr("Layer Mask", lang))
+        s.background_panel.set_title(tr("Background", lang))
+        s.screencast_panel.set_title(tr("Screencast", lang))
+        s.video_panel.set_title(tr("Media Player", lang))
         self._i18n_panel_tables = [
-            (s.mask_panel, 'Layer Mask'),
-            (s.background_panel, 'Background'),
-            (s.screencast_panel, 'Screencast'),
-            (s.video_panel, 'Media Player'),
+            (s.mask_panel, "Layer Mask"),
+            (s.background_panel, "Background"),
+            (s.screencast_panel, "Screencast"),
+            (s.video_panel, "Media Player"),
         ]
 
         mp = s.mask_panel
         x, y, w, h, pt = MASK_LOAD_POS
-        _lbl(mp, tr('Masks', lang), x, y, w, h, pt, 'Masks', center=True)
+        _lbl(mp, tr("Masks", lang), x, y, w, h, pt, "Masks", center=True)
         x, y, w, h, pt = MASK_UPLOAD_POS
-        _lbl(mp, tr('Upload', lang), x, y, w, h, pt, 'Upload', center=True)
+        _lbl(mp, tr("Upload", lang), x, y, w, h, pt, "Upload", center=True)
         x, y, w, h, pt = MASK_DESC_POS
-        _lbl(mp, tr('PNG format, resolution must not exceed screen resolution', lang),
-             x, y, w, h, pt,
-             'PNG format, resolution must not exceed screen resolution', wrap=True)
+        _lbl(
+            mp,
+            tr("PNG format, resolution must not exceed screen resolution", lang),
+            x,
+            y,
+            w,
+            h,
+            pt,
+            "PNG format, resolution must not exceed screen resolution",
+            wrap=True,
+        )
 
         bp = s.background_panel
-        for key, pos in [('Load Image', BACKGROUND_LOAD_IMG_POS),
-                         ('Load Video', BACKGROUND_LOAD_VIDEO_POS)]:
+        for key, pos in [
+            ("Load Image", BACKGROUND_LOAD_IMG_POS),
+            ("Load Video", BACKGROUND_LOAD_VIDEO_POS),
+        ]:
             x, y, w, h, pt = pos
             _lbl(bp, tr(key, lang), x, y, w, h, pt, key)
 
         vp = s.video_panel
         x, y, w, h, pt = MEDIA_PLAYER_LOAD_POS
-        _lbl(vp, tr('Load Video', lang), x, y, w, h, pt, 'Load Video')
+        _lbl(vp, tr("Load Video", lang), x, y, w, h, pt, "Load Video")
 
         x, y, w, h, pt = LOCAL_THEME_POS
-        _lbl(self.uc_theme_local, tr('Local Theme', lang), x, y, w, h, pt, 'Local Theme')
+        _lbl(self.uc_theme_local, tr("Local Theme", lang), x, y, w, h, pt, "Local Theme")
 
         x, y, w, h, pt = ONLINE_THEME_POS
-        _lbl(self.uc_theme_mask, tr('Cloud Masks', lang), x, y, w, h, pt, 'Cloud Masks')
+        _lbl(self.uc_theme_mask, tr("Cloud Masks", lang), x, y, w, h, pt, "Cloud Masks")
 
         x, y, w, h, pt = GALLERY_TITLE_POS
-        _lbl(self.uc_theme_web, tr('Gallery', lang), x, y, w, h, pt, 'Gallery')
+        _lbl(self.uc_theme_web, tr("Gallery", lang), x, y, w, h, pt, "Gallery")
         tab_x_positions = [45, 135, 235, 335, 430, 525, 635]
-        tab_keys: list[str | None] = ['All', 'Tech', None, 'Light', 'Nature', 'Aesthetic', 'Other']
+        tab_keys: list[str | None] = ["All", "Tech", None, "Light", "Nature", "Aesthetic", "Other"]
         for tx, key in zip(tab_x_positions, tab_keys):
-            text = 'HUD' if key is None else tr(key, lang)
-            lbl = _lbl(self.uc_theme_web, text,
-                       tx, GALLERY_TAB_Y, 90, GALLERY_TAB_H, GALLERY_TAB_FONT, key)
+            text = "HUD" if key is None else tr(key, lang)
+            lbl = _lbl(
+                self.uc_theme_web, text, tx, GALLERY_TAB_Y, 90, GALLERY_TAB_H, GALLERY_TAB_FONT, key
+            )
             lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
 
         about_items: list[tuple[str, tuple[int, ...]]] = [
-            ('Start automatically', ABOUT_AUTOSTART_POS),
-            ('Unit', ABOUT_UNIT_POS),
-            ('Hard disk information', ABOUT_HDD_POS),
-            ('Reading hard disk information may cause some mechanical hard drives to read and write frequently. If you encounter this issue, please close the project.',
-             ABOUT_HDD_WARN_POS),
-            ('Data refresh time', ABOUT_REFRESH_POS),
-            ('Running Mode', ABOUT_RUNNING_MODE_POS),
-            ('Single-threaded (low resource usage)', ABOUT_SINGLE_THREAD_POS),
-            ('Multi-threaded (high resource usage)', ABOUT_MULTI_THREAD_POS),
-            ('Software Update', ABOUT_UPDATE_POS),
-            ('Language selection', ABOUT_LANG_POS),
-            ('Software version:', ABOUT_VERSION_POS),
+            ("Start automatically", ABOUT_AUTOSTART_POS),
+            ("Unit", ABOUT_UNIT_POS),
+            ("Hard disk information", ABOUT_HDD_POS),
+            (
+                "Reading hard disk information may cause some mechanical hard drives to read and write frequently. If you encounter this issue, please close the project.",
+                ABOUT_HDD_WARN_POS,
+            ),
+            ("Data refresh time", ABOUT_REFRESH_POS),
+            ("Running Mode", ABOUT_RUNNING_MODE_POS),
+            ("Single-threaded (low resource usage)", ABOUT_SINGLE_THREAD_POS),
+            ("Multi-threaded (high resource usage)", ABOUT_MULTI_THREAD_POS),
+            ("Software Update", ABOUT_UPDATE_POS),
+            ("Language selection", ABOUT_LANG_POS),
+            ("Software version:", ABOUT_VERSION_POS),
         ]
         for key, pos in about_items:
             x, y, w, h, pt = pos
@@ -956,7 +1061,8 @@ class TRCCApp(QMainWindow):
             " font-size: 10pt; padding-left: 5px; }"
             "QComboBox::drop-down { border: none; width: 20px; }"
             "QComboBox QAbstractItemView { background: #2A2A2A; color: white;"
-            " selection-background-color: #3A3A3A; }")
+            " selection-background-color: #3A3A3A; }"
+        )
         lang_combo.raise_()
 
         def _on_preview_lang(index: int) -> None:
@@ -970,7 +1076,7 @@ class TRCCApp(QMainWindow):
 
         lang_combo.currentIndexChanged.connect(_on_preview_lang)
 
-        for key, pos in [('NAME', SYSINFO_NAME_POS), ('Value', SYSINFO_VALUE_POS)]:
+        for key, pos in [("NAME", SYSINFO_NAME_POS), ("Value", SYSINFO_VALUE_POS)]:
             x, y, w, h, pt = pos
             _lbl(self.uc_system_info, tr(key, lang), x, y, w, h, pt, key)
 
@@ -986,17 +1092,17 @@ class TRCCApp(QMainWindow):
             self.uc_activity_sidebar.setVisible(False)
 
     def _show_view(self, view: str) -> None:
-        self.form_container.setVisible(view == 'form')
-        self.uc_about.setVisible(view == 'about')
-        self.uc_system_info.setVisible(view == 'sysinfo')
-        self.uc_led_control.setVisible(view == 'led')
+        self.form_container.setVisible(view == "form")
+        self.uc_about.setVisible(view == "about")
+        self.uc_system_info.setVisible(view == "sysinfo")
+        self.uc_led_control.setVisible(view == "led")
         self.uc_activity_sidebar.setVisible(False)
 
-        show_form1_btns = (view == 'sysinfo')
+        show_form1_btns = view == "sysinfo"
         self.form1_close_btn.setVisible(show_form1_btns)
         self.form1_help_btn.setVisible(show_form1_btns)
 
-        if view == 'sysinfo':
+        if view == "sysinfo":
             self.uc_system_info.start_updates()
         else:
             self.uc_system_info.stop_updates()
@@ -1005,24 +1111,30 @@ class TRCCApp(QMainWindow):
 
     def _connect_view_signals(self) -> None:
         self.uc_device.device_selected.connect(self._on_device_widget_clicked)
-        self.uc_device.home_clicked.connect(lambda: self._show_view('sysinfo'))
-        self.uc_device.about_clicked.connect(lambda: self._show_view('about'))
+        self.uc_device.home_clicked.connect(lambda: self._show_view("sysinfo"))
+        self.uc_device.about_clicked.connect(lambda: self._show_view("about"))
 
         self.uc_theme_local.theme_selected.connect(self._on_local_theme_clicked)
         self.uc_theme_local.delete_requested.connect(self._on_delete_theme)
         self.uc_theme_local.delegate.connect(self._on_local_delegate)
         self.uc_theme_web.theme_selected.connect(self._on_cloud_theme_clicked)
         self.uc_theme_web.download_started.connect(
-            lambda tid: self.uc_preview.set_status(f"Downloading: {tid}..."))
+            lambda tid: self.uc_preview.set_status(f"Downloading: {tid}...")
+        )
         self.uc_theme_web.download_finished.connect(
             lambda tid, ok: self.uc_preview.set_status(
-                f"{'Downloaded' if ok else 'Download failed'}: {tid}"))
+                f"{'Downloaded' if ok else 'Download failed'}: {tid}"
+            )
+        )
         self.uc_theme_mask.mask_selected.connect(self._on_mask_clicked)
         self.uc_theme_mask.download_started.connect(
-            lambda mask_id: self.uc_preview.set_status(f"Downloading: {mask_id}..."))
+            lambda mask_id: self.uc_preview.set_status(f"Downloading: {mask_id}...")
+        )
         self.uc_theme_mask.download_finished.connect(
             lambda mask_id, ok: self.uc_preview.set_status(
-                f"{'Downloaded' if ok else 'Failed'}: {mask_id}"))
+                f"{'Downloaded' if ok else 'Failed'}: {mask_id}"
+            )
+        )
 
         self.uc_preview.delegate.connect(self._on_preview_delegate)
         self.uc_preview.element_drag_start.connect(self._on_drag_start)
@@ -1037,14 +1149,15 @@ class TRCCApp(QMainWindow):
         self.uc_theme_setting.background_changed.connect(self._on_background_toggle)
         self.uc_theme_setting.screencast_changed.connect(self._on_screencast_toggle)
         self.uc_theme_setting.delegate.connect(self._on_settings_delegate)
-        self.uc_theme_setting.add_panel.hardware_requested.connect(
-            self._on_overlay_add_requested)
+        self.uc_theme_setting.add_panel.hardware_requested.connect(self._on_overlay_add_requested)
         self.uc_theme_setting.add_panel.element_added.connect(
-            lambda _: self.uc_activity_sidebar.setVisible(False))
+            lambda _: self.uc_activity_sidebar.setVisible(False)
+        )
         self.uc_theme_setting.overlay_grid.toggle_changed.connect(self._on_overlay_toggle)
         self.uc_theme_setting.overlay_grid.element_selected.connect(self._on_element_flash)
         self.uc_theme_setting.screencast_params_changed.connect(
-            lambda x, y, w, h: self._screencast.set_params(x, y, w, h))
+            lambda x, y, w, h: self._screencast.set_params(x, y, w, h)
+        )
         self.uc_theme_setting.screencast_panel.border_toggled.connect(self._screencast.set_border)
         self.uc_theme_setting.capture_requested.connect(self._on_capture_requested)
         self.uc_theme_setting.eyedropper_requested.connect(self._on_eyedropper_requested)
@@ -1055,9 +1168,11 @@ class TRCCApp(QMainWindow):
         self.uc_activity_sidebar.sensor_clicked.connect(self._on_sensor_element_add)
 
         self.uc_about.close_requested.connect(
-            lambda: (self._show_view('form'), self.uc_device.restore_device_selection()))
+            lambda: (self._show_view("form"), self.uc_device.restore_device_selection())
+        )
         self.uc_led_control.close_requested.connect(
-            lambda: (self._show_view('form'), self.uc_device.restore_device_selection()))
+            lambda: (self._show_view("form"), self.uc_device.restore_device_selection())
+        )
         self.uc_about.language_changed.connect(self._set_language)
         self.uc_about.temp_unit_changed.connect(self._on_temp_unit_changed)
         self.uc_about.hdd_toggle_changed.connect(self._on_hdd_toggle_changed)
@@ -1067,7 +1182,7 @@ class TRCCApp(QMainWindow):
 
     def _on_device_widget_clicked(self, device_info: dict) -> None:
         """User clicked a device in the sidebar."""
-        path = device_info.get('path', '')
+        path = device_info.get("path", "")
         if path:
             self._activate_device(path)
 
@@ -1088,22 +1203,25 @@ class TRCCApp(QMainWindow):
         self.uc_preview.set_status("Connecting to device...")
 
         import threading
+
         def worker() -> None:
             try:
                 from ..adapters.device.factory import DeviceProtocolFactory
+
                 protocol = DeviceProtocolFactory.get_protocol(device)
                 result = protocol.handshake()
                 if result:
-                    resolution = getattr(result, 'resolution', None)
-                    fbl = getattr(result, 'fbl', None) or getattr(result, 'model_id', None)
-                    pm = getattr(result, 'pm_byte', 0)
-                    sub = getattr(result, 'sub_byte', 0)
+                    resolution = getattr(result, "resolution", None)
+                    fbl = getattr(result, "fbl", None) or getattr(result, "model_id", None)
+                    pm = getattr(result, "pm_byte", 0)
+                    sub = getattr(result, "sub_byte", 0)
                     self._hs_notifier.done.emit(device, (resolution, fbl, pm, sub))
                 else:
                     self._hs_notifier.done.emit(device, None)
             except Exception as e:
                 log.warning("Handshake failed: %s", e)
                 self._hs_notifier.done.emit(device, None)
+
         threading.Thread(target=worker, daemon=True).start()
 
     def _on_handshake_done(self, device: DeviceInfo, data: tuple | None) -> None:
@@ -1131,20 +1249,21 @@ class TRCCApp(QMainWindow):
 
     def _resolve_device_identity(self, device: DeviceInfo, pm: int, sub: int = 0) -> None:
         from ..core.models import get_button_image
+
         btn_img = get_button_image(pm, sub)
         if not btn_img:
             return
-        product = btn_img.replace('A1', '', 1).replace('_', ' ')
+        product = btn_img.replace("A1", "", 1).replace("_", " ")
         for dev in self.uc_device.devices:
-            if dev.get('path') == device.path:
-                dev['button_image'] = btn_img
-                dev['product'] = product
-                dev['name'] = f"Thermalright {product}"
+            if dev.get("path") == device.path:
+                dev["button_image"] = btn_img
+                dev["product"] = product
+                dev["name"] = f"Thermalright {product}"
                 self.uc_device.update_device_button(dev)
                 break
         active_key = Settings.device_config_key(device.device_index, device.vid, device.pid)
-        Settings.save_device_setting(active_key, 'resolved_button_image', btn_img)
-        Settings.save_device_setting(active_key, 'resolved_product', product)
+        Settings.save_device_setting(active_key, "resolved_button_image", btn_img)
+        Settings.save_device_setting(active_key, "resolved_product", product)
 
     # ── Theme Event Handlers ─────────────────────────────────────────
 
@@ -1153,8 +1272,8 @@ class TRCCApp(QMainWindow):
         if h:
             h.select_theme_from_path(Path(theme_info.path))
             name = theme_info.name
-            if name.startswith('Custom_'):
-                name = name[len('Custom_'):]
+            if name.startswith("Custom_"):
+                name = name[len("Custom_") :]
             self.theme_name_input.setText(name)
 
     def _on_cloud_theme_clicked(self, theme_info: Any) -> None:
@@ -1175,15 +1294,22 @@ class TRCCApp(QMainWindow):
 
     def _on_delete_theme(self, theme_info: Any) -> None:
         from PySide6.QtWidgets import QMessageBox
+
         reply = QMessageBox.question(
-            self, "Delete Theme", f"Delete theme '{theme_info.name}'?",
+            self,
+            "Delete Theme",
+            f"Delete theme '{theme_info.name}'?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No)
+            QMessageBox.StandardButton.No,
+        )
         if reply == QMessageBox.StandardButton.Yes:
             self.uc_theme_local.delete_theme(theme_info)
             h = self._active_lcd()
-            if (h and h.display.current_theme_path
-                    and str(h.display.current_theme_path) == theme_info.path):
+            if (
+                h
+                and h.display.current_theme_path
+                and str(h.display.current_theme_path) == theme_info.path
+            ):
                 h.display.current_image = None
                 self.uc_preview.set_image(None)
             self.uc_preview.set_status(f"Deleted: {theme_info.name}")
@@ -1232,9 +1358,9 @@ class TRCCApp(QMainWindow):
         elif cmd == UCPreview.CMD_VIDEO_SEEK:
             h.seek(info)
         elif cmd == UCPreview.CMD_VIDEO_FIT_WIDTH:
-            h.set_video_fit_mode('width')
+            h.set_video_fit_mode("width")
         elif cmd == UCPreview.CMD_VIDEO_FIT_HEIGHT:
-            h.set_video_fit_mode('height')
+            h.set_video_fit_mode("height")
 
     # ── Background / Screencast / Video Toggles ─────────────────────
 
@@ -1283,20 +1409,23 @@ class TRCCApp(QMainWindow):
     def _on_load_video_clicked(self) -> None:
         web_dir = str(_conf.settings.web_dir) if _conf.settings.web_dir else ""
         path, _ = QFileDialog.getOpenFileName(
-            self, "Open Video", web_dir,
-            "Video Files (*.mp4 *.avi *.mov *.gif);;All Files (*)")
+            self, "Open Video", web_dir, "Video Files (*.mp4 *.avi *.mov *.gif);;All Files (*)"
+        )
         h = self._active_lcd()
         if path and h:
             w, hw = h.display.lcd_size
             self.uc_video_cut.set_resolution(w, hw)
             self.uc_video_cut.load_video(path)
-            self._show_cutter('video')
+            self._show_cutter("video")
 
     def _on_media_player_load_clicked(self) -> None:
         web_dir = str(_conf.settings.web_dir) if _conf.settings.web_dir else ""
         path, _ = QFileDialog.getOpenFileName(
-            self, "Open Video", web_dir,
-            "Video Files (*.mp4 *.avi *.mkv *.mov *.gif);;All Files (*)")
+            self,
+            "Open Video",
+            web_dir,
+            "Video Files (*.mp4 *.avi *.mkv *.mov *.gif);;All Files (*)",
+        )
         h = self._active_lcd()
         if not path or not h:
             return
@@ -1316,38 +1445,40 @@ class TRCCApp(QMainWindow):
         self.uc_preview.set_status(f"Playing: {Path(path).name}")
 
     def _on_load_image_clicked(self) -> None:
-        self._cut_mode = 'background'
+        self._cut_mode = "background"
         path, _ = QFileDialog.getOpenFileName(
-            self, "Open Image", "",
-            "Image Files (*.png *.jpg *.jpeg *.bmp);;All Files (*)")
+            self, "Open Image", "", "Image Files (*.png *.jpg *.jpeg *.bmp);;All Files (*)"
+        )
         h = self._active_lcd()
         if path and h:
             from PySide6.QtGui import QImage as _QImage
+
             img = _QImage(path)
             if img.isNull():
                 self.uc_preview.set_status("Error: could not load image")
             else:
                 w, hw = h.display.lcd_size
                 self.uc_image_cut.load_image(img, w, hw)
-                self._show_cutter('image')
+                self._show_cutter("image")
 
     def _on_mask_upload_clicked(self) -> None:
-        self._cut_mode = 'mask'
+        self._cut_mode = "mask"
         path, _ = QFileDialog.getOpenFileName(
-            self, "Upload Mask Image", "",
-            "PNG Images (*.png);;All Files (*)")
+            self, "Upload Mask Image", "", "PNG Images (*.png);;All Files (*)"
+        )
         h = self._active_lcd()
         if path and h:
             from PySide6.QtGui import QImage as _QImage
+
             img = _QImage(path)
             if img.isNull():
                 self.uc_preview.set_status("Error: could not load image")
-                self._cut_mode = 'background'
+                self._cut_mode = "background"
             else:
                 self._mask_upload_filename = Path(path).stem
                 w, hw = h.display.lcd_size
                 self.uc_image_cut.load_image(img, w, hw)
-                self._show_cutter('image')
+                self._show_cutter("image")
 
     def _on_save_clicked(self) -> None:
         name = self.theme_name_input.text().strip()
@@ -1360,16 +1491,16 @@ class TRCCApp(QMainWindow):
 
     def _on_export_clicked(self) -> None:
         path, _ = QFileDialog.getSaveFileName(
-            self, "Export Theme", "",
-            "Theme files (*.tr);;JSON (*.json);;All Files (*)")
+            self, "Export Theme", "", "Theme files (*.tr);;JSON (*.json);;All Files (*)"
+        )
         h = self._active_lcd()
         if path and h:
             h.export_config(Path(path))
 
     def _on_import_clicked(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
-            self, "Import Theme", "",
-            "Theme files (*.tr);;JSON (*.json);;All Files (*)")
+            self, "Import Theme", "", "Theme files (*.tr);;JSON (*.json);;All Files (*)"
+        )
         h = self._active_lcd()
         if path and h:
             h.import_config(Path(path))
@@ -1378,9 +1509,9 @@ class TRCCApp(QMainWindow):
 
     def _show_cutter(self, kind: str) -> None:
         self.uc_preview.setVisible(False)
-        self.uc_image_cut.setVisible(kind == 'image')
-        self.uc_video_cut.setVisible(kind == 'video')
-        (self.uc_image_cut if kind == 'image' else self.uc_video_cut).raise_()
+        self.uc_image_cut.setVisible(kind == "image")
+        self.uc_video_cut.setVisible(kind == "video")
+        (self.uc_image_cut if kind == "image" else self.uc_video_cut).raise_()
 
     def _hide_cutters(self) -> None:
         self.uc_image_cut.setVisible(False)
@@ -1392,16 +1523,16 @@ class TRCCApp(QMainWindow):
         h = self._active_lcd()
         if result is None or not h:
             self.uc_preview.set_status("Image crop cancelled")
-            self._cut_mode = 'background'
+            self._cut_mode = "background"
             return
-        if self._cut_mode == 'mask':
+        if self._cut_mode == "mask":
             self._save_and_apply_custom_mask(result)
         else:
             h.stop_video()
             h.display.set_overlay_background(result)
             h._render_and_send()
             self.uc_preview.set_status("Image loaded")
-        self._cut_mode = 'background'
+        self._cut_mode = "background"
 
     def _save_and_apply_custom_mask(self, cropped: Any) -> None:
         import re
@@ -1410,6 +1541,7 @@ class TRCCApp(QMainWindow):
         from PySide6.QtGui import QPainter as _QPainter
 
         from ..core.models import MaskItem
+
         h = self._active_lcd()
         if not h:
             return
@@ -1419,8 +1551,8 @@ class TRCCApp(QMainWindow):
         user_dir = Path(_conf.settings._path_resolver.user_masks_dir(w, hw))
         user_dir.mkdir(parents=True, exist_ok=True)
 
-        raw_name = self._mask_upload_filename or 'custom_001'
-        mask_name = re.sub(r'[^\w\-]', '_', raw_name).strip('_') or 'custom'
+        raw_name = self._mask_upload_filename or "custom_001"
+        mask_name = re.sub(r"[^\w\-]", "_", raw_name).strip("_") or "custom"
         base_name = mask_name
         counter = 1
         while (user_dir / mask_name).exists():
@@ -1431,32 +1563,44 @@ class TRCCApp(QMainWindow):
         mask_dir.mkdir(parents=True, exist_ok=True)
 
         from PySide6.QtCore import Qt as _Qt
+
         img = cropped.convertToFormat(_QImage.Format.Format_ARGB32)
         if img.width() != w or img.height() != hw:
-            img = img.scaled(w, hw, _Qt.AspectRatioMode.IgnoreAspectRatio,
-                             _Qt.TransformationMode.SmoothTransformation)
-        img.save(str(mask_dir / '01.png'))
+            img = img.scaled(
+                w,
+                hw,
+                _Qt.AspectRatioMode.IgnoreAspectRatio,
+                _Qt.TransformationMode.SmoothTransformation,
+            )
+        img.save(str(mask_dir / "01.png"))
 
         thumb_size = 120
         scale = min(thumb_size / max(img.width(), 1), thumb_size / max(img.height(), 1))
         tw = int(img.width() * scale)
         th = int(img.height() * scale)
-        thumb = img.scaled(tw, th, _Qt.AspectRatioMode.IgnoreAspectRatio,
-                           _Qt.TransformationMode.SmoothTransformation)
+        thumb = img.scaled(
+            tw,
+            th,
+            _Qt.AspectRatioMode.IgnoreAspectRatio,
+            _Qt.TransformationMode.SmoothTransformation,
+        )
         bg = _QImage(thumb_size, thumb_size, _QImage.Format.Format_RGB32)
         bg.fill(0)
         painter = _QPainter(bg)
         painter.drawImage((thumb_size - tw) // 2, (thumb_size - th) // 2, thumb)
         painter.end()
-        bg.save(str(mask_dir / 'Theme.png'))
+        bg.save(str(mask_dir / "Theme.png"))
         log.info("Imported custom mask: %s", mask_name)
 
         new_item = MaskItem(
-            name=mask_name, path=str(mask_dir),
-            preview=str(mask_dir / 'Theme.png'),
-            is_local=True, is_custom=True)
+            name=mask_name,
+            path=str(mask_dir),
+            preview=str(mask_dir / "Theme.png"),
+            is_local=True,
+            is_custom=True,
+        )
         h.apply_mask(new_item)
-        if hasattr(self, 'uc_theme_mask'):
+        if hasattr(self, "uc_theme_mask"):
             self.uc_theme_mask.refresh_masks()
         self.uc_preview.set_status(f"Custom mask '{mask_name}' uploaded")
 
@@ -1488,13 +1632,12 @@ class TRCCApp(QMainWindow):
         if h:
             h.display.enable_overlay(enabled)
 
-        active_key = Settings.device_config_key(
-            *self._active_device_index_vid_pid())
+        active_key = Settings.device_config_key(*self._active_device_index_vid_pid())
         if active_key:
             cfg = Settings.get_device_config(active_key)
-            overlay = cfg.get('overlay', {})
-            overlay['enabled'] = enabled
-            Settings.save_device_setting(active_key, 'overlay', overlay)
+            overlay = cfg.get("overlay", {})
+            overlay["enabled"] = enabled
+            Settings.save_device_setting(active_key, "overlay", overlay)
 
     def _active_device_index_vid_pid(self) -> tuple[int, int, int]:
         h = self._active_lcd()
@@ -1570,6 +1713,7 @@ class TRCCApp(QMainWindow):
             h.set_brightness(level)
             self._update_ldd_icon()
             from ..core.models import BRIGHTNESS_LEVELS
+
             self.uc_preview.set_status(f"Brightness: L{level} ({BRIGHTNESS_LEVELS[level]}%)")
 
     def _update_ldd_icon(self) -> None:
@@ -1590,7 +1734,7 @@ class TRCCApp(QMainWindow):
     # ── Global Settings ─────────────────────────────────────────────
 
     def _on_temp_unit_changed(self, unit: str) -> None:
-        temp_int = 1 if unit == 'F' else 0
+        temp_int = 1 if unit == "F" else 0
         h = self._active_lcd()
         if h:
             h.display.set_overlay_temp_unit(temp_int)
@@ -1618,12 +1762,14 @@ class TRCCApp(QMainWindow):
 
     def _on_help_clicked(self) -> None:
         import webbrowser
+
         webbrowser.open(
-            'https://github.com/Lexonight1/thermalright-trcc-linux'
-            '/blob/main/doc/TROUBLESHOOTING.md')
+            "https://github.com/Lexonight1/thermalright-trcc-linux/blob/main/doc/TROUBLESHOOTING.md"
+        )
 
     def _on_capture_requested(self) -> None:
         from .screen_capture import ScreenCaptureOverlay
+
         self._capture_overlay = ScreenCaptureOverlay()
         self._capture_overlay.captured.connect(self._on_screen_captured)
         self._capture_overlay.show()
@@ -1634,19 +1780,22 @@ class TRCCApp(QMainWindow):
         if pixmap is None or not h:
             return
         from PySide6.QtGui import QPixmap as _QPixmap
+
         img = pixmap.toImage() if isinstance(pixmap, _QPixmap) else pixmap
         if img.isNull():
             return
         w, hw = h.display.lcd_size
         self.uc_image_cut.load_image(img, w, hw)
-        self._show_cutter('image')
+        self._show_cutter("image")
 
     def _on_eyedropper_requested(self) -> None:
         from .eyedropper import EyedropperOverlay
+
         self._eyedropper_overlay = EyedropperOverlay()
         self._eyedropper_overlay.color_picked.connect(self._eyedropper_pick)
         self._eyedropper_overlay.cancelled.connect(
-            lambda: setattr(self, '_eyedropper_overlay', None))
+            lambda: setattr(self, "_eyedropper_overlay", None)
+        )
         self._eyedropper_overlay.show()
 
     def _eyedropper_pick(self, r: int, g: int, b: int) -> None:
@@ -1656,25 +1805,21 @@ class TRCCApp(QMainWindow):
     # ── Carousel Config ─────────────────────────────────────────────
 
     def _load_carousel_config(self, theme_dir: Path) -> None:
-        config = read_carousel_config(str(theme_dir / 'Theme.dc'))
+        config = read_carousel_config(str(theme_dir / "Theme.dc"))
         if config is None:
             return
         all_themes = self.uc_theme_local._all_themes
         slideshow_names = [
-            all_themes[idx].name
-            for idx in config.theme_indices
-            if 0 <= idx < len(all_themes)
+            all_themes[idx].name for idx in config.theme_indices if 0 <= idx < len(all_themes)
         ]
         self.uc_theme_local._lunbo_array = slideshow_names
         self.uc_theme_local._slideshow = config.enabled
         self.uc_theme_local._slideshow_interval = config.interval_seconds
         self.uc_theme_local.timer_input.setText(str(config.interval_seconds))
-        px = (self.uc_theme_local._lunbo_on if config.enabled
-              else self.uc_theme_local._lunbo_off)
+        px = self.uc_theme_local._lunbo_on if config.enabled else self.uc_theme_local._lunbo_off
         if not px.isNull():
             self.uc_theme_local.slideshow_btn.setIcon(QIcon(px))
-            self.uc_theme_local.slideshow_btn.setIconSize(
-                self.uc_theme_local.slideshow_btn.size())
+            self.uc_theme_local.slideshow_btn.setIconSize(self.uc_theme_local.slideshow_btn.size())
         self.uc_theme_local._apply_decorations()
 
     # ── Window Events ───────────────────────────────────────────────
@@ -1691,8 +1836,7 @@ class TRCCApp(QMainWindow):
             return super().mousePressEvent(event)
         pos = event.position().toPoint()
         if pos.y() < 80 or (pos.x() < 180 and pos.y() < 95):
-            self._drag_pos = (
-                event.globalPosition().toPoint() - self.frameGeometry().topLeft())
+            self._drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
         event.accept()
 
     def mouseMoveEvent(self, event: Any) -> None:
@@ -1705,10 +1849,12 @@ class TRCCApp(QMainWindow):
         event.accept()
 
     def closeEvent(self, event: Any) -> None:
-        if (not self._force_quit
-                and self._tray.isSystemTrayAvailable()
-                and self._tray.isVisible()
-                and not (self._minimize_on_close and self._minimized_to_taskbar)):
+        if (
+            not self._force_quit
+            and self._tray.isSystemTrayAvailable()
+            and self._tray.isVisible()
+            and not (self._minimize_on_close and self._minimized_to_taskbar)
+        ):
             event.ignore()
             if self._minimize_on_close:
                 self._minimized_to_taskbar = True
@@ -1728,6 +1874,7 @@ class TRCCApp(QMainWindow):
         if self._ipc_server:
             self._ipc_server.shutdown()
         from ..adapters.device.factory import DeviceProtocolFactory
+
         DeviceProtocolFactory.close_all()
         TRCCApp._instance = None
         event.accept()

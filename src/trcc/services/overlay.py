@@ -3,6 +3,7 @@
 Renderer-agnostic — delegates all image ops to the Renderer ABC.
 Returns native surfaces (QImage).
 """
+
 from __future__ import annotations
 
 import logging
@@ -32,15 +33,20 @@ class OverlayService:
     # Base resolution for scaling (most common device)
     BASE_RESOLUTION = 320
 
-    def __init__(self, width: int = 320, height: int = 320,
-                 renderer: Renderer | None = None,
-                 load_config_json_fn: Any = None,
-                 dc_config_cls: Any = None) -> None:
+    def __init__(
+        self,
+        width: int = 320,
+        height: int = 320,
+        renderer: Renderer | None = None,
+        load_config_json_fn: Any = None,
+        dc_config_cls: Any = None,
+    ) -> None:
         # Rendering backend (Strategy pattern) — must be injected
         if renderer is None:
             raise RuntimeError(
                 "OverlayService requires a Renderer instance. "
-                "Use ControllerBuilder to wire dependencies.")
+                "Use ControllerBuilder to wire dependencies."
+            )
         self._renderer: Renderer = renderer
         self._load_config_json_fn = load_config_json_fn
         self._dc_config_cls = dc_config_cls
@@ -140,9 +146,7 @@ class OverlayService:
         if img_size == target:
             self.background = image
         else:
-            self.background = r.resize(
-                r.copy_surface(image), self.width, self.height
-            )
+            self.background = r.resize(r.copy_surface(image), self.width, self.height)
 
     # ── Config ───────────────────────────────────────────────────────
 
@@ -205,7 +209,7 @@ class OverlayService:
                     overlay_config, display_options = result
                     self.set_config(overlay_config)
                     self.set_config_resolution(self.width, self.height)
-                    self.set_dc_data({'display_options': display_options})
+                    self.set_dc_data({"display_options": display_options})
                     return display_options
             except Exception as e:
                 log.warning("Failed to load config.json, falling back to DC: %s", e)
@@ -262,7 +266,10 @@ class OverlayService:
 
     @staticmethod
     def load_mask_from_path(
-        path: Path, renderer: Any, width: int, height: int,
+        path: Path,
+        renderer: Any,
+        width: int,
+        height: int,
     ) -> Any | None:
         """Load a mask PNG from file or directory, resized to LCD dims.
 
@@ -277,7 +284,7 @@ class OverlayService:
         """
         p = Path(path)
         if p.is_dir():
-            p = p / '01.png'
+            p = p / "01.png"
         if not p.exists():
             log.warning("Mask not found: %s", p)
             return None
@@ -311,6 +318,16 @@ class OverlayService:
 
     # ── Overlay cache ────────────────────────────────────────────────
 
+    @property
+    def cache_version(self) -> tuple | None:
+        """Current overlay cache key — changes whenever rendered output would change.
+
+        Used by DisplayService.render_overlay() as part of its composite cache
+        key so the display-level cache is invalidated in lock-step with the
+        overlay layer (metrics text changes, config changes, mask changes, etc.).
+        """
+        return self._cache_key
+
     def _invalidate_cache(self) -> None:
         """Force overlay re-render on next frame."""
         self._overlay_cache = None
@@ -329,16 +346,23 @@ class OverlayService:
             return False
         if log.isEnabledFor(logging.DEBUG) and self._cache_key is not None:
             _CACHE_KEY_NAMES = (
-                'config', 'theme_mask', 'mask_visible', 'mask_position',
-                'time_format', 'date_format', 'temp_unit', 'flash_skip',
-                'scale_factor', 'metrics_hash',
+                "config",
+                "theme_mask",
+                "mask_visible",
+                "mask_position",
+                "time_format",
+                "date_format",
+                "temp_unit",
+                "flash_skip",
+                "scale_factor",
+                "metrics_hash",
             )
             changed = [
-                name for name, old, new in zip(
-                    _CACHE_KEY_NAMES, self._cache_key, new_key)
+                name
+                for name, old, new in zip(_CACHE_KEY_NAMES, self._cache_key, new_key)
                 if old != new
             ]
-            log.debug("overlay cache invalidated — changed: %s", ', '.join(changed))
+            log.debug("overlay cache invalidated — changed: %s", ", ".join(changed))
         return True
 
     def _build_cache_key(self, metrics: HardwareMetrics) -> tuple:
@@ -375,25 +399,29 @@ class OverlayService:
         has_time = False
         has_date = False
         for cfg in self.config.values():
-            if not isinstance(cfg, dict) or 'metric' not in cfg:
+            if not isinstance(cfg, dict) or "metric" not in cfg:
                 continue
-            metric_name = cfg['metric']
-            if metric_name == 'time':
+            metric_name = cfg["metric"]
+            if metric_name == "time":
                 has_time = True
-            elif metric_name in ('date', 'weekday'):
+            elif metric_name in ("date", "weekday"):
                 has_date = True
             else:
                 val = getattr(metrics, metric_name, None)
                 if val is not None:
-                    time_fmt = cfg.get('time_format', self.time_format)
-                    date_fmt = cfg.get('date_format', self.date_format)
-                    vals.append(SystemService.format_metric(
-                        metric_name, val, time_fmt, date_fmt, self.temp_unit))
+                    time_fmt = cfg.get("time_format", self.time_format)
+                    date_fmt = cfg.get("date_format", self.date_format)
+                    vals.append(
+                        SystemService.format_metric(
+                            metric_name, val, time_fmt, date_fmt, self.temp_unit
+                        )
+                    )
                 else:
                     vals.append(None)
         # Time/date use datetime.now() in render — include in hash
         if has_time or has_date:
             from datetime import datetime
+
             now = datetime.now()
             if has_time:
                 vals.append((now.hour, now.minute))
@@ -403,9 +431,9 @@ class OverlayService:
 
     # ── Render ───────────────────────────────────────────────────────
 
-    def render(self, background: Any = None,
-               metrics: HardwareMetrics | None = None,
-               **_kw: Any) -> Any:
+    def render(
+        self, background: Any = None, metrics: HardwareMetrics | None = None, **_kw: Any
+    ) -> Any:
         """Render overlay onto background.
 
         Callers gate on `.enabled` before calling — this method always renders.
@@ -435,9 +463,8 @@ class OverlayService:
         r = self._renderer
 
         # Fast path: no overlays, just return background as-is
-        has_overlays = (
-            (self.theme_mask and self.theme_mask_visible)
-            or (self.config and isinstance(self.config, dict))
+        has_overlays = (self.theme_mask and self.theme_mask_visible) or (
+            self.config and isinstance(self.config, dict)
         )
         if not has_overlays and self.background:
             return self.background
@@ -456,9 +483,11 @@ class OverlayService:
 
         # Check composite cache — skip copy+paste when nothing changed
         bg_id = id(self.background)
-        if (self._composite_result is not None
-                and not overlay_changed
-                and bg_id == self._composite_bg_id):
+        if (
+            self._composite_result is not None
+            and not overlay_changed
+            and bg_id == self._composite_bg_id
+        ):
             return self._composite_result
         result = self._composite_onto_background(r)
         self._composite_result = result
@@ -479,8 +508,7 @@ class OverlayService:
         r.composite(base, self._overlay_cache, (0, 0))
         return base
 
-    def _render_overlay_layer(self, metrics: HardwareMetrics,
-                              r: Renderer) -> Any:
+    def _render_overlay_layer(self, metrics: HardwareMetrics, r: Renderer) -> Any:
         """Render mask + text to a transparent overlay surface.
 
         This is the expensive operation — called only on cache miss.
@@ -496,14 +524,13 @@ class OverlayService:
             if abs(scale - 1.0) > 0.01:
                 mw, mh = r.surface_size(self.theme_mask)
                 mask_surface = r.resize(
-                    r.copy_surface(self.theme_mask),
-                    int(mw * scale), int(mh * scale))
+                    r.copy_surface(self.theme_mask), int(mw * scale), int(mh * scale)
+                )
                 pos_x = int(self.theme_mask_position[0] * scale)
                 pos_y = int(self.theme_mask_position[1] * scale)
                 overlay = r.composite(overlay, mask_surface, (pos_x, pos_y))
             else:
-                overlay = r.composite(
-                    overlay, self.theme_mask, self.theme_mask_position)
+                overlay = r.composite(overlay, self.theme_mask, self.theme_mask_position)
 
         # Draw text overlays
         if self._draw_text_elements(overlay, metrics, r):
@@ -511,8 +538,7 @@ class OverlayService:
 
         return overlay
 
-    def _draw_text_elements(self, surface: Any, metrics: HardwareMetrics,
-                            r: Renderer) -> bool:
+    def _draw_text_elements(self, surface: Any, metrics: HardwareMetrics, r: Renderer) -> bool:
         """Render text elements onto a surface.
 
         Shared by _render_overlay_layer (mask+text) and render_text_only
@@ -527,33 +553,33 @@ class OverlayService:
         drew_any = False
 
         for elem_idx, (_key, cfg) in enumerate(self.config.items()):
-            if not isinstance(cfg, dict) or not cfg.get('enabled', True):
+            if not isinstance(cfg, dict) or not cfg.get("enabled", True):
                 continue
             if elem_idx == self.flash_skip_index:
                 continue
 
-            base_x = cfg.get('x', 10)
-            base_y = cfg.get('y', 10)
-            font_cfg = cfg.get('font', {})
-            base_font_size = font_cfg.get('size', 24) if isinstance(font_cfg, dict) else 24
-            color = cfg.get('color', '#FFFFFF')
+            base_x = cfg.get("x", 10)
+            base_y = cfg.get("y", 10)
+            font_cfg = cfg.get("font", {})
+            base_font_size = font_cfg.get("size", 24) if isinstance(font_cfg, dict) else 24
+            color = cfg.get("color", "#FFFFFF")
 
             x = int(base_x * scale)
             y = int(base_y * scale)
             font_size = max(8, int(base_font_size * scale))
 
             # Get text to render
-            if 'text' in cfg:
-                text = str(cfg['text'])
-            elif 'metric' in cfg:
-                metric_name = cfg['metric']
+            if "text" in cfg:
+                text = str(cfg["text"])
+            elif "metric" in cfg:
+                metric_name = cfg["metric"]
                 value = getattr(metrics, metric_name, None)
                 if value is not None:
-                    time_fmt = cfg.get('time_format', self.time_format)
-                    date_fmt = cfg.get('date_format', self.date_format)
+                    time_fmt = cfg.get("time_format", self.time_format)
+                    date_fmt = cfg.get("date_format", self.date_format)
                     text = SystemService.format_metric(
-                        metric_name, value,
-                        time_fmt, date_fmt, self.temp_unit)
+                        metric_name, value, time_fmt, date_fmt, self.temp_unit
+                    )
                 else:
                     text = "N/A"
             else:

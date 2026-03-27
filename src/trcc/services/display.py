@@ -4,6 +4,7 @@ Pure Python, no Qt dependencies.
 Controllers (PySide6, Typer CLI, FastAPI) are thin wrappers that call this
 service and fire callbacks.
 """
+
 from __future__ import annotations
 
 import logging
@@ -35,12 +36,15 @@ class DisplayService:
     delegated to ThemeLoader and ThemePersistence (SRP).
     """
 
-    def __init__(self,
-                 devices: DeviceService,
-                 overlay: OverlayService,
-                 media: MediaService,
-                 theme_svc: Any = None,
-                 cpu_percent_fn: Callable[[], float] | None = None) -> None:
+    def __init__(
+        self,
+        devices: DeviceService,
+        overlay: OverlayService,
+        media: MediaService,
+        ensure_data_fn: Any = None,
+        theme_svc: Any = None,
+        cpu_percent_fn: Callable[[], float] | None = None,
+    ) -> None:
         # Sub-services (injected)
         self.devices = devices
         self.overlay = overlay
@@ -52,20 +56,28 @@ class DisplayService:
         self._persistence = ThemePersistence(theme_svc=theme_svc)
 
         # Working directory (Windows GifDirectory pattern)
-        self.working_dir = Path(tempfile.mkdtemp(prefix='trcc_work_'))
+        self.working_dir = Path(tempfile.mkdtemp(prefix="trcc_work_"))
 
         # State
         self.current_image: Any | None = None  # Native surface (QImage)
         self._clean_background: Any | None = None  # Original bg before overlay
         self.current_theme_path: Path | None = None
         self.auto_send = True
-        self.rotation = 0         # directionB: 0, 90, 180, 270
-        self.brightness = 100     # percent (0-100), config restores actual value
-        self.split_mode = 0       # myLddVal: 0=off, 1-3=Dynamic Island style
+        self.rotation = 0  # directionB: 0, 90, 180, 270
+        self.brightness = 100  # percent (0-100), config restores actual value
+        self.split_mode = 0  # myLddVal: 0=off, 1-3=Dynamic Island style
         self._split_overlay_cache: dict[tuple[int, int], Any] = {}  # (style,rot)->surface
 
         # Pre-baked video frame cache (None when inactive)
         self._cache: Any | None = None  # VideoFrameCache
+
+        # Render cache for render_overlay() — avoids redundant compositing + encoding
+        # on repeated sends when nothing has changed (static image keepalive, metrics
+        # tick with no overlay change, etc.).  Tuple of (background_id, overlay_version,
+        # brightness, rotation, split_mode) → rendered image.
+        # Set to None whenever any input changes; repopulated on next render_overlay().
+        self._render_cache: tuple[Any, ...] | None = None  # key
+        self._render_cache_image: Any | None = None  # cached result
 
         # Callback: fired when background data extraction finishes
         self.on_data_ready: Any | None = None
@@ -110,11 +122,27 @@ class DisplayService:
         SetResolutionCommand on the LCD bus). This method only reads
         what is already on disk — no downloading, no background threads.
         """
+        if self._ensure_data_fn is not None:
+            import threading
+
+            fn = self._ensure_data_fn
+
+            def _bg():
+                fn(width, height)
+                _conf.settings._resolve_paths()
+                if self.on_data_ready is not None:
+                    self.on_data_ready()
+
+            threading.Thread(target=_bg, daemon=True, name="data-extract").start()
         _conf.settings._resolve_paths()
 
         td = _conf.settings.theme_dir
         self._local_dir = td.path if td and td.exists() else None
-        self._web_dir = _conf.settings.web_dir if _conf.settings.web_dir and _conf.settings.web_dir.exists() else None
+        self._web_dir = (
+            _conf.settings.web_dir
+            if _conf.settings.web_dir and _conf.settings.web_dir.exists()
+            else None
+        )
         self._masks_dir = _conf.settings.masks_dir
 
     def cleanup(self) -> None:
@@ -128,8 +156,9 @@ class DisplayService:
         """Set LCD resolution and update sub-services."""
         if width == self.lcd_width and height == self.lcd_height:
             return
-        log.info("Resolution changed: %dx%d -> %dx%d",
-                 self.lcd_width, self.lcd_height, width, height)
+        log.info(
+            "Resolution changed: %dx%d -> %dx%d", self.lcd_width, self.lcd_height, width, height
+        )
         _conf.settings.set_resolution(width, height, persist=persist)
         self.media.set_target_size(width, height)
         self.overlay.set_resolution(width, height)
@@ -142,6 +171,7 @@ class DisplayService:
     def set_rotation(self, degrees: int) -> Any | None:
         """Set display rotation. Returns rendered image or None."""
         self.rotation = degrees % 360
+        self.invalidate_render_cache()
         if self._cache and self._cache.active:
             self._cache.rebuild_from_rotation(self.rotation)
         return self._render_and_process()
@@ -149,6 +179,7 @@ class DisplayService:
     def set_brightness(self, percent: int) -> Any | None:
         """Set display brightness. Returns rendered image or None."""
         self.brightness = max(0, min(100, percent))
+        self.invalidate_render_cache()
         if self._cache and self._cache.active:
             self._cache.rebuild_from_brightness(self.brightness)
         return self._render_and_process()
@@ -159,6 +190,7 @@ class DisplayService:
         Only affects 1600x720 widescreen devices. Returns rendered image.
         """
         self.split_mode = mode if mode in (0, 1, 2, 3) else 0
+        self.invalidate_render_cache()
         return self._render_and_process()
 
     @property
@@ -175,6 +207,7 @@ class DisplayService:
         Converts in-place once at load time.
         """
         from ..core.ports import RawFrame
+
         frames = self.media._frames
         if not frames:
             return
@@ -191,35 +224,37 @@ class DisplayService:
     def load_local_theme(self, theme) -> dict:
         """Load a local theme with DC config, mask, and overlay."""
         self._cache = None  # Invalidate previous video cache
-        result = self._loader.load_local_theme(
-            theme, self.lcd_size, self.working_dir)
+        result = self._loader.load_local_theme(theme, self.lcd_size, self.working_dir)
 
         # Convert decoded frames to native renderer surfaces (if animated)
-        if result.get('is_animated'):
+        if result.get("is_animated"):
             self._convert_media_frames()
 
         # Wire up state from loader result
-        self._mask_source_dir = result.get('mask_source_dir')
-        self.current_theme_path = result.get('theme_path')
+        self._mask_source_dir = result.get("mask_source_dir")
+        self.current_theme_path = result.get("theme_path")
         log.debug("load_local_theme: _mask_source_dir=%s", self._mask_source_dir)
 
         # Set current_image from result or from video first frame
-        if result.get('image'):
-            self.current_image = result['image']
-            self._clean_background = result['image']
-        elif result.get('is_animated'):
+        if result.get("image"):
+            self.current_image = result["image"]
+            self._clean_background = result["image"]
+        elif result.get("is_animated"):
             first_frame = self.media.get_frame(0)
             if first_frame:
                 self.current_image = first_frame
                 self._clean_background = first_frame
 
+        # New background — discard any stale render cache
+        self.invalidate_render_cache()
+
         # Build pre-baked cache for animated themes (only if device is connected)
-        if result.get('is_animated') and self.media.has_frames and self.devices.selected:
+        if result.get("is_animated") and self.media.has_frames and self.devices.selected:
             self._build_video_cache()
 
         # Render with adjustments if we have a static image
-        if result.get('image') and not result.get('is_animated'):
-            result['image'] = self._render_and_process()
+        if result.get("image") and not result.get("is_animated"):
+            result["image"] = self._render_and_process()
 
         return result
 
@@ -232,29 +267,35 @@ class DisplayService:
         # Wire up state — cloud themes are video-only, so preserve
         # existing mask source dir (user may have applied a mask before
         # selecting the cloud video background)
-        if result.get('mask_source_dir') is not None:
-            self._mask_source_dir = result['mask_source_dir']
-        self.current_theme_path = result.get('theme_path')
+        if result.get("mask_source_dir") is not None:
+            self._mask_source_dir = result["mask_source_dir"]
+        self.current_theme_path = result.get("theme_path")
 
         # Convert decoded frames to native renderer surfaces
         self._convert_media_frames()
-        log.debug("load_cloud_theme: frames converted, count=%d",
-                  len(self.media._frames) if self.media._frames else 0)
+        log.debug(
+            "load_cloud_theme: frames converted, count=%d",
+            len(self.media._frames) if self.media._frames else 0,
+        )
 
         first_frame = self.media.get_frame(0)
-        log.debug("load_cloud_theme: first_frame=%s",
-                  type(first_frame).__name__ if first_frame else None)
+        log.debug(
+            "load_cloud_theme: first_frame=%s", type(first_frame).__name__ if first_frame else None
+        )
         if first_frame:
             self.current_image = first_frame
             self._clean_background = first_frame
-        result['image'] = self.current_image
+        # New background — discard any stale render cache
+        self.invalidate_render_cache()
+        result["image"] = self.current_image
 
         # Build pre-baked cache for cloud video themes
         if self.media.has_frames:
             log.debug("load_cloud_theme: building video cache")
             self._build_video_cache()
-            log.debug("load_cloud_theme: cache active=%s",
-                      self._cache.active if self._cache else False)
+            log.debug(
+                "load_cloud_theme: cache active=%s", self._cache.active if self._cache else False
+            )
         return result
 
     def apply_mask(self, mask_dir: Path) -> Any | None:
@@ -265,12 +306,12 @@ class DisplayService:
         elif not self.current_image:
             self.current_image = ImageService.solid_color(0, 0, 0, *self.lcd_size)
 
-        self._mask_source_dir = self._loader.apply_mask(
-            mask_dir, self.working_dir, self.lcd_size)
+        self._mask_source_dir = self._loader.apply_mask(mask_dir, self.working_dir, self.lcd_size)
         log.debug("apply_mask: _mask_source_dir=%s", self._mask_source_dir)
 
-        # Invalidate pre-baked video cache (old mask baked in)
+        # Mask change invalidates both video cache and render cache
         self._cache = None
+        self.invalidate_render_cache()
         if self.media.has_frames:
             self._build_video_cache()
 
@@ -290,18 +331,21 @@ class DisplayService:
         """
         self._clean_background = image
         self.current_image = image
+        self.invalidate_render_cache()
 
     def _load_static_image(self, path: Path) -> None:
         """Load and resize a static image to LCD dimensions."""
         try:
             self.current_image = ImageService.open_and_resize(path, *self.lcd_size)
             self._clean_background = self.current_image
+            self.invalidate_render_cache()
         except Exception as e:
             log.error("Failed to load image: %s", e)
 
     def _create_black_background(self) -> None:
         """Create black background for mask-only themes."""
         self.current_image = ImageService.solid_color(0, 0, 0, *self.lcd_size)
+        self.invalidate_render_cache()
 
     # -- Rendering ---------------------------------------------------------
 
@@ -311,23 +355,64 @@ class DisplayService:
             log.debug("_render_and_process: no current_image")
             return None
         image = self.current_image
-        log.debug("_render_and_process: current_image type=%s overlay_enabled=%s",
-                  type(image).__name__, self.overlay.enabled)
+        log.debug(
+            "_render_and_process: current_image type=%s overlay_enabled=%s",
+            type(image).__name__,
+            self.overlay.enabled,
+        )
         if self.overlay.enabled:
             image = self.overlay.render(image)
             log.debug("_render_and_process: after overlay type=%s", type(image).__name__)
         return self._apply_adjustments(image)
 
+    def _render_cache_key(self, bg: Any) -> tuple[Any, ...]:
+        """Build a cache key from all inputs that affect render_overlay() output.
+
+        ``overlay.cache_version`` is the overlay's own internal cache key tuple
+        — it changes whenever metrics text, mask, config, format, or scale
+        changes, so the display-level cache invalidates in lock-step.
+        """
+        return (
+            id(bg),
+            self.overlay.cache_version,
+            self.brightness,
+            self.rotation,
+            self.split_mode,
+        )
+
+    def invalidate_render_cache(self) -> None:
+        """Discard the render cache. Call whenever rendering inputs change."""
+        self._render_cache = None
+        self._render_cache_image = None
+
     def render_overlay(self) -> Any | None:
-        """Force-render overlay (for live editing). Returns image or None."""
+        """Force-render overlay (for live editing). Returns image or None.
+
+        Caches the last rendered result keyed on (background identity,
+        overlay config version, brightness, rotation, split_mode).  Repeated
+        calls with no changes — e.g. keepalive, metrics ticks where the
+        overlay text has not changed — return the same object, making the
+        encode cache in DeviceService effective and avoiding redundant work.
+        """
         # Use clean background (no old overlay baked in)
         bg = self._clean_background or self.current_image
         if not bg:
             log.debug("render_overlay: no background, creating black bg")
             self._create_black_background()
             bg = self.current_image
+        if not bg:
+            return None
+
+        key = self._render_cache_key(bg)
+        if key == self._render_cache and self._render_cache_image is not None:
+            log.debug("render_overlay: cache hit")
+            return self._render_cache_image
+
         image = self.overlay.render(bg, force=True)
-        return self._apply_adjustments(image)
+        result = self._apply_adjustments(image)
+        self._render_cache = key
+        self._render_cache_image = result
+        return result
 
     def _apply_adjustments(self, image: Any) -> Any:
         """Apply brightness, rotation, and split overlay to image.
@@ -416,11 +501,11 @@ class DisplayService:
             index = (cf - 1) % total if total > 0 else 0
             preview, encoded = self._cache.get_frame(index)
             return {
-                'preview': preview,
-                'frame_index': index,
-                'progress': progress,
-                'send_image': None,
-                'encoded': encoded,
+                "preview": preview,
+                "frame_index": index,
+                "progress": progress,
+                "send_image": None,
+                "encoded": encoded,
             }
 
         # Fallback: original pipeline (overlay disabled, or cache not built)
@@ -429,8 +514,11 @@ class DisplayService:
 
         processed = self._apply_adjustments(frame)
 
-        result = {'preview': processed, 'progress': progress,
-                  'send_image': processed if (should_send and self.auto_send) else None}
+        result = {
+            "preview": processed,
+            "progress": progress,
+            "send_image": processed if (should_send and self.auto_send) else None,
+        }
 
         return result
 
@@ -455,9 +543,11 @@ class DisplayService:
         cache = VideoFrameCache()
         cache.build(
             frames=self.media._frames,
-            mask=(self.overlay.theme_mask
-                  if self.overlay.enabled and self.overlay.theme_mask_visible
-                  else None),
+            mask=(
+                self.overlay.theme_mask
+                if self.overlay.enabled and self.overlay.theme_mask_visible
+                else None
+            ),
             mask_position=self.overlay.theme_mask_position,
             overlay_svc=self.overlay if self.overlay.enabled else None,
             metrics=self.overlay._metrics,
@@ -470,8 +560,11 @@ class DisplayService:
         )
         self._cache = cache
         if self._cpu_percent_fn is not None:
-            log.info("video cache built: %d frames, trcc CPU %.1f%%",
-                     len(self.media._frames), self._cpu_percent_fn())
+            log.info(
+                "video cache built: %d frames, trcc CPU %.1f%%",
+                len(self.media._frames),
+                self._cpu_percent_fn(),
+            )
         else:
             log.info("video cache built: %d frames", len(self.media._frames))
 
@@ -479,7 +572,8 @@ class DisplayService:
         """Rebuild video cache with new metrics text."""
         if self._cache and self._cache.active:
             self._cache.rebuild_from_metrics(
-                self.overlay if self.overlay.enabled else None, metrics)
+                self.overlay if self.overlay.enabled else None, metrics
+            )
 
     # -- Blocking video loop (CLI / API) ------------------------------------
 
@@ -515,8 +609,14 @@ class DisplayService:
         Returns:
             Result dict with success/error/message.
         """
-        log.info("run_video_loop: path=%s overlay=%s mask=%s loop=%s duration=%s",
-                 video_path, bool(overlay_config), bool(mask_path), loop, duration)
+        log.info(
+            "run_video_loop: path=%s overlay=%s mask=%s loop=%s duration=%s",
+            video_path,
+            bool(overlay_config),
+            bool(mask_path),
+            loop,
+            duration,
+        )
 
         # 1. Load video
         w, h = self.lcd_size
@@ -538,7 +638,8 @@ class DisplayService:
                 self.overlay.set_config(overlay_config)
             if mask_path:
                 mask_img = OverlayService.load_mask_from_path(
-                    Path(mask_path), self.overlay._renderer, w, h)
+                    Path(mask_path), self.overlay._renderer, w, h
+                )
                 if mask_img is not None:
                     log.debug("run_video_loop: mask loaded from %s", mask_path)
                     self.overlay.set_theme_mask(mask_img)
@@ -548,8 +649,8 @@ class DisplayService:
         self.media._state.loop = loop
         self.media.play()
         return self._run_tick_loop(
-            metrics_fn=metrics_fn, on_frame=on_frame,
-            on_progress=on_progress, duration=duration)
+            metrics_fn=metrics_fn, on_frame=on_frame, on_progress=on_progress, duration=duration
+        )
 
     def _run_tick_loop(
         self,
@@ -610,11 +711,9 @@ class DisplayService:
                 _time.sleep(interval)
 
         except KeyboardInterrupt:
-            return {"success": True, "message": "Stopped",
-                    "frames": total, "fps": fps}
+            return {"success": True, "message": "Stopped", "frames": total, "fps": fps}
 
-        return {"success": True, "message": "Done",
-                "frames": total, "fps": fps}
+        return {"success": True, "message": "Done", "frames": total, "fps": fps}
 
     # -- LCD send ----------------------------------------------------------
 
@@ -646,7 +745,9 @@ class DisplayService:
         """
         data_dir = _conf.settings.user_content_dir
         ok, msg = ThemePersistence.save(
-            name, data_dir, self.lcd_size,
+            name,
+            data_dir,
+            self.lcd_size,
             current_image=self._clean_background or self.current_image,
             overlay=self.overlay,
             mask_source_dir=self._mask_source_dir,
@@ -655,15 +756,19 @@ class DisplayService:
             current_theme_path=self.current_theme_path,
         )
         if ok:
-            safe_name = f'Custom_{name}' if not name.startswith('Custom_') else name
-            self.current_theme_path = data_dir / f'theme{self.lcd_width}{self.lcd_height}' / safe_name
+            safe_name = f"Custom_{name}" if not name.startswith("Custom_") else name
+            self.current_theme_path = (
+                data_dir / f"theme{self.lcd_width}{self.lcd_height}" / safe_name
+            )
         return ok, msg
 
     def export_config(self, export_path: Path) -> Tuple[bool, str]:
         """Export current theme as .tr or JSON file."""
         return self._persistence.export_config(
-            export_path, self.current_theme_path,
-            self.lcd_width, self.lcd_height,
+            export_path,
+            self.current_theme_path,
+            self.lcd_width,
+            self.lcd_height,
         )
 
     def import_config(self, import_path: Path, data_dir: Path) -> Tuple[bool, str]:
@@ -671,8 +776,7 @@ class DisplayService:
         # Fall back to user-writable dir on system-wide installs (#51)
         if not os.access(data_dir, os.W_OK):
             data_dir = _conf.settings.user_data_dir
-        ok, result = self._persistence.import_config(
-            import_path, data_dir, self.lcd_size)
+        ok, result = self._persistence.import_config(import_path, data_dir, self.lcd_size)
         if ok and not isinstance(result, str):
             self.load_local_theme(result)
             return True, f"Imported: {import_path.stem}"

@@ -4,6 +4,7 @@ linux_scsi_resolver: injected into DeviceDetector by builder on Linux.
 find_lcd_devices: enriches raw DetectedDevice list with saved identity +
     LED probing — used by the GUI (trcc_app.py via scsi.py).
 """
+
 from __future__ import annotations
 
 import logging
@@ -66,6 +67,7 @@ def _resolve_vid_pid(sysfs_base: str) -> Optional[tuple[int, int]]:
 # find_lcd_devices — enriched device list for the GUI
 # ---------------------------------------------------------------------------
 
+
 def find_lcd_devices(detect_fn=None) -> List[Dict]:
     """Detect connected LCD devices and enrich with saved identity + LED probe.
 
@@ -79,14 +81,15 @@ def find_lcd_devices(detect_fn=None) -> List[Dict]:
     """
     if detect_fn is None:
         from trcc.adapters.device.detector import DeviceDetector
+
         detect_fn = DeviceDetector.detect
 
     raw = detect_fn()
     devices = []
 
     for dev in raw:
-        protocol = getattr(dev, 'protocol', 'scsi')
-        device_type = getattr(dev, 'device_type', 1)
+        protocol = getattr(dev, "protocol", "scsi")
+        device_type = getattr(dev, "device_type", 1)
 
         # Load previously resolved device identity from config (C# SetButtonImage).
         # First launch: no saved data, uses registry defaults. Handshake resolves
@@ -95,34 +98,38 @@ def find_lcd_devices(detect_fn=None) -> List[Dict]:
         dev_idx = len(devices)
         saved_btn, saved_product = _load_saved_identity(dev_idx, dev.vid, dev.pid)
 
-        if protocol == 'scsi':
+        if protocol == "scsi":
             if not dev.scsi_device:
                 continue
             product = saved_product or dev.product_name
-            devices.append({
-                'name': f"Thermalright {product}" if saved_product
-                        else f"{dev.vendor_name} {dev.product_name}",
-                'path': dev.scsi_device,
-                'resolution': (0, 0),
-                'vendor': dev.vendor_name,
-                'product': product,
-                'model': dev.model,
-                'button_image': saved_btn or dev.button_image,
-                'vid': dev.vid,
-                'pid': dev.pid,
-                'protocol': 'scsi',
-                'device_type': 1,
-                'implementation': dev.implementation,
-            })
-        elif protocol == 'hid':
+            devices.append(
+                {
+                    "name": f"Thermalright {product}"
+                    if saved_product
+                    else f"{dev.vendor_name} {dev.product_name}",
+                    "path": dev.scsi_device,
+                    "resolution": (0, 0),
+                    "vendor": dev.vendor_name,
+                    "product": product,
+                    "model": dev.model,
+                    "button_image": saved_btn or dev.button_image,
+                    "vid": dev.vid,
+                    "pid": dev.pid,
+                    "protocol": "scsi",
+                    "device_type": 1,
+                    "implementation": dev.implementation,
+                }
+            )
+        elif protocol == "hid":
             hid_path = f"hid:{dev.vid:04x}:{dev.pid:04x}"
             model = dev.model
             button_image = saved_btn or dev.button_image
             led_style_id = None
 
-            if dev.implementation == 'hid_led':
+            if dev.implementation == "hid_led":
                 try:
                     from trcc.adapters.device.led import PmRegistry, probe_led_model
+
                     info = probe_led_model(dev.vid, dev.pid, usb_path=dev.usb_path)
                     if info and info.model_name:
                         model = info.model_name
@@ -134,56 +141,65 @@ def find_lcd_devices(detect_fn=None) -> List[Dict]:
                     pass
 
             product = saved_product or dev.product_name
-            devices.append({
-                'name': f"Thermalright {product}" if saved_product
-                        else f"{dev.vendor_name} {dev.product_name}",
-                'path': hid_path,
-                'resolution': (0, 0),
-                'vendor': dev.vendor_name,
-                'product': product,
-                'model': model,
-                'led_style_id': led_style_id,
-                'button_image': button_image,
-                'vid': dev.vid,
-                'pid': dev.pid,
-                'protocol': 'hid',
-                'device_type': device_type,
-                'implementation': dev.implementation,
-            })
-        elif protocol in ('bulk', 'ly'):
+            devices.append(
+                {
+                    "name": f"Thermalright {product}"
+                    if saved_product
+                    else f"{dev.vendor_name} {dev.product_name}",
+                    "path": hid_path,
+                    "resolution": (0, 0),
+                    "vendor": dev.vendor_name,
+                    "product": product,
+                    "model": model,
+                    "led_style_id": led_style_id,
+                    "button_image": button_image,
+                    "vid": dev.vid,
+                    "pid": dev.pid,
+                    "protocol": "hid",
+                    "device_type": device_type,
+                    "implementation": dev.implementation,
+                }
+            )
+        elif protocol in ("bulk", "ly"):
             dev_path = f"{protocol}:{dev.vid:04x}:{dev.pid:04x}"
             product = saved_product or dev.product_name
-            devices.append({
-                'name': f"Thermalright {product}" if saved_product
-                        else f"{dev.vendor_name} {dev.product_name}",
-                'path': dev_path,
-                'resolution': (0, 0),
-                'vendor': dev.vendor_name,
-                'product': product,
-                'model': dev.model,
-                'button_image': saved_btn or dev.button_image,
-                'vid': dev.vid,
-                'pid': dev.pid,
-                'protocol': protocol,
-                'device_type': device_type,
-                'implementation': dev.implementation,
-            })
+            devices.append(
+                {
+                    "name": f"Thermalright {product}"
+                    if saved_product
+                    else f"{dev.vendor_name} {dev.product_name}",
+                    "path": dev_path,
+                    "resolution": (0, 0),
+                    "vendor": dev.vendor_name,
+                    "product": product,
+                    "model": dev.model,
+                    "button_image": saved_btn or dev.button_image,
+                    "vid": dev.vid,
+                    "pid": dev.pid,
+                    "protocol": protocol,
+                    "device_type": device_type,
+                    "implementation": dev.implementation,
+                }
+            )
 
-    devices.sort(key=lambda d: d['path'])
+    devices.sort(key=lambda d: d["path"])
     for i, d in enumerate(devices):
-        d['device_index'] = i
+        d["device_index"] = i
 
     return devices
 
 
 def _load_saved_identity(
-    dev_index: int, vid: int, pid: int,
+    dev_index: int,
+    vid: int,
+    pid: int,
 ) -> tuple[str | None, str | None]:
     try:
         from trcc.conf import Settings
+
         key = Settings.device_config_key(dev_index, vid, pid)
         cfg = Settings.get_device_config(key)
-        return cfg.get('resolved_button_image'), cfg.get('resolved_product')
+        return cfg.get("resolved_button_image"), cfg.get("resolved_product")
     except Exception:
         return None, None
 
@@ -196,6 +212,7 @@ def send_image_to_device(
     height: int,
 ) -> bool:
     from trcc.adapters.device.scsi import ScsiDevice
+
     try:
         if device_path not in ScsiDevice._initialized_devices:
             ScsiDevice._init_device(device_path)
@@ -205,4 +222,16 @@ def send_image_to_device(
     except Exception as e:
         log.error("SCSI send failed (%s): %s", device_path, e)
         ScsiDevice._initialized_devices.discard(device_path)
-        return False
+        # Reinit immediately and retry the frame so the display is restored
+        # without waiting for the next caller — avoids a visible blank gap
+        # that is especially noticeable on static-image themes.
+        try:
+            ScsiDevice._init_device(device_path)
+            ScsiDevice._initialized_devices.add(device_path)
+            ScsiDevice._send_frame(device_path, rgb565_data, width, height)
+            log.info("SCSI reinit+retry succeeded for %s", device_path)
+            return True
+        except Exception as e2:
+            log.error("SCSI reinit+retry failed (%s): %s", device_path, e2)
+            ScsiDevice._initialized_devices.discard(device_path)
+            return False
