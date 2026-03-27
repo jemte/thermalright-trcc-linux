@@ -440,10 +440,19 @@ class TRCCApp(QMainWindow):
 
     def _activate_device(self, path: str) -> None:
         """Switch panel stack to show the given device."""
+        # Deactivate all LCD handlers so their video timers stop writing to
+        # the shared preview widget, preventing the overlay/flicker glitch.
+        for h in self._handlers.values():
+            if isinstance(h, LCDHandler):
+                h.is_active = False
+
         self._active_path = path
         handler = self._handlers.get(path)
         if handler is None:
             return
+
+        if isinstance(handler, LCDHandler):
+            handler.is_active = True
 
         if isinstance(handler, LCDHandler):
             if handler.display.connected:
@@ -495,8 +504,14 @@ class TRCCApp(QMainWindow):
 
         tick() renders + sends to the LCD device. This handler mirrors that
         frame to the preview widget on the main thread — no re-render needed.
+
+        Only the active device's frames are mirrored to the shared preview widget.
+        Frames from inactive devices are discarded to prevent the overlay glitch
+        where an inactive device's screen permanently overlays the active one.
         """
         path: str = payload["path"]
+        if path != self._active_path:
+            return
         image: Any = payload["image"]
         handler = self._handlers.get(path)
         if isinstance(handler, LCDHandler):

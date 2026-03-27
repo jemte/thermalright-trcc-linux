@@ -84,6 +84,7 @@ class LCDHandler(BaseHandler):
         self._ldd_is_split = False
         self._background_active = False
         self._slideshow_index = 0
+        self._is_active = True  # True when this handler owns the shared preview widget
 
         # QPixmap cache keyed by frame index: {index: (id(qimage), QPixmap)}
         # Avoids QImage→QPixmap conversion on every tick when L3 cache is warm.
@@ -521,8 +522,8 @@ class LCDHandler(BaseHandler):
         if not result:
             return
 
-        # Skip preview update when window is minimized
-        if self._is_visible():
+        # Skip preview update when window is minimized or this handler is not active
+        if self._is_visible() and self._is_active:
             preview = result.get("preview")
             if preview is not None:
                 index = result.get("frame_index")
@@ -616,10 +617,20 @@ class LCDHandler(BaseHandler):
     def keepalive(self) -> None:
         """Periodic keepalive: resend current frame to prevent USB standby.
 
-        Fires every ~20 s via the metrics mediator. Skipped when video is
-        playing (the animation timer already sends frames continuously).
+        Fires every ~20 s via the metrics mediator. Skipped when:
+        - video is playing (animation timer sends continuously), or
+        - tick() sent a frame recently (overlay metrics loop is active).
+
+        The second guard prevents a double-send that would occur when the
+        background metrics loop is already refreshing the display every second
+        with updated overlay content.  Sending two different JPEG frames within
+        milliseconds of each other causes some Bulk devices (87AD:70DB) to
+        reset and briefly show their boot logo.  Keepalive remains active for
+        truly static displays (no overlay or metrics not changing for >10 s).
         """
         if self._lcd.video.playing:
+            return
+        if self._lcd.recently_active:
             return
         log.debug("keepalive: resending frame")
         self._render_and_send()
@@ -815,6 +826,15 @@ class LCDHandler(BaseHandler):
         if masks_dir.exists():
             self._w["theme_mask"].set_mask_directory(masks_dir)
         self._w["theme_mask"].set_resolution(f"{w}x{h}")
+
+    @property
+    def is_active(self) -> bool:
+        """True when this handler owns the shared preview widget."""
+        return self._is_active
+
+    @is_active.setter
+    def is_active(self, value: bool) -> None:
+        self._is_active = value
 
     @property
     def is_background_active(self) -> bool:
