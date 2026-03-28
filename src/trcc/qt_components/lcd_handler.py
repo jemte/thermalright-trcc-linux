@@ -739,14 +739,22 @@ class LCDHandler(BaseHandler):
             self._w["theme_mask"].set_mask_directory(masks_dir)
         self._w["theme_mask"].set_resolution(f"{w}x{h}")
 
-        # First install: themes just extracted — load first one onto LCD + preview
-        # overlay_config=True so the theme's default config1.dc (mask + metrics) applies
+        # First install only: themes just extracted — load first one onto LCD + preview.
+        # Skip when a saved theme_path exists in config — RestoreLastThemeCommand owns
+        # session restore and will load the correct theme. Auto-loading here would
+        # persist Theme1 over the saved path before RestoreLastThemeCommand runs.
         if self._lcd.current_image is None and td and td.exists():
-            for item in sorted(td.path.iterdir()):
-                if item.is_dir() and (item / "00.png").exists():
-                    log.info("Data ready: auto-loading first theme: %s", item)
-                    self._select_theme_from_path(item, persist=True, overlay_config=True)
-                    break
+            saved_path = (
+                Settings.get_device_config(self._device_key).get("theme_path")
+                if self._device_key
+                else None
+            )
+            if not saved_path:
+                for item in sorted(td.path.iterdir()):
+                    if item.is_dir() and (item / "00.png").exists():
+                        log.info("Data ready: auto-loading first theme: %s", item)
+                        self._select_theme_from_path(item, persist=True, overlay_config=True)
+                        break
 
     def _resolve_cloud_dirs(self, rotation: int) -> None:
         """Re-resolve cloud dirs for portrait rotation (C# GetWebBackgroundImageDirectory).
