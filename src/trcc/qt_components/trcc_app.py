@@ -1263,6 +1263,11 @@ class TRCCApp(QMainWindow):
                 self.uc_info_module.setVisible(True)
 
     def _resolve_device_identity(self, device: DeviceInfo, pm: int, sub: int = 0) -> None:
+        # Bulk/LY devices have a fixed identity set by VID:PID in the registry.
+        # Their PM byte determines resolution only, not product model — looking it
+        # up in DEVICE_BUTTON_IMAGE (an HID-centric table) would misidentify them.
+        if device.protocol in ("bulk", "ly"):
+            return
         from ..core.models import get_button_image
 
         btn_img = get_button_image(pm, sub)

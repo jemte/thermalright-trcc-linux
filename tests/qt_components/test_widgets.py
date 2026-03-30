@@ -248,9 +248,9 @@ class TestDeviceImageMap(unittest.TestCase):
             self.assertIsInstance(normal, str)
 
     def test_get_device_images_hid_default_skipped(self):
-        """HID devices with generic A1CZTV return None (await handshake)."""
+        """HID devices with generic A1TARAN ARMS return None (await handshake)."""
         normal, active = _get_device_images({
-            'protocol': 'hid', 'button_image': 'A1CZTV',
+            'protocol': 'hid', 'button_image': 'A1TARAN ARMS',
         })
         self.assertIsNone(normal)
         self.assertIsNone(active)

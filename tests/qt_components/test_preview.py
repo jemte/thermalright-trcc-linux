@@ -90,8 +90,8 @@ class TestGetDeviceImages:
     """Test _get_device_images() fallback chain."""
 
     def test_hid_generic_returns_none(self, qapp: object) -> None:
-        """HID protocol with generic A1CZTV button_image returns (None, None)."""
-        info = {'protocol': 'hid', 'button_image': 'A1CZTV'}
+        """HID protocol with generic A1TARAN ARMS button_image returns (None, None)."""
+        info = {'protocol': 'hid', 'button_image': 'A1TARAN ARMS'}
         assert _get_device_images(info) == (None, None)
 
     def test_button_image_found_directly(self, qapp: object) -> None:
@@ -135,17 +135,17 @@ class TestGetDeviceImages:
     def test_name_substring_case_insensitive(self, qapp: object) -> None:
         """Name substring match is case insensitive."""
         with patch('trcc.qt_components.uc_device.Assets') as m:
-            m.exists.side_effect = lambda n: n == 'A1CZTV'
+            m.exists.side_effect = lambda n: n == 'A1TARAN ARMS'
             info = {'button_image': '', 'model': '', 'name': 'cztv cooler', 'protocol': 'scsi'}
-            assert _get_device_images(info) == ('A1CZTV', 'A1CZTVa')
+            assert _get_device_images(info) == ('A1TARAN ARMS', 'A1TARAN ARMSa')
 
     def test_non_hid_default_fallback(self, qapp: object) -> None:
-        """Non-HID device with no match falls back to A1CZTV if asset exists."""
+        """Non-HID device with no match falls back to A1TARAN ARMS if asset exists."""
         with patch('trcc.qt_components.uc_device.Assets') as m:
-            # Only A1CZTV exists
-            m.exists.side_effect = lambda n: n == 'A1CZTV'
+            # Only A1TARAN ARMS exists
+            m.exists.side_effect = lambda n: n == 'A1TARAN ARMS'
             info = {'button_image': '', 'model': '', 'name': 'Unknown XYZ', 'protocol': 'scsi'}
-            assert _get_device_images(info) == ('A1CZTV', 'A1CZTVa')
+            assert _get_device_images(info) == ('A1TARAN ARMS', 'A1TARAN ARMSa')
 
     def test_hid_no_match_returns_none(self, qapp: object) -> None:
         """HID device with no match returns (None, None) -- no default fallback."""
@@ -155,7 +155,7 @@ class TestGetDeviceImages:
             assert _get_device_images(info) == (None, None)
 
     def test_no_match_at_all_returns_none(self, qapp: object) -> None:
-        """When nothing matches and A1CZTV asset missing, returns (None, None)."""
+        """When nothing matches and A1TARAN ARMS asset missing, returns (None, None)."""
         with patch('trcc.qt_components.uc_device.Assets') as m:
             m.exists.return_value = False
             info = {'button_image': '', 'model': '', 'name': 'Unknown', 'protocol': 'scsi'}
@@ -195,12 +195,12 @@ class TestGetDeviceImages:
         """Model maps to an image that doesn't exist -> falls through to name."""
         with patch('trcc.qt_components.uc_device.Assets') as m:
             # Model maps to A1CZ1 which doesn't exist, but name matches CZTV
-            m.exists.side_effect = lambda n: n == 'A1CZTV'
+            m.exists.side_effect = lambda n: n == 'A1TARAN ARMS'
             info = {
                 'button_image': '', 'model': 'CZ1',
                 'name': 'CZTV cooler', 'protocol': 'scsi',
             }
-            assert _get_device_images(info) == ('A1CZTV', 'A1CZTVa')
+            assert _get_device_images(info) == ('A1TARAN ARMS', 'A1TARAN ARMSa')
 
 
 # ============================================================================

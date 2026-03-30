@@ -691,7 +691,7 @@ class TestBulkDeviceDetection(unittest.TestCase):
             usb_path="2-1",
             implementation="bulk_usblcdnew",
             model="GRAND_VISION",
-            button_image="A1CZTV",
+            button_image="A1TARAN ARMS",
             protocol="bulk",
             device_type=4,
         )

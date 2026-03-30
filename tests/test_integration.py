@@ -36,7 +36,7 @@ def _make_device(vid=0x87CD, pid=0x70DB, scsi="/dev/sg0", usb_path="2-1",
         vendor_name="Thermalright", product_name="LCD Display",
         usb_path=usb_path, scsi_device=scsi,
         implementation=impl, model=model,
-        button_image="A1CZTV", protocol=protocol, device_type=1,
+        button_image="A1TARAN ARMS", protocol=protocol, device_type=1,
     )
 
 # ── Pipeline: CLI send command ──────────────────────────────────────────────
