@@ -4,9 +4,9 @@
  "https://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
 <policyconfig>
   <vendor>TRCC Linux</vendor>
-  <vendor_url>https://github.com/Lexonight1/thermalright-trcc-linux</vendor_url>
+  <vendor_url>https://github.com/jemte/thermalright-trcc-linux</vendor_url>
 
-  <action id="com.github.lexonight1.trcc.dmidecode">
+  <action id="com.github.jemte.trcc.dmidecode">
     <description>Read hardware information (SMBIOS/DMI)</description>
     <message>TRCC needs to read memory and motherboard information.</message>
     <defaults>
@@ -18,7 +18,7 @@
     <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
   </action>
 
-  <action id="com.github.lexonight1.trcc.smartctl">
+  <action id="com.github.jemte.trcc.smartctl">
     <description>Read disk health information (SMART)</description>
     <message>TRCC needs to read disk health status.</message>
     <defaults>

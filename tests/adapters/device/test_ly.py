@@ -17,7 +17,7 @@ import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 from trcc.adapters.device.ly import (
     _CHUNK_DATA_SIZE,
@@ -30,13 +30,14 @@ from trcc.adapters.device.ly import (
 )
 
 
-def _make_ly_response(pm_byte_20: int = 1, pm_byte_22: int = 0,
-                      pm_byte_36: int = 0, length: int = 512) -> bytes:
+def _make_ly_response(
+    pm_byte_20: int = 1, pm_byte_22: int = 0, pm_byte_36: int = 0, length: int = 512
+) -> bytes:
     """Build a valid LY handshake response."""
     resp = bytearray(length)
-    resp[0] = 3       # validation
-    resp[1] = 0xFF    # validation
-    resp[8] = 1       # validation
+    resp[0] = 3  # validation
+    resp[1] = 0xFF  # validation
+    resp[8] = 1  # validation
     resp[20] = pm_byte_20
     resp[22] = pm_byte_22
     resp[36] = pm_byte_36
@@ -180,8 +181,8 @@ class TestLyDeviceHandshake(unittest.TestCase):
         d._ep_in.read.return_value = _make_ly_response(pm_byte_20=1, pm_byte_22=2)
         result = d.handshake()
 
-        self.assertEqual(result.pm_byte, 65)   # 64 + 1
-        self.assertEqual(result.sub_byte, 3)   # resp[22]+1
+        self.assertEqual(result.pm_byte, 65)  # 64 + 1
+        self.assertEqual(result.sub_byte, 3)  # resp[22]+1
         self.assertEqual(result.model_id, 192)  # FBL
 
 
@@ -199,7 +200,7 @@ class TestLyDeviceSendFrame(unittest.TestCase):
     def test_chunk_header_format(self):
         """First chunk header: 01 FF [total_size LE32] [data_len LE16] [cmd] [num_chunks LE16] [idx LE16]."""
         d = self._setup()
-        data = b'\xAB' * 100  # Small payload: 1 chunk
+        data = b"\xab" * 100  # Small payload: 1 chunk
         d.send_frame(data)
 
         # Get the buffer that was written
@@ -222,14 +223,14 @@ class TestLyDeviceSendFrame(unittest.TestCase):
     def test_chunk_header_ly1_cmd(self):
         """LY1: chunk header byte[8] = 2."""
         d = self._setup(pid=_PID_LY1)
-        d.send_frame(b'\x00' * 100)
+        d.send_frame(b"\x00" * 100)
         buf = d._ep_out.write.call_args_list[0][0][0]
         self.assertEqual(buf[8], 2)
 
     def test_multi_chunk_count(self):
         """Payload > 496 bytes splits into multiple chunks."""
         d = self._setup()
-        data = b'\x00' * 1000  # 1000 / 496 + 1 = 3 chunks
+        data = b"\x00" * 1000  # 1000 / 496 + 1 = 3 chunks
         d.send_frame(data)
         # 3 chunks, padded to 4 (multiple of 4 for LY) = 4 * 512 = 2048 bytes
         # Sent in one USB write (2048 < 4096)
@@ -238,29 +239,31 @@ class TestLyDeviceSendFrame(unittest.TestCase):
     def test_ack_read_after_frame(self):
         """Device reads 512-byte ACK after sending frame."""
         d = self._setup()
-        d.send_frame(b'\x00' * 100)
+        d.send_frame(b"\x00" * 100)
         d._ep_in.read.assert_called_once()
 
     def test_send_returns_true_on_success(self):
         d = self._setup()
-        self.assertTrue(d.send_frame(b'\x00' * 100))
+        self.assertTrue(d.send_frame(b"\x00" * 100))
 
     def test_send_returns_false_on_error(self):
         d = self._setup()
         d._ep_out.write.side_effect = Exception("USB error")
-        self.assertFalse(d.send_frame(b'\x00' * 100))
+        self.assertFalse(d.send_frame(b"\x00" * 100))
 
     def test_data_payload_in_chunk(self):
         """Image data appears at offset 16 in chunk."""
         d = self._setup()
-        data = b'\xAB' * 50
+        data = b"\xab" * 50
         d.send_frame(data)
         buf = d._ep_out.write.call_args_list[0][0][0]
-        self.assertEqual(buf[16:16 + 50], data)
+        self.assertEqual(buf[16 : 16 + 50], data)
 
 
 class TestLyDeviceClose(unittest.TestCase):
-    @patch.dict("sys.modules", {"usb": MagicMock(), "usb.core": MagicMock(), "usb.util": MagicMock()})
+    @patch.dict(
+        "sys.modules", {"usb": MagicMock(), "usb.core": MagicMock(), "usb.util": MagicMock()}
+    )
     def test_close_releases_resources(self):
         d = LyDevice(0x0416, _PID_LY)
         d._dev = MagicMock()
@@ -279,11 +282,11 @@ class TestLyProtocol(unittest.TestCase):
         from trcc.adapters.device.factory import DeviceProtocolFactory, LyProtocol
 
         device_info = MagicMock()
-        device_info.protocol = 'ly'
+        device_info.protocol = "ly"
         device_info.vid = 0x0416
         device_info.pid = _PID_LY
-        device_info.path = 'ly:0416:5408'
-        device_info.implementation = 'ly_bulk'
+        device_info.path = "ly:0416:5408"
+        device_info.implementation = "ly_bulk"
 
         proto = DeviceProtocolFactory.create_protocol(device_info)
         self.assertIsInstance(proto, LyProtocol)
@@ -303,6 +306,7 @@ class TestLyProtocol(unittest.TestCase):
 class TestLyDeviceDetection(unittest.TestCase):
     def test_ly_in_registry(self):
         from trcc.adapters.device.detector import _LY_DEVICES
+
         self.assertIn((0x0416, 0x5408), _LY_DEVICES)
         self.assertIn((0x0416, 0x5409), _LY_DEVICES)
         info = _LY_DEVICES[(0x0416, 0x5408)]
@@ -311,10 +315,11 @@ class TestLyDeviceDetection(unittest.TestCase):
 
     def test_ly_in_all_registries(self):
         from trcc.adapters.device.detector import DeviceDetector
+
         all_devs = DeviceDetector._get_all_registries()
         self.assertIn((0x0416, 0x5408), all_devs)
         self.assertIn((0x0416, 0x5409), all_devs)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -46,26 +46,27 @@ from trcc.adapters.device.hid import (
 def _make_type2_valid_response() -> bytes:
     """Build a valid Type 2 handshake response (512 bytes)."""
     resp = bytearray(TYPE2_RESPONSE_SIZE)
-    resp[0:4] = TYPE2_MAGIC           # magic
-    resp[4] = 0x02                    # mode byte 1
-    resp[5] = 0x03                    # mode byte 2
-    resp[12] = 0x01                   # must be 1
-    resp[16] = 0x10                   # must be 0x10
-    resp[20:36] = b'\xAB\xCD\xEF\x01\x23\x45\x67\x89' * 2  # serial
+    resp[0:4] = TYPE2_MAGIC  # magic
+    resp[4] = 0x02  # mode byte 1
+    resp[5] = 0x03  # mode byte 2
+    resp[12] = 0x01  # must be 1
+    resp[16] = 0x10  # must be 0x10
+    resp[20:36] = b"\xab\xcd\xef\x01\x23\x45\x67\x89" * 2  # serial
     return bytes(resp)
 
 
 def _make_type3_valid_response(first_byte: int = 0x65) -> bytes:
     """Build a valid Type 3 handshake response (1024 bytes)."""
     resp = bytearray(TYPE3_RESPONSE_SIZE)
-    resp[0] = first_byte              # 0x65 or 0x66
-    resp[10:14] = b'\xDE\xAD\xBE\xEF'  # serial
+    resp[0] = first_byte  # 0x65 or 0x66
+    resp[10:14] = b"\xde\xad\xbe\xef"  # serial
     return bytes(resp)
 
 
 # =========================================================================
 # _ceil_to_512
 # =========================================================================
+
 
 class TestCeilTo512:
     """Test the 512-byte alignment helper."""
@@ -101,6 +102,7 @@ class TestCeilTo512:
 # Type 2 — Init Packet
 # =========================================================================
 
+
 class TestType2InitPacket:
     """Test HidDeviceType2.build_init_packet() exact bytes."""
 
@@ -119,28 +121,46 @@ class TestType2InitPacket:
     def test_reserved_zeros(self):
         pkt = HidDeviceType2.build_init_packet()
         # bytes 4-11 = zeros
-        assert pkt[4:12] == b'\x00' * 8
+        assert pkt[4:12] == b"\x00" * 8
         # bytes 13-19 = zeros
-        assert pkt[13:20] == b'\x00' * 7
+        assert pkt[13:20] == b"\x00" * 7
         # rest = zeros
-        assert pkt[20:] == b'\x00' * 492
+        assert pkt[20:] == b"\x00" * 492
 
     def test_byte_by_byte_match(self):
         """Verify the first 20 bytes match the C# array literal exactly."""
         pkt = HidDeviceType2.build_init_packet()
-        expected = bytes([
-            0xDA, 0xDB, 0xDC, 0xDD,  # magic
-            0, 0, 0, 0,              # zeros
-            0, 0, 0, 0,              # zeros
-            1, 0, 0, 0,              # command = 1
-            0, 0, 0, 0,              # zeros
-        ])
+        expected = bytes(
+            [
+                0xDA,
+                0xDB,
+                0xDC,
+                0xDD,  # magic
+                0,
+                0,
+                0,
+                0,  # zeros
+                0,
+                0,
+                0,
+                0,  # zeros
+                1,
+                0,
+                0,
+                0,  # command = 1
+                0,
+                0,
+                0,
+                0,  # zeros
+            ]
+        )
         assert pkt[:20] == expected
 
 
 # =========================================================================
 # Type 2 — Response Validation
 # =========================================================================
+
 
 class TestType2ResponseValidation:
     """Test HidDeviceType2.validate_response()."""
@@ -171,15 +191,16 @@ class TestType2ResponseValidation:
         assert HidDeviceType2.validate_response(bytes(resp)) is True
 
     def test_short_response(self):
-        assert HidDeviceType2.validate_response(b'\xDA\xDB\xDC\xDD') is False
+        assert HidDeviceType2.validate_response(b"\xda\xdb\xdc\xdd") is False
 
     def test_empty_response(self):
-        assert HidDeviceType2.validate_response(b'') is False
+        assert HidDeviceType2.validate_response(b"") is False
 
 
 # =========================================================================
 # Type 2 — Device Info Parsing
 # =========================================================================
+
 
 class TestType2DeviceInfo:
     """Test HidDeviceType2.parse_device_info()."""
@@ -221,6 +242,7 @@ class TestType2DeviceInfo:
 # =========================================================================
 # Type 2 — Handshake
 # =========================================================================
+
 
 class TestType2Handshake:
     """Test HidDeviceType2.handshake() orchestration."""
@@ -264,7 +286,7 @@ class TestType2Handshake:
 
     def test_handshake_failure_raises(self):
         transport = _make_mock_transport()
-        transport.read.return_value = b'\x00' * TYPE2_RESPONSE_SIZE  # bad magic
+        transport.read.return_value = b"\x00" * TYPE2_RESPONSE_SIZE  # bad magic
 
         dev = HidDeviceType2(transport)
         with pytest.raises(RuntimeError, match="handshake failed"):
@@ -292,8 +314,8 @@ class TestType2Handshake:
         """Type 2: pm_byte/sub_byte carry raw PM+SUB for button image (#69)."""
         transport = _make_mock_transport()
         resp = bytearray(_make_type2_valid_response())
-        resp[4] = 1   # SUB
-        resp[5] = 7   # PM
+        resp[4] = 1  # SUB
+        resp[5] = 7  # PM
         transport.read.return_value = bytes(resp)
         transport.write.return_value = TYPE2_INIT_SIZE
 
@@ -323,6 +345,7 @@ class TestType2Handshake:
 # Type 2 — Frame Send
 # =========================================================================
 
+
 class TestType2FrameSend:
     """Test HidDeviceType2 frame construction and sending."""
 
@@ -339,99 +362,100 @@ class TestType2FrameSend:
 
     def test_frame_packet_magic(self):
         """Verify DA DB DC DD magic in frame header (C# FormCZTV mode 3)."""
-        pkt = HidDeviceType2.build_frame_packet(b'\xFF' * 100)
-        assert pkt[0:4] == b'\xDA\xDB\xDC\xDD'
+        pkt = HidDeviceType2.build_frame_packet(b"\xff" * 100)
+        assert pkt[0:4] == b"\xda\xdb\xdc\xdd"
 
     def test_frame_packet_header(self):
         """Verify 20-byte header matches C# FormCZTV.ImageTo565() mode 3."""
-        data = b'\xFF' * 1000
+        data = b"\xff" * 1000
         pkt = HidDeviceType2.build_frame_packet(data)
         # [0:4] = DA DB DC DD magic
-        assert pkt[0:4] == b'\xDA\xDB\xDC\xDD'
+        assert pkt[0:4] == b"\xda\xdb\xdc\xdd"
         # [4] = 0x02 (SSCRM_CMD_TYPE_PICTURE)
         assert pkt[4] == 0x02
         # [6] = 0x01 (mode flag)
         assert pkt[6] == 0x01
         # [8:12] = hardcoded 240, 320 (LE16)
-        assert pkt[8:10] == b'\xF0\x00'   # 240
-        assert pkt[10:12] == b'\x40\x01'  # 320
+        assert pkt[8:10] == b"\xf0\x00"  # 240
+        assert pkt[10:12] == b"\x40\x01"  # 320
         # [12] = 0x02 (sub-flag)
         assert pkt[12] == 0x02
         # [16:20] = LE uint32 of data length
-        size_field = struct.unpack('<I', pkt[16:20])[0]
+        size_field = struct.unpack("<I", pkt[16:20])[0]
         assert size_field == 1000
 
     def test_frame_packet_alignment(self):
         """Packet length is always a multiple of 512."""
         for data_len in [0, 1, 100, 492, 493, 1000, 5000]:
-            data = b'\xAA' * data_len
+            data = b"\xaa" * data_len
             pkt = HidDeviceType2.build_frame_packet(data)
             assert len(pkt) % USB_BULK_ALIGNMENT == 0
 
     def test_frame_packet_contains_data(self):
         """Image data starts at offset 20."""
-        data = b'\xDE\xAD\xBE\xEF'
+        data = b"\xde\xad\xbe\xef"
         pkt = HidDeviceType2.build_frame_packet(data)
         assert pkt[20:24] == data
 
     def test_frame_packet_zero_padding(self):
         """Padding after data should be zeros."""
-        data = b'\xFF' * 10
+        data = b"\xff" * 10
         pkt = HidDeviceType2.build_frame_packet(data)
         # After header (20) + data (10) = 30 bytes, rest should be zeros
-        assert pkt[30:] == b'\x00' * (len(pkt) - 30)
+        assert pkt[30:] == b"\x00" * (len(pkt) - 30)
 
     def test_frame_packet_exact_boundary(self):
         """Data that makes raw size exactly 512 stays at 512."""
-        data = b'\xAA' * 492  # 20 + 492 = 512 exactly
+        data = b"\xaa" * 492  # 20 + 492 = 512 exactly
         pkt = HidDeviceType2.build_frame_packet(data)
         assert len(pkt) == 512
 
     def test_frame_packet_one_over_boundary(self):
         """Data that makes raw size 513 rounds up to 1024."""
-        data = b'\xAA' * 493  # 20 + 493 = 513
+        data = b"\xaa" * 493  # 20 + 493 = 513
         pkt = HidDeviceType2.build_frame_packet(data)
         assert len(pkt) == 1024
 
     def test_send_frame_calls_write(self):
         dev, transport = self._init_device()
-        dev.send_frame(b'\xFF' * 100)
+        dev.send_frame(b"\xff" * 100)
         transport.write.assert_called_once()
 
     def test_send_frame_returns_true(self):
         dev, transport = self._init_device()
-        assert dev.send_frame(b'\xFF' * 100) is True
+        assert dev.send_frame(b"\xff" * 100) is True
 
     def test_send_frame_returns_false_on_zero_transfer(self):
         dev, transport = self._init_device()
         transport.write.return_value = 0
-        assert dev.send_frame(b'\xFF' * 100) is False
+        assert dev.send_frame(b"\xff" * 100) is False
 
     def test_send_frame_without_init_raises(self):
         transport = _make_mock_transport()
         dev = HidDeviceType2(transport)
         with pytest.raises(RuntimeError, match="not initialized"):
-            dev.send_frame(b'\xFF')
+            dev.send_frame(b"\xff")
 
     def test_send_frame_empty_data(self):
         dev, transport = self._init_device()
-        result = dev.send_frame(b'')
+        result = dev.send_frame(b"")
         assert result is True
         pkt = transport.write.call_args[0][1]
         assert len(pkt) == 512  # 20-byte header rounds to 512
-        assert struct.unpack('<I', pkt[16:20])[0] == 0
+        assert struct.unpack("<I", pkt[16:20])[0] == 0
 
     def test_send_frame_timing(self):
         """Verify C# Sleep(1) inter-frame delay."""
         dev, transport = self._init_device()
         with patch("trcc.adapters.device.hid.time.sleep") as mock_sleep:
-            dev.send_frame(b'\xFF' * 100)
+            dev.send_frame(b"\xff" * 100)
             mock_sleep.assert_called_once_with(DELAY_FRAME_TYPE2_S)
 
 
 # =========================================================================
 # Type 3 — Init Packet
 # =========================================================================
+
 
 class TestType3InitPacket:
     """Test HidDeviceType3.build_init_packet() exact bytes."""
@@ -442,17 +466,31 @@ class TestType3InitPacket:
 
     def test_prefix_bytes(self):
         pkt = HidDeviceType3.build_init_packet()
-        expected = bytes([
-            0xF5, 0x00, 0x01, 0x00,
-            0xBC, 0xFF, 0xB6, 0xC8,
-            0x00, 0x00, 0x00, 0x00,
-            0x00, 0x04, 0x00, 0x00,
-        ])
+        expected = bytes(
+            [
+                0xF5,
+                0x00,
+                0x01,
+                0x00,
+                0xBC,
+                0xFF,
+                0xB6,
+                0xC8,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x04,
+                0x00,
+                0x00,
+            ]
+        )
         assert pkt[:16] == expected
 
     def test_padding_is_zeros(self):
         pkt = HidDeviceType3.build_init_packet()
-        assert pkt[16:] == b'\x00' * 1024
+        assert pkt[16:] == b"\x00" * 1024
 
     def test_total_is_prefix_plus_padding(self):
         pkt = HidDeviceType3.build_init_packet()
@@ -462,6 +500,7 @@ class TestType3InitPacket:
 # =========================================================================
 # Type 3 — Response Validation
 # =========================================================================
+
 
 class TestType3ResponseValidation:
     """Test HidDeviceType3.validate_response()."""
@@ -476,27 +515,28 @@ class TestType3ResponseValidation:
 
     def test_invalid_first_byte(self):
         resp = _make_type3_valid_response()
-        resp = b'\x64' + resp[1:]  # 0x64 = 100, not valid
+        resp = b"\x64" + resp[1:]  # 0x64 = 100, not valid
         assert HidDeviceType3.validate_response(resp) is False
 
     def test_invalid_0x67(self):
-        resp = b'\x67' + b'\x00' * (TYPE3_RESPONSE_SIZE - 1)
+        resp = b"\x67" + b"\x00" * (TYPE3_RESPONSE_SIZE - 1)
         assert HidDeviceType3.validate_response(resp) is False
 
     def test_zero_first_byte(self):
-        resp = b'\x00' * TYPE3_RESPONSE_SIZE
+        resp = b"\x00" * TYPE3_RESPONSE_SIZE
         assert HidDeviceType3.validate_response(resp) is False
 
     def test_short_response(self):
-        assert HidDeviceType3.validate_response(b'\x65') is False
+        assert HidDeviceType3.validate_response(b"\x65") is False
 
     def test_empty_response(self):
-        assert HidDeviceType3.validate_response(b'') is False
+        assert HidDeviceType3.validate_response(b"") is False
 
 
 # =========================================================================
 # Type 3 — Device Info Parsing
 # =========================================================================
+
 
 class TestType3DeviceInfo:
     """Test HidDeviceType3.parse_device_info()."""
@@ -514,7 +554,7 @@ class TestType3DeviceInfo:
     def test_serial_extraction(self):
         resp = bytearray(TYPE3_RESPONSE_SIZE)
         resp[0] = 0x65
-        resp[10:14] = b'\xCA\xFE\xBA\xBE'
+        resp[10:14] = b"\xca\xfe\xba\xbe"
         info = HidDeviceType3.parse_device_info(bytes(resp))
         assert info.serial == "CAFEBABE"
 
@@ -532,6 +572,7 @@ class TestType3DeviceInfo:
 # =========================================================================
 # Type 3 — Handshake
 # =========================================================================
+
 
 class TestType3Handshake:
     """Test HidDeviceType3.handshake() orchestration."""
@@ -573,7 +614,7 @@ class TestType3Handshake:
 
     def test_handshake_failure_raises(self):
         transport = _make_mock_transport()
-        transport.read.return_value = b'\x00' * TYPE3_RESPONSE_SIZE
+        transport.read.return_value = b"\x00" * TYPE3_RESPONSE_SIZE
 
         dev = HidDeviceType3(transport)
         with pytest.raises(RuntimeError, match="handshake failed"):
@@ -623,6 +664,7 @@ class TestType3Handshake:
 # Type 3 — Frame Send
 # =========================================================================
 
+
 class TestType3FrameSend:
     """Test HidDeviceType3 frame construction and sending."""
 
@@ -635,53 +677,67 @@ class TestType3FrameSend:
         dev.handshake()
         transport.reset_mock()
         transport.write.return_value = TYPE3_FRAME_TOTAL
-        transport.read.return_value = b'\x00' * TYPE3_ACK_SIZE
+        transport.read.return_value = b"\x00" * TYPE3_ACK_SIZE
         return dev, transport
 
     def test_frame_packet_total_length(self):
-        pkt = HidDeviceType3.build_frame_packet(b'\xFF' * 1000)
+        pkt = HidDeviceType3.build_frame_packet(b"\xff" * 1000)
         assert len(pkt) == TYPE3_FRAME_TOTAL  # 204816
 
     def test_frame_packet_prefix(self):
-        pkt = HidDeviceType3.build_frame_packet(b'\xFF' * 100)
-        expected_prefix = bytes([
-            0xF5, 0x01, 0x01, 0x00,
-            0xBC, 0xFF, 0xB6, 0xC8,
-            0x00, 0x00, 0x00, 0x00,
-            0x00, 0x20, 0x03, 0x00,   # 204800 LE
-        ])
+        pkt = HidDeviceType3.build_frame_packet(b"\xff" * 100)
+        expected_prefix = bytes(
+            [
+                0xF5,
+                0x01,
+                0x01,
+                0x00,
+                0xBC,
+                0xFF,
+                0xB6,
+                0xC8,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x20,
+                0x03,
+                0x00,  # 204800 LE
+            ]
+        )
         assert pkt[:16] == expected_prefix
 
     def test_frame_packet_size_field(self):
         """bytes[12:16] should encode 204800 as LE uint32."""
-        pkt = HidDeviceType3.build_frame_packet(b'')
-        size = struct.unpack('<I', pkt[12:16])[0]
+        pkt = HidDeviceType3.build_frame_packet(b"")
+        size = struct.unpack("<I", pkt[12:16])[0]
         assert size == TYPE3_DATA_SIZE  # 204800
 
     def test_frame_packet_data_padded(self):
         """Short data is zero-padded to 204800."""
-        data = b'\xAB' * 100
+        data = b"\xab" * 100
         pkt = HidDeviceType3.build_frame_packet(data)
         assert pkt[16:116] == data
-        assert pkt[116:] == b'\x00' * (TYPE3_DATA_SIZE - 100)
+        assert pkt[116:] == b"\x00" * (TYPE3_DATA_SIZE - 100)
 
     def test_frame_packet_data_truncated(self):
         """Oversized data is truncated to 204800."""
-        data = b'\xAB' * (TYPE3_DATA_SIZE + 500)
+        data = b"\xab" * (TYPE3_DATA_SIZE + 500)
         pkt = HidDeviceType3.build_frame_packet(data)
         assert len(pkt) == TYPE3_FRAME_TOTAL
         assert pkt[16:] == data[:TYPE3_DATA_SIZE]
 
     def test_frame_packet_exact_size_data(self):
         """Exactly 204800 bytes of data — no padding or truncation."""
-        data = b'\xCC' * TYPE3_DATA_SIZE
+        data = b"\xcc" * TYPE3_DATA_SIZE
         pkt = HidDeviceType3.build_frame_packet(data)
         assert len(pkt) == TYPE3_FRAME_TOTAL
         assert pkt[16:] == data
 
     def test_send_frame_writes_then_reads_ack(self):
         dev, transport = self._init_device()
-        dev.send_frame(b'\xFF' * 100)
+        dev.send_frame(b"\xff" * 100)
 
         # Should write frame, then read ACK
         assert transport.write.call_count == 1
@@ -689,40 +745,41 @@ class TestType3FrameSend:
 
     def test_send_frame_write_endpoint(self):
         dev, transport = self._init_device()
-        dev.send_frame(b'\xFF' * 100)
+        dev.send_frame(b"\xff" * 100)
         assert transport.write.call_args[0][0] == EP_WRITE_02
 
     def test_send_frame_ack_read(self):
         dev, transport = self._init_device()
-        dev.send_frame(b'\xFF' * 100)
+        dev.send_frame(b"\xff" * 100)
         read_args = transport.read.call_args
         assert read_args[0][0] == EP_READ_01
         assert read_args[0][1] == TYPE3_ACK_SIZE
 
     def test_send_frame_returns_true(self):
         dev, transport = self._init_device()
-        assert dev.send_frame(b'\xFF' * 100) is True
+        assert dev.send_frame(b"\xff" * 100) is True
 
     def test_send_frame_returns_false_on_zero_write(self):
         dev, transport = self._init_device()
         transport.write.return_value = 0
-        assert dev.send_frame(b'\xFF' * 100) is False
+        assert dev.send_frame(b"\xff" * 100) is False
 
     def test_send_frame_returns_false_on_empty_ack(self):
         dev, transport = self._init_device()
-        transport.read.return_value = b''
-        assert dev.send_frame(b'\xFF' * 100) is False
+        transport.read.return_value = b""
+        assert dev.send_frame(b"\xff" * 100) is False
 
     def test_send_frame_without_init_raises(self):
         transport = _make_mock_transport()
         dev = HidDeviceType3(transport)
         with pytest.raises(RuntimeError, match="not initialized"):
-            dev.send_frame(b'\xFF')
+            dev.send_frame(b"\xff")
 
 
 # =========================================================================
 # HidDeviceManager.send_image — public API
 # =========================================================================
+
 
 class TestSendImageToHidDevice:
     """Test the high-level public API."""
@@ -737,7 +794,7 @@ class TestSendImageToHidDevice:
         transport.read.return_value = _make_type2_valid_response()
         transport.write.return_value = 512
 
-        result = HidDeviceManager.send_image(transport, b'\xFF' * 100, device_type=2)
+        result = HidDeviceManager.send_image(transport, b"\xff" * 100, device_type=2)
         assert result is True
         # 1 write for init + 1 write for frame
         assert transport.write.call_count == 2
@@ -747,11 +804,11 @@ class TestSendImageToHidDevice:
         transport.read.return_value = _make_type2_valid_response()
         transport.write.return_value = 512
 
-        HidDeviceManager.send_image(transport, b'\xFF' * 100, device_type=2)
+        HidDeviceManager.send_image(transport, b"\xff" * 100, device_type=2)
         transport.reset_mock()
         transport.write.return_value = 512
 
-        HidDeviceManager.send_image(transport, b'\xAA' * 100, device_type=2)
+        HidDeviceManager.send_image(transport, b"\xaa" * 100, device_type=2)
         # Only 1 write (frame), no handshake
         assert transport.write.call_count == 1
 
@@ -760,7 +817,7 @@ class TestSendImageToHidDevice:
         transport.read.return_value = _make_type3_valid_response()
         transport.write.return_value = TYPE3_FRAME_TOTAL
 
-        result = HidDeviceManager.send_image(transport, b'\xFF' * 100, device_type=3)
+        result = HidDeviceManager.send_image(transport, b"\xff" * 100, device_type=3)
         assert result is True
         # 1 write for init + 1 write for frame
         assert transport.write.call_count == 2
@@ -770,35 +827,35 @@ class TestSendImageToHidDevice:
         # First call: handshake response, then ACK for frame
         transport.read.side_effect = [
             _make_type3_valid_response(),  # handshake
-            b'\x00' * TYPE3_ACK_SIZE,      # frame ACK
+            b"\x00" * TYPE3_ACK_SIZE,  # frame ACK
         ]
         transport.write.return_value = TYPE3_FRAME_TOTAL
 
-        HidDeviceManager.send_image(transport, b'\xFF' * 100, device_type=3)
+        HidDeviceManager.send_image(transport, b"\xff" * 100, device_type=3)
         transport.reset_mock()
         transport.write.return_value = TYPE3_FRAME_TOTAL
-        transport.read.return_value = b'\x00' * TYPE3_ACK_SIZE
+        transport.read.return_value = b"\x00" * TYPE3_ACK_SIZE
 
-        HidDeviceManager.send_image(transport, b'\xAA' * 100, device_type=3)
+        HidDeviceManager.send_image(transport, b"\xaa" * 100, device_type=3)
         assert transport.write.call_count == 1  # frame only
 
     def test_invalid_device_type(self):
         transport = _make_mock_transport()
-        result = HidDeviceManager.send_image(transport, b'\xFF', device_type=99)
+        result = HidDeviceManager.send_image(transport, b"\xff", device_type=99)
         assert result is False
 
     def test_handshake_failure_returns_false(self):
         transport = _make_mock_transport()
-        transport.read.return_value = b'\x00' * TYPE2_RESPONSE_SIZE  # bad response
+        transport.read.return_value = b"\x00" * TYPE2_RESPONSE_SIZE  # bad response
         transport.write.return_value = 512
 
-        result = HidDeviceManager.send_image(transport, b'\xFF' * 100, device_type=2)
+        result = HidDeviceManager.send_image(transport, b"\xff" * 100, device_type=2)
         assert result is False
 
     def test_handshake_failure_allows_retry(self):
         """After a failed handshake, the next call should try again."""
         transport = _make_mock_transport()
-        bad_resp = b'\x00' * TYPE2_RESPONSE_SIZE
+        bad_resp = b"\x00" * TYPE2_RESPONSE_SIZE
         good_resp = _make_type2_valid_response()
 
         # Need 3 bad responses to exhaust all retry attempts, then
@@ -807,18 +864,18 @@ class TestSendImageToHidDevice:
         transport.write.return_value = 512
 
         # First call fails (all 3 retries get bad response)
-        result1 = HidDeviceManager.send_image(transport, b'\xFF', device_type=2)
+        result1 = HidDeviceManager.send_image(transport, b"\xff", device_type=2)
         assert result1 is False
 
         # Second call retries handshake and succeeds
-        result2 = HidDeviceManager.send_image(transport, b'\xFF', device_type=2)
+        result2 = HidDeviceManager.send_image(transport, b"\xff", device_type=2)
         assert result2 is True
 
     def test_write_exception_returns_false(self):
         transport = _make_mock_transport()
         transport.write.side_effect = OSError("USB disconnected")
 
-        result = HidDeviceManager.send_image(transport, b'\xFF', device_type=2)
+        result = HidDeviceManager.send_image(transport, b"\xff", device_type=2)
         assert result is False
 
 
@@ -826,12 +883,14 @@ class TestSendImageToHidDevice:
 # PyUsbTransport (mocked pyusb)
 # =========================================================================
 
+
 class TestPyUsbTransport:
     """Test PyUsbTransport with mocked usb.core."""
 
     def test_construct_without_open(self):
         """PyUsbTransport can be constructed without opening (no device required)."""
         from trcc.adapters.device.hid import PyUsbTransport
+
         t = PyUsbTransport(0x0416, 0x5302)
         assert not t.is_open
 
@@ -878,10 +937,12 @@ class TestPyUsbTransport:
 
         mock_dev = MagicMock()
         mock_dev.is_kernel_driver_active.return_value = False
-        with patch("trcc.adapters.device.hid.usb.core.find", return_value=mock_dev), \
-             patch("trcc.adapters.device.hid.usb.util.claim_interface"), \
-             patch("trcc.adapters.device.hid.usb.util.release_interface") as mock_release, \
-             patch("trcc.adapters.device.hid.usb.util.dispose_resources") as mock_dispose:
+        with (
+            patch("trcc.adapters.device.hid.usb.core.find", return_value=mock_dev),
+            patch("trcc.adapters.device.hid.usb.util.claim_interface"),
+            patch("trcc.adapters.device.hid.usb.util.release_interface") as mock_release,
+            patch("trcc.adapters.device.hid.usb.util.dispose_resources") as mock_dispose,
+        ):
             t = PyUsbTransport(0x0416, 0x5302)
             t.open()
             t.close()
@@ -897,12 +958,14 @@ class TestPyUsbTransport:
         mock_dev = MagicMock()
         mock_dev.is_kernel_driver_active.return_value = False
         mock_dev.write.return_value = 512
-        with patch("trcc.adapters.device.hid.usb.core.find", return_value=mock_dev), \
-             patch("trcc.adapters.device.hid.usb.util.claim_interface"):
+        with (
+            patch("trcc.adapters.device.hid.usb.core.find", return_value=mock_dev),
+            patch("trcc.adapters.device.hid.usb.util.claim_interface"),
+        ):
             t = PyUsbTransport(0x0416, 0x5302)
             t.open()
-            result = t.write(EP_WRITE_02, b'\xFF' * 512, timeout=100)
-            mock_dev.write.assert_called_once_with(EP_WRITE_02, b'\xFF' * 512, timeout=100)
+            result = t.write(EP_WRITE_02, b"\xff" * 512, timeout=100)
+            mock_dev.write.assert_called_once_with(EP_WRITE_02, b"\xff" * 512, timeout=100)
             assert result == 512
 
     @pytest.mark.skipif(not PYUSB_AVAILABLE, reason="pyusb not installed")
@@ -912,22 +975,25 @@ class TestPyUsbTransport:
 
         mock_dev = MagicMock()
         mock_dev.is_kernel_driver_active.return_value = False
-        mock_dev.read.return_value = bytearray(b'\xDA\xDB\xDC\xDD')
-        with patch("trcc.adapters.device.hid.usb.core.find", return_value=mock_dev), \
-             patch("trcc.adapters.device.hid.usb.util.claim_interface"):
+        mock_dev.read.return_value = bytearray(b"\xda\xdb\xdc\xdd")
+        with (
+            patch("trcc.adapters.device.hid.usb.core.find", return_value=mock_dev),
+            patch("trcc.adapters.device.hid.usb.util.claim_interface"),
+        ):
             t = PyUsbTransport(0x0416, 0x5302)
             t.open()
             result = t.read(EP_READ_01, 512, timeout=100)
             mock_dev.read.assert_called_once_with(EP_READ_01, 512, timeout=100)
-            assert result == b'\xDA\xDB\xDC\xDD'
+            assert result == b"\xda\xdb\xdc\xdd"
 
     @pytest.mark.skipif(not PYUSB_AVAILABLE, reason="pyusb not installed")
     def test_write_when_closed_raises(self):
         """write() raises RuntimeError when transport is closed."""
         from trcc.adapters.device.hid import PyUsbTransport
+
         t = PyUsbTransport(0x0416, 0x5302)
         with pytest.raises(RuntimeError, match="not open"):
-            t.write(EP_WRITE_02, b'\xFF')
+            t.write(EP_WRITE_02, b"\xff")
 
     @pytest.mark.skipif(not PYUSB_AVAILABLE, reason="pyusb not installed")
     def test_context_manager(self):
@@ -936,10 +1002,12 @@ class TestPyUsbTransport:
 
         mock_dev = MagicMock()
         mock_dev.is_kernel_driver_active.return_value = False
-        with patch("trcc.adapters.device.hid.usb.core.find", return_value=mock_dev), \
-             patch("trcc.adapters.device.hid.usb.util.claim_interface"), \
-             patch("trcc.adapters.device.hid.usb.util.release_interface"), \
-             patch("trcc.adapters.device.hid.usb.util.dispose_resources"):
+        with (
+            patch("trcc.adapters.device.hid.usb.core.find", return_value=mock_dev),
+            patch("trcc.adapters.device.hid.usb.util.claim_interface"),
+            patch("trcc.adapters.device.hid.usb.util.release_interface"),
+            patch("trcc.adapters.device.hid.usb.util.dispose_resources"),
+        ):
             with PyUsbTransport(0x0416, 0x5302) as t:
                 assert t.is_open
             assert not t.is_open
@@ -949,12 +1017,14 @@ class TestPyUsbTransport:
 # HidApiTransport (mocked hidapi)
 # =========================================================================
 
+
 class TestHidApiTransport:
     """Test HidApiTransport with mocked hid module."""
 
     def test_import_error_when_hidapi_missing(self):
         """HidApiTransport raises ImportError when hidapi not installed."""
         import trcc.adapters.device.hid as mod
+
         orig = mod.HIDAPI_AVAILABLE
         mod.HIDAPI_AVAILABLE = False
         try:
@@ -998,7 +1068,7 @@ class TestHidApiTransport:
         with patch("trcc.adapters.device.hid.hidapi.Device", return_value=mock_hid_dev):
             t = HidApiTransport(0x0416, 0x5302)
             t.open()
-            t.write(EP_WRITE_02, b'\xFF\xFE\xFD\xFC')
+            t.write(EP_WRITE_02, b"\xff\xfe\xfd\xfc")
             # Should prepend report ID 0x00
             expected = bytes([0x00, 0xFF, 0xFE, 0xFD, 0xFC])
             mock_hid_dev.write.assert_called_once_with(expected)
@@ -1015,7 +1085,7 @@ class TestHidApiTransport:
             t.open()
             result = t.read(EP_READ_01, 512, timeout=100)
             mock_hid_dev.read.assert_called_once_with(512, 100)
-            assert result == b'\xDA\xDB\xDC\xDD'
+            assert result == b"\xda\xdb\xdc\xdd"
 
     @pytest.mark.skipif(not HIDAPI_AVAILABLE, reason="hidapi not installed")
     def test_read_empty_returns_empty_bytes(self):
@@ -1028,12 +1098,13 @@ class TestHidApiTransport:
             t = HidApiTransport(0x0416, 0x5302)
             t.open()
             result = t.read(EP_READ_01, 512, timeout=100)
-            assert result == b''
+            assert result == b""
 
     @pytest.mark.skipif(not HIDAPI_AVAILABLE, reason="hidapi not installed")
     def test_write_when_closed_raises(self):
         """write() raises RuntimeError when transport is closed."""
         from trcc.adapters.device.hid import HidApiTransport
+
         t = HidApiTransport.__new__(HidApiTransport)
         t._vid = 0x0416
         t._pid = 0x5302
@@ -1041,7 +1112,7 @@ class TestHidApiTransport:
         t._device = None
         t._is_open = False
         with pytest.raises(RuntimeError, match="not open"):
-            t.write(EP_WRITE_02, b'\xFF')
+            t.write(EP_WRITE_02, b"\xff")
 
     @pytest.mark.skipif(not HIDAPI_AVAILABLE, reason="hidapi not installed")
     def test_context_manager(self):
@@ -1059,6 +1130,7 @@ class TestHidApiTransport:
 # find_hid_devices
 # =========================================================================
 
+
 class TestFindHidDevices:
     """Test device discovery helper."""
 
@@ -1067,16 +1139,19 @@ class TestFindHidDevices:
         """find_hid_devices finds devices via pyusb."""
         mock_dev = MagicMock()
         mock_dev.iSerialNumber = 3
-        with patch("trcc.adapters.device.hid.usb.core.find") as mock_find, \
-             patch("trcc.adapters.device.hid.usb.util.get_string", return_value="ABC123"):
+        with (
+            patch("trcc.adapters.device.hid.usb.core.find") as mock_find,
+            patch("trcc.adapters.device.hid.usb.util.get_string", return_value="ABC123"),
+        ):
             mock_find.return_value = [mock_dev]
             devices = find_hid_devices()
             assert len(devices) >= 1
-            assert devices[0]['backend'] == 'pyusb'
+            assert devices[0]["backend"] == "pyusb"
 
     def test_no_backends_returns_empty(self):
         """Returns empty list when neither pyusb nor hidapi available."""
         import trcc.adapters.device.hid as mod
+
         orig_pyusb = mod.PYUSB_AVAILABLE
         orig_hidapi = mod.HIDAPI_AVAILABLE
         mod.PYUSB_AVAILABLE = False
@@ -1092,6 +1167,7 @@ class TestFindHidDevices:
 # =========================================================================
 # HidHandshakeInfo dataclass
 # =========================================================================
+
 
 class TestDeviceInfo:
     """Test HidHandshakeInfo dataclass fields and defaults."""
@@ -1113,6 +1189,7 @@ class TestDeviceInfo:
 # =========================================================================
 # Constants sanity checks
 # =========================================================================
+
 
 class TestConstants:
     """Verify constants match the C# source values."""
@@ -1145,7 +1222,7 @@ class TestConstants:
 
     def test_timing_constants(self):
         """Verify timing matches C# Thread.Sleep values."""
-        assert DELAY_PRE_INIT_S == 0.050   # Sleep(50)
+        assert DELAY_PRE_INIT_S == 0.050  # Sleep(50)
         assert DELAY_POST_INIT_S == 0.200  # Sleep(200)
         assert DELAY_FRAME_TYPE2_S == 0.001  # Sleep(1)
 

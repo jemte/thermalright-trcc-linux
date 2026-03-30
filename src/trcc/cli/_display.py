@@ -2,6 +2,7 @@
 
 Presentation-only: builder injected by _cmd_* boundary functions, call method, print result.
 """
+
 from __future__ import annotations
 
 import os
@@ -12,6 +13,7 @@ from trcc.core.models import parse_hex_color as _parse_hex
 # =========================================================================
 # CLI presentation helpers
 # =========================================================================
+
 
 def _connect_or_fail(device: str | None = None) -> int:
     """Connect LCD via os_bus. Returns exit code (0 = success).
@@ -24,6 +26,7 @@ def _connect_or_fail(device: str | None = None) -> int:
     from trcc.core.commands.initialize import DiscoverDevicesCommand
     from trcc.core.instance import find_active
     from trcc.ipc import create_lcd_proxy
+
     app = TrccApp.get()
     app.set_ipc_handlers(find_active, create_lcd_proxy)
     result = app.os_bus.dispatch(DiscoverDevicesCommand(path=device))
@@ -45,6 +48,7 @@ def _print_result(result: dict, *, preview: bool = False) -> int:
     print(result["message"])
     if preview and result.get("image"):
         from trcc.services import ImageService
+
         print(ImageService.to_ansi(result["image"]))
     return 0
 
@@ -52,6 +56,7 @@ def _print_result(result: dict, *, preview: bool = False) -> int:
 # =========================================================================
 # CLI functions — blocking loops (terminal-only)
 # =========================================================================
+
 
 def test(device=None, loop=False, preview=False):
     """Test display with color cycle."""
@@ -67,7 +72,9 @@ def test(device=None, loop=False, preview=False):
 
         dev = svc.selected
         if dev.protocol == "led":
-            print(f"{dev.path} is an LED controller with a segment display — use 'trcc led' commands.")
+            print(
+                f"{dev.path} is an LED controller with a segment display — use 'trcc led' commands."
+            )
             return 0
         w, h = dev.resolution
 
@@ -105,11 +112,24 @@ def test(device=None, loop=False, preview=False):
         return 1
 
 
-def play_video(builder, video_path, *, device=None, loop=True, duration=0,
-               preview=False, metrics=None, mask=None,
-               font_size=14, color='ffffff', font='Microsoft YaHei',
-               font_style='regular', temp_unit=0, time_format=0,
-               date_format=0):
+def play_video(
+    builder,
+    video_path,
+    *,
+    device=None,
+    loop=True,
+    duration=0,
+    preview=False,
+    metrics=None,
+    mask=None,
+    font_size=14,
+    color="ffffff",
+    font="Microsoft YaHei",
+    font_style="regular",
+    temp_unit=0,
+    time_format=0,
+    date_format=0,
+):
     """Play video/GIF/ZT on LCD device with optional overlay."""
     try:
         if not os.path.exists(video_path):
@@ -151,6 +171,7 @@ def play_video(builder, video_path, *, device=None, loop=True, duration=0,
         if overlay_config:
             from trcc.cli import _ensure_system
             from trcc.services.system import get_all_metrics
+
             _ensure_system(builder)
             metrics_fn = get_all_metrics
 
@@ -163,7 +184,7 @@ def play_video(builder, video_path, *, device=None, loop=True, duration=0,
             print("Press Ctrl+C to stop.")
 
         if preview:
-            print('\033[2J', end='', flush=True)
+            print("\033[2J", end="", flush=True)
 
         def _on_frame(img):
             svc = lcd._device_svc
@@ -171,12 +192,12 @@ def play_video(builder, video_path, *, device=None, loop=True, duration=0,
                 svc.send_frame(img, w, h)
             if preview:
                 from trcc.services import ImageService
+
                 print(ImageService.to_ansi_cursor_home(img), flush=True)
 
         def _on_progress(pct, cur, total_t):
             if not preview:
-                print(f"\r  {cur} / {total_t} ({pct:.0f}%)",
-                      end="", flush=True)
+                print(f"\r  {cur} / {total_t} ({pct:.0f}%)", end="", flush=True)
 
         result = lcd.play_video_loop(
             video_path,
@@ -226,13 +247,24 @@ def screencast(builder, *, device=None, x=0, y=0, w=0, h=0, fps=10, preview=Fals
     fmt, inp, region_args = capture
 
     cmd = [
-        'ffmpeg', '-hide_banner', '-loglevel', 'error',
-        '-f', fmt, '-framerate', str(fps),
+        "ffmpeg",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-f",
+        fmt,
+        "-framerate",
+        str(fps),
         *region_args,
-        '-i', inp,
-        '-vf', f'scale={lcd_w}:{lcd_h}',
-        '-f', 'rawvideo', '-pix_fmt', 'rgb24',
-        'pipe:1',
+        "-i",
+        inp,
+        "-vf",
+        f"scale={lcd_w}:{lcd_h}",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgb24",
+        "pipe:1",
     ]
     frame_size = lcd_w * lcd_h * 3
 
@@ -243,21 +275,19 @@ def screencast(builder, *, device=None, x=0, y=0, w=0, h=0, fps=10, preview=Fals
     print(f"Target: {fps} fps. Press Ctrl+C to stop.")
 
     if preview:
-        print('\033[2J', end='', flush=True)
+        print("\033[2J", end="", flush=True)
 
     frames = 0
     proc = None
     try:
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                                stderr=subprocess.DEVNULL)
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         assert proc.stdout is not None
         while True:
             raw = proc.stdout.read(frame_size)
             if len(raw) < frame_size:
                 break
             # Detach from raw buffer immediately — send_frame may hold a ref
-            qimg = QImage(raw, lcd_w, lcd_h, lcd_w * 3,
-                          QImage.Format.Format_RGB888).copy()
+            qimg = QImage(raw, lcd_w, lcd_h, lcd_w * 3, QImage.Format.Format_RGB888).copy()
             svc.send_frame(qimg, lcd_w, lcd_h)
             frames += 1
             if preview:
@@ -287,17 +317,19 @@ def screencast(builder, *, device=None, x=0, y=0, w=0, h=0, fps=10, preview=Fals
 # CLI functions — thin wrappers over LCDDevice capabilities
 # =========================================================================
 
-def _display_command(builder, method: str, *args, device: str | None = None,
-                     preview: bool = False, **kwargs) -> int:
+
+def _display_command(
+    builder, method: str, *args, device: str | None = None, preview: bool = False, **kwargs
+) -> int:
     """Generic: connect LCD, call method on frame ops, print result."""
     rc = _connect_or_fail(device)
     if rc:
         return rc
     from trcc.core.app import TrccApp
+
     lcd = TrccApp.get().lcd_device
     assert lcd is not None
-    return _print_result(getattr(lcd.frame, method)(*args, **kwargs),
-                         preview=preview)
+    return _print_result(getattr(lcd.frame, method)(*args, **kwargs), preview=preview)
 
 
 @_cli_handler
@@ -305,6 +337,7 @@ def send_image(builder, image_path, device=None, preview=False):
     """Send image to LCD."""
     from trcc.core.app import TrccApp
     from trcc.core.commands.lcd import SendImageCommand
+
     rc = _connect_or_fail(device)
     if rc:
         return rc
@@ -317,6 +350,7 @@ def send_color(builder, hex_color, device=None, preview=False):
     """Send solid color to LCD."""
     from trcc.core.app import TrccApp
     from trcc.core.commands.lcd import SendColorCommand
+
     rgb = _parse_hex(hex_color)
     if not rgb:
         print("Error: Invalid hex color. Use format: ff0000")
@@ -334,6 +368,7 @@ def set_brightness(builder, level, *, device=None):
     """Set display brightness level (1=25%, 2=50%, 3=100%)."""
     from trcc.core.app import TrccApp
     from trcc.core.commands.lcd import SetBrightnessCommand
+
     rc = _connect_or_fail(device)
     if rc:
         return rc
@@ -356,6 +391,7 @@ def set_rotation(builder, degrees, *, device=None):
     """Set display rotation (0, 90, 180, 270)."""
     from trcc.core.app import TrccApp
     from trcc.core.commands.lcd import SetRotationCommand
+
     rc = _connect_or_fail(device)
     if rc:
         return rc
@@ -368,6 +404,7 @@ def set_split_mode(builder, mode, *, device=None, preview=False):
     """Set split mode (Dynamic Island) for widescreen displays."""
     from trcc.core.app import TrccApp
     from trcc.core.commands.lcd import SetSplitModeCommand
+
     rc = _connect_or_fail(device)
     if rc:
         return rc
@@ -380,6 +417,7 @@ def load_mask(builder, mask_path, *, device=None, preview=False):
     """Load mask overlay from file/directory and send composited image."""
     from trcc.core.app import TrccApp
     from trcc.core.commands.lcd import LoadMaskCommand
+
     rc = _connect_or_fail(device)
     if rc:
         return rc
@@ -388,8 +426,7 @@ def load_mask(builder, mask_path, *, device=None, preview=False):
 
 
 @_cli_handler
-def render_overlay(builder, dc_path, *, device=None, send=False, output=None,
-                   preview=False):
+def render_overlay(builder, dc_path, *, device=None, send=False, output=None, preview=False):
     """Render overlay from DC config file."""
     from trcc.cli import _ensure_system
     from trcc.core.app import TrccApp
@@ -402,7 +439,8 @@ def render_overlay(builder, dc_path, *, device=None, send=False, output=None,
     lcd = TrccApp.get().lcd_device
     assert lcd is not None
     result = lcd.render_overlay_from_dc(
-        dc_path, send=send, output=output, metrics=get_all_metrics())
+        dc_path, send=send, output=output, metrics=get_all_metrics()
+    )
     if not result["success"]:
         print(f"Error: {result['error']}")
         return 1
@@ -410,6 +448,7 @@ def render_overlay(builder, dc_path, *, device=None, send=False, output=None,
         print(result["message"])
     if preview and result.get("image"):
         from trcc.services import ImageService
+
         print(ImageService.to_ansi(result["image"]))
     if not output and not send and not preview:
         opts = result.get("display_opts", {})
@@ -423,6 +462,7 @@ def reset(builder, device=None, *, preview=False):
     """Reset/reinitialize the LCD device."""
     from trcc.core.app import TrccApp
     from trcc.core.commands.lcd import ResetDisplayCommand
+
     rc = _connect_or_fail(device)
     if rc:
         return rc
@@ -472,6 +512,7 @@ def resume(builder):
             continue
 
         from trcc.cli._device import discover_resolution
+
         discover_resolution(dev)
         if dev.resolution == (0, 0):
             continue

@@ -20,6 +20,7 @@ Usage (gui/__init__.py)::
 
     splash.close()
 """
+
 from __future__ import annotations
 
 import logging
@@ -101,7 +102,7 @@ class TrccSplash(QWidget):
         self._status.setWordWrap(True)
 
         self._bar = QProgressBar()
-        self._bar.setRange(0, 0)   # indeterminate / marquee
+        self._bar.setRange(0, 0)  # indeterminate / marquee
         self._bar.setTextVisible(False)
 
         layout.addWidget(title)

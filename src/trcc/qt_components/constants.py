@@ -10,72 +10,72 @@ class Colors:
     """Central color palette used across all components."""
 
     # Dark theme base (QPalette)
-    WINDOW_BG = '#232227'
-    WINDOW_TEXT = '#C6C6C6'
-    BASE_BG = '#1E1E1E'
-    TEXT = '#C6C6C6'
-    BUTTON_BG = '#3C3C3C'
-    BUTTON_TEXT = '#C6C6C6'
+    WINDOW_BG = "#232227"
+    WINDOW_TEXT = "#C6C6C6"
+    BASE_BG = "#1E1E1E"
+    TEXT = "#C6C6C6"
+    BUTTON_BG = "#3C3C3C"
+    BUTTON_TEXT = "#C6C6C6"
 
     # Selection / accent
-    ACCENT = '#4A6FA5'
-    ACCENT_BORDER = '#6B8FC5'
+    ACCENT = "#4A6FA5"
+    ACCENT_BORDER = "#6B8FC5"
 
     # Hover
-    HOVER_BG = '#3A3A3A'
-    HOVER_BORDER = '#555'
+    HOVER_BG = "#3A3A3A"
+    HOVER_BORDER = "#555"
 
     # Thumbnail
-    THUMB_BG = '#1A1A1A'
-    THUMB_BORDER = '#333'
+    THUMB_BG = "#1A1A1A"
+    THUMB_BORDER = "#333"
 
     # Non-local mask thumbnails (dashed border)
-    NON_LOCAL_BG = '#2A2A2E'
-    NON_LOCAL_BORDER = '#555'
-    NON_LOCAL_HOVER_BG = '#3A3A3E'
-    NON_LOCAL_HOVER_BORDER = '#777'
+    NON_LOCAL_BG = "#2A2A2E"
+    NON_LOCAL_BORDER = "#555"
+    NON_LOCAL_HOVER_BG = "#3A3A3E"
+    NON_LOCAL_HOVER_BORDER = "#777"
 
     # Misc
-    PANEL_FALLBACK = '#2A2A2A'
-    STATUS_TEXT = '#888'
-    EMPTY_TEXT = '#666'
-    MUTED_TEXT = '#444'
+    PANEL_FALLBACK = "#2A2A2A"
+    STATUS_TEXT = "#888"
+    EMPTY_TEXT = "#666"
+    MUTED_TEXT = "#444"
     PLACEHOLDER_BG = (40, 40, 45)  # RGB tuple
 
     # Device button gradients
-    DEVICE_SELECTED_TOP = '#3B6B9A'
-    DEVICE_SELECTED_BOTTOM = '#2A4D6E'
-    DEVICE_SELECTED_BORDER = '#5B8BBA'
-    DEVICE_NORMAL_TOP = '#383838'
-    DEVICE_NORMAL_BOTTOM = '#2C2C2C'
-    DEVICE_NORMAL_BORDER = '#444'
-    DEVICE_HOVER_TOP = '#454545'
-    DEVICE_HOVER_BOTTOM = '#383838'
+    DEVICE_SELECTED_TOP = "#3B6B9A"
+    DEVICE_SELECTED_BOTTOM = "#2A4D6E"
+    DEVICE_SELECTED_BORDER = "#5B8BBA"
+    DEVICE_NORMAL_TOP = "#383838"
+    DEVICE_NORMAL_BOTTOM = "#2C2C2C"
+    DEVICE_NORMAL_BORDER = "#444"
+    DEVICE_HOVER_TOP = "#454545"
+    DEVICE_HOVER_BOTTOM = "#383838"
 
     # Close button
-    CLOSE_HOVER = '#C42B1C'
+    CLOSE_HOVER = "#C42B1C"
 
     # Overlay element states
-    OVERLAY_SELECTED = 'rgba(74, 111, 165, 150)'
-    OVERLAY_OCCUPIED = 'rgba(58, 58, 58, 100)'
-    OVERLAY_OCCUPIED_HOVER = 'rgba(74, 74, 74, 150)'
-    OVERLAY_OCCUPIED_BORDER = '#555'
-    OVERLAY_OCCUPIED_HOVER_BORDER = '#666'
-    OVERLAY_EMPTY_HOVER = 'rgba(50, 50, 50, 100)'
+    OVERLAY_SELECTED = "rgba(74, 111, 165, 150)"
+    OVERLAY_OCCUPIED = "rgba(58, 58, 58, 100)"
+    OVERLAY_OCCUPIED_HOVER = "rgba(74, 74, 74, 150)"
+    OVERLAY_OCCUPIED_BORDER = "#555"
+    OVERLAY_OCCUPIED_HOVER_BORDER = "#666"
+    OVERLAY_EMPTY_HOVER = "rgba(50, 50, 50, 100)"
 
     # Preset color swatches (from Windows buttonC1-C11)
     PRESET_COLORS = [
-        (224, 32, 32),    # Red
-        (250, 100, 1),    # Orange
-        (247, 181, 1),    # Yellow
-        (109, 212, 1),    # Lime
-        (68, 215, 182),   # Cyan
-        (50, 197, 255),   # Light Blue
-        (1, 145, 255),    # Blue
-        (98, 54, 255),    # Purple
-        (182, 32, 224),   # Magenta
+        (224, 32, 32),  # Red
+        (250, 100, 1),  # Orange
+        (247, 181, 1),  # Yellow
+        (109, 212, 1),  # Lime
+        (68, 215, 182),  # Cyan
+        (50, 197, 255),  # Light Blue
+        (1, 145, 255),  # Blue
+        (98, 54, 255),  # Purple
+        (182, 32, 224),  # Magenta
         (255, 255, 255),  # White
-        (0, 0, 0),        # Black
+        (0, 0, 0),  # Black
     ]
 
 
@@ -116,8 +116,8 @@ class Sizes:
     GRID_SCROLL_Y = 50
     GRID_SCROLL_H = 602  # PANEL_H - GRID_SCROLL_Y
     GRID_MARGIN = (30, 10, 0, 10)  # left, top, right, bottom
-    GRID_H_SPACE = 15   # 135 - 120
-    GRID_V_SPACE = 10   # 150 - 140
+    GRID_H_SPACE = 15  # 135 - 120
+    GRID_V_SPACE = 10  # 150 - 140
 
     # Filter buttons
     FILTER_BTN_W = 63
@@ -222,13 +222,13 @@ class Layout:
 
     # UCThemeWeb category buttons
     WEB_CATEGORIES = [
-        ('all',  21, 29, 63, 18),
-        ('a',   120, 29, 63, 18),   # Gallery
-        ('b',   221, 29, 63, 18),   # Tech
-        ('c',   322, 29, 63, 18),   # HUD
-        ('d',   421, 29, 63, 18),   # Light
-        ('e',   520, 29, 63, 18),   # Nature
-        ('y',   621, 29, 63, 18),   # Aesthetic
+        ("all", 21, 29, 63, 18),
+        ("a", 120, 29, 63, 18),  # Gallery
+        ("b", 221, 29, 63, 18),  # Tech
+        ("c", 322, 29, 63, 18),  # HUD
+        ("d", 421, 29, 63, 18),  # Light
+        ("e", 520, 29, 63, 18),  # Nature
+        ("y", 621, 29, 63, 18),  # Aesthetic
     ]
 
     # Scroll area (shared by all theme browsers)
@@ -236,8 +236,8 @@ class Layout:
 
     # Video controls
     PLAY_BTN = (10, 26, 34, 26)
-    HEIGHT_FIT_BTN = (64, 26, 34, 26)   # C# buttonTPJCH (P高度适应)
-    WIDTH_FIT_BTN = (108, 26, 34, 26)   # C# buttonTPJCW (P宽度适应)
+    HEIGHT_FIT_BTN = (64, 26, 34, 26)  # C# buttonTPJCH (P高度适应)
+    WIDTH_FIT_BTN = (108, 26, 34, 26)  # C# buttonTPJCW (P宽度适应)
     TIME_LABEL = (274, 26, 220, 20)
     PROGRESS_SLIDER = (10, 5, 479, 16)
 
@@ -302,16 +302,16 @@ class Layout:
     # Language selection checkboxes (within UCAbout) — v2.1.4 coordinates
     ABOUT_LANG_BUTTONS = [
         # (x, y, lang_code)
-        (297, 413, 'en'),      # English
-        (387, 413, 'de'),      # Deutsch
-        (477, 413, 'ru'),      # Русский
-        (567, 413, 'fr'),      # Français
-        (657, 413, 'pt'),      # Português
-        (297, 443, 'ja'),      # 日本語
-        (387, 443, 'es'),      # Español
-        (477, 443, 'zh'),      # 中文简体
-        (567, 443, 'zh_TW'),   # 中文繁體
-        (657, 443, 'ko'),      # 한국어
+        (297, 413, "en"),  # English
+        (387, 413, "de"),  # Deutsch
+        (477, 413, "ru"),  # Русский
+        (567, 413, "fr"),  # Français
+        (657, 413, "pt"),  # Português
+        (297, 443, "ja"),  # 日本語
+        (387, 443, "es"),  # Español
+        (477, 443, "zh"),  # 中文简体
+        (567, 443, "zh_TW"),  # 中文繁體
+        (657, 443, "ko"),  # 한국어
     ]
     ABOUT_CHECKBOX_SIZE = 14
 

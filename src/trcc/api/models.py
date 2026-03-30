@@ -1,4 +1,5 @@
 """Pydantic request/response models and shared helpers for all API endpoints."""
+
 from __future__ import annotations
 
 from fastapi import HTTPException
@@ -28,7 +29,9 @@ def parse_hex_or_400(hex_color: str) -> tuple[int, int, int]:
         )
     return rgb
 
+
 # ── Device models ──────────────────────────────────────────────────────
+
 
 class DeviceResponse(BaseModel):
     id: int
@@ -81,6 +84,7 @@ class MaskResponse(BaseModel):
 
 # ── Shared request models ─────────────────────────────────────────────
 
+
 class HexColorRequest(BaseModel):
     hex: str
 
@@ -95,6 +99,7 @@ class ToggleRequest(BaseModel):
 
 # ── Display request models ─────────────────────────────────────────────
 
+
 class BrightnessRequest(BaseModel):
     level: int = Field(ge=1, le=3)
 
@@ -108,6 +113,7 @@ class SplitRequest(BaseModel):
 
 
 # ── LED request models ─────────────────────────────────────────────────
+
 
 class LEDBrightnessRequest(BaseModel):
     level: int = Field(ge=0, le=100)
@@ -131,6 +137,7 @@ class TempUnitRequest(BaseModel):
 
 
 # ── Theme request models ───────────────────────────────────────────────
+
 
 class ThemeLoadRequest(BaseModel):
     name: str

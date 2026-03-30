@@ -1,4 +1,5 @@
 """Windows platform setup — 7-Zip, WinUSB/Zadig guidance."""
+
 from __future__ import annotations
 
 import logging
@@ -23,41 +24,40 @@ class WindowsSetup(PlatformSetup):
 
     def get_distro_name(self) -> str:
         import platform
+
         return f"Windows {platform.version()}"
 
     def get_pkg_manager(self) -> str | None:
-        return 'winget' if shutil.which('winget') else None
+        return "winget" if shutil.which("winget") else None
 
     def check_deps(self) -> list[Any]:
         from trcc.adapters.infra.doctor import check_system_deps
+
         return check_system_deps(self.get_pkg_manager())
 
     def config_dir(self) -> str:
-        return os.path.join(Path.home(), '.trcc')
+        return os.path.join(Path.home(), ".trcc")
 
     def data_dir(self) -> str:
-        return os.path.join(self.config_dir(), 'data')
+        return os.path.join(self.config_dir(), "data")
 
     def user_content_dir(self) -> str:
-        return os.path.join(Path.home(), '.trcc-user')
+        return os.path.join(Path.home(), ".trcc-user")
 
     def theme_dir(self, width: int, height: int) -> str:
-        return os.path.join(self.data_dir(), f'theme{width}{height}')
+        return os.path.join(self.data_dir(), f"theme{width}{height}")
 
     def web_dir(self, width: int, height: int) -> str:
-        return os.path.join(self.data_dir(), 'web', f'{width}{height}')
+        return os.path.join(self.data_dir(), "web", f"{width}{height}")
 
     def web_masks_dir(self, width: int, height: int) -> str:
-        return os.path.join(self.data_dir(), 'web', f'zt{width}{height}')
+        return os.path.join(self.data_dir(), "web", f"zt{width}{height}")
 
     def user_masks_dir(self, width: int, height: int) -> str:
-        return os.path.join(self.user_content_dir(), 'data', 'web', f'zt{width}{height}')
+        return os.path.join(self.user_content_dir(), "data", "web", f"zt{width}{height}")
 
     def ffmpeg_install_help(self) -> str:
-        return (
-            "ffmpeg not found. Install:\n"
-            "  winget install Gyan.FFmpeg"
-        )
+        return "ffmpeg not found. Install:\n  winget install Gyan.FFmpeg"
 
     def resolve_assets_dir(self, pkg_assets_dir: Path) -> Path:
         """Windows: copy to ~/.trcc/assets/gui/ to avoid sandboxed paths."""
@@ -79,16 +79,24 @@ class WindowsSetup(PlatformSetup):
         """
         try:
             import ctypes
+
             ctypes.windll.shcore.SetProcessDpiAwareness(2)  # type: ignore[attr-defined]
         except Exception:
             pass
 
     def get_screencast_capture(
-        self, x: int, y: int, w: int, h: int,
+        self,
+        x: int,
+        y: int,
+        w: int,
+        h: int,
     ) -> tuple[str, str, list[str]] | None:
-        region_args = ['-offset_x', str(x), '-offset_y', str(y),
-                       '-video_size', f'{w}x{h}'] if (w and h) else []
-        return 'gdigrab', 'desktop', region_args
+        region_args = (
+            ["-offset_x", str(x), "-offset_y", str(y), "-video_size", f"{w}x{h}"]
+            if (w and h)
+            else []
+        )
+        return "gdigrab", "desktop", region_args
 
     def supports_winusb(self) -> bool:
         return True
@@ -127,12 +135,11 @@ class WindowsSetup(PlatformSetup):
         """Force UTF-8 on Windows console stdout/stderr."""
         import io
         import sys
-        if hasattr(sys.stdout, 'buffer'):
-            sys.stdout = io.TextIOWrapper(
-                sys.stdout.buffer, encoding='utf-8', errors='replace')
-        if hasattr(sys.stderr, 'buffer'):
-            sys.stderr = io.TextIOWrapper(
-                sys.stderr.buffer, encoding='utf-8', errors='replace')
+
+        if hasattr(sys.stdout, "buffer"):
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+        if hasattr(sys.stderr, "buffer"):
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
     def linux_command_hint(self) -> str | None:
         return "On Windows, use: trcc setup-winusb"
@@ -155,6 +162,7 @@ class WindowsSetup(PlatformSetup):
     def acquire_instance_lock(self) -> object | None:
         import msvcrt  # pyright: ignore[reportMissingImports]
         from pathlib import Path
+
         lock_path = Path(self.config_dir()) / "trcc-linux.lock"
         lock_path.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -171,6 +179,7 @@ class WindowsSetup(PlatformSetup):
 
     def get_doctor_config(self):
         from trcc.core.ports import DoctorPlatformConfig
+
         return DoctorPlatformConfig(
             distro_name=self.get_distro_name(),
             pkg_manager=self.get_pkg_manager(),
@@ -187,6 +196,7 @@ class WindowsSetup(PlatformSetup):
 
     def get_report_config(self):
         from trcc.core.ports import ReportPlatformConfig
+
         return ReportPlatformConfig(
             distro_name=self.get_distro_name(),
             collect_lsusb=False,
@@ -243,5 +253,3 @@ class WindowsSetup(PlatformSetup):
 
         _print_summary(actions)
         return 0
-
-

@@ -9,6 +9,7 @@ Covers:
 - _load_static_image() — image load + resize
 - _parse_mask_position() — DC position parsing, fallback
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -29,7 +30,7 @@ def _make_loader(
     )
 
 
-def _make_theme(path: Path, name: str = 'TestTheme') -> MagicMock:
+def _make_theme(path: Path, name: str = "TestTheme") -> MagicMock:
     theme = MagicMock()
     theme.path = path
     theme.name = name
@@ -49,17 +50,24 @@ class TestLoadLocalTheme:
         loader = _make_loader(overlay=overlay, media=media)
 
         # Create theme with 00.png (copy-based, no config.json)
-        theme_dir = tmp_path / 'theme1'
+        theme_dir = tmp_path / "theme1"
         theme_dir.mkdir()
-        (theme_dir / '00.png').write_bytes(b'fake')
+        (theme_dir / "00.png").write_bytes(b"fake")
 
         theme = _make_theme(theme_dir)
 
-        with patch.object(loader, '_load_copy_theme', return_value={
-            'image': None, 'is_animated': False,
-            'status': 'ok', 'mask_source_dir': None, 'theme_path': theme_dir,
-        }):
-            loader.load_local_theme(theme, (320, 320), tmp_path / 'work')
+        with patch.object(
+            loader,
+            "_load_copy_theme",
+            return_value={
+                "image": None,
+                "is_animated": False,
+                "status": "ok",
+                "mask_source_dir": None,
+                "theme_path": theme_dir,
+            },
+        ):
+            loader.load_local_theme(theme, (320, 320), tmp_path / "work")
 
         overlay.set_background.assert_called_once_with(None)
         overlay.set_mask.assert_called_once_with(None)
@@ -70,30 +78,30 @@ class TestLoadLocalTheme:
         overlay = MagicMock()
         loader = _make_loader(overlay=overlay)
 
-        theme_dir = tmp_path / 'theme'
+        theme_dir = tmp_path / "theme"
         theme_dir.mkdir()
-        (theme_dir / 'config.json').write_text('{}')
+        (theme_dir / "config.json").write_text("{}")
 
         theme = _make_theme(theme_dir)
 
-        with patch.object(loader, '_load_reference_theme',
-                          return_value={'image': None}) as mock_ref:
-            loader.load_local_theme(theme, (320, 320), tmp_path / 'work')
+        with patch.object(
+            loader, "_load_reference_theme", return_value={"image": None}
+        ) as mock_ref:
+            loader.load_local_theme(theme, (320, 320), tmp_path / "work")
             mock_ref.assert_called_once()
 
     def test_dispatches_to_copy_when_no_json(self, tmp_path):
         overlay = MagicMock()
         loader = _make_loader(overlay=overlay)
 
-        theme_dir = tmp_path / 'theme'
+        theme_dir = tmp_path / "theme"
         theme_dir.mkdir()
-        (theme_dir / '00.png').write_bytes(b'fake')
+        (theme_dir / "00.png").write_bytes(b"fake")
 
         theme = _make_theme(theme_dir)
 
-        with patch.object(loader, '_load_copy_theme',
-                          return_value={'image': None}) as mock_copy:
-            loader.load_local_theme(theme, (320, 320), tmp_path / 'work')
+        with patch.object(loader, "_load_copy_theme", return_value={"image": None}) as mock_copy:
+            loader.load_local_theme(theme, (320, 320), tmp_path / "work")
             mock_copy.assert_called_once()
 
 
@@ -108,56 +116,57 @@ class TestLoadReferenceTheme:
         overlay.load_from_dc.return_value = {}
         loader = _make_loader(overlay=overlay)
 
-        theme_dir = tmp_path / 'theme'
+        theme_dir = tmp_path / "theme"
         theme_dir.mkdir()
-        (theme_dir / 'config.json').write_text('{}')
-        (theme_dir / '00.png').write_bytes(b'img')
+        (theme_dir / "config.json").write_text("{}")
+        (theme_dir / "00.png").write_bytes(b"img")
 
         theme = _make_theme(theme_dir)
 
-        with patch.object(loader, '_load_static_image', return_value='pil_img'):
+        with patch.object(loader, "_load_static_image", return_value="pil_img"):
             from trcc.core.models import ThemeDir
+
             td = ThemeDir(theme_dir)
-            result = loader._load_reference_theme(
-                theme, td, (320, 320), tmp_path / 'work')
+            result = loader._load_reference_theme(theme, td, (320, 320), tmp_path / "work")
 
         overlay.load_from_dc.assert_called_once()
-        assert result['theme_path'] == theme_dir
+        assert result["theme_path"] == theme_dir
 
     def test_enables_overlay_when_config_says_so(self, tmp_path):
         overlay = MagicMock()
-        overlay.load_from_dc.return_value = {'overlay_enabled': True}
+        overlay.load_from_dc.return_value = {"overlay_enabled": True}
         loader = _make_loader(overlay=overlay)
 
-        theme_dir = tmp_path / 'theme'
+        theme_dir = tmp_path / "theme"
         theme_dir.mkdir()
-        (theme_dir / 'config.json').write_text('{}')
+        (theme_dir / "config.json").write_text("{}")
 
         theme = _make_theme(theme_dir)
 
         from trcc.core.models import ThemeDir
+
         td = ThemeDir(theme_dir)
-        loader._load_reference_theme(theme, td, (320, 320), tmp_path / 'work')
+        loader._load_reference_theme(theme, td, (320, 320), tmp_path / "work")
         assert overlay.enabled is True
 
     def test_loads_video_background(self, tmp_path):
         overlay = MagicMock()
         overlay.load_from_dc.return_value = {
-            'background_path': str(tmp_path / 'bg.mp4'),
+            "background_path": str(tmp_path / "bg.mp4"),
         }
         loader = _make_loader(overlay=overlay)
 
-        theme_dir = tmp_path / 'theme'
+        theme_dir = tmp_path / "theme"
         theme_dir.mkdir()
-        (theme_dir / 'config.json').write_text('{}')
-        (tmp_path / 'bg.mp4').write_bytes(b'video')
+        (theme_dir / "config.json").write_text("{}")
+        (tmp_path / "bg.mp4").write_bytes(b"video")
 
         theme = _make_theme(theme_dir)
         from trcc.core.models import ThemeDir
+
         td = ThemeDir(theme_dir)
-        result = loader._load_reference_theme(
-            theme, td, (320, 320), tmp_path / 'work')
-        assert result['is_animated'] is True
+        result = loader._load_reference_theme(theme, td, (320, 320), tmp_path / "work")
+        assert result["is_animated"] is True
 
 
 # =========================================================================
@@ -171,33 +180,33 @@ class TestLoadCloudTheme:
         loader = _make_loader(media=media)
 
         theme = MagicMock()
-        theme.name = 'CloudTheme'
-        theme.animation_path = str(tmp_path / 'cloud.mp4')
-        (tmp_path / 'cloud.mp4').write_bytes(b'video')
+        theme.name = "CloudTheme"
+        theme.animation_path = str(tmp_path / "cloud.mp4")
+        (tmp_path / "cloud.mp4").write_bytes(b"video")
 
-        working_dir = tmp_path / 'work'
+        working_dir = tmp_path / "work"
         working_dir.mkdir()
 
         result = loader.load_cloud_theme(theme, working_dir)
-        assert result['is_animated'] is True
-        assert result['theme_path'] is None
-        assert result['mask_source_dir'] is None
+        assert result["is_animated"] is True
+        assert result["theme_path"] is None
+        assert result["mask_source_dir"] is None
         media.stop.assert_called_once()
 
     def test_cloud_theme_copies_video(self, tmp_path):
         loader = _make_loader()
-        video = tmp_path / 'cloud.mp4'
-        video.write_bytes(b'video')
+        video = tmp_path / "cloud.mp4"
+        video.write_bytes(b"video")
 
         theme = MagicMock()
-        theme.name = 'Cloud'
+        theme.name = "Cloud"
         theme.animation_path = str(video)
 
-        working_dir = tmp_path / 'work'
+        working_dir = tmp_path / "work"
         working_dir.mkdir()
 
         loader.load_cloud_theme(theme, working_dir)
-        assert (working_dir / 'cloud.mp4').exists()
+        assert (working_dir / "cloud.mp4").exists()
 
 
 # =========================================================================
@@ -211,11 +220,11 @@ class TestApplyMask:
         overlay.load_from_dc.return_value = {}
         loader = _make_loader(overlay=overlay)
 
-        mask_dir = tmp_path / 'mask'
+        mask_dir = tmp_path / "mask"
         mask_dir.mkdir()
-        (mask_dir / '01.png').write_bytes(b'mask')
+        (mask_dir / "01.png").write_bytes(b"mask")
 
-        working_dir = tmp_path / 'work'
+        working_dir = tmp_path / "work"
         working_dir.mkdir()
 
         result = loader.apply_mask(mask_dir, working_dir, (320, 320))
@@ -224,13 +233,12 @@ class TestApplyMask:
 
     def test_apply_mask_nonexistent_returns_none(self, tmp_path):
         loader = _make_loader()
-        result = loader.apply_mask(
-            tmp_path / 'nope', tmp_path / 'work', (320, 320))
+        result = loader.apply_mask(tmp_path / "nope", tmp_path / "work", (320, 320))
         assert result is None
 
     def test_apply_mask_none_returns_none(self, tmp_path):
         loader = _make_loader()
-        result = loader.apply_mask(None, tmp_path / 'work', (320, 320))
+        result = loader.apply_mask(None, tmp_path / "work", (320, 320))
         assert result is None
 
 
@@ -240,19 +248,19 @@ class TestApplyMask:
 
 
 class TestLoadStaticImage:
-    @patch('trcc.services.theme_loader.ImageService')
+    @patch("trcc.services.theme_loader.ImageService")
     def test_success(self, mock_is):
-        mock_is.open_and_resize.return_value = 'pil_img'
+        mock_is.open_and_resize.return_value = "pil_img"
         loader = _make_loader()
-        result = loader._load_static_image(Path('/fake/img.png'), (320, 320))
-        assert result == 'pil_img'
+        result = loader._load_static_image(Path("/fake/img.png"), (320, 320))
+        assert result == "pil_img"
         mock_is.open_and_resize.assert_called_once()
 
-    @patch('trcc.services.theme_loader.ImageService')
+    @patch("trcc.services.theme_loader.ImageService")
     def test_failure_returns_none(self, mock_is):
         mock_is.open_and_resize.side_effect = RuntimeError("bad image")
         loader = _make_loader()
-        result = loader._load_static_image(Path('/fake/img.png'), (320, 320))
+        result = loader._load_static_image(Path("/fake/img.png"), (320, 320))
         assert result is None
 
 
@@ -276,8 +284,6 @@ class TestParseMaskPosition:
         theme_svc = MagicMock()
         theme_svc._parse_mask_position.return_value = (10, 20)
         loader = _make_loader(theme_svc=theme_svc)
-        result = loader._parse_mask_position(
-            Path('/dc'), 200, 200, (320, 320))
+        result = loader._parse_mask_position(Path("/dc"), 200, 200, (320, 320))
         assert result == (10, 20)
-        theme_svc._parse_mask_position.assert_called_once_with(
-            Path('/dc'), 200, 200, 320, 320)
+        theme_svc._parse_mask_position.assert_called_once_with(Path("/dc"), 200, 200, 320, 320)

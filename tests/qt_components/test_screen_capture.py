@@ -6,6 +6,7 @@ Covers:
 - ScreenCaptureOverlay — construction, _selection_rect normalization,
   _emit_cancel signal, MIN_SELECTION guard
 """
+
 from __future__ import annotations
 
 import os
@@ -35,35 +36,35 @@ class TestIsWayland:
         is_wayland.cache_clear()
 
     def test_wayland_session_type(self, monkeypatch):
-        monkeypatch.setenv('XDG_SESSION_TYPE', 'wayland')
-        monkeypatch.delenv('WAYLAND_DISPLAY', raising=False)
+        monkeypatch.setenv("XDG_SESSION_TYPE", "wayland")
+        monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
         assert is_wayland() is True
 
     def test_wayland_display_set(self, monkeypatch):
         is_wayland.cache_clear()
-        monkeypatch.setenv('XDG_SESSION_TYPE', 'x11')
-        monkeypatch.setenv('WAYLAND_DISPLAY', 'wayland-0')
+        monkeypatch.setenv("XDG_SESSION_TYPE", "x11")
+        monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
         assert is_wayland() is True
 
     def test_x11_session(self, monkeypatch):
         is_wayland.cache_clear()
-        monkeypatch.setenv('XDG_SESSION_TYPE', 'x11')
-        monkeypatch.delenv('WAYLAND_DISPLAY', raising=False)
+        monkeypatch.setenv("XDG_SESSION_TYPE", "x11")
+        monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
         assert is_wayland() is False
 
     def test_unset_vars(self, monkeypatch):
         is_wayland.cache_clear()
-        monkeypatch.delenv('XDG_SESSION_TYPE', raising=False)
-        monkeypatch.delenv('WAYLAND_DISPLAY', raising=False)
+        monkeypatch.delenv("XDG_SESSION_TYPE", raising=False)
+        monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
         assert is_wayland() is False
 
     def test_cached(self, monkeypatch):
         is_wayland.cache_clear()
-        monkeypatch.setenv('XDG_SESSION_TYPE', 'x11')
-        monkeypatch.delenv('WAYLAND_DISPLAY', raising=False)
+        monkeypatch.setenv("XDG_SESSION_TYPE", "x11")
+        monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
         result1 = is_wayland()
         # Change env — should still return cached value
-        monkeypatch.setenv('XDG_SESSION_TYPE', 'wayland')
+        monkeypatch.setenv("XDG_SESSION_TYPE", "wayland")
         result2 = is_wayland()
         assert result1 == result2
 
@@ -130,12 +131,14 @@ class TestEyedropperOverlay:
 
     def test_construction(self):
         from trcc.qt_components.eyedropper import EyedropperOverlay
+
         overlay = EyedropperOverlay()
         assert overlay._current_color.red() == 0
         assert overlay._cursor_pos == QPoint()
 
     def test_emit_cancel_emits_signal(self):
         from trcc.qt_components.eyedropper import EyedropperOverlay
+
         overlay = EyedropperOverlay()
         received = []
         overlay.cancelled.connect(lambda: received.append(True))
@@ -144,6 +147,7 @@ class TestEyedropperOverlay:
 
     def test_magnify_constants(self):
         from trcc.qt_components.eyedropper import EyedropperOverlay
+
         assert EyedropperOverlay.MAGNIFY_SIZE == 12
         assert EyedropperOverlay.MAGNIFY_SCALE == 10
         assert EyedropperOverlay.PREVIEW_OFFSET == 25

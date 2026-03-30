@@ -8,6 +8,7 @@ HID devices work via hidapi/python-hid.
 
 Requires: pkg install libusb py-pyusb
 """
+
 from __future__ import annotations
 
 import logging
@@ -51,11 +52,11 @@ class BSDDeviceDetector:
         )
 
         all_registries = [
-            (KNOWN_DEVICES, 'scsi', 2),
-            (_HID_LCD_DEVICES, 'hid', None),
-            (_BULK_DEVICES, 'bulk', 4),
-            (_LY_DEVICES, 'ly', 10),
-            (_LED_DEVICES, 'hid', 0),
+            (KNOWN_DEVICES, "scsi", 2),
+            (_HID_LCD_DEVICES, "hid", None),
+            (_BULK_DEVICES, "bulk", 4),
+            (_LY_DEVICES, "ly", 10),
+            (_LED_DEVICES, "hid", 0),
         ]
 
         # Build VID:PID → /dev/pass* map for SCSI routing
@@ -69,31 +70,35 @@ class BSDDeviceDetector:
 
                 impl = entry.implementation
                 if registry is _LED_DEVICES:
-                    impl = 'hid_led'
+                    impl = "hid_led"
 
                 dt = device_type
                 if dt is None:
-                    dt = getattr(entry, 'device_type', 2)
+                    dt = getattr(entry, "device_type", 2)
 
-                usb_path = f'usb:{usb_dev.bus}:{usb_dev.address}'
+                usb_path = f"usb:{usb_dev.bus}:{usb_dev.address}"
 
                 # FreeBSD: SCSI devices use /dev/pass*
                 scsi_dev = None
-                if protocol == 'scsi':
-                    key = f'{vid:04x}:{pid:04x}'
+                if protocol == "scsi":
+                    key = f"{vid:04x}:{pid:04x}"
                     scsi_dev = pass_map.get(key)
 
-                devices.append(DetectedDevice(
-                    vid=vid, pid=pid,
-                    vendor_name=entry.vendor, product_name=entry.product,
-                    usb_path=usb_path,
-                    scsi_device=scsi_dev,
-                    implementation=impl,
-                    model=getattr(entry, 'model', ''),
-                    button_image=getattr(entry, 'button_image', ''),
-                    protocol=protocol,
-                    device_type=dt,
-                ))
+                devices.append(
+                    DetectedDevice(
+                        vid=vid,
+                        pid=pid,
+                        vendor_name=entry.vendor,
+                        product_name=entry.product,
+                        usb_path=usb_path,
+                        scsi_device=scsi_dev,
+                        implementation=impl,
+                        model=getattr(entry, "model", ""),
+                        button_image=getattr(entry, "button_image", ""),
+                        protocol=protocol,
+                        device_type=dt,
+                    )
+                )
 
         log.info("BSD detector found %d device(s)", len(devices))
         return devices
@@ -110,8 +115,10 @@ def _get_pass_device_map() -> dict[str, str]:
     """
     try:
         result = subprocess.run(
-            ['camcontrol', 'devlist'],
-            capture_output=True, text=True, timeout=5,
+            ["camcontrol", "devlist"],
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         if result.returncode != 0:
             return {}
@@ -119,15 +126,15 @@ def _get_pass_device_map() -> dict[str, str]:
         devices: dict[str, str] = {}
         for line in result.stdout.splitlines():
             # Format: <VENDOR MODEL REV>  at scbus0 target 0 lun 0 (pass0,da0)
-            if 'pass' in line:
+            if "pass" in line:
                 # Extract pass device from parentheses
-                paren = line.rsplit('(', 1)
+                paren = line.rsplit("(", 1)
                 if len(paren) == 2:
-                    devs = paren[1].rstrip(')')
-                    for d in devs.split(','):
+                    devs = paren[1].rstrip(")")
+                    for d in devs.split(","):
                         d = d.strip()
-                        if d.startswith('pass'):
-                            devices[d] = f'/dev/{d}'
+                        if d.startswith("pass"):
+                            devices[d] = f"/dev/{d}"
         return devices
     except Exception:
         log.debug("camcontrol devlist failed")
@@ -141,8 +148,10 @@ def get_usb_list() -> list[str]:
     """
     try:
         result = subprocess.run(
-            ['usbconfig', 'list'],
-            capture_output=True, text=True, timeout=5,
+            ["usbconfig", "list"],
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         if result.returncode == 0:
             return result.stdout.splitlines()

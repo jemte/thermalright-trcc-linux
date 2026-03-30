@@ -1,4 +1,5 @@
 """Shared fixtures for device adapter tests (includes HID testing setup)."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -18,8 +19,7 @@ def _enable_hid_for_tests():
 @pytest.fixture(autouse=True)
 def _patch_hid_sleep():
     """Disable time.sleep in HID device modules for fast tests."""
-    with patch("trcc.adapters.device.hid.time.sleep"), \
-         patch("trcc.adapters.device.led.time.sleep"):
+    with patch("trcc.adapters.device.hid.time.sleep"), patch("trcc.adapters.device.led.time.sleep"):
         yield
 
 
@@ -69,5 +69,3 @@ def device_sub() -> int:
 @pytest.fixture
 def device_protocol() -> str:
     return os.getenv("TRCC_DIAGNOSE_PROTOCOL", "bulk")
-
-

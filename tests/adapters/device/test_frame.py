@@ -74,8 +74,8 @@ class TestFrameDevice:
                 pass
 
         dev = StubFrame()
-        assert dev.send_frame(b'\x00\x01') is True
-        assert dev.send_frame(b'') is False
+        assert dev.send_frame(b"\x00\x01") is True
+        assert dev.send_frame(b"") is False
 
 
 # =========================================================================
@@ -124,7 +124,7 @@ class TestLedDevice:
 
         dev = StubLed()
         assert dev.is_sending is False
-        assert dev.send_led_data(b'\xff') is True
+        assert dev.send_led_data(b"\xff") is True
 
 
 # =========================================================================

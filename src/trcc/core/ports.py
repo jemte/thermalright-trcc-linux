@@ -11,6 +11,7 @@ SOLID:
         Replaces DisplayPort (47) and LEDPort (30) — ISP violations.
     D — All adapters depend on these core abstractions
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -30,6 +31,7 @@ class RawFrame:
     Produced by media decoders (VideoDecoder, ThemeZtDecoder).
     Converted to native renderer surfaces by the render adapter.
     """
+
     data: bytes
     width: int
     height: int
@@ -48,8 +50,7 @@ class Renderer(ABC):
     # ── Surface lifecycle ─────────────────────────────────────────
 
     @abstractmethod
-    def create_surface(self, width: int, height: int,
-                       color: tuple[int, ...] | None = None) -> Any:
+    def create_surface(self, width: int, height: int, color: tuple[int, ...] | None = None) -> Any:
         """Create a new rendering surface (blank transparent or solid color)."""
 
     @abstractmethod
@@ -71,9 +72,9 @@ class Renderer(ABC):
     # ── Compositing ───────────────────────────────────────────────
 
     @abstractmethod
-    def composite(self, base: Any, overlay: Any,
-                  position: tuple[int, int],
-                  mask: Any | None = None) -> Any:
+    def composite(
+        self, base: Any, overlay: Any, position: tuple[int, int], mask: Any | None = None
+    ) -> Any:
         """Alpha-composite *overlay* onto *base* at *position*."""
 
     @abstractmethod
@@ -83,14 +84,15 @@ class Renderer(ABC):
     # ── Text ──────────────────────────────────────────────────────
 
     @abstractmethod
-    def draw_text(self, surface: Any, x: int, y: int, text: str,
-                  color: str, font: Any, anchor: str = 'mm') -> None:
+    def draw_text(
+        self, surface: Any, x: int, y: int, text: str, color: str, font: Any, anchor: str = "mm"
+    ) -> None:
         """Draw text onto surface at (x, y)."""
 
     @abstractmethod
-    def get_font(self, size: int, bold: bool = False,
-                 italic: bool = False,
-                 font_name: str | None = None) -> Any:
+    def get_font(
+        self, size: int, bold: bool = False, italic: bool = False, font_name: str | None = None
+    ) -> Any:
         """Resolve and cache a font at given size."""
 
     @abstractmethod
@@ -110,12 +112,11 @@ class Renderer(ABC):
     # ── Device encoding ───────────────────────────────────────────
 
     @abstractmethod
-    def encode_rgb565(self, surface: Any, byte_order: str = '>') -> bytes:
+    def encode_rgb565(self, surface: Any, byte_order: str = ">") -> bytes:
         """Encode surface to RGB565 bytes for LCD device."""
 
     @abstractmethod
-    def encode_jpeg(self, surface: Any, quality: int = 95,
-                    max_size: int = JPEG_MAX_BYTES) -> bytes:
+    def encode_jpeg(self, surface: Any, quality: int = 95, max_size: int = JPEG_MAX_BYTES) -> bytes:
         """Encode surface to JPEG bytes with size constraint."""
 
     # ── File I/O ──────────────────────────────────────────────────
@@ -127,18 +128,21 @@ class Renderer(ABC):
     # ── Drawing primitives ────────────────────────────────────────
 
     @abstractmethod
-    def fill_rect(self, surface: Any, x: int, y: int,
-                  w: int, h: int, color: tuple[int, ...]) -> None:
+    def fill_rect(
+        self, surface: Any, x: int, y: int, w: int, h: int, color: tuple[int, ...]
+    ) -> None:
         """Fill a rectangle on the surface with solid color."""
 
     @abstractmethod
-    def draw_rect_outline(self, surface: Any, x: int, y: int,
-                          w: int, h: int, color: tuple[int, ...]) -> None:
+    def draw_rect_outline(
+        self, surface: Any, x: int, y: int, w: int, h: int, color: tuple[int, ...]
+    ) -> None:
         """Draw an unfilled rectangle outline on the surface."""
 
     @abstractmethod
-    def get_pixels_rgb(self, surface: Any, cols: int,
-                       rows: int) -> list[list[tuple[int, int, int]]]:
+    def get_pixels_rgb(
+        self, surface: Any, cols: int, rows: int
+    ) -> list[list[tuple[int, int, int]]]:
         """Return pixel grid scaled to cols×rows as (r, g, b) tuples.
 
         Used for ANSI terminal output — cold path, not hot path.
@@ -293,10 +297,11 @@ class DoctorPlatformConfig:
     Each OS adapter returns one of these from get_doctor_config().
     doctor.py reads the fields and stays OS-blind.
     """
+
     distro_name: str
     pkg_manager: Optional[str]
     check_libusb: bool
-    extra_binaries: list[tuple[str, bool, str]]   # (name, required, note)
+    extra_binaries: list[tuple[str, bool, str]]  # (name, required, note)
     run_gpu_check: bool
     run_udev_check: bool
     run_selinux_check: bool
@@ -313,6 +318,7 @@ class ReportPlatformConfig:
     Each OS adapter returns one of these from get_report_config().
     debug_report.py reads the fields and stays OS-blind.
     """
+
     distro_name: str
     collect_lsusb: bool
     collect_udev: bool
@@ -474,7 +480,11 @@ class PlatformSetup(ABC):
         """
 
     def get_screencast_capture(
-        self, x: int, y: int, w: int, h: int,
+        self,
+        x: int,
+        y: int,
+        w: int,
+        h: int,
     ) -> tuple[str, str, list[str]] | None:
         """Return (fmt, inp, region_args) for ffmpeg screen capture, or None if unsupported.
 
@@ -634,13 +644,13 @@ class AutostartManager(ABC):
         import sys
         from pathlib import Path
 
-        if getattr(sys, 'frozen', False):
+        if getattr(sys, "frozen", False):
             return sys.executable
-        trcc_path = shutil.which('trcc')
+        trcc_path = shutil.which("trcc")
         if trcc_path:
             return trcc_path
         src_dir = str(Path(__file__).parent.parent.parent)
-        return f'env PYTHONPATH={src_dir} {sys.executable} -m trcc.cli'
+        return f"env PYTHONPATH={src_dir} {sys.executable} -m trcc.cli"
 
     @abstractmethod
     def is_enabled(self) -> bool:
@@ -668,9 +678,9 @@ class AutostartManager(ABC):
         from ..conf import load_config, save_config
 
         config = load_config()
-        if not config.get('autostart_configured'):
+        if not config.get("autostart_configured"):
             self.enable()
-            config['autostart_configured'] = True
+            config["autostart_configured"] = True
             save_config(config)
             return True
 
@@ -701,7 +711,7 @@ class PlatformAdapter(ABC):
         """Return a device detection callable for this OS."""
 
     @abstractmethod
-    def create_sensor_enumerator(self) -> 'SensorEnumerator':
+    def create_sensor_enumerator(self) -> "SensorEnumerator":
         """Return the OS-specific sensor enumerator."""
 
     @abstractmethod

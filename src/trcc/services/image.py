@@ -1,4 +1,5 @@
 """Image processing service — delegates to Renderer ABC (QtRenderer)."""
+
 from __future__ import annotations
 
 import logging
@@ -26,19 +27,19 @@ class ImageService:
         if cls._renderer is None:
             raise RuntimeError(
                 "ImageService.set_renderer() must be called before use. "
-                "Use ControllerBuilder to wire dependencies.")
+                "Use ControllerBuilder to wire dependencies."
+            )
         return cls._renderer
 
     # ── Encoding (hot path) ───────────────────────────────────────
 
     @staticmethod
-    def to_rgb565(img: Any, byte_order: str = '>') -> bytes:
+    def to_rgb565(img: Any, byte_order: str = ">") -> bytes:
         """Encode surface to RGB565 bytes."""
         return ImageService._r().encode_rgb565(img, byte_order)
 
     @staticmethod
-    def to_jpeg(img: Any, quality: int = 95,
-                max_size: int = JPEG_MAX_BYTES) -> bytes:
+    def to_jpeg(img: Any, quality: int = 95, max_size: int = JPEG_MAX_BYTES) -> bytes:
         """Encode surface to JPEG bytes with size constraint."""
         return ImageService._r().encode_jpeg(img, quality, max_size)
 
@@ -77,25 +78,23 @@ class ImageService:
     _SQUARE_NO_ROTATE = {(240, 240), (320, 320), (480, 480)}
 
     @staticmethod
-    def byte_order_for(protocol: str, resolution: tuple[int, int],
-                       fbl: int | None = None) -> str:
+    def byte_order_for(protocol: str, resolution: tuple[int, int], fbl: int | None = None) -> str:
         """Determine RGB565 byte order for a device."""
         from ..core.encoding import byte_order_for
+
         return byte_order_for(protocol, resolution, fbl)
 
     @staticmethod
-    def apply_device_rotation(image: Any,
-                              resolution: tuple[int, int]) -> Any:
+    def apply_device_rotation(image: Any, resolution: tuple[int, int]) -> Any:
         """Apply device-level pre-rotation for non-square displays."""
         if resolution in ImageService._SQUARE_NO_ROTATE:
             return image
         return ImageService._r().apply_rotation(image, 90)
 
     @staticmethod
-    def encode_for_device(img: Any, protocol: str,
-                          resolution: tuple[int, int],
-                          fbl: int | None,
-                          use_jpeg: bool) -> bytes:
+    def encode_for_device(
+        img: Any, protocol: str, resolution: tuple[int, int], fbl: int | None, use_jpeg: bool
+    ) -> bytes:
         """Encode surface for LCD device — JPEG or RGB565.
 
         For non-square displays, user rotation (90/270) changes image
@@ -122,7 +121,7 @@ class ImageService:
 
         if profile and profile.rotate:
             img = rnd.apply_rotation(img, 90)
-        byte_order = profile.byte_order if profile else '<'
+        byte_order = profile.byte_order if profile else "<"
         return ImageService.to_rgb565(img, byte_order)
 
     # ── ANSI preview (CLI cold path) ──────────────────────────────
@@ -142,32 +141,32 @@ class ImageService:
             for x in range(cols):
                 tr, tg, tb = pixels[y][x]
                 br, bg_, bb = pixels[y + 1][x] if y + 1 < rows else (0, 0, 0)
-                parts.append(
-                    f'\033[38;2;{tr};{tg};{tb}m'
-                    f'\033[48;2;{br};{bg_};{bb}m\u2580'
-                )
-            lines.append(''.join(parts) + '\033[0m')
-        return '\n'.join(lines)
+                parts.append(f"\033[38;2;{tr};{tg};{tb}m\033[48;2;{br};{bg_};{bb}m\u2580")
+            lines.append("".join(parts) + "\033[0m")
+        return "\n".join(lines)
 
     @staticmethod
     def to_ansi_cursor_home(img: Any, cols: int = 60) -> str:
         """Same as to_ansi() but prefixed with cursor-home escape."""
-        return '\033[H' + ImageService.to_ansi(img, cols)
+        return "\033[H" + ImageService.to_ansi(img, cols)
 
     # Metric groups for ANSI dashboard
     _METRIC_GROUPS: dict[str, tuple[str, list[str], tuple[int, int, int]]] = {
-        'cpu':  ('CPU',  ['cpu_temp', 'cpu_percent', 'cpu_freq', 'cpu_power'], (0, 200, 255)),
-        'gpu':  ('GPU',  ['gpu_temp', 'gpu_usage', 'gpu_clock', 'gpu_power'], (0, 255, 100)),
-        'mem':  ('MEM',  ['mem_temp', 'mem_percent', 'mem_clock', 'mem_available'], (255, 200, 0)),
-        'disk': ('DISK', ['disk_temp', 'disk_activity', 'disk_read', 'disk_write'], (200, 100, 255)),
-        'net':  ('NET',  ['net_up', 'net_down', 'net_total_up', 'net_total_down'], (100, 255, 200)),
-        'fan':  ('FAN',  ['fan_cpu', 'fan_gpu', 'fan_ssd', 'fan_sys2'], (255, 80, 80)),
-        'time': ('TIME', ['date', 'time', 'weekday'], (180, 180, 255)),
+        "cpu": ("CPU", ["cpu_temp", "cpu_percent", "cpu_freq", "cpu_power"], (0, 200, 255)),
+        "gpu": ("GPU", ["gpu_temp", "gpu_usage", "gpu_clock", "gpu_power"], (0, 255, 100)),
+        "mem": ("MEM", ["mem_temp", "mem_percent", "mem_clock", "mem_available"], (255, 200, 0)),
+        "disk": (
+            "DISK",
+            ["disk_temp", "disk_activity", "disk_read", "disk_write"],
+            (200, 100, 255),
+        ),
+        "net": ("NET", ["net_up", "net_down", "net_total_up", "net_total_down"], (100, 255, 200)),
+        "fan": ("FAN", ["fan_cpu", "fan_gpu", "fan_ssd", "fan_sys2"], (255, 80, 80)),
+        "time": ("TIME", ["date", "time", "weekday"], (180, 180, 255)),
     }
 
     @staticmethod
-    def metrics_to_ansi(metrics: Any, cols: int = 60,
-                        group: str | None = None) -> str:
+    def metrics_to_ansi(metrics: Any, cols: int = 60, group: str | None = None) -> str:
         """Render HardwareMetrics as ANSI terminal dashboard."""
         from .system import SystemService
 
@@ -187,7 +186,7 @@ class ImageService:
             total_lines += 1
             for f in fields:
                 v = getattr(metrics, f, 0.0)
-                if v != 0.0 or f in ('date', 'time', 'weekday'):
+                if v != 0.0 or f in ("date", "time", "weekday"):
                     total_lines += 1
         h = max(40, padding + total_lines * line_h + padding)
         w = int(cols * 2.5)
@@ -199,23 +198,22 @@ class ImageService:
 
         y = padding
         for _, (label, fields, color) in items.items():
-            color_str = '#{:02x}{:02x}{:02x}'.format(*color)
-            rnd.draw_text(surf, 8, y, label, color_str, font_label, anchor='lt')
+            color_str = "#{:02x}{:02x}{:02x}".format(*color)
+            rnd.draw_text(surf, 8, y, label, color_str, font_label, anchor="lt")
             y += line_h
             for f in fields:
                 v = getattr(metrics, f, 0.0)
-                if v == 0.0 and f not in ('date', 'time', 'weekday'):
+                if v == 0.0 and f not in ("date", "time", "weekday"):
                     continue
                 formatted = SystemService.format_metric(f, v)
-                name = f.replace('_', ' ').title()
-                rnd.draw_text(surf, 16, y, f'{name}:', '#8c8ca0', font_value, anchor='lt')
-                rnd.draw_text(surf, w // 2, y, formatted, '#dcdcdc', font_value, anchor='lt')
-                if 'percent' in f or 'usage' in f or 'activity' in f:
+                name = f.replace("_", " ").title()
+                rnd.draw_text(surf, 16, y, f"{name}:", "#8c8ca0", font_value, anchor="lt")
+                rnd.draw_text(surf, w // 2, y, formatted, "#dcdcdc", font_value, anchor="lt")
+                if "percent" in f or "usage" in f or "activity" in f:
                     bar_x = w * 3 // 4
                     bar_w = int((w - bar_x - 8) * min(v, 100) / 100)
                     rnd.fill_rect(surf, bar_x, y + 2, bar_w, 12, color)
-                    rnd.draw_rect_outline(surf, bar_x, y + 2,
-                                          w - 8 - bar_x, 12, (50, 50, 50))
+                    rnd.draw_rect_outline(surf, bar_x, y + 2, w - 8 - bar_x, 12, (50, 50, 50))
                 y += line_h
 
         return ImageService.to_ansi(surf, cols=cols)

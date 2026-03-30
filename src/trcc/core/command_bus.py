@@ -13,6 +13,7 @@ Design rules:
 - Domain failures return CommandResult(success=False) — only unregistered
   commands raise (KeyError — a programming error, not a runtime failure).
 """
+
 from __future__ import annotations
 
 import logging
@@ -27,6 +28,7 @@ log = logging.getLogger(__name__)
 
 # ── Result ─────────────────────────────────────────────────────────────────
 
+
 @dataclass(frozen=True, slots=True)
 class CommandResult:
     """Wraps the dict all device methods already return.
@@ -34,6 +36,7 @@ class CommandResult:
     success: mirrors result["success"]
     payload: the full original dict for adapter-specific fields
     """
+
     success: bool
     payload: dict[str, Any]
 
@@ -54,6 +57,7 @@ class CommandResult:
 
 
 # ── Command base hierarchy ──────────────────────────────────────────────────
+
 
 @dataclass(frozen=True, slots=True)
 class Command:
@@ -97,6 +101,7 @@ class Middleware(ABC):
 
 
 # ── Built-in middleware ─────────────────────────────────────────────────────
+
 
 class LoggingMiddleware(Middleware):
     """Log every command dispatch at DEBUG; log failures at WARNING."""
@@ -154,6 +159,7 @@ class RateLimitMiddleware(Middleware):
 
 
 # ── CommandBus ──────────────────────────────────────────────────────────────
+
 
 class CommandBus:
     """Dispatch commands through a middleware chain to registered handlers.
@@ -223,10 +229,13 @@ class CommandBus:
         # late-binding trap.
         chain: HandlerFn = handler
         for mw in reversed(self._middleware):
+
             def _make_next(m: Middleware, nxt: HandlerFn) -> HandlerFn:
                 def _next(cmd: Command) -> CommandResult:
                     return m.handle(cmd, nxt)
+
                 return _next
+
             chain = _make_next(mw, chain)
 
         return chain(command)

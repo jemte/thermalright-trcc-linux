@@ -2,8 +2,9 @@
 
 Canonical location: core/ports.py.
 """
+
 from __future__ import annotations
 
 from ..core.ports import Renderer
 
-__all__ = ['Renderer']
+__all__ = ["Renderer"]

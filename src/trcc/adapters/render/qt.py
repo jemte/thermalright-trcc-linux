@@ -4,6 +4,7 @@ PySide6 is a required dependency, so this renderer is always available.
 QImage is CPU-based software rendering — works headless (CLI) and with
 a display (GUI). QPainter on QImage is C++ native.
 """
+
 from __future__ import annotations
 
 import logging
@@ -44,19 +45,16 @@ class QtRenderer(Renderer):
 
     # ── Surface lifecycle ─────────────────────────────────────────
 
-    def create_surface(self, width: int, height: int,
-                       color: tuple[int, ...] | None = None) -> Any:
+    def create_surface(self, width: int, height: int, color: tuple[int, ...] | None = None) -> Any:
         if color is not None and len(color) > 3:
             # RGBA color → premultiplied alpha surface
-            img = QImage(width, height,
-                         QImage.Format.Format_ARGB32_Premultiplied)
+            img = QImage(width, height, QImage.Format.Format_ARGB32_Premultiplied)
             img.fill(QColor(*color))
         elif color is not None:
             img = QImage(width, height, QImage.Format.Format_RGB32)
             img.fill(QColor(*color))
         else:
-            img = QImage(width, height,
-                         QImage.Format.Format_ARGB32_Premultiplied)
+            img = QImage(width, height, QImage.Format.Format_ARGB32_Premultiplied)
             img.fill(Qt.GlobalColor.transparent)
         return img
 
@@ -65,8 +63,7 @@ class QtRenderer(Renderer):
 
     def convert_to_rgba(self, surface: Any) -> Any:
         if surface.format() != QImage.Format.Format_ARGB32_Premultiplied:
-            return surface.convertToFormat(
-                QImage.Format.Format_ARGB32_Premultiplied)
+            return surface.convertToFormat(QImage.Format.Format_ARGB32_Premultiplied)
         return surface
 
     def convert_to_rgb(self, surface: Any) -> Any:
@@ -79,26 +76,28 @@ class QtRenderer(Renderer):
 
     # ── Compositing ───────────────────────────────────────────────
 
-    def composite(self, base: Any, overlay: Any,
-                  position: tuple[int, int],
-                  mask: Any | None = None) -> Any:
+    def composite(
+        self, base: Any, overlay: Any, position: tuple[int, int], mask: Any | None = None
+    ) -> Any:
         painter = QPainter(base)
-        painter.setCompositionMode(
-            QPainter.CompositionMode.CompositionMode_SourceOver)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
         painter.drawImage(position[0], position[1], overlay)
         painter.end()
         return base
 
     def resize(self, surface: Any, width: int, height: int) -> Any:
         return surface.scaled(
-            width, height,
+            width,
+            height,
             Qt.AspectRatioMode.IgnoreAspectRatio,
-            Qt.TransformationMode.SmoothTransformation)
+            Qt.TransformationMode.SmoothTransformation,
+        )
 
     # ── Text ──────────────────────────────────────────────────────
 
-    def draw_text(self, surface: Any, x: int, y: int, text: str,
-                  color: str, font: Any, anchor: str = 'mm') -> None:
+    def draw_text(
+        self, surface: Any, x: int, y: int, text: str, color: str, font: Any, anchor: str = "mm"
+    ) -> None:
         painter = QPainter(surface)
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
         painter.setFont(font)
@@ -108,10 +107,10 @@ class QtRenderer(Renderer):
         br = fm.boundingRect(text)
 
         # Anchor: 'mm' = middle-middle (center on x,y)
-        if anchor == 'mm':
+        if anchor == "mm":
             dx = x - br.width() // 2
             dy = y + fm.ascent() - fm.height() // 2
-        elif anchor == 'lt':
+        elif anchor == "lt":
             dx = x
             dy = y + fm.ascent()
         else:
@@ -121,9 +120,9 @@ class QtRenderer(Renderer):
         painter.drawText(dx, dy, text)
         painter.end()
 
-    def get_font(self, size: int, bold: bool = False,
-                 italic: bool = False,
-                 font_name: str | None = None) -> Any:
+    def get_font(
+        self, size: int, bold: bool = False, italic: bool = False, font_name: str | None = None
+    ) -> Any:
         key = (size, bold, italic, font_name)
         if key in self._font_cache:
             return self._font_cache[key]
@@ -132,10 +131,9 @@ class QtRenderer(Renderer):
         self._font_cache[key] = font
         return font
 
-    def _resolve_font(self, size: int, bold: bool,
-                      italic: bool,
-                      font_name: str | None) -> QFont:
+    def _resolve_font(self, size: int, bold: bool, italic: bool, font_name: str | None) -> QFont:
         """Resolve font name → QFont with the same fallback chain as FontResolver."""
+
         def _apply(f: QFont) -> QFont:
             f.setPixelSize(size)
             f.setBold(bold)
@@ -143,7 +141,7 @@ class QtRenderer(Renderer):
             return f
 
         # User-specified font name
-        if font_name and font_name != 'Microsoft YaHei':
+        if font_name and font_name != "Microsoft YaHei":
             path = self._resolve_font_path(font_name, bold)
             if path:
                 font_id = QFontDatabase.addApplicationFont(path)
@@ -153,15 +151,18 @@ class QtRenderer(Renderer):
                         return _apply(QFont(families[0]))
 
         # Search bundled + system fonts
-        bold_suffix = '-Bold' if bold else ''
-        bold_style = 'Bold' if bold else 'Regular'
-        msyh_name = 'MSYHBD.TTC' if bold else 'MSYH.TTC'
+        bold_suffix = "-Bold" if bold else ""
+        bold_style = "Bold" if bold else "Regular"
+        msyh_name = "MSYHBD.TTC" if bold else "MSYH.TTC"
 
         font_filenames = [
-            msyh_name, msyh_name.lower(),
-            'NotoSansCJK-VF.ttc', 'NotoSansCJK-Regular.ttc',
-            'NotoSans[wght].ttf', f'NotoSans-{bold_style}.ttf',
-            f'DejaVuSans{bold_suffix}.ttf',
+            msyh_name,
+            msyh_name.lower(),
+            "NotoSansCJK-VF.ttc",
+            "NotoSansCJK-Regular.ttc",
+            "NotoSans[wght].ttf",
+            f"NotoSans-{bold_style}.ttf",
+            f"DejaVuSans{bold_suffix}.ttf",
         ]
 
         for font_dir in FONT_SEARCH_DIRS:
@@ -175,10 +176,9 @@ class QtRenderer(Renderer):
                             return _apply(QFont(families[0]))
 
         # Fallback: Qt default sans-serif
-        return _apply(QFont('Sans'))
+        return _apply(QFont("Sans"))
 
-    def _resolve_font_path(self, font_name: str,
-                           bold: bool) -> str | None:
+    def _resolve_font_path(self, font_name: str, bold: bool) -> str | None:
         """Resolve font family name → file path (fc-match + manual scan)."""
         key = (font_name, bold)
         if key in self._font_path_cache:
@@ -193,13 +193,14 @@ class QtRenderer(Renderer):
     @staticmethod
     def _fc_match(font_name: str, bold: bool) -> str | None:
         try:
-            style = 'Bold' if bold else 'Regular'
+            style = "Bold" if bold else "Regular"
             result = subprocess.run(
-                ['fc-match', f'{font_name}:style={style}',
-                 '--format=%{file}'],
-                capture_output=True, text=True, timeout=2)
-            if (result.returncode == 0 and result.stdout
-                    and os.path.exists(result.stdout)):
+                ["fc-match", f"{font_name}:style={style}", "--format=%{file}"],
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
+            if result.returncode == 0 and result.stdout and os.path.exists(result.stdout):
                 return result.stdout
         except (FileNotFoundError, subprocess.TimeoutExpired):
             pass
@@ -207,12 +208,12 @@ class QtRenderer(Renderer):
 
     @staticmethod
     def _manual_scan(font_name: str) -> str | None:
-        name_lower = font_name.lower().replace(' ', '')
+        name_lower = font_name.lower().replace(" ", "")
         for font_dir in FONT_SEARCH_DIRS:
             if not os.path.isdir(font_dir):
                 continue
             for fname in os.listdir(font_dir):
-                if name_lower in fname.lower().replace(' ', ''):
+                if name_lower in fname.lower().replace(" ", ""):
                     return os.path.join(font_dir, fname)
         return None
 
@@ -227,8 +228,7 @@ class QtRenderer(Renderer):
         result = surface.copy()
         painter = QPainter(result)
         alpha = int(255 * (1.0 - percent / 100.0))
-        painter.fillRect(QRect(0, 0, result.width(), result.height()),
-                         QColor(0, 0, 0, alpha))
+        painter.fillRect(QRect(0, 0, result.width(), result.height()), QColor(0, 0, 0, alpha))
         painter.end()
         return result
 
@@ -241,7 +241,7 @@ class QtRenderer(Renderer):
 
     # ── Device encoding ───────────────────────────────────────────
 
-    def encode_rgb565(self, surface: Any, byte_order: str = '>') -> bytes:
+    def encode_rgb565(self, surface: Any, byte_order: str = ">") -> bytes:
         # Ensure opaque RGB32 first — premultiplied alpha surfaces produce
         # darkened RGB values if converted directly to RGB16.
         if surface.format() != QImage.Format.Format_RGB32:
@@ -255,23 +255,22 @@ class QtRenderer(Renderer):
         if bpl == w * 2:
             data = raw
         else:
-            data = b''.join(raw[y * bpl:y * bpl + w * 2] for y in range(h))
+            data = b"".join(raw[y * bpl : y * bpl + w * 2] for y in range(h))
 
         # Format_RGB16 is native-endian (little on x86).
         # Swap bytes if device needs big-endian.
-        if byte_order == '>' and sys.byteorder == 'little':
+        if byte_order == ">" and sys.byteorder == "little":
             arr = bytearray(data)
             # Swap adjacent bytes: [lo, hi] → [hi, lo]
             arr[0::2], arr[1::2] = arr[1::2], arr[0::2]
             return bytes(arr)
-        if byte_order == '<' and sys.byteorder == 'big':
+        if byte_order == "<" and sys.byteorder == "big":
             arr = bytearray(data)
             arr[0::2], arr[1::2] = arr[1::2], arr[0::2]
             return bytes(arr)
         return data
 
-    def encode_jpeg(self, surface: Any, quality: int = 95,
-                    max_size: int = JPEG_MAX_BYTES) -> bytes:
+    def encode_jpeg(self, surface: Any, quality: int = 95, max_size: int = JPEG_MAX_BYTES) -> bytes:
         # JPEG encoder needs RGB888 (not RGB32)
         rgb = surface.convertToFormat(QImage.Format.Format_RGB888)
         hint = self._jpeg_quality_hint
@@ -303,7 +302,7 @@ class QtRenderer(Renderer):
         buf = QByteArray()
         qbuf = QBuffer(buf)
         qbuf.open(QIODevice.OpenModeFlag.WriteOnly)
-        surface.save(qbuf, 'jpeg', quality)  # type: ignore[call-overload]  # PySide6 stubs say bytes, runtime needs str
+        surface.save(qbuf, "jpeg", quality)  # type: ignore[call-overload]  # PySide6 stubs say bytes, runtime needs str
         qbuf.close()
         return bytes(buf.data())
 
@@ -315,35 +314,39 @@ class QtRenderer(Renderer):
             log.warning("Failed to load image: %s", path)
             return QImage(1, 1, QImage.Format.Format_RGB32)
         if img.hasAlphaChannel():
-            return img.convertToFormat(
-                QImage.Format.Format_ARGB32_Premultiplied)
+            return img.convertToFormat(QImage.Format.Format_ARGB32_Premultiplied)
         return img.convertToFormat(QImage.Format.Format_RGB32)
 
     def from_raw_rgb24(self, frame: Any) -> Any:
         """RawFrame (RGB24 bytes) → QImage (RGB32)."""
-        qimg = QImage(frame.data, frame.width, frame.height,
-                      frame.width * 3, QImage.Format.Format_RGB888)
+        qimg = QImage(
+            frame.data, frame.width, frame.height, frame.width * 3, QImage.Format.Format_RGB888
+        )
         return qimg.convertToFormat(QImage.Format.Format_RGB32)
 
     # ── Drawing primitives ────────────────────────────────────────
 
-    def fill_rect(self, surface: Any, x: int, y: int,
-                  w: int, h: int, color: tuple[int, ...]) -> None:
+    def fill_rect(
+        self, surface: Any, x: int, y: int, w: int, h: int, color: tuple[int, ...]
+    ) -> None:
         painter = QPainter(surface)
         painter.fillRect(x, y, w, h, QColor(*color))
         painter.end()
 
-    def draw_rect_outline(self, surface: Any, x: int, y: int,
-                          w: int, h: int, color: tuple[int, ...]) -> None:
+    def draw_rect_outline(
+        self, surface: Any, x: int, y: int, w: int, h: int, color: tuple[int, ...]
+    ) -> None:
         painter = QPainter(surface)
         painter.setPen(QColor(*color))
         painter.drawRect(x, y, w - 1, h - 1)
         painter.end()
 
-    def get_pixels_rgb(self, surface: Any, cols: int,
-                       rows: int) -> list[list[tuple[int, int, int]]]:
+    def get_pixels_rgb(
+        self, surface: Any, cols: int, rows: int
+    ) -> list[list[tuple[int, int, int]]]:
         thumb = surface.scaled(
-            cols, rows,
+            cols,
+            rows,
             Qt.AspectRatioMode.IgnoreAspectRatio,
             Qt.TransformationMode.SmoothTransformation,
         ).convertToFormat(QImage.Format.Format_RGB888)
@@ -358,4 +361,3 @@ class QtRenderer(Renderer):
             ]
             for y in range(rows)
         ]
-

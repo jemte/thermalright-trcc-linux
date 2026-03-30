@@ -1,4 +1,5 @@
 """Device detection, selection, and probing."""
+
 from __future__ import annotations
 
 from typing import Optional
@@ -40,9 +41,6 @@ def discover_resolution(dev) -> None:
     svc._discover_resolution(dev)
 
 
-
-
-
 def _probe(dev):
     """Try to resolve device details via HID handshake/cache.
 
@@ -51,47 +49,52 @@ def _probe(dev):
     result = {}
 
     # LED devices: probe via led_device cache/handshake
-    if dev.implementation == 'hid_led':
+    if dev.implementation == "hid_led":
         try:
             from trcc.adapters.device.led import probe_led_model
+
             info = probe_led_model(dev.vid, dev.pid, usb_path=dev.usb_path)
             if info and info.model_name:
-                result['model'] = info.model_name
-                result['pm'] = info.pm
-                result['style'] = info.style
+                result["model"] = info.model_name
+                result["pm"] = info.pm
+                result["style"] = info.style
         except Exception:
             pass
 
     # HID LCD devices: probe via hid_device handshake
-    elif dev.implementation in ('hid_type2', 'hid_type3'):
+    elif dev.implementation in ("hid_type2", "hid_type3"):
         try:
             from trcc.adapters.device.factory import DeviceProtocolFactory
             from trcc.adapters.device.hid import HidHandshakeInfo
+
             device_info = {
-                'vid': dev.vid, 'pid': dev.pid,
-                'protocol': dev.protocol, 'device_type': dev.device_type,
-                'implementation': dev.implementation,
-                'path': f"hid:{dev.vid:04x}:{dev.pid:04x}",
+                "vid": dev.vid,
+                "pid": dev.pid,
+                "protocol": dev.protocol,
+                "device_type": dev.device_type,
+                "implementation": dev.implementation,
+                "path": f"hid:{dev.vid:04x}:{dev.pid:04x}",
             }
             protocol = DeviceProtocolFactory.get_protocol(device_info)
             raw_info = protocol.handshake()
             if isinstance(raw_info, HidHandshakeInfo):
-                result['pm'] = raw_info.mode_byte_1
-                result['resolution'] = raw_info.resolution
+                result["pm"] = raw_info.mode_byte_1
+                result["resolution"] = raw_info.resolution
                 if raw_info.serial:
-                    result['serial'] = raw_info.serial
+                    result["serial"] = raw_info.serial
         except Exception:
             pass
 
     # Bulk USB devices: probe via factory
-    elif dev.implementation == 'bulk_usblcdnew':
+    elif dev.implementation == "bulk_usblcdnew":
         try:
             from trcc.adapters.device.factory import DeviceProtocolFactory
+
             bp = DeviceProtocolFactory.create_protocol(dev)
             hs = bp.handshake()
             if hs and hs.resolution:
-                result['resolution'] = hs.resolution
-                result['pm'] = hs.model_id
+                result["resolution"] = hs.resolution
+                result["pm"] = hs.model_id
             bp.close()
         except Exception:
             pass
@@ -119,14 +122,14 @@ def _format(dev, probe=False):
         return line
 
     details = []
-    if 'model' in info:
+    if "model" in info:
         details.append(f"model: {info['model']}")
-    if 'resolution' in info:
-        w, h = info['resolution']
+    if "resolution" in info:
+        w, h = info["resolution"]
         details.append(f"resolution: {w}x{h}")
-    if 'pm' in info:
+    if "pm" in info:
         details.append(f"PM={info['pm']}")
-    if 'serial' in info:
+    if "serial" in info:
         details.append(f"serial: {info['serial'][:16]}")
 
     if details:

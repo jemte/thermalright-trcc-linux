@@ -59,22 +59,24 @@ class UCThemeMask(DownloadableThemeBrowser):
         _w, _h = _conf.settings.width, _conf.settings.height
         self._resolution = f"{_w}x{_h}" if (_w and _h) else ""
         self._local_masks = set()
-        self._category = 'all'
+        self._category = "all"
         super().__init__(parent)
 
     def _create_filter_buttons(self):
         """Seven category buttons."""
         from .constants import Layout
+
         btn_normal, btn_active = self._load_filter_assets()
         self.cat_buttons = {}
         self._btn_refs = [btn_normal, btn_active]
 
         for cat_id, x, y, w, h in Layout.WEB_CATEGORIES:
-            btn = self._make_filter_button(x, y, w, h, btn_normal, btn_active,
-                lambda checked, c=cat_id: self._set_category(c))
+            btn = self._make_filter_button(
+                x, y, w, h, btn_normal, btn_active, lambda checked, c=cat_id: self._set_category(c)
+            )
             self.cat_buttons[cat_id] = btn
 
-        self.cat_buttons['all'].setChecked(True)
+        self.cat_buttons["all"].setChecked(True)
 
     def _set_category(self, category: str):
         """Filter masks by category suffix (a-e, y) or show all."""
@@ -90,7 +92,8 @@ class UCThemeMask(DownloadableThemeBrowser):
         if item_info.is_custom:
             thumb.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             thumb.customContextMenuRequested.connect(
-                lambda pos, info=item_info: self._show_custom_context_menu(thumb, info))
+                lambda pos, info=item_info: self._show_custom_context_menu(thumb, info)
+            )
         return thumb
 
     def _show_custom_context_menu(self, widget: MaskThumbnail, info: MaskItem):
@@ -124,7 +127,7 @@ class UCThemeMask(DownloadableThemeBrowser):
 
     def _parse_resolution(self) -> tuple[int, int]:
         """Parse resolution string (e.g. '320x320') into (width, height)."""
-        parts = self._resolution.split('x')
+        parts = self._resolution.split("x")
         return (int(parts[0]), int(parts[1]))
 
     def _user_masks_dir(self) -> Path:
@@ -140,16 +143,18 @@ class UCThemeMask(DownloadableThemeBrowser):
         for item in sorted(directory.iterdir()):
             if not item.is_dir():
                 continue
-            thumb_path = item / 'Theme.png'
-            mask_path = item / '01.png'
+            thumb_path = item / "Theme.png"
+            mask_path = item / "01.png"
             if thumb_path.exists() or mask_path.exists():
-                masks.append(MaskItem(
-                    name=item.name,
-                    path=str(item),
-                    preview=str(thumb_path if thumb_path.exists() else mask_path),
-                    is_local=True,
-                    is_custom=is_custom,
-                ))
+                masks.append(
+                    MaskItem(
+                        name=item.name,
+                        path=str(item),
+                        preview=str(thumb_path if thumb_path.exists() else mask_path),
+                        is_local=True,
+                        is_custom=is_custom,
+                    )
+                )
                 self._local_masks.add(item.name.lower())
         return masks
 
@@ -174,18 +179,24 @@ class UCThemeMask(DownloadableThemeBrowser):
         # Add known cloud masks that aren't locally cached
         for mask_id in self.KNOWN_MASKS:
             if mask_id.lower() not in self._local_masks:
-                masks.append(MaskItem(
-                    name=mask_id,
-                    is_local=False,
-                ))
+                masks.append(
+                    MaskItem(
+                        name=mask_id,
+                        is_local=False,
+                    )
+                )
 
         # Filter by category (last char of mask name matches suffix)
-        if self._category != 'all':
+        if self._category != "all":
             masks = [m for m in masks if m.name and m.name[-1:] == self._category]
 
-        log.debug("refresh_masks: %d local, %d cloud, cat=%s, dir=%s",
-                   len(self._local_masks), len(masks) - len(self._local_masks),
-                   self._category, self.mask_directory)
+        log.debug(
+            "refresh_masks: %d local, %d cloud, cat=%s, dir=%s",
+            len(self._local_masks),
+            len(masks) - len(self._local_masks),
+            self._category,
+            self.mask_directory,
+        )
         self._populate_grid(masks)
 
     def _on_item_clicked(self, item_info: MaskItem):
@@ -233,9 +244,7 @@ class UCThemeMask(DownloadableThemeBrowser):
             mask_dir = self.mask_directory / mask_id
 
             log.info("Downloading mask %s from %s", mask_id, mask_url)
-            req = urllib.request.Request(mask_url, headers={
-                'User-Agent': 'TRCC-Linux/1.0'
-            })
+            req = urllib.request.Request(mask_url, headers={"User-Agent": "TRCC-Linux/1.0"})
 
             try:
                 with urllib.request.urlopen(req, timeout=30) as response:
@@ -269,12 +278,12 @@ class UCThemeMask(DownloadableThemeBrowser):
         import urllib.request
 
         mask_dir.mkdir(parents=True, exist_ok=True)
-        files = ['Theme.png', '01.png', 'config1.dc']
+        files = ["Theme.png", "01.png", "config1.dc"]
 
         for filename in files:
             try:
                 url = f"{base_url}{mask_id}/{filename}"
-                req = urllib.request.Request(url, headers={'User-Agent': 'TRCC-Linux/1.0'})
+                req = urllib.request.Request(url, headers={"User-Agent": "TRCC-Linux/1.0"})
                 with urllib.request.urlopen(req, timeout=30) as response:
                     (mask_dir / filename).write_bytes(response.read())
                     log.info("Downloaded %s/%s", mask_id, filename)

@@ -3,6 +3,7 @@
 Owns all Linux system configuration logic. CLI is a thin wrapper
 that calls these functions — never the other way around.
 """
+
 from __future__ import annotations
 
 import logging
@@ -30,6 +31,7 @@ log = logging.getLogger(__name__)
 # Privilege escalation helpers
 # =========================================================================
 
+
 def _real_user_home() -> Path:
     """Return the real (non-root) user's home directory.
 
@@ -40,6 +42,7 @@ def _real_user_home() -> Path:
     sudo_user = os.environ.get("SUDO_USER")
     if sudo_user and sudo_user != "root":
         import pwd
+
         return Path(pwd.getpwnam(sudo_user).pw_dir)
     return Path.home()
 
@@ -57,8 +60,13 @@ def sudo_reexec(subcommand: str) -> int:
     paths.append(trcc_pkg)
     pythonpath = os.pathsep.join(paths)
     cmd = [
-        "sudo", "env", f"PYTHONPATH={pythonpath}",
-        sys.executable, "-m", "trcc.cli", subcommand,
+        "sudo",
+        "env",
+        f"PYTHONPATH={pythonpath}",
+        sys.executable,
+        "-m",
+        "trcc.cli",
+        subcommand,
     ]
     print("Root required — requesting sudo...")
     result = subprocess.run(cmd)
@@ -72,6 +80,7 @@ def sudo_reexec(subcommand: str) -> int:
 # =========================================================================
 # System configuration functions
 # =========================================================================
+
 
 def setup_rapl_permissions() -> None:
     """Make Intel/AMD RAPL energy counters readable by non-root users."""
@@ -106,15 +115,21 @@ def setup_rapl_permissions() -> None:
     if made_readable == len(energy_files):
         print(f"RAPL power sensors: {made_readable} domain(s) made readable")
     else:
-        print(f"RAPL power sensors: {made_readable}/{len(energy_files)} domain(s) made readable"
-              f" — {len(energy_files) - made_readable} failed (tmpfiles.d will fix on next boot)")
+        print(
+            f"RAPL power sensors: {made_readable}/{len(energy_files)} domain(s) made readable"
+            f" — {len(energy_files) - made_readable} failed (tmpfiles.d will fix on next boot)"
+        )
 
     restorecon = subprocess.run(
-        ["which", "restorecon"], capture_output=True, text=True,
+        ["which", "restorecon"],
+        capture_output=True,
+        text=True,
     )
     if restorecon.returncode == 0:
         subprocess.run(
-            ["restorecon", tmpfiles_path], capture_output=True, check=False,
+            ["restorecon", tmpfiles_path],
+            capture_output=True,
+            check=False,
         )
 
 
@@ -132,17 +147,17 @@ def setup_udev(dry_run: bool = False) -> int:
     for (vid, pid), info in sorted(all_devices.items()):
         vendor = info.vendor
         product = info.product
-        traits = PROTOCOL_TRAITS.get(info.protocol, PROTOCOL_TRAITS['scsi'])
-        rule_parts = [f'# {vendor} {product}']
+        traits = PROTOCOL_TRAITS.get(info.protocol, PROTOCOL_TRAITS["scsi"])
+        rule_parts = [f"# {vendor} {product}"]
         for subsystem in traits.udev_subsystems:
-            attr = 'ATTRS' if subsystem in ('hidraw', 'scsi_generic') else 'ATTR'
+            attr = "ATTRS" if subsystem in ("hidraw", "scsi_generic") else "ATTR"
             rule_parts.append(
                 f'SUBSYSTEM=="{subsystem}", '
                 f'{attr}{{idVendor}}=="{vid:04x}", '
                 f'{attr}{{idProduct}}=="{pid:04x}", '
                 f'MODE="0666"'
             )
-        rules_lines.append('\n'.join(rule_parts))
+        rules_lines.append("\n".join(rule_parts))
 
     rules_content = "\n\n".join(rules_lines) + "\n"
 
@@ -216,22 +231,28 @@ def setup_selinux() -> int:
 
     try:
         r = subprocess.run(
-            ["getenforce"], capture_output=True, text=True, timeout=5,
+            ["getenforce"],
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         status = r.stdout.strip().lower()
     except FileNotFoundError:
         print("SELinux not installed — nothing to do.")
         return 0
 
-    if status != 'enforcing':
+    if status != "enforcing":
         print(f"SELinux is {status} — no policy needed.")
         return 0
 
     try:
         r = subprocess.run(
-            ["semodule", "-l"], capture_output=True, text=True, timeout=10,
+            ["semodule", "-l"],
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
-        if 'trcc_usb' in r.stdout:
+        if "trcc_usb" in r.stdout:
             print("SELinux module trcc_usb already loaded.")
             return 0
     except FileNotFoundError:
@@ -239,10 +260,11 @@ def setup_selinux() -> int:
         return 1
 
     from trcc.adapters.infra.doctor import _detect_pkg_manager, _install_hint
+
     pm = _detect_pkg_manager()
 
     missing: list[str] = []
-    for tool in ('checkmodule', 'semodule_package'):
+    for tool in ("checkmodule", "semodule_package"):
         if not shutil.which(tool):
             missing.append(tool)
     if missing:
@@ -251,38 +273,41 @@ def setup_selinux() -> int:
         return 1
 
     trcc_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    te_src = os.path.join(trcc_root, 'data', 'trcc_usb.te')
+    te_src = os.path.join(trcc_root, "data", "trcc_usb.te")
     if not os.path.isfile(te_src):
         print(f"SELinux policy source not found: {te_src}")
         return 1
 
     try:
         with tempfile.TemporaryDirectory() as tmp:
-            te_path = os.path.join(tmp, 'trcc_usb.te')
-            mod_path = os.path.join(tmp, 'trcc_usb.mod')
-            pp_path = os.path.join(tmp, 'trcc_usb.pp')
+            te_path = os.path.join(tmp, "trcc_usb.te")
+            mod_path = os.path.join(tmp, "trcc_usb.mod")
+            pp_path = os.path.join(tmp, "trcc_usb.pp")
 
             shutil.copy2(te_src, te_path)
 
             r = subprocess.run(
-                ['checkmodule', '-M', '-m', '-o', mod_path, te_path],
-                capture_output=True, text=True,
+                ["checkmodule", "-M", "-m", "-o", mod_path, te_path],
+                capture_output=True,
+                text=True,
             )
             if r.returncode != 0:
                 print(f"checkmodule failed: {r.stderr.strip()}")
                 return 1
 
             r = subprocess.run(
-                ['semodule_package', '-o', pp_path, '-m', mod_path],
-                capture_output=True, text=True,
+                ["semodule_package", "-o", pp_path, "-m", mod_path],
+                capture_output=True,
+                text=True,
             )
             if r.returncode != 0:
                 print(f"semodule_package failed: {r.stderr.strip()}")
                 return 1
 
             r = subprocess.run(
-                ['semodule', '-i', pp_path],
-                capture_output=True, text=True,
+                ["semodule", "-i", pp_path],
+                capture_output=True,
+                text=True,
             )
             if r.returncode != 0:
                 print(f"semodule install failed: {r.stderr.strip()}")
@@ -332,7 +357,8 @@ def install_desktop() -> int:
     if installed_icon:
         subprocess.run(
             ["gtk-update-icon-cache", str(home / ".local" / "share" / "icons" / "hicolor")],
-            check=False, capture_output=True
+            check=False,
+            capture_output=True,
         )
     else:
         print("Warning: icons not found, menu entry will use a generic icon")
@@ -348,44 +374,44 @@ def setup_polkit() -> int:
         return sudo_reexec("setup-polkit")
 
     pkg_root = Path(__file__).parent.parent.parent.parent
-    policy_src = pkg_root / "assets" / "com.github.lexonight1.trcc.policy"
+    policy_src = pkg_root / "assets" / "com.github.jemte.trcc.policy"
 
     if not policy_src.exists():
         print(f"Policy file not found: {policy_src}")
         return 1
 
     policy_text = policy_src.read_text()
-    for binary in ('dmidecode', 'smartctl'):
+    for binary in ("dmidecode", "smartctl"):
         found = shutil.which(binary)
         if found:
             real_path = os.path.realpath(found)
-            policy_text = policy_text.replace(f'/usr/bin/{binary}', real_path)
+            policy_text = policy_text.replace(f"/usr/bin/{binary}", real_path)
 
-    policy_dst = Path("/usr/share/polkit-1/actions/com.github.lexonight1.trcc.policy")
+    policy_dst = Path("/usr/share/polkit-1/actions/com.github.jemte.trcc.policy")
     policy_dst.parent.mkdir(parents=True, exist_ok=True)
     policy_dst.write_text(policy_text)
 
-    invoking_user = os.environ.get('SUDO_USER', '')
+    invoking_user = os.environ.get("SUDO_USER", "")
     if invoking_user:
         rules_dst = Path("/etc/polkit-1/rules.d/50-trcc.rules")
         rules_dst.parent.mkdir(parents=True, exist_ok=True)
         rules_dst.write_text(
-            '// TRCC Linux — passwordless dmidecode/smartctl for installing user\n'
-            'polkit.addRule(function(action, subject) {\n'
-            '    if ((action.id == "com.github.lexonight1.trcc.dmidecode" ||\n'
-            '         action.id == "com.github.lexonight1.trcc.smartctl") &&\n'
+            "// TRCC Linux — passwordless dmidecode/smartctl for installing user\n"
+            "polkit.addRule(function(action, subject) {\n"
+            '    if ((action.id == "com.github.jemte.trcc.dmidecode" ||\n'
+            '         action.id == "com.github.jemte.trcc.smartctl") &&\n'
             f'        subject.user == "{invoking_user}") {{\n'
-            '        return polkit.Result.YES;\n'
-            '    }\n'
-            '});\n'
+            "        return polkit.Result.YES;\n"
+            "    }\n"
+            "});\n"
         )
         print(f"Installed {rules_dst} (user: {invoking_user})")
 
     restore_paths = [str(policy_dst)]
     if invoking_user:
         restore_paths.append(str(rules_dst))
-    if shutil.which('restorecon'):
-        subprocess.run(['restorecon'] + restore_paths, check=False)
+    if shutil.which("restorecon"):
+        subprocess.run(["restorecon"] + restore_paths, check=False)
     print(f"Installed {policy_dst}")
     print(f"User '{invoking_user}' can now run dmidecode/smartctl without a password.")
     return 0
@@ -396,48 +422,59 @@ class LinuxSetup(PlatformSetup):
 
     def get_distro_name(self) -> str:
         from trcc.adapters.infra.doctor import _read_os_release
-        return _read_os_release().get('PRETTY_NAME', 'Unknown Linux')
+
+        return _read_os_release().get("PRETTY_NAME", "Unknown Linux")
 
     def get_pkg_manager(self) -> str | None:
         from trcc.adapters.infra.doctor import _detect_pkg_manager
+
         return _detect_pkg_manager()
 
     def check_deps(self) -> list[Any]:
         from trcc.adapters.infra.doctor import check_system_deps
+
         return check_system_deps(self.get_pkg_manager())
 
     def config_dir(self) -> str:
         from trcc.core.paths import USER_CONFIG_DIR
+
         return USER_CONFIG_DIR
 
     def data_dir(self) -> str:
         from trcc.core.paths import USER_DATA_DIR
+
         return USER_DATA_DIR
 
     def user_content_dir(self) -> str:
         from trcc.core.paths import USER_CONTENT_DIR
+
         return USER_CONTENT_DIR
 
     def theme_dir(self, width: int, height: int) -> str:
         from trcc.core.paths import DATA_DIR
-        return os.path.join(DATA_DIR, f'theme{width}{height}')
+
+        return os.path.join(DATA_DIR, f"theme{width}{height}")
 
     def web_dir(self, width: int, height: int) -> str:
         from trcc.core.paths import get_web_dir
+
         return get_web_dir(width, height)
 
     def web_masks_dir(self, width: int, height: int) -> str:
         from trcc.core.paths import get_web_masks_dir
+
         return get_web_masks_dir(width, height)
 
     def user_masks_dir(self, width: int, height: int) -> str:
         from trcc.core.paths import get_user_masks_dir
+
         return get_user_masks_dir(width, height)
 
     def ffmpeg_install_help(self) -> str:
         from trcc.adapters.infra.doctor import _detect_pkg_manager, _install_hint
+
         pm = _detect_pkg_manager()
-        hint = _install_hint('ffmpeg', pm)
+        hint = _install_hint("ffmpeg", pm)
         return f"ffmpeg not found. Install:\n  {hint}" if hint else "ffmpeg not found"
 
     def resolve_assets_dir(self, pkg_assets_dir: Path) -> Path:
@@ -446,8 +483,9 @@ class LinuxSetup(PlatformSetup):
 
     def archive_tool_install_help(self) -> str:
         from trcc.adapters.infra.doctor import _install_hint
+
         pm = self.get_pkg_manager()
-        hint = _install_hint('7z', pm)
+        hint = _install_hint("7z", pm)
         if hint:
             return f"7z not found. Install:\n  {hint}"
         return (
@@ -463,13 +501,14 @@ class LinuxSetup(PlatformSetup):
         import socket
 
         from PySide6.QtCore import QSocketNotifier
+
         rsock, wsock = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
         rsock.setblocking(False)
         wsock.setblocking(False)
 
         def _on_sigusr1(signum: Any, frame: Any) -> None:
             try:
-                wsock.send(b'\x01')
+                wsock.send(b"\x01")
             except OSError:
                 pass
 
@@ -488,12 +527,16 @@ class LinuxSetup(PlatformSetup):
         notifier.activated.connect(_raise_window)
 
     def get_screencast_capture(
-        self, x: int, y: int, w: int, h: int,
+        self,
+        x: int,
+        y: int,
+        w: int,
+        h: int,
     ) -> tuple[str, str, list[str]] | None:
-        display = os.environ.get('DISPLAY', ':0.0')
-        inp = f'{display}+{x},{y}' if (w and h) else display
-        region_args = ['-video_size', f'{w}x{h}'] if (w and h) else []
-        return 'x11grab', inp, region_args
+        display = os.environ.get("DISPLAY", ":0.0")
+        inp = f"{display}+{x},{y}" if (w and h) else display
+        region_args = ["-video_size", f"{w}x{h}"] if (w and h) else []
+        return "x11grab", inp, region_args
 
     def minimize_on_close(self) -> bool:
         return False
@@ -504,12 +547,15 @@ class LinuxSetup(PlatformSetup):
     def check_device_permissions(self, devices: list) -> list[str]:
         from trcc.adapters.device.detector import check_udev_rules
         from trcc.core.models import PROTOCOL_TRAITS
+
         warnings = []
         for dev in devices:
             if not check_udev_rules(dev):
-                traits = PROTOCOL_TRAITS.get(dev.protocol, PROTOCOL_TRAITS['scsi'])
-                msg = (f"Device {dev.vid:04x}:{dev.pid:04x} needs updated udev rules.\n"
-                       "Run:  sudo trcc setup-udev")
+                traits = PROTOCOL_TRAITS.get(dev.protocol, PROTOCOL_TRAITS["scsi"])
+                msg = (
+                    f"Device {dev.vid:04x}:{dev.pid:04x} needs updated udev rules.\n"
+                    "Run:  sudo trcc setup-udev"
+                )
                 if traits.requires_reboot:
                     msg += "\nThen reboot for the USB storage quirk to take effect."
                 warnings.append(msg)
@@ -521,7 +567,7 @@ class LinuxSetup(PlatformSetup):
             "/etc/udev/rules.d/99-trcc-lcd.rules",
             "/etc/modprobe.d/trcc-lcd.conf",
             "/etc/modules-load.d/trcc-sg.conf",
-            "/usr/share/polkit-1/actions/com.github.lexonight1.trcc.policy",
+            "/usr/share/polkit-1/actions/com.github.jemte.trcc.policy",
             "/etc/polkit-1/rules.d/50-trcc.rules",
         ]
 
@@ -545,11 +591,12 @@ class LinuxSetup(PlatformSetup):
 
     def get_doctor_config(self):
         from trcc.core.ports import DoctorPlatformConfig
+
         return DoctorPlatformConfig(
             distro_name=self.get_distro_name(),
             pkg_manager=self.get_pkg_manager(),
             check_libusb=True,
-            extra_binaries=[('sg_raw', True, 'SCSI LCD devices')],
+            extra_binaries=[("sg_raw", True, "SCSI LCD devices")],
             run_gpu_check=True,
             run_udev_check=True,
             run_selinux_check=True,
@@ -561,6 +608,7 @@ class LinuxSetup(PlatformSetup):
 
     def get_report_config(self):
         from trcc.core.ports import ReportPlatformConfig
+
         return ReportPlatformConfig(
             distro_name=self.get_distro_name(),
             collect_lsusb=True,
@@ -608,9 +656,9 @@ class LinuxSetup(PlatformSetup):
 
         def _run_install(cmd: str) -> bool:
             """Run install command, substituting sys.executable for bare 'pip'."""
-            if cmd.startswith('pip install '):
-                pkg = cmd[len('pip install '):]
-                actual = [_sys.executable, '-m', 'pip', 'install', pkg]
+            if cmd.startswith("pip install "):
+                pkg = cmd[len("pip install ") :]
+                actual = [_sys.executable, "-m", "pip", "install", pkg]
             else:
                 actual = shlex.split(cmd)
             print(f"    -> {cmd}")
@@ -641,8 +689,7 @@ class LinuxSetup(PlatformSetup):
                 if _confirm(f"Install? -> {gpu.install_cmd}", auto_yes):
                     print(f"    -> {gpu.install_cmd}")
                     result = subprocess.run(
-                        [sys.executable, "-m", "pip", "install"]
-                        + gpu.install_cmd.split()[-1:],
+                        [sys.executable, "-m", "pip", "install"] + gpu.install_cmd.split()[-1:],
                     )
                     if result.returncode == 0:
                         actions.append(f"Installed: {gpu.install_cmd}")
@@ -725,7 +772,3 @@ class LinuxSetup(PlatformSetup):
 
         _print_summary(actions, "Run 'trcc gui' to launch, or find TRCC in your app menu.")
         return 0
-
-
-
-

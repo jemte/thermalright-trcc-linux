@@ -1,4 +1,5 @@
 """Unit tests for core/command_bus.py — Phase 1 infrastructure."""
+
 from __future__ import annotations
 
 import time
@@ -28,6 +29,7 @@ from trcc.core.models import LEDMode
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
+
 def _ok_handler(cmd: Command) -> CommandResult:  # noqa: ARG001
     return CommandResult.ok(message="ok")
 
@@ -37,6 +39,7 @@ def _fail_handler(cmd: Command) -> CommandResult:  # noqa: ARG001
 
 
 # ── CommandResult ────────────────────────────────────────────────────────────
+
 
 class TestCommandResult:
     def test_from_dict_success(self):
@@ -74,10 +77,11 @@ class TestCommandResult:
     def test_no_dict_overhead(self):
         """slots=True — instances must not have __dict__."""
         r = CommandResult.ok()
-        assert not hasattr(r, '__dict__')
+        assert not hasattr(r, "__dict__")
 
 
 # ── Command dataclasses ──────────────────────────────────────────────────────
+
 
 class TestCommandDataclasses:
     def test_lcd_command_is_frozen(self):
@@ -112,6 +116,7 @@ class TestCommandDataclasses:
 
 
 # ── CommandBus dispatch ──────────────────────────────────────────────────────
+
 
 class TestCommandBusDispatch:
     def test_dispatch_calls_registered_handler(self):
@@ -174,6 +179,7 @@ class TestCommandBusDispatch:
 
 # ── Middleware chain ─────────────────────────────────────────────────────────
 
+
 class TestMiddlewareChain:
     def test_single_middleware_wraps_handler(self):
         order: list[str] = []
@@ -187,7 +193,9 @@ class TestMiddlewareChain:
 
         bus = CommandBus()
         bus.add_middleware(TrackMiddleware())
-        bus.register(SetBrightnessCommand, lambda c: (order.append("handler"), CommandResult.ok())[1])
+        bus.register(
+            SetBrightnessCommand, lambda c: (order.append("handler"), CommandResult.ok())[1]
+        )
         bus.dispatch(SetBrightnessCommand())
         assert order == ["before", "handler", "after"]
 
@@ -202,6 +210,7 @@ class TestMiddlewareChain:
                     result = next_fn(command)
                     order.append(f"{name}:after")
                     return result
+
             return M()
 
         bus = CommandBus()
@@ -226,6 +235,7 @@ class TestMiddlewareChain:
 
 
 # ── LoggingMiddleware ────────────────────────────────────────────────────────
+
 
 class TestLoggingMiddleware:
     def test_logs_dispatch_at_debug(self):
@@ -255,6 +265,7 @@ class TestLoggingMiddleware:
 
 # ── TimingMiddleware ─────────────────────────────────────────────────────────
 
+
 class TestTimingMiddleware:
     def test_logs_warning_for_slow_command(self):
         def slow_handler(cmd: Command) -> CommandResult:
@@ -279,6 +290,7 @@ class TestTimingMiddleware:
 
 
 # ── RateLimitMiddleware ──────────────────────────────────────────────────────
+
 
 class TestRateLimitMiddleware:
     def test_allows_first_dispatch(self):

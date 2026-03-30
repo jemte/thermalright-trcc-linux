@@ -33,6 +33,7 @@ log = logging.getLogger(__name__)
 # Pack registry — built dynamically from known resolutions
 # =========================================================================
 
+
 @dataclass(frozen=True)
 class PackInfo:
     """Metadata for a downloadable theme pack."""
@@ -49,11 +50,14 @@ class PackInfo:
         return f"{DataManager.GITHUB_BASE_URL}{self.archive}"
 
 
-
 # HID sub-variant resolutions not in FBL_TO_RESOLUTION (FBL 224 overloads).
 # These depend on PM sub-bytes in device_hid.py but have their own theme archives.
 _EXTRA_RESOLUTIONS: set[tuple[int, int]] = {
-    (480, 800), (480, 854), (540, 960), (800, 480), (960, 540),
+    (480, 800),
+    (480, 854),
+    (540, 960),
+    (800, 480),
+    (960, 540),
 }
 
 
@@ -117,6 +121,7 @@ def _resolve_pack_name(name: str) -> str:
 # =========================================================================
 # ThemeDownloader — CLI adapter for DataManager
 # =========================================================================
+
 
 class ThemeDownloader:
     """Download and manage TRCC theme packs via DataManager."""
@@ -225,8 +230,10 @@ class ThemeDownloader:
 
         # Force: remove existing first
         if force:
-            for d in (_conf.settings.user_data_dir / f"theme{w}{h}",
-                      _conf.settings.user_data_dir / f"theme{w}{h}"):
+            for d in (
+                _conf.settings.user_data_dir / f"theme{w}{h}",
+                _conf.settings.user_data_dir / f"theme{w}{h}",
+            ):
                 if d.exists():
                     log.info("Removing %s for reinstall", d)
                     shutil.rmtree(d)

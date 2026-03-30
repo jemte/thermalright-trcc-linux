@@ -28,18 +28,34 @@ from trcc.adapters.device.detector import DetectedDevice  # noqa: E402
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
-def _make_device(vid=0x87CD, pid=0x70DB, scsi="/dev/sg0", usb_path="2-1",
-                 impl="thermalright_lcd_v1", protocol="scsi", model="CZTV"):
+
+def _make_device(
+    vid=0x87CD,
+    pid=0x70DB,
+    scsi="/dev/sg0",
+    usb_path="2-1",
+    impl="thermalright_lcd_v1",
+    protocol="scsi",
+    model="CZTV",
+):
     """Create a DetectedDevice with sensible defaults."""
     return DetectedDevice(
-        vid=vid, pid=pid,
-        vendor_name="Thermalright", product_name="LCD Display",
-        usb_path=usb_path, scsi_device=scsi,
-        implementation=impl, model=model,
-        button_image="A1TARAN ARMS", protocol=protocol, device_type=1,
+        vid=vid,
+        pid=pid,
+        vendor_name="Thermalright",
+        product_name="LCD Display",
+        usb_path=usb_path,
+        scsi_device=scsi,
+        implementation=impl,
+        model=model,
+        button_image="A1TARAN ARMS",
+        protocol=protocol,
+        device_type=1,
     )
 
+
 # ── Pipeline: CLI send command ──────────────────────────────────────────────
+
 
 class TestCLISendPipeline(unittest.TestCase):
     """CLI send_image()/send_color() → DeviceService → DeviceProtocolFactory."""
@@ -49,6 +65,7 @@ class TestCLISendPipeline(unittest.TestCase):
         from trcc.adapters.system.linux.platform import LinuxPlatform
         from trcc.core.builder import ControllerBuilder
         from trcc.services.image import ImageService
+
         # conftest.py already wired the renderer at session scope — reuse it
         return ControllerBuilder(LinuxPlatform()).with_renderer(ImageService._r())
 
@@ -63,8 +80,7 @@ class TestCLISendPipeline(unittest.TestCase):
         mock_build_detect_fn.return_value = lambda: [_make_device()]
         mock_protocol = MagicMock()
         mock_protocol.send_image.return_value = True
-        mock_protocol.handshake.return_value = HandshakeResult(
-            resolution=(320, 320))
+        mock_protocol.handshake.return_value = HandshakeResult(resolution=(320, 320))
         mock_get_protocol.return_value = mock_protocol
 
         builder = self._real_builder()
@@ -87,6 +103,7 @@ class TestCLISendPipeline(unittest.TestCase):
     def test_cli_send_missing_file(self):
         """send_image with nonexistent file returns 1."""
         from trcc.cli import send_image
+
         result = send_image("/nonexistent/image.png")
         self.assertEqual(result, 1)
 
@@ -101,8 +118,7 @@ class TestCLISendPipeline(unittest.TestCase):
         mock_build_detect_fn.return_value = lambda: [_make_device()]
         mock_protocol = MagicMock()
         mock_protocol.send_image.return_value = True
-        mock_protocol.handshake.return_value = HandshakeResult(
-            resolution=(320, 320))
+        mock_protocol.handshake.return_value = HandshakeResult(resolution=(320, 320))
         mock_get_protocol.return_value = mock_protocol
 
         builder = self._real_builder()
@@ -118,11 +134,13 @@ class TestCLISendPipeline(unittest.TestCase):
     def test_cli_send_color_invalid_hex(self):
         """send_color with invalid hex returns 1."""
         from trcc.cli import send_color
+
         result = send_color("xyz")
         self.assertEqual(result, 1)
 
 
 # ── Pipeline: CLI resume ────────────────────────────────────────────────────
+
 
 class TestCLIResumePipeline(unittest.TestCase):
     """CLI resume() → DeviceService.detect → load config → ImageService → send."""
@@ -132,8 +150,9 @@ class TestCLIResumePipeline(unittest.TestCase):
     @patch("trcc.core.builder.ControllerBuilder.build_detect_fn")
     @patch("trcc.conf.Settings.get_device_config")
     @patch("trcc.conf.Settings.device_config_key")
-    def test_resume_with_saved_theme(self, mock_key, mock_cfg, mock_build_detect_fn,
-                                     mock_get_protocol, mock_send_async):
+    def test_resume_with_saved_theme(
+        self, mock_key, mock_cfg, mock_build_detect_fn, mock_get_protocol, mock_send_async
+    ):
         """resume() loads last theme, applies settings, and sends to device."""
         from trcc.cli import resume
         from trcc.core.models import HandshakeResult
@@ -142,8 +161,7 @@ class TestCLIResumePipeline(unittest.TestCase):
         mock_key.return_value = "0"
 
         mock_protocol = MagicMock()
-        mock_protocol.handshake.return_value = HandshakeResult(
-            resolution=(320, 320))
+        mock_protocol.handshake.return_value = HandshakeResult(resolution=(320, 320))
         mock_get_protocol.return_value = mock_protocol
 
         with tempfile.TemporaryDirectory() as td:
@@ -156,6 +174,7 @@ class TestCLIResumePipeline(unittest.TestCase):
 
             from trcc.adapters.system.linux.platform import LinuxPlatform
             from trcc.core.builder import ControllerBuilder
+
             result = resume(ControllerBuilder(LinuxPlatform()))
             self.assertEqual(result, 0)
             # send_frame_async is called synchronously by lcd.send() —
@@ -168,6 +187,7 @@ class TestCLIResumePipeline(unittest.TestCase):
     def test_resume_no_devices(self, mock_build_detect_fn):
         """resume() with no devices returns 1."""
         from trcc.cli import resume
+
         mock_build_detect_fn.return_value = lambda: []
         result = resume()
         self.assertEqual(result, 1)
@@ -189,6 +209,7 @@ class TestCLIResumePipeline(unittest.TestCase):
 
 # ── Pipeline: CLI detect ────────────────────────────────────────────────────
 
+
 class TestCLIDetectPipeline(unittest.TestCase):
     """CLI detect() exercises device detection end-to-end."""
 
@@ -204,13 +225,15 @@ class TestCLIDetectPipeline(unittest.TestCase):
 
         dev = _make_device()
         with patch("trcc.conf.Settings.get_selected_device", return_value="/dev/sg0"):
-            result = detect(show_all=True, detect_fn=lambda: [dev],
-                            platform_setup=self._mock_setup())
+            result = detect(
+                show_all=True, detect_fn=lambda: [dev], platform_setup=self._mock_setup()
+            )
         self.assertEqual(result, 0)
 
     def test_detect_no_devices(self):
         """detect() with no devices returns 1."""
         from trcc.cli import detect
+
         result = detect(detect_fn=lambda: [], platform_setup=self._mock_setup())
         self.assertEqual(result, 1)
 
@@ -220,16 +243,17 @@ class TestCLIDetectPipeline(unittest.TestCase):
 
         devs = [
             _make_device(scsi="/dev/sg0"),
-            _make_device(vid=0x0416, pid=0x5406, scsi="/dev/sg1",
-                         impl="winbond_lcd"),
+            _make_device(vid=0x0416, pid=0x5406, scsi="/dev/sg1", impl="winbond_lcd"),
         ]
         with patch("trcc.conf.Settings.get_selected_device", return_value="/dev/sg0"):
-            result = detect(show_all=True, detect_fn=lambda: devs,
-                            platform_setup=self._mock_setup())
+            result = detect(
+                show_all=True, detect_fn=lambda: devs, platform_setup=self._mock_setup()
+            )
         self.assertEqual(result, 0)
 
 
 # ── Pipeline: device_detector round-trip ────────────────────────────────────
+
 
 class TestDeviceDetectorRoundTrip(unittest.TestCase):
     """Verify find_usb_devices → detect_devices → get_default_device chain."""
@@ -243,7 +267,7 @@ class TestDeviceDetectorRoundTrip(unittest.TestCase):
         mock_usb_dev = MagicMock()
         mock_find.side_effect = lambda **kw: (
             mock_usb_dev
-            if (kw.get('idVendor') == 0x87CD and kw.get('idProduct') == 0x70DB)
+            if (kw.get("idVendor") == 0x87CD and kw.get("idProduct") == 0x70DB)
             else None
         )
         mock_scsi_resolver.return_value = "/dev/sg0"
@@ -259,10 +283,10 @@ class TestDeviceDetectorRoundTrip(unittest.TestCase):
         from trcc.adapters.device.detector import get_default_device
 
         devs = [
-            _make_device(vid=0x0416, pid=0x5406, scsi="/dev/sg1",
-                         usb_path="2-2", impl="winbond_lcd"),
-            _make_device(vid=0x87CD, pid=0x70DB, scsi="/dev/sg0",
-                         usb_path="2-1"),
+            _make_device(
+                vid=0x0416, pid=0x5406, scsi="/dev/sg1", usb_path="2-2", impl="winbond_lcd"
+            ),
+            _make_device(vid=0x87CD, pid=0x70DB, scsi="/dev/sg0", usb_path="2-1"),
         ]
         mock_detect.return_value = devs
 
@@ -273,6 +297,7 @@ class TestDeviceDetectorRoundTrip(unittest.TestCase):
 
 # ── Pipeline: RGB565 conversion consistency ─────────────────────────────────
 
+
 class TestRGB565Consistency(unittest.TestCase):
     """Verify RGB565 conversion is consistent between LCDDriver and controllers."""
 
@@ -280,41 +305,55 @@ class TestRGB565Consistency(unittest.TestCase):
         """rgb_to_bytes matches ImageService.to_rgb565 for single pixels."""
         from trcc.core.encoding import rgb_to_bytes
         from trcc.services import ImageService
-        for r, g, b in [(255, 0, 0), (0, 255, 0), (0, 0, 255),
-                         (128, 128, 128), (255, 255, 255), (0, 0, 0)]:
+
+        for r, g, b in [
+            (255, 0, 0),
+            (0, 255, 0),
+            (0, 0, 255),
+            (128, 128, 128),
+            (255, 255, 255),
+            (0, 0, 0),
+        ]:
             surface = make_test_surface(1, 1, (r, g, b))
             controller_bytes = ImageService.to_rgb565(surface)
 
-            impl_bytes = rgb_to_bytes(r, g, b, '>')
+            impl_bytes = rgb_to_bytes(r, g, b, ">")
 
             # Both should produce the same 2 bytes for the same color
-            self.assertEqual(controller_bytes, impl_bytes,
-                             f"Mismatch for ({r},{g},{b}): "
-                             f"controller={controller_bytes.hex()} vs impl={impl_bytes.hex()}")
+            self.assertEqual(
+                controller_bytes,
+                impl_bytes,
+                f"Mismatch for ({r},{g},{b}): "
+                f"controller={controller_bytes.hex()} vs impl={impl_bytes.hex()}",
+            )
 
     def test_rgb565_red_channel(self):
         """Red (255,0,0) → RGB565 big-endian: 0xF800."""
         from trcc.core.encoding import rgb_to_bytes
-        pixel = rgb_to_bytes(255, 0, 0, '>')
+
+        pixel = rgb_to_bytes(255, 0, 0, ">")
         val = struct.unpack(">H", pixel)[0]
         self.assertEqual(val, 0xF800)
 
     def test_rgb565_green_channel(self):
         """Green (0,255,0) → RGB565 big-endian: 0x07E0."""
         from trcc.core.encoding import rgb_to_bytes
-        pixel = rgb_to_bytes(0, 255, 0, '>')
+
+        pixel = rgb_to_bytes(0, 255, 0, ">")
         val = struct.unpack(">H", pixel)[0]
         self.assertEqual(val, 0x07E0)
 
     def test_rgb565_blue_channel(self):
         """Blue (0,0,255) → RGB565 big-endian: 0x001F."""
         from trcc.core.encoding import rgb_to_bytes
-        pixel = rgb_to_bytes(0, 0, 255, '>')
+
+        pixel = rgb_to_bytes(0, 0, 255, ">")
         val = struct.unpack(">H", pixel)[0]
         self.assertEqual(val, 0x001F)
 
 
 # ── Pipeline: theme load → overlay render → send ───────────────────────────
+
 
 class TestThemeLoadRender(unittest.TestCase):
     """Theme directory → load image → apply overlay → convert RGB565."""
@@ -364,6 +403,7 @@ class TestThemeLoadRender(unittest.TestCase):
 
 
 # ── Pipeline: brightness + rotation ─────────────────────────────────────────
+
 
 class TestBrightnessRotation(unittest.TestCase):
     """Verify brightness and rotation transforms produce correct output."""
@@ -421,6 +461,7 @@ class TestBrightnessRotation(unittest.TestCase):
 
 # ── Pipeline: SCSI header + CRC integrity ───────────────────────────────────
 
+
 class TestSCSIHeaderIntegrity(unittest.TestCase):
     """Verify SCSI header building produces valid CRC-checked packets."""
 
@@ -464,6 +505,7 @@ class TestSCSIHeaderIntegrity(unittest.TestCase):
 
 # ── Pipeline: device implementation registry ────────────────────────────────
 
+
 class TestImplementationRegistry(unittest.TestCase):
     """Verify LCDDeviceConfig.from_key returns correct config for known names."""
 
@@ -480,6 +522,7 @@ class TestImplementationRegistry(unittest.TestCase):
     def test_generic_fallback(self):
         """Unknown implementation name falls back to generic."""
         from trcc.core.models import LCDDeviceConfig
+
         cfg = LCDDeviceConfig.from_key("nonexistent_device_xyz")
         self.assertIn("generic", cfg.name.lower())
 

@@ -12,14 +12,15 @@ Usage:
     PYTHONPATH=src python3 scripts/led_visual.py          # real metrics
     PYTHONPATH=src python3 scripts/led_visual.py --fake    # fake cycling
 """
+
 from __future__ import annotations
 
 import os
 import sys
 
-os.environ.setdefault('QT_QPA_PLATFORM', '')  # use real display
+os.environ.setdefault("QT_QPA_PLATFORM", "")  # use real display
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from PySide6.QtCore import QRect, Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QPainter, QPalette, QPen
@@ -50,7 +51,7 @@ from trcc.services.led import LEDService
 from trcc.services.system import set_instance
 
 # ── Metrics source ────────────────────────────────────────────────
-_use_fake = '--fake' in sys.argv
+_use_fake = "--fake" in sys.argv
 _tick = 0
 
 
@@ -58,6 +59,7 @@ def _get_metrics() -> HardwareMetrics:
     """Return real system metrics, or fake cycling ones with --fake."""
     if not _use_fake:
         from trcc.services.system import get_all_metrics
+
         return get_all_metrics()
 
     global _tick
@@ -111,8 +113,9 @@ class LEDIndexOverlay(QWidget):
             for dx in (-1, 0, 1):
                 for dy in (-1, 0, 1):
                     if dx or dy:
-                        p.drawText(rect.adjusted(dx, dy, dx, dy),
-                                   Qt.AlignmentFlag.AlignCenter, text)
+                        p.drawText(
+                            rect.adjusted(dx, dy, dx, dy), Qt.AlignmentFlag.AlignCenter, text
+                        )
             p.setPen(QColor(255, 255, 255))
             p.drawText(rect, Qt.AlignmentFlag.AlignCenter, text)
         p.end()
@@ -157,8 +160,7 @@ class WirePreview(QWidget):
         # Color cells
         y = 16
         for i, (r, g, b) in enumerate(self._colors):
-            p.fillRect(i * self.CELL_W, y, self.CELL_W - 1, self.CELL_H,
-                        QColor(r, g, b))
+            p.fillRect(i * self.CELL_W, y, self.CELL_W - 1, self.CELL_H, QColor(r, g, b))
 
         # Tick marks every 10
         p.setPen(QColor(100, 100, 100))
@@ -316,20 +318,14 @@ class LEDPanelTestHarness(QWidget):
         p.zone_selected.connect(self._on_zone_selected)
         p.zone_toggled.connect(lambda zi, on: self._svc.toggle_zone(zi, on))
         p.carousel_changed.connect(lambda on: self._svc.set_zone_sync(on))
-        p.carousel_zone_changed.connect(
-            lambda zi, sel: self._svc.set_zone_sync_zone(zi, sel))
-        p.carousel_interval_changed.connect(
-            lambda secs: self._svc.set_zone_sync_interval(secs))
-        p.clock_format_changed.connect(
-            lambda is_24h: self._svc.set_clock_format(is_24h))
-        p.week_start_changed.connect(
-            lambda is_sun: self._svc.set_week_start(is_sun))
+        p.carousel_zone_changed.connect(lambda zi, sel: self._svc.set_zone_sync_zone(zi, sel))
+        p.carousel_interval_changed.connect(lambda secs: self._svc.set_zone_sync_interval(secs))
+        p.clock_format_changed.connect(lambda is_24h: self._svc.set_clock_format(is_24h))
+        p.week_start_changed.connect(lambda is_sun: self._svc.set_week_start(is_sun))
         p.temp_unit_changed.connect(self._on_temp_unit)
-        p.disk_index_changed.connect(
-            lambda idx: self._svc.set_disk_index(idx))
+        p.disk_index_changed.connect(lambda idx: self._svc.set_disk_index(idx))
         p.memory_ratio_changed.connect(self._on_memory_ratio)
-        p.test_mode_changed.connect(
-            lambda on: self._svc.set_test_mode(on))
+        p.test_mode_changed.connect(lambda on: self._svc.set_test_mode(on))
 
         # ── Start with style 1 ───────────────────────────────────
         self._switch_style(1)
@@ -374,8 +370,7 @@ class LEDPanelTestHarness(QWidget):
         zones = self._svc.state.zones
         if 0 <= zone < len(zones):
             z = zones[zone]
-            self._led_panel.load_zone_state(
-                zone, z.mode.value, z.color, z.brightness, z.on)
+            self._led_panel.load_zone_state(zone, z.mode.value, z.color, z.brightness, z.on)
 
     def _on_temp_unit(self, unit: str):
         """Forward temp unit to segment display."""
@@ -405,8 +400,7 @@ class LEDPanelTestHarness(QWidget):
             # Find the model name for this sub variant
             for pm, entry in PmRegistry._REGISTRY.items():
                 if entry.style_id == self._current_style and entry.style_sub == sub:
-                    self._sub_btn.setText(
-                        f"sub={sub}\n{entry.model_name}")
+                    self._sub_btn.setText(f"sub={sub}\n{entry.model_name}")
                     break
             else:
                 self._sub_btn.setText(f"sub={sub}")
@@ -450,7 +444,7 @@ class LEDPanelTestHarness(QWidget):
             ys = [p[1] for p in positions]
             ws = [p[2] for p in positions]
             hs = [p[3] for p in positions]
-            bbox = f"x:[{min(xs)}-{max(xs)+max(ws)}] y:[{min(ys)}-{max(ys)+max(hs)}]"
+            bbox = f"x:[{min(xs)}-{max(xs) + max(ws)}] y:[{min(ys)}-{max(ys) + max(hs)}]"
             sizes = f"w:[{min(ws)}-{max(ws)}] h:[{min(hs)}-{max(hs)}]"
             area = sum(w * h for _, _, w, h in positions)
         else:
@@ -462,8 +456,8 @@ class LEDPanelTestHarness(QWidget):
             f"LEDs: {led_count} (model says {style.led_count}) | "
             f"Segments: {style.segment_count} | Zones: {style.zone_count}\n"
             f"Bounding box: {bbox} | Sizes: {sizes} | "
-            f"Total LED area: {area}px² / {460*460}px² panel = "
-            f"{area*100/(460*460):.1f}%"
+            f"Total LED area: {area}px² / {460 * 460}px² panel = "
+            f"{area * 100 / (460 * 460):.1f}%"
         )
 
         self._tick_count = 0
@@ -485,10 +479,12 @@ class LEDPanelTestHarness(QWidget):
         total = len(s.segment_on)
         has_sub = (self._current_style, 1) in LED_REMAP_SUB_TABLES
         sub_text = f"sub={self._current_sub}" if has_sub else ""
-        remap_key = f"({self._current_style},{self._current_sub})" if has_sub else str(self._current_style)
+        remap_key = (
+            f"({self._current_style},{self._current_sub})" if has_sub else str(self._current_style)
+        )
         table = LED_REMAP_SUB_TABLES.get(
-            (self._current_style, self._current_sub),
-            LED_REMAP_TABLES.get(self._current_style))
+            (self._current_style, self._current_sub), LED_REMAP_TABLES.get(self._current_style)
+        )
         wire_len = len(table) if table else "identity"
         self._status_label.setText(
             f"Mode: {mv} ({mode_name}) | "
@@ -520,23 +516,20 @@ class LEDPanelTestHarness(QWidget):
         self._led_panel.set_led_colors(display_colors)
 
         # Wire preview: logical vs remapped
-        remapped = remap_led_colors(
-            display_colors, self._current_style, self._current_sub)
+        remapped = remap_led_colors(display_colors, self._current_style, self._current_sub)
 
-        self._wire_logical.set_colors(
-            display_colors,
-            f"Logical ({len(display_colors)} LEDs)")
+        self._wire_logical.set_colors(display_colors, f"Logical ({len(display_colors)} LEDs)")
         self._wire_remapped.set_colors(
-            remapped,
-            f"Wire out (sub={self._current_sub}, {len(remapped)} positions)")
+            remapped, f"Wire out (sub={self._current_sub}, {len(remapped)} positions)"
+        )
 
         self._update_status()
 
 
 def main():
-    argv = [a for a in sys.argv if a != '--fake']
+    argv = [a for a in sys.argv if a != "--fake"]
     app = QApplication(argv)
-    app.setStyle('Fusion')
+    app.setStyle("Fusion")
 
     dark = QPalette()
     dark.setColor(QPalette.ColorRole.Window, QColor(53, 53, 53))
@@ -556,5 +549,5 @@ def main():
     sys.exit(app.exec())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

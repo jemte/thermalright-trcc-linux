@@ -17,6 +17,7 @@ Windows layout (from UCThemeSetting.resx):
 Sub-panel classes live in dedicated modules; this file is the thin orchestrator
 plus backward-compatible re-exports.
 """
+
 from __future__ import annotations
 
 import logging
@@ -56,6 +57,7 @@ log = logging.getLogger(__name__)
 # Main settings container
 # ============================================================================
 
+
 class UCThemeSetting(BasePanel):
     """
     Settings container with overlay editor and display mode panels.
@@ -84,7 +86,7 @@ class UCThemeSetting(BasePanel):
     screencast_changed = Signal(bool)
     screencast_params_changed = Signal(int, int, int, int)  # x, y, w, h
     eyedropper_requested = Signal()  # launch eyedropper color picker
-    capture_requested = Signal()     # launch screen capture
+    capture_requested = Signal()  # launch screen capture
 
     def __init__(self, parent=None):
         super().__init__(parent, width=Sizes.SETTING_W, height=Sizes.SETTING_H)
@@ -154,8 +156,7 @@ class UCThemeSetting(BasePanel):
         self.right_stack.setCurrentWidget(self.color_panel)
         self.color_panel.set_position(config.x, config.y)
         self.color_panel.set_color_hex(config.color)
-        self.color_panel.set_font_display(config.font_name, config.font_size,
-                                              config.font_style)
+        self.color_panel.set_font_display(config.font_name, config.font_size, config.font_style)
         self.data_table.set_mode(config.mode, config.mode_sub)
         if config.mode == OverlayMode.CUSTOM:
             self.data_table.text_input.setText(config.text)
@@ -181,8 +182,10 @@ class UCThemeSetting(BasePanel):
     def _on_elements_changed(self):
         """Any change to elements list — notify parent via delegate."""
         config = self.overlay_grid.to_overlay_config()
-        log.debug("_on_elements_changed: %d elements, invoking CMD_OVERLAY_CHANGED",
-                  len(config) if config else 0)
+        log.debug(
+            "_on_elements_changed: %d elements, invoking CMD_OVERLAY_CHANGED",
+            len(config) if config else 0,
+        )
         self.invoke_delegate(self.CMD_OVERLAY_CHANGED, config)
 
     def _update_selected(self, require_mode: OverlayMode | None = None, **fields):
@@ -194,13 +197,17 @@ class UCThemeSetting(BasePanel):
         """
         idx = self.overlay_grid.get_selected_index()
         cfg = self.overlay_grid.get_selected_config()
-        log.debug("_update_selected: idx=%s, cfg=%s, require_mode=%s, fields=%s",
-                  idx, cfg.mode if cfg else None, require_mode, fields)
+        log.debug(
+            "_update_selected: idx=%s, cfg=%s, require_mode=%s, fields=%s",
+            idx,
+            cfg.mode if cfg else None,
+            require_mode,
+            fields,
+        )
         if cfg is None:
             return
         if require_mode is not None and cfg.mode != require_mode:
-            log.debug("_update_selected: mode mismatch %s != %s, skipping",
-                      cfg.mode, require_mode)
+            log.debug("_update_selected: mode mismatch %s != %s, skipping", cfg.mode, require_mode)
             return
         for k, v in fields.items():
             setattr(cfg, k, v)
@@ -209,7 +216,7 @@ class UCThemeSetting(BasePanel):
 
     def _on_color_changed(self, r, g, b):
         log.debug("_on_color_changed: r=%d, g=%d, b=%d", r, g, b)
-        self._update_selected(color=f'#{r:02x}{g:02x}{b:02x}')
+        self._update_selected(color=f"#{r:02x}{g:02x}{b:02x}")
 
     def _on_position_changed(self, x, y):
         log.debug("_on_position_changed: x=%d, y=%d", x, y)
@@ -217,20 +224,20 @@ class UCThemeSetting(BasePanel):
 
     def _on_font_changed(self, font_name, font_size, font_style):
         log.debug("_on_font_changed: %s %s %s", font_name, font_size, font_style)
-        self._update_selected(font_name=font_name, font_size=font_size,
-                              font_style=font_style)
+        self._update_selected(font_name=font_name, font_size=font_size, font_style=font_style)
 
     def _on_format_changed(self, mode, mode_sub):
         log.debug("_on_format_changed: mode=%s, mode_sub=%s", mode, mode_sub)
         self._update_selected(require_mode=mode, mode_sub=mode_sub)
         # Persist format preference so it carries across theme changes
         from ..conf import Settings
+
         if mode == OverlayMode.TIME:
-            Settings.save_format_pref('time_format', mode_sub)
+            Settings.save_format_pref("time_format", mode_sub)
         elif mode == OverlayMode.DATE:
-            Settings.save_format_pref('date_format', mode_sub)
+            Settings.save_format_pref("date_format", mode_sub)
         elif mode == OverlayMode.HARDWARE:
-            Settings.save_format_pref('temp_unit', mode_sub)
+            Settings.save_format_pref("temp_unit", mode_sub)
 
     def _on_text_changed(self, text):
         self._update_selected(require_mode=OverlayMode.CUSTOM, text=text)

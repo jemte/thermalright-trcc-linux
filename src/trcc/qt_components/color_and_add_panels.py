@@ -3,6 +3,7 @@
 ColorPickerPanel: RGB color picker, XY position, font selector, eyedropper.
 AddElementPanel: Create new overlay elements by type with category/metric selection.
 """
+
 from __future__ import annotations
 
 import logging
@@ -36,9 +37,13 @@ class ColorPickerPanel(QFrame):
         super().__init__(parent)
         self.setFixedSize(Sizes.COLOR_PANEL_W, Sizes.COLOR_PANEL_H)
 
-        set_background_pixmap(self, 'ucXiTongXianShiColor1.BackgroundImage.png',
-            Sizes.COLOR_PANEL_W, Sizes.COLOR_PANEL_H,
-            fallback_style=f"background-color: {Colors.PANEL_FALLBACK}; border-radius: 5px;")
+        set_background_pixmap(
+            self,
+            "ucXiTongXianShiColor1.BackgroundImage.png",
+            Sizes.COLOR_PANEL_W,
+            Sizes.COLOR_PANEL_H,
+            fallback_style=f"background-color: {Colors.PANEL_FALLBACK}; border-radius: 5px;",
+        )
 
         self._current_color = QColor(255, 255, 255)
         self._setup_ui()
@@ -122,14 +127,17 @@ class ColorPickerPanel(QFrame):
             btn.setGeometry(
                 Layout.COLOR_SWATCH_X0 + i * Layout.COLOR_SWATCH_DX,
                 Layout.COLOR_SWATCH_PRESET_Y,
-                Layout.COLOR_SWATCH_SIZE, Layout.COLOR_SWATCH_SIZE
+                Layout.COLOR_SWATCH_SIZE,
+                Layout.COLOR_SWATCH_SIZE,
             )
             btn.setStyleSheet(
                 f"QPushButton {{ background-color: rgb({r},{g},{b}); border: none; }}"
                 f"QPushButton:hover {{ border: 1px solid white; }}"
             )
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.clicked.connect(lambda checked, cr=r, cg=g, cb=b: self._set_color_from_swatch(cr, cg, cb))
+            btn.clicked.connect(
+                lambda checked, cr=r, cg=g, cb=b: self._set_color_from_swatch(cr, cg, cb)
+            )
 
         # History color swatches
         self._history_btns = []
@@ -138,7 +146,8 @@ class ColorPickerPanel(QFrame):
             btn.setGeometry(
                 Layout.COLOR_SWATCH_X0 + i * Layout.COLOR_SWATCH_DX,
                 Layout.COLOR_SWATCH_HISTORY_Y,
-                Layout.COLOR_SWATCH_SIZE, Layout.COLOR_SWATCH_SIZE
+                Layout.COLOR_SWATCH_SIZE,
+                Layout.COLOR_SWATCH_SIZE,
             )
             btn.setStyleSheet("background-color: transparent; border: none;")
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -147,7 +156,7 @@ class ColorPickerPanel(QFrame):
         # Eyedropper button (matches Windows buttonGetColor at (12, 276, 48, 48))
         self.eyedropper_btn = QPushButton(self)
         self.eyedropper_btn.setGeometry(*Layout.COLOR_EYEDROPPER)
-        eyedrop_pixmap = Assets.load_pixmap('P吸管.png', 48, 48)
+        eyedrop_pixmap = Assets.load_pixmap("P吸管.png", 48, 48)
         if not eyedrop_pixmap.isNull():
             self.eyedropper_btn.setIcon(QIcon(eyedrop_pixmap))
             self.eyedropper_btn.setIconSize(self.eyedropper_btn.size())
@@ -159,6 +168,7 @@ class ColorPickerPanel(QFrame):
 
     def _pick_color(self):
         from PySide6.QtWidgets import QColorDialog
+
         color = QColorDialog.getColor(self._current_color, self, "Pick Color")
         if color.isValid():
             self._apply_color(color.red(), color.green(), color.blue())
@@ -209,6 +219,7 @@ class ColorPickerPanel(QFrame):
     def _pick_font(self):
         """Open font dialog (matches Windows FontDialog in UCXiTongXianShiColor)."""
         from PySide6.QtWidgets import QFontDialog
+
         current = QFont(self._current_font_name, self._current_font_size)
         ok, font = QFontDialog.getFont(current, self, "Pick Font")
         if ok:
@@ -220,14 +231,12 @@ class ColorPickerPanel(QFrame):
             self.font_size_spin.blockSignals(True)
             self.font_size_spin.setValue(font.pointSize())
             self.font_size_spin.blockSignals(False)
-            self.font_changed.emit(font.family(), font.pointSize(),
-                                   self._current_font_style)
+            self.font_changed.emit(font.family(), font.pointSize(), self._current_font_style)
 
     def _on_font_size_changed(self, size: int):
         """Handle font size spinbox change independently."""
         self._current_font_size = size
-        self.font_changed.emit(self._current_font_name, size,
-                               self._current_font_style)
+        self.font_changed.emit(self._current_font_name, size, self._current_font_style)
 
     def set_font_display(self, font_name, font_size, font_style=0):
         self._current_font_name = font_name
@@ -243,7 +252,7 @@ class AddElementPanel(QFrame):
     """Add new overlay element panel (matches UCXiTongXianShiAdd 230x430)."""
 
     element_added = Signal(object)  # OverlayElementConfig
-    hardware_requested = Signal()   # Show activity sidebar for hardware pick
+    hardware_requested = Signal()  # Show activity sidebar for hardware pick
 
     ELEMENT_TYPES = [
         ("Hardware Data", OverlayMode.HARDWARE),
@@ -257,9 +266,13 @@ class AddElementPanel(QFrame):
         super().__init__(parent)
         self.setFixedSize(Sizes.ADD_PANEL_W, Sizes.ADD_PANEL_H)
 
-        set_background_pixmap(self, 'ucXiTongXianShiAdd1.BackgroundImage.png',
-            Sizes.ADD_PANEL_W, Sizes.ADD_PANEL_H,
-            fallback_style=f"background-color: {Colors.PANEL_FALLBACK}; border-radius: 5px;")
+        set_background_pixmap(
+            self,
+            "ucXiTongXianShiAdd1.BackgroundImage.png",
+            Sizes.ADD_PANEL_W,
+            Sizes.ADD_PANEL_H,
+            fallback_style=f"background-color: {Colors.PANEL_FALLBACK}; border-radius: 5px;",
+        )
 
         self._setup_ui()
 

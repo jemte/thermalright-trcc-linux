@@ -59,8 +59,8 @@ LED_MAGIC = TYPE2_MAGIC
 
 # Packet structure
 LED_HEADER_SIZE = 20
-LED_CMD_INIT = 1      # header[12] = 1 for handshake
-LED_CMD_DATA = 2      # header[12] = 2 for LED data
+LED_CMD_INIT = 1  # header[12] = 1 for handshake
+LED_CMD_DATA = 2  # header[12] = 2 for LED data
 
 # HID report size (UCDevice.cs: ThreadSendDeviceData1, 64-byte chunks)
 HID_REPORT_SIZE = 64
@@ -75,9 +75,8 @@ LED_INIT_SIZE = 64
 LED_RESPONSE_SIZE = 64
 
 # Handshake timing (same as HID Type 2)
-DELAY_PRE_INIT_S = 0.050    # Thread.Sleep(50) before init
-DELAY_POST_INIT_S = 0.200   # Thread.Sleep(200) after init
-
+DELAY_PRE_INIT_S = 0.050  # Thread.Sleep(50) before init
+DELAY_POST_INIT_S = 0.200  # Thread.Sleep(200) after init
 
 
 # LedDeviceStyle, LED_STYLES, PmEntry, PmRegistry, PRESET_COLORS,
@@ -85,14 +84,13 @@ DELAY_POST_INIT_S = 0.200   # Thread.Sleep(200) after init
 # from core.models (canonical location). Re-exported for backward compat.
 
 
-
 # ColorEngine moved to core/color.py — re-exported above for backward compat.
-
 
 
 # =========================================================================
 # Packet builder (from FormLED.cs SendHidVal)
 # =========================================================================
+
 
 class LedPacketBuilder:
     """Builds LED HID packets matching FormLED.cs SendHidVal.
@@ -189,6 +187,7 @@ class LedPacketBuilder:
 # LED HID sender (from UCDevice.cs ThreadSendDeviceData1)
 # =========================================================================
 
+
 class LedHidSender(LedDevice):
     """Sends LED packets via UsbTransport with 64-byte report chunking.
 
@@ -228,13 +227,17 @@ class LedHidSender(LedDevice):
                 time.sleep(DELAY_POST_INIT_S)
 
                 resp = self._transport.read(
-                    EP_READ_01, LED_RESPONSE_SIZE, HANDSHAKE_TIMEOUT_MS,
+                    EP_READ_01,
+                    LED_RESPONSE_SIZE,
+                    HANDSHAKE_TIMEOUT_MS,
                 )
 
                 if len(resp) < 7:
                     log.warning(
                         "LED handshake attempt %d/%d: response too short (%d bytes)",
-                        attempt, HANDSHAKE_MAX_RETRIES, len(resp),
+                        attempt,
+                        HANDSHAKE_MAX_RETRIES,
+                        len(resp),
                     )
                     last_err = RuntimeError(
                         f"LED handshake failed: response too short ({len(resp)} bytes)"
@@ -247,7 +250,8 @@ class LedHidSender(LedDevice):
                 if resp[0:4] != LED_MAGIC:
                     log.warning(
                         "LED handshake: unexpected magic (got %s, expected %s)",
-                        resp[0:4].hex(), LED_MAGIC.hex(),
+                        resp[0:4].hex(),
+                        LED_MAGIC.hex(),
                     )
                 if len(resp) > 12 and resp[12] != 1:
                     log.warning(
@@ -270,9 +274,11 @@ class LedHidSender(LedDevice):
 
                 log.info(
                     "LED handshake: PM=%d SUB=%d style=%s model=%s style_sub=%d",
-                    pm, sub_type,
+                    pm,
+                    sub_type,
                     style.style_id if style else "?",
-                    model_name, style_sub,
+                    model_name,
+                    style_sub,
                 )
 
                 return LedHandshakeInfo(
@@ -288,7 +294,9 @@ class LedHidSender(LedDevice):
             except Exception as e:
                 log.warning(
                     "LED handshake attempt %d/%d failed: %s",
-                    attempt, HANDSHAKE_MAX_RETRIES, e,
+                    attempt,
+                    HANDSHAKE_MAX_RETRIES,
+                    e,
                 )
                 last_err = e
                 if attempt < HANDSHAKE_MAX_RETRIES:
@@ -317,11 +325,11 @@ class LedHidSender(LedDevice):
 
             while remaining > 0:
                 chunk_size = min(remaining, HID_REPORT_SIZE)
-                chunk = packet[offset:offset + chunk_size]
+                chunk = packet[offset : offset + chunk_size]
 
                 # Pad last chunk to report size if needed
                 if len(chunk) < HID_REPORT_SIZE:
-                    chunk = chunk + b'\x00' * (HID_REPORT_SIZE - len(chunk))
+                    chunk = chunk + b"\x00" * (HID_REPORT_SIZE - len(chunk))
 
                 self._transport.write(EP_WRITE_02, chunk, DEFAULT_TIMEOUT_MS)
                 remaining -= chunk_size
@@ -348,6 +356,7 @@ class LedHidSender(LedDevice):
 # Public API
 # =========================================================================
 
+
 def send_led_colors(
     transport: UsbTransport,
     led_colors: List[Tuple[int, int, int]],
@@ -369,9 +378,7 @@ def send_led_colors(
     Returns:
         True if the send succeeded.
     """
-    packet = LedPacketBuilder.build_led_packet(
-        led_colors, is_on, global_on, brightness
-    )
+    packet = LedPacketBuilder.build_led_packet(led_colors, is_on, global_on, brightness)
     sender = LedHidSender(transport)
     return sender.send_led_data(packet)
 
@@ -393,39 +400,39 @@ class _LedProbeCache:
 
     @staticmethod
     def _path() -> Path:
-        config_dir = Path.home() / '.trcc'
+        config_dir = Path.home() / ".trcc"
         config_dir.mkdir(parents=True, exist_ok=True)
-        return config_dir / 'led_probe_cache.json'
+        return config_dir / "led_probe_cache.json"
 
     @staticmethod
-    def _key(vid: int, pid: int, usb_path: str = '') -> str:
+    def _key(vid: int, pid: int, usb_path: str = "") -> str:
         if usb_path:
             return f"{vid:04x}_{pid:04x}_{usb_path}"
         return f"{vid:04x}_{pid:04x}"
 
     @classmethod
-    def save(cls, vid: int, pid: int, info: LedHandshakeInfo,
-             usb_path: str = '') -> None:
+    def save(cls, vid: int, pid: int, info: LedHandshakeInfo, usb_path: str = "") -> None:
         """Cache a successful probe result to disk."""
         import json
+
         try:
             cache_path = cls._path()
             cache = json.loads(cache_path.read_text()) if cache_path.exists() else {}
             cache[cls._key(vid, pid, usb_path)] = {
-                'pm': info.pm,
-                'sub_type': info.sub_type,
-                'model_name': info.model_name,
-                'style_id': info.style.style_id if info.style else 1,
+                "pm": info.pm,
+                "sub_type": info.sub_type,
+                "model_name": info.model_name,
+                "style_id": info.style.style_id if info.style else 1,
             }
             cache_path.write_text(json.dumps(cache))
         except Exception as e:
             log.debug("Failed to save probe cache: %s", e)
 
     @classmethod
-    def load(cls, vid: int, pid: int,
-             usb_path: str = '') -> Optional[LedHandshakeInfo]:
+    def load(cls, vid: int, pid: int, usb_path: str = "") -> Optional[LedHandshakeInfo]:
         """Load a cached probe result from disk."""
         import json
+
         try:
             cache_path = cls._path()
             if not cache_path.exists():
@@ -437,14 +444,14 @@ class _LedProbeCache:
                 entry = cache.get(cls._key(vid, pid))
             if not entry:
                 return None
-            pm = entry['pm']
-            sub_type = entry['sub_type']
+            pm = entry["pm"]
+            sub_type = entry["sub_type"]
             pm_entry = PmRegistry.resolve(pm, sub_type)
             return LedHandshakeInfo(
                 pm=pm,
                 sub_type=sub_type,
                 style=PmRegistry.get_style(pm, sub_type),
-                model_name=entry['model_name'],
+                model_name=entry["model_name"],
                 style_sub=pm_entry.style_sub if pm_entry else 0,
             )
         except Exception as e:
@@ -452,8 +459,9 @@ class _LedProbeCache:
             return None
 
 
-def probe_led_model(vid: int = LED_VID, pid: int = LED_PID,
-                    usb_path: str = '') -> Optional[LedHandshakeInfo]:
+def probe_led_model(
+    vid: int = LED_VID, pid: int = LED_PID, usb_path: str = ""
+) -> Optional[LedHandshakeInfo]:
     """Probe an LED device to discover its model via HID handshake.
 
     Checks the disk cache first (keyed by VID:PID:bus_path).  Only
@@ -477,6 +485,7 @@ def probe_led_model(vid: int = LED_VID, pid: int = LED_PID,
     transport = None
     try:
         from .factory import DeviceProtocolFactory
+
         transport = DeviceProtocolFactory.create_usb_transport(vid, pid)
         transport.open()
         sender = LedHidSender(transport)

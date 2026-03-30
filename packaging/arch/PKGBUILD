@@ -4,7 +4,7 @@ pkgver=8.8.1
 pkgrel=1
 pkgdesc="Thermalright LCD/LED Control Center for Linux"
 arch=('any')
-url="https://github.com/Lexonight1/thermalright-trcc-linux"
+url="https://github.com/jemte/thermalright-trcc-linux"
 license=('GPL-3.0-or-later')
 depends=(
     'python'
@@ -68,8 +68,8 @@ package() {
     done
 
     # polkit policy
-    install -Dm644 src/trcc/assets/com.github.lexonight1.trcc.policy \
-        "${pkgdir}/usr/share/polkit-1/actions/com.github.lexonight1.trcc.policy"
+    install -Dm644 src/trcc/assets/com.github.jemte.trcc.policy \
+        "${pkgdir}/usr/share/polkit-1/actions/com.github.jemte.trcc.policy"
 
     # systemd service
     install -Dm644 src/trcc/assets/trcc-quirk-fix.service \

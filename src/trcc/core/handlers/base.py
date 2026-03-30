@@ -10,6 +10,7 @@ Design notes:
   - Structural contract is HandlerFn = Callable[[Command], CommandResult]
   - __slots__ = () on base so subclass slots work without __dict__ overhead
 """
+
 from __future__ import annotations
 
 from typing import Any, ClassVar
@@ -43,9 +44,7 @@ class DeviceCommandHandler:
         return metrics is not None
 
     def __call__(self, cmd: Command) -> CommandResult:
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement __call__"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement __call__")
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}()"

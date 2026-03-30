@@ -9,6 +9,7 @@ Matches Windows FormScreenshot functionality but adapted for Linux:
 
 Works on both X11 and Wayland via fallback chain.
 """
+
 from __future__ import annotations
 
 import logging
@@ -31,8 +32,9 @@ def is_wayland() -> bool:
     Checks XDG_SESSION_TYPE and WAYLAND_DISPLAY environment variables.
     Result is cached since the session type doesn't change at runtime.
     """
-    return (os.environ.get('XDG_SESSION_TYPE', '').lower() == 'wayland'
-            or bool(os.environ.get('WAYLAND_DISPLAY')))
+    return os.environ.get("XDG_SESSION_TYPE", "").lower() == "wayland" or bool(
+        os.environ.get("WAYLAND_DISPLAY")
+    )
 
 
 def grab_full_screen() -> QPixmap:
@@ -52,14 +54,14 @@ def grab_full_screen() -> QPixmap:
             return pixmap
 
     # Wayland fallback: try external tools
-    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
         tmp_path = f.name
 
     try:
         for cmd in [
-            ['grim', tmp_path],                          # Wayland (wlroots)
-            ['gnome-screenshot', '-f', tmp_path],        # GNOME
-            ['scrot', tmp_path],                         # X11 fallback
+            ["grim", tmp_path],  # Wayland (wlroots)
+            ["gnome-screenshot", "-f", tmp_path],  # GNOME
+            ["scrot", tmp_path],  # X11 fallback
         ]:
             tool = cmd[0]
             try:
@@ -105,14 +107,14 @@ def grab_screen_region(x: int, y: int, w: int, h: int) -> QPixmap:
             return pixmap
 
     # Wayland fallback: grim with -g region flag
-    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
         tmp_path = f.name
 
     try:
         geometry = f"{x},{y} {w}x{h}"
         for cmd in [
-            ['grim', '-g', geometry, tmp_path],            # Wayland (wlroots)
-            ['scrot', '-a', f'{x},{y},{w},{h}', tmp_path], # X11 fallback
+            ["grim", "-g", geometry, tmp_path],  # Wayland (wlroots)
+            ["scrot", "-a", f"{x},{y},{w},{h}", tmp_path],  # X11 fallback
         ]:
             tool = cmd[0]
             try:
@@ -152,10 +154,7 @@ class BaseScreenOverlay(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint
-            | Qt.WindowType.WindowStaysOnTopHint
-        )
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
         self.setMouseTracking(True)
         self.setCursor(Qt.CursorShape.CrossCursor)
         self._screenshot: QPixmap = QPixmap()
@@ -269,8 +268,9 @@ class ScreenCaptureOverlay(BaseScreenOverlay):
             painter.setPen(self._SIZE_TEXT)
             painter.setFont(QFont("sans-serif", 14))
             painter.drawText(
-                self.rect(), Qt.AlignmentFlag.AlignCenter,
-                "Click and drag to select a region\nPress ESC to cancel"
+                self.rect(),
+                Qt.AlignmentFlag.AlignCenter,
+                "Click and drag to select a region\nPress ESC to cancel",
             )
 
         painter.end()

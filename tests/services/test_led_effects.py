@@ -12,6 +12,7 @@ Covers:
 - Multi-zone — per-zone color with brightness scaling
 - _next_sync_zone() — rotation with wrapping
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -20,8 +21,9 @@ from trcc.core.models import HardwareMetrics, LEDMode, LEDState, LEDZoneState
 from trcc.services.led_effects import LEDEffectEngine
 
 
-def _make_engine(state: LEDState | None = None,
-                 metrics: HardwareMetrics | None = None) -> LEDEffectEngine:
+def _make_engine(
+    state: LEDState | None = None, metrics: HardwareMetrics | None = None
+) -> LEDEffectEngine:
     return LEDEffectEngine(
         state or LEDState(),
         metrics or HardwareMetrics(),
@@ -138,7 +140,7 @@ class TestColorfulMode:
 
 
 class TestRainbowMode:
-    @patch('trcc.core.color.ColorEngine')
+    @patch("trcc.core.color.ColorEngine")
     def test_uses_color_table(self, mock_ce):
         table = [(i, 0, 0) for i in range(768)]
         mock_ce.get_table.return_value = table
@@ -147,7 +149,7 @@ class TestRainbowMode:
         assert len(colors) == 3
         mock_ce.get_table.assert_called_once()
 
-    @patch('trcc.core.color.ColorEngine')
+    @patch("trcc.core.color.ColorEngine")
     def test_timer_advances_by_4(self, mock_ce):
         table = [(0, 0, 0)] * 768
         mock_ce.get_table.return_value = table
@@ -156,7 +158,7 @@ class TestRainbowMode:
         engine._tick_rainbow_for(1)
         assert state.rgb_timer == 4
 
-    @patch('trcc.core.color.ColorEngine')
+    @patch("trcc.core.color.ColorEngine")
     def test_per_segment_offset(self, mock_ce):
         """Each segment gets a different color from the table."""
         table = [(i, 0, 0) for i in range(768)]
@@ -174,26 +176,24 @@ class TestRainbowMode:
 
 
 class TestTempLinkedMode:
-    @patch('trcc.core.color.ColorEngine')
+    @patch("trcc.core.color.ColorEngine")
     def test_cpu_temp_source(self, mock_ce):
         mock_ce.color_for_value.return_value = (255, 0, 0)
         metrics = HardwareMetrics(cpu_temp=75.0)
-        state = LEDState(temp_source='cpu')
+        state = LEDState(temp_source="cpu")
         engine = _make_engine(state, metrics)
         colors = engine._tick_temp_linked_for(3)
         assert colors == [(255, 0, 0)] * 3
-        mock_ce.color_for_value.assert_called_once_with(
-            75.0, mock_ce.TEMP_GRADIENT)
+        mock_ce.color_for_value.assert_called_once_with(75.0, mock_ce.TEMP_GRADIENT)
 
-    @patch('trcc.core.color.ColorEngine')
+    @patch("trcc.core.color.ColorEngine")
     def test_gpu_temp_source(self, mock_ce):
         mock_ce.color_for_value.return_value = (0, 0, 255)
         metrics = HardwareMetrics(gpu_temp=80.0)
-        state = LEDState(temp_source='gpu')
+        state = LEDState(temp_source="gpu")
         engine = _make_engine(state, metrics)
         engine._tick_temp_linked_for(2)
-        mock_ce.color_for_value.assert_called_once_with(
-            80.0, mock_ce.TEMP_GRADIENT)
+        mock_ce.color_for_value.assert_called_once_with(80.0, mock_ce.TEMP_GRADIENT)
 
 
 # =========================================================================
@@ -202,25 +202,23 @@ class TestTempLinkedMode:
 
 
 class TestLoadLinkedMode:
-    @patch('trcc.core.color.ColorEngine')
+    @patch("trcc.core.color.ColorEngine")
     def test_cpu_load(self, mock_ce):
         mock_ce.color_for_value.return_value = (0, 255, 0)
         metrics = HardwareMetrics(cpu_percent=45.0)
-        state = LEDState(load_source='cpu')
+        state = LEDState(load_source="cpu")
         engine = _make_engine(state, metrics)
         engine._tick_load_linked_for(2)
-        mock_ce.color_for_value.assert_called_once_with(
-            45.0, mock_ce.LOAD_GRADIENT)
+        mock_ce.color_for_value.assert_called_once_with(45.0, mock_ce.LOAD_GRADIENT)
 
-    @patch('trcc.core.color.ColorEngine')
+    @patch("trcc.core.color.ColorEngine")
     def test_gpu_load(self, mock_ce):
         mock_ce.color_for_value.return_value = (128, 128, 0)
         metrics = HardwareMetrics(gpu_usage=90.0)
-        state = LEDState(load_source='gpu')
+        state = LEDState(load_source="gpu")
         engine = _make_engine(state, metrics)
         engine._tick_load_linked_for(1)
-        mock_ce.color_for_value.assert_called_once_with(
-            90.0, mock_ce.LOAD_GRADIENT)
+        mock_ce.color_for_value.assert_called_once_with(90.0, mock_ce.LOAD_GRADIENT)
 
 
 # =========================================================================
@@ -262,10 +260,8 @@ class TestMultiZone:
         state = LEDState(
             led_count=6,
             zones=[
-                LEDZoneState(mode=LEDMode.STATIC, color=(255, 0, 0),
-                             brightness=100, on=True),
-                LEDZoneState(mode=LEDMode.STATIC, color=(0, 255, 0),
-                             brightness=100, on=True),
+                LEDZoneState(mode=LEDMode.STATIC, color=(255, 0, 0), brightness=100, on=True),
+                LEDZoneState(mode=LEDMode.STATIC, color=(0, 255, 0), brightness=100, on=True),
             ],
         )
         engine = _make_engine(state)
@@ -278,10 +274,8 @@ class TestMultiZone:
         state = LEDState(
             led_count=4,
             zones=[
-                LEDZoneState(mode=LEDMode.STATIC, color=(255, 0, 0),
-                             brightness=100, on=False),
-                LEDZoneState(mode=LEDMode.STATIC, color=(0, 255, 0),
-                             brightness=100, on=True),
+                LEDZoneState(mode=LEDMode.STATIC, color=(255, 0, 0), brightness=100, on=False),
+                LEDZoneState(mode=LEDMode.STATIC, color=(0, 255, 0), brightness=100, on=True),
             ],
         )
         engine = _make_engine(state)
@@ -294,8 +288,7 @@ class TestMultiZone:
         state = LEDState(
             led_count=2,
             zones=[
-                LEDZoneState(mode=LEDMode.STATIC, color=(200, 100, 50),
-                             brightness=50, on=True),
+                LEDZoneState(mode=LEDMode.STATIC, color=(200, 100, 50), brightness=50, on=True),
             ],
         )
         engine = _make_engine(state)
@@ -308,8 +301,7 @@ class TestMultiZone:
         state = LEDState(
             led_count=4,
             zones=[
-                LEDZoneState(mode=LEDMode.STATIC, color=(255, 0, 0),
-                             brightness=100, on=True),
+                LEDZoneState(mode=LEDMode.STATIC, color=(255, 0, 0), brightness=100, on=True),
             ],
         )
         engine = _make_engine(state)
@@ -323,8 +315,7 @@ class TestMultiZone:
         state = LEDState(
             led_count=2,
             zones=[
-                LEDZoneState(mode=LEDMode.STATIC, color=(255, 0, 0),
-                             brightness=100, on=True),
+                LEDZoneState(mode=LEDMode.STATIC, color=(255, 0, 0), brightness=100, on=True),
             ],
         )
         engine = _make_engine(state)
@@ -387,6 +378,7 @@ class TestDispatch:
 
 
 # ── Decoration ring (LF25 sub=1) ─────────────────────────────────
+
 
 class TestDecorationRing:
     """Ring LED computation for sub-variant devices (e.g. LF25)."""

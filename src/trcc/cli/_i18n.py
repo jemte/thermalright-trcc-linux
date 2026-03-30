@@ -1,4 +1,5 @@
 """Language listing and selection CLI commands."""
+
 from __future__ import annotations
 
 from trcc.cli import _cli_handler

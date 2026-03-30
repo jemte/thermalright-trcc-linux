@@ -3,6 +3,7 @@
 Covers every function and branch in conf.py for 100% coverage.
 Uses the tmp_config fixture from conftest.py for filesystem isolation.
 """
+
 from __future__ import annotations
 
 import json
@@ -26,11 +27,12 @@ from trcc.conf import (
 def _mock_resolver():
     """Create a mock path resolver for Settings DI in tests."""
     r = MagicMock()
-    r.data_dir.return_value = '/tmp/trcc/data'
-    r.web_dir.side_effect = lambda w, h: f'/tmp/trcc/data/web/{w}{h}'
-    r.web_masks_dir.side_effect = lambda w, h: f'/tmp/trcc/data/web/zt{w}{h}'
-    r.user_masks_dir.side_effect = lambda w, h: f'/tmp/trcc-user/data/web/zt{w}{h}'
+    r.data_dir.return_value = "/tmp/trcc/data"
+    r.web_dir.side_effect = lambda w, h: f"/tmp/trcc/data/web/{w}{h}"
+    r.web_masks_dir.side_effect = lambda w, h: f"/tmp/trcc/data/web/zt{w}{h}"
+    r.user_masks_dir.side_effect = lambda w, h: f"/tmp/trcc-user/data/web/zt{w}{h}"
     return r
+
 
 # =========================================================================
 # load_config / save_config
@@ -42,6 +44,7 @@ class TestLoadConfig:
 
     def test_returns_empty_dict_when_file_missing(self, tmp_config):
         from trcc.conf import CONFIG_PATH
+
         if os.path.exists(CONFIG_PATH):
             os.remove(CONFIG_PATH)
         assert load_config() == {}
@@ -64,6 +67,7 @@ class TestLoadConfig:
 
         def _bad_open(path, *a, **kw):
             from trcc.conf import CONFIG_PATH
+
             if str(path) == CONFIG_PATH:
                 raise OSError("permission denied")
             return real_open(path, *a, **kw)
@@ -103,6 +107,7 @@ class TestHandshakeCache:
 
     def test_load_returns_empty_on_corrupt_json(self, tmp_config):
         from trcc.conf import _HANDSHAKE_CACHE_PATH
+
         with open(_HANDSHAKE_CACHE_PATH, "w") as f:
             f.write("not json{{{")
         assert load_last_handshake() == {}
@@ -114,6 +119,7 @@ class TestHandshakeCache:
 
         def _bad_open(path, *a, **kw):
             from trcc.conf import _HANDSHAKE_CACHE_PATH
+
             if str(path) == _HANDSHAKE_CACHE_PATH:
                 raise OSError("disk error")
             return real_open(path, *a, **kw)
@@ -132,6 +138,7 @@ class TestMigrateConfig:
 
     def test_no_op_when_version_matches(self, tmp_config):
         from trcc.__version__ import __version__
+
         save_config({"config_version": __version__, "devices": {"0": {"vid_pid": "1234_5678"}}})
         _migrate_config()
         cfg = load_config()
@@ -140,21 +147,25 @@ class TestMigrateConfig:
     def test_first_run_sets_version_no_clear(self, tmp_config):
         """No saved_version (fresh install) — just sets config_version."""
         from trcc.__version__ import __version__
+
         _migrate_config()
         cfg = load_config()
         assert cfg["config_version"] == __version__
 
     def test_clears_device_state_on_version_mismatch(self, tmp_config):
         from trcc.__version__ import __version__
-        save_config({
-            "config_version": "0.0.1",
-            "devices": {"0": {"vid_pid": "1234_5678", "theme": "dark"}},
-            "resolution": [480, 480],
-            "selected_device": "/dev/sg0",
-            "installed_resolutions": {"320320": True},
-            "temp_unit": 1,
-            "lang": "de",
-        })
+
+        save_config(
+            {
+                "config_version": "0.0.1",
+                "devices": {"0": {"vid_pid": "1234_5678", "theme": "dark"}},
+                "resolution": [480, 480],
+                "selected_device": "/dev/sg0",
+                "installed_resolutions": {"320320": True},
+                "temp_unit": 1,
+                "lang": "de",
+            }
+        )
         _migrate_config()
         cfg = load_config()
         # Device-derived keys cleared
@@ -169,6 +180,7 @@ class TestMigrateConfig:
 
     def test_deletes_led_probe_cache_on_version_mismatch(self, tmp_config):
         from trcc.conf import CONFIG_DIR
+
         probe_cache = os.path.join(CONFIG_DIR, "led_probe_cache.json")
         with open(probe_cache, "w") as f:
             json.dump({"stale": True}, f)
@@ -179,12 +191,14 @@ class TestMigrateConfig:
     def test_handles_led_probe_cache_delete_failure(self, tmp_config, monkeypatch):
         """OSError on probe cache delete is logged, not raised."""
         from trcc.conf import CONFIG_DIR
+
         probe_cache = os.path.join(CONFIG_DIR, "led_probe_cache.json")
         with open(probe_cache, "w") as f:
             json.dump({"stale": True}, f)
         save_config({"config_version": "0.0.1"})
 
         real_remove = os.remove
+
         def _fail_remove(path):
             if "led_probe_cache" in str(path):
                 raise OSError("permission denied")
@@ -425,9 +439,11 @@ class TestSettingsInit:
     """Settings.__init__: loads config, resolves paths."""
 
     def test_init_loads_defaults(self, tmp_config):
-        with patch("trcc.conf._migrate_config"), \
-             patch("trcc.conf.ThemeDir.for_resolution") as mock_td, \
-             patch("trcc.conf.ThemeDir.for_resolution") as mock_td2:
+        with (
+            patch("trcc.conf._migrate_config"),
+            patch("trcc.conf.ThemeDir.for_resolution") as mock_td,
+            patch("trcc.conf.ThemeDir.for_resolution") as mock_td2,
+        ):
             mock_td.return_value = MagicMock()
             if mock_td2:
                 mock_td2.return_value = MagicMock()
@@ -437,15 +453,19 @@ class TestSettingsInit:
         assert s.hdd_enabled is True
 
     def test_init_loads_saved_state(self, tmp_config):
-        save_config({
-            "resolution": [480, 480],
-            "temp_unit": 1,
-            "hdd_enabled": False,
-            "lang": "de",
-        })
-        with patch("trcc.conf._migrate_config"), \
-             patch("trcc.conf.ThemeDir.for_resolution") as mock_td, \
-             patch("trcc.conf.ThemeDir.for_resolution") as mock_td2:
+        save_config(
+            {
+                "resolution": [480, 480],
+                "temp_unit": 1,
+                "hdd_enabled": False,
+                "lang": "de",
+            }
+        )
+        with (
+            patch("trcc.conf._migrate_config"),
+            patch("trcc.conf.ThemeDir.for_resolution") as mock_td,
+            patch("trcc.conf.ThemeDir.for_resolution") as mock_td2,
+        ):
             mock_td.return_value = MagicMock()
             if mock_td2:
                 mock_td2.return_value = MagicMock()
@@ -460,8 +480,10 @@ class TestSettingsInit:
     def test_init_zero_resolution_skips_resolve(self, tmp_config):
         """If saved resolution is (0, 0), _resolve_paths is not called."""
         save_config({"resolution": [0, 0]})
-        with patch("trcc.conf._migrate_config"), \
-             patch("trcc.conf.ThemeDir.for_resolution") as mock_td:
+        with (
+            patch("trcc.conf._migrate_config"),
+            patch("trcc.conf.ThemeDir.for_resolution") as mock_td,
+        ):
             s = Settings(_mock_resolver())
         mock_td.assert_not_called()
         assert s.theme_dir is None
@@ -480,8 +502,10 @@ class TestSettingsInstance:
     @pytest.fixture
     def settings(self, tmp_config):
         """Create a Settings instance with mock path resolver (DI)."""
-        with patch("trcc.conf._migrate_config"), \
-             patch("trcc.conf.ThemeDir.for_resolution", return_value=MagicMock()):
+        with (
+            patch("trcc.conf._migrate_config"),
+            patch("trcc.conf.ThemeDir.for_resolution", return_value=MagicMock()),
+        ):
             s = Settings(_mock_resolver())
         return s
 
@@ -523,9 +547,11 @@ class TestSettingsInstance:
     def test_get_saved_lang_falls_back_to_detect(self, tmp_config, monkeypatch):
         """No saved lang in config -> falls back to _detect_language."""
         monkeypatch.setattr("locale.getlocale", lambda: ("ja_JP", "UTF-8"))
-        with patch("trcc.conf._migrate_config"), \
-             patch("trcc.conf.ThemeDir.for_resolution") as mock_td, \
-             patch("trcc.conf.ThemeDir.for_resolution") as mock_td2:
+        with (
+            patch("trcc.conf._migrate_config"),
+            patch("trcc.conf.ThemeDir.for_resolution") as mock_td,
+            patch("trcc.conf.ThemeDir.for_resolution") as mock_td2,
+        ):
             mock_td.return_value = MagicMock()
             if mock_td2:
                 mock_td2.return_value = MagicMock()
@@ -535,9 +561,11 @@ class TestSettingsInstance:
     def test_get_saved_lang_uses_saved(self, tmp_config):
         """Saved lang in config is used directly."""
         save_config({"lang": "es"})
-        with patch("trcc.conf._migrate_config"), \
-             patch("trcc.conf.ThemeDir.for_resolution") as mock_td, \
-             patch("trcc.conf.ThemeDir.for_resolution") as mock_td2:
+        with (
+            patch("trcc.conf._migrate_config"),
+            patch("trcc.conf.ThemeDir.for_resolution") as mock_td,
+            patch("trcc.conf.ThemeDir.for_resolution") as mock_td2,
+        ):
             mock_td.return_value = MagicMock()
             if mock_td2:
                 mock_td2.return_value = MagicMock()
@@ -547,9 +575,11 @@ class TestSettingsInstance:
     def test_get_saved_lang_migrates_legacy_code(self, tmp_config):
         """Legacy C# suffix in config.json is auto-migrated to ISO 639-1."""
         save_config({"lang": "d"})
-        with patch("trcc.conf._migrate_config"), \
-             patch("trcc.conf.ThemeDir.for_resolution") as mock_td, \
-             patch("trcc.conf.ThemeDir.for_resolution") as mock_td2:
+        with (
+            patch("trcc.conf._migrate_config"),
+            patch("trcc.conf.ThemeDir.for_resolution") as mock_td,
+            patch("trcc.conf.ThemeDir.for_resolution") as mock_td2,
+        ):
             mock_td.return_value = MagicMock()
             if mock_td2:
                 mock_td2.return_value = MagicMock()
@@ -571,8 +601,10 @@ class TestResolveCloudDirs:
         """Settings with a non-square resolution (1280x480)."""
         save_config({"resolution": [1280, 480]})
         self._resolver = _mock_resolver()
-        with patch("trcc.conf._migrate_config"), \
-             patch("trcc.conf.ThemeDir.for_resolution", return_value=MagicMock()):
+        with (
+            patch("trcc.conf._migrate_config"),
+            patch("trcc.conf.ThemeDir.for_resolution", return_value=MagicMock()),
+        ):
             s = Settings(self._resolver)
         return s
 
@@ -583,7 +615,7 @@ class TestResolveCloudDirs:
     def test_rotation_90_swaps_to_portrait(self, settings):
         settings.resolve_cloud_dirs(90)
         self._resolver.web_dir.assert_called_with(480, 1280)
-        assert '4801280' in str(settings.web_dir)
+        assert "4801280" in str(settings.web_dir)
 
     def test_rotation_270_swaps_to_portrait(self, settings):
         settings.resolve_cloud_dirs(270)
@@ -596,8 +628,10 @@ class TestResolveCloudDirs:
     def test_square_display_no_swap(self, tmp_config):
         """Square resolution (320x320) never swaps, even at 90 degrees."""
         r = _mock_resolver()
-        with patch("trcc.conf._migrate_config"), \
-             patch("trcc.conf.ThemeDir.for_resolution", return_value=MagicMock()):
+        with (
+            patch("trcc.conf._migrate_config"),
+            patch("trcc.conf.ThemeDir.for_resolution", return_value=MagicMock()),
+        ):
             s = Settings(r)
         s.resolve_cloud_dirs(90)
         r.web_dir.assert_called_with(320, 320)
@@ -619,8 +653,10 @@ class TestResolvePaths:
     def test_sets_all_three_paths(self, tmp_config):
         r = _mock_resolver()
         mock_td = MagicMock()
-        with patch("trcc.conf._migrate_config"), \
-             patch("trcc.conf.ThemeDir.for_resolution", return_value=mock_td):
+        with (
+            patch("trcc.conf._migrate_config"),
+            patch("trcc.conf.ThemeDir.for_resolution", return_value=mock_td),
+        ):
             s = Settings(r)
         assert s.theme_dir is mock_td
         assert s.web_dir is not None
@@ -639,7 +675,9 @@ class TestSettingsProperties:
 
     def test_user_data_dir(self, tmp_config):
         r = _mock_resolver()
-        with patch("trcc.conf._migrate_config"), \
-             patch("trcc.conf.ThemeDir.for_resolution", return_value=MagicMock()):
+        with (
+            patch("trcc.conf._migrate_config"),
+            patch("trcc.conf.ThemeDir.for_resolution", return_value=MagicMock()),
+        ):
             s = Settings(r)
         assert s.user_data_dir == Path(r.data_dir())

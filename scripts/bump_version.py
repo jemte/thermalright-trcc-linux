@@ -3,6 +3,7 @@
 
 Usage: python3 scripts/bump_version.py 6.5.3
 """
+
 from __future__ import annotations
 
 import re
@@ -62,8 +63,8 @@ def bump(new: str) -> None:
     text = re.sub(r"pkgver = \S+", f"pkgver = {new}", text)
     text = re.sub(
         r"source = trcc-linux-\S+\.tar\.gz::.*",
-        f"source = trcc-linux-{new}.tar.gz::"
-        f"https://github.com/Lexonight1/thermalright-trcc-linux/archive/v{new}.tar.gz",
+        f"source = trcc-linuxjemte.gz::"
+        f"https://github.com/jemte/thermalright-trcc-linux/archive/v{new}.tar.gz",
         text,
     )
     srcinfo.write_text(text)
@@ -76,7 +77,7 @@ def bump(new: str) -> None:
     entry = (
         f"trcc-linux ({new}-1) unstable; urgency=medium\n"
         f"\n"
-        f"  * See https://github.com/Lexonight1/thermalright-trcc-linux/releases/tag/v{new}\n"
+        f"  * See https://github.com/jemte/thermalright-trcc-linux/releases/tag/v{new}\n"
         f"\n"
         f" -- TRCC Linux Contributors <noreply@github.com>  {day}\n"
         f"\n"

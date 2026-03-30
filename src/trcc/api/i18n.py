@@ -1,4 +1,5 @@
 """Internationalization endpoints — language listing and selection."""
+
 from __future__ import annotations
 
 import logging

@@ -3,6 +3,7 @@
 Pure Python (FFmpeg via media_player decoders), no Qt dependencies.
 Owns all playback state — decoders are pure frame sources.
 """
+
 from __future__ import annotations
 
 import logging
@@ -20,8 +21,7 @@ class MediaService:
     # LCD send interval: send every Nth frame.
     LCD_SEND_INTERVAL = 1
 
-    def __init__(self, video_decoder_cls: Any = None,
-                 zt_decoder_cls: Any = None) -> None:
+    def __init__(self, video_decoder_cls: Any = None, zt_decoder_cls: Any = None) -> None:
         self._video_decoder_cls = video_decoder_cls
         self._zt_decoder_cls = zt_decoder_cls
         self._state = VideoState()
@@ -29,7 +29,7 @@ class MediaService:
         self._delays: list[int] = []  # Per-frame delays (ms), for .zt files
         self._source_path: Path | None = None
         self._target_size: tuple[int, int] = (320, 320)
-        self._fit_mode: str = 'fill'  # 'fill', 'width', 'height'
+        self._fit_mode: str = "fill"  # 'fill', 'width', 'height'
         self._decoder: Any = None
         self._frame_counter = 0
         self._progress_counter = 0
@@ -39,7 +39,8 @@ class MediaService:
         if self._video_decoder_cls is None or self._zt_decoder_cls is None:
             raise RuntimeError(
                 "MediaService requires video_decoder_cls and zt_decoder_cls. "
-                "Use ControllerBuilder to wire dependencies.")
+                "Use ControllerBuilder to wire dependencies."
+            )
         return self._video_decoder_cls, self._zt_decoder_cls
 
     # ── Target size ──────────────────────────────────────────────────
@@ -53,17 +54,19 @@ class MediaService:
         C# UCBoFangQiKongZhi: buttonTPJCW (width-fit) / buttonTPJCH (height-fit).
         Returns True if frames were reloaded.
         """
-        if mode not in ('fill', 'width', 'height'):
-            mode = 'fill'
+        if mode not in ("fill", "width", "height"):
+            mode = "fill"
         self._fit_mode = mode
         # Re-decode if a video source exists (.zt is pre-rendered, skip)
-        if (self._source_path and self._source_path.exists()
-                and self._source_path.suffix.lower() != '.zt'):
+        if (
+            self._source_path
+            and self._source_path.exists()
+            and self._source_path.suffix.lower() != ".zt"
+        ):
             current_frame = self._state.current_frame
             was_playing = self.is_playing
             if self.load(self._source_path):
-                self._state.current_frame = min(
-                    current_frame, max(0, self._state.total_frames - 1))
+                self._state.current_frame = min(current_frame, max(0, self._state.total_frames - 1))
                 if was_playing:
                     self.play()
                 return True
@@ -89,7 +92,7 @@ class MediaService:
             VideoDecoder, ThemeZtDecoder = self._get_decoders()
 
             suffix = path.suffix.lower()
-            if suffix == '.zt':
+            if suffix == ".zt":
                 try:
                     self._decoder = ThemeZtDecoder(str(path), self._target_size)
                     self._delays = list(self._decoder.delays)
@@ -97,10 +100,10 @@ class MediaService:
                     # Not a valid .zt archive (e.g. MP4 renamed to .zt by
                     # older save code) — fall back to video decoder
                     self._decoder = VideoDecoder(
-                        str(path), self._target_size, fit_mode=self._fit_mode)
+                        str(path), self._target_size, fit_mode=self._fit_mode
+                    )
             else:
-                self._decoder = VideoDecoder(
-                    str(path), self._target_size, fit_mode=self._fit_mode)
+                self._decoder = VideoDecoder(str(path), self._target_size, fit_mode=self._fit_mode)
 
             self._state.total_frames = self._decoder.frame_count
             self._state.fps = self._decoder.fps if self._decoder.fps > 0 else 16
@@ -138,8 +141,7 @@ class MediaService:
     def seek(self, percent: float) -> None:
         if self._state.total_frames > 0:
             frame = int((percent / 100) * self._state.total_frames)
-            self._state.current_frame = max(
-                0, min(frame, self._state.total_frames - 1))
+            self._state.current_frame = max(0, min(frame, self._state.total_frames - 1))
 
     # ── Frame access ─────────────────────────────────────────────────
 
@@ -232,4 +234,3 @@ class MediaService:
     @property
     def state(self) -> VideoState:
         return self._state
-

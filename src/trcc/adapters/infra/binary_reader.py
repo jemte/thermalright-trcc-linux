@@ -11,7 +11,7 @@ import struct
 class BinaryReader:
     """Sequential binary reader mirroring C# BinaryReader used in Windows TRCC."""
 
-    __slots__ = ('data', 'pos')
+    __slots__ = ("data", "pos")
 
     def __init__(self, data: bytes, pos: int = 0):
         self.data = data
@@ -20,7 +20,7 @@ class BinaryReader:
     def read_int32(self) -> int:
         if self.pos + 4 > len(self.data):
             raise IndexError("End of data")
-        val = struct.unpack_from('<i', self.data, self.pos)[0]
+        val = struct.unpack_from("<i", self.data, self.pos)[0]
         self.pos += 4
         return val
 
@@ -38,7 +38,7 @@ class BinaryReader:
         self.pos += 1
         if length > 0 and self.pos + length <= len(self.data):
             try:
-                s = self.data[self.pos:self.pos + length].decode('utf-8')
+                s = self.data[self.pos : self.pos + length].decode("utf-8")
             except (UnicodeDecodeError, ValueError):
                 s = ""
             self.pos += length
@@ -48,7 +48,7 @@ class BinaryReader:
     def read_float(self) -> float:
         if self.pos + 4 > len(self.data):
             raise IndexError("End of data")
-        val = struct.unpack_from('<f', self.data, self.pos)[0]
+        val = struct.unpack_from("<f", self.data, self.pos)[0]
         self.pos += 4
         return val
 
@@ -63,7 +63,7 @@ class BinaryReader:
         """Read exactly n bytes and advance position."""
         if self.pos + n > len(self.data):
             raise IndexError("End of data")
-        chunk = self.data[self.pos:self.pos + n]
+        chunk = self.data[self.pos : self.pos + n]
         self.pos += n
         return chunk
 

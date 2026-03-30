@@ -6,6 +6,7 @@ Coverage targets:
   - EnsureDataCommand fired when LCD has a known resolution
   - Observer notified with correct events
 """
+
 from __future__ import annotations
 
 import threading
@@ -19,24 +20,32 @@ from trcc.core.models import DetectedDevice
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
+
 def _detected(usb_path: str = "2-1", protocol: str = "scsi") -> DetectedDevice:
     return DetectedDevice(
-        vid=0x87CD, pid=0x70DB,
-        vendor_name="Thermalright", product_name="LCD",
-        usb_path=usb_path, protocol=protocol,
+        vid=0x87CD,
+        pid=0x70DB,
+        vendor_name="Thermalright",
+        product_name="LCD",
+        usb_path=usb_path,
+        protocol=protocol,
     )
 
 
 def _detected_led(usb_path: str = "2-2") -> DetectedDevice:
     return DetectedDevice(
-        vid=0x0416, pid=0x8001,
-        vendor_name="Winbond", product_name="LED",
-        usb_path=usb_path, protocol="hid",
+        vid=0x0416,
+        pid=0x8001,
+        vendor_name="Winbond",
+        product_name="LED",
+        usb_path=usb_path,
+        protocol="hid",
     )
 
 
 def _mock_lcd_device(path: str = "2-1", resolution: tuple = (320, 320)):
     from trcc.core.lcd_device import LCDDevice
+
     dev = MagicMock(spec=LCDDevice)
     dev.is_lcd = True
     dev.is_led = False
@@ -49,6 +58,7 @@ def _mock_lcd_device(path: str = "2-1", resolution: tuple = (320, 320)):
 
 def _mock_led_device(path: str = "2-2"):
     from trcc.core.led_device import LEDDevice
+
     dev = MagicMock(spec=LEDDevice)
     dev.is_lcd = False
     dev.is_led = True
@@ -72,6 +82,7 @@ def app():
 
 
 # ── scan() — no devices ───────────────────────────────────────────────────────
+
 
 class TestScanEmpty:
     def test_returns_empty_list(self, app):
@@ -98,6 +109,7 @@ class TestScanEmpty:
 
 
 # ── scan() — single LCD device ───────────────────────────────────────────────
+
 
 class TestScanSingleLcd:
     @pytest.fixture()
@@ -138,7 +150,7 @@ class TestScanSingleLcd:
         called_with = []
         app._ensure_data_fn = lambda w, h, progress_fn=None: called_with.append((w, h))
 
-        with patch.object(app._os_bus, 'dispatch'):
+        with patch.object(app._os_bus, "dispatch"):
             app.bootstrap()
 
         assert (320, 320) in called_with
@@ -154,13 +166,14 @@ class TestScanSingleLcd:
         called_with = []
         app._ensure_data_fn = lambda w, h, progress_fn=None: called_with.append((w, h))
 
-        with patch.object(app._os_bus, 'dispatch'):
+        with patch.object(app._os_bus, "dispatch"):
             app.bootstrap()
 
         assert called_with == []
 
 
 # ── scan() — single LED device ───────────────────────────────────────────────
+
 
 class TestScanSingleLed:
     @pytest.fixture()
@@ -189,6 +202,7 @@ class TestScanSingleLed:
 
 
 # ── scan() — parallel connect ────────────────────────────────────────────────
+
 
 class TestScanParallel:
     def test_all_devices_connected(self, app):
@@ -267,6 +281,7 @@ class TestScanParallel:
 
 # ── bootstrap() ──────────────────────────────────────────────────────────────
 
+
 class TestBootstrap:
     def test_dispatches_init_platform_then_scans(self, app):
         """bootstrap() must call InitPlatformCommand then scan()."""
@@ -279,20 +294,22 @@ class TestBootstrap:
 
         app.scan = tracking_scan
 
-        with patch.object(app._os_bus, 'dispatch') as mock_dispatch:
+        with patch.object(app._os_bus, "dispatch") as mock_dispatch:
             app.bootstrap()
 
         from trcc.core.commands.initialize import InitPlatformCommand
+
         mock_dispatch.assert_called_once()
         assert isinstance(mock_dispatch.call_args[0][0], InitPlatformCommand)
         assert len(scan_called) == 1
 
     def test_passes_renderer_factory_to_init_command(self, app):
         renderer_factory = MagicMock()
-        with patch.object(app._os_bus, 'dispatch') as mock_dispatch:
+        with patch.object(app._os_bus, "dispatch") as mock_dispatch:
             app.bootstrap(renderer_factory=renderer_factory)
 
         from trcc.core.commands.initialize import InitPlatformCommand
+
         cmd = mock_dispatch.call_args[0][0]
         assert isinstance(cmd, InitPlatformCommand)
         assert cmd.renderer_factory is renderer_factory
@@ -304,13 +321,13 @@ class TestBootstrap:
         app._builder.build_device.return_value = lcd_dev
         app.build_lcd_bus = TrccApp.build_lcd_bus.__get__(app, TrccApp)
 
-        with patch.object(app._os_bus, 'dispatch'):
+        with patch.object(app._os_bus, "dispatch"):
             result = app.bootstrap()
 
         assert len(result) == 1
 
     def test_no_renderer_factory_still_works(self, app):
-        with patch.object(app._os_bus, 'dispatch') as mock_dispatch:
+        with patch.object(app._os_bus, "dispatch") as mock_dispatch:
             app.bootstrap()
 
         cmd = mock_dispatch.call_args[0][0]
@@ -318,13 +335,16 @@ class TestBootstrap:
 
     def test_bootstrap_calls_ensure_data_blocking(self, app):
         """bootstrap() must call _ensure_data_blocking after scan()."""
-        with patch.object(app._os_bus, 'dispatch'), \
-             patch.object(app, '_ensure_data_blocking') as mock_ensure:
+        with (
+            patch.object(app._os_bus, "dispatch"),
+            patch.object(app, "_ensure_data_blocking") as mock_ensure,
+        ):
             app.bootstrap()
         mock_ensure.assert_called_once_with()
 
 
 # ── _ensure_data_blocking() ───────────────────────────────────────────────────
+
 
 class TestEnsureDataBlocking:
     @pytest.fixture()
@@ -366,6 +386,7 @@ class TestEnsureDataBlocking:
     def test_ensure_fn_receives_progress_callback(self, lcd_app_with_ensure):
         """ensure_fn must receive a progress_fn kwarg that fires BOOTSTRAP_PROGRESS."""
         from trcc.core.app import AppEvent, AppObserver
+
         app, _ = lcd_app_with_ensure
         events: list[str] = []
 
@@ -383,6 +404,7 @@ class TestEnsureDataBlocking:
 
 
 # ── device_connected() / device_lost() ───────────────────────────────────────
+
 
 class TestHotPlug:
     def test_device_connected_wires_lcd_bus(self, app):
@@ -455,6 +477,7 @@ class TestHotPlug:
 
 
 # ── IPC handler injection via _wire_bus ───────────────────────────────────────
+
 
 class TestWireBusIpcInjection:
     def test_find_active_fn_injected_into_lcd_device(self, app):

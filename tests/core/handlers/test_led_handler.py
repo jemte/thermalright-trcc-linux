@@ -1,4 +1,5 @@
 """Tests for core/handlers/led.py — LEDCommandHandler + LEDGuiCommandHandler + factories."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -41,6 +42,7 @@ def _mock_led() -> MagicMock:
 
 
 # ── LEDCommandHandler dispatch ────────────────────────────────────────────────
+
 
 class TestLEDCommandHandlerDispatch:
     def test_set_color(self):
@@ -101,6 +103,7 @@ class TestLEDCommandHandlerDispatch:
 
 # ── Metrics validation — symmetric with LCD ───────────────────────────────────
 
+
 class TestLEDMetricsValidation:
     def test_valid_metrics_dispatched(self):
         led = _mock_led()
@@ -124,6 +127,7 @@ class TestLEDMetricsValidation:
 
 
 # ── LEDGuiCommandHandler ──────────────────────────────────────────────────────
+
 
 class TestLEDGuiCommandHandler:
     def test_color_calls_update_not_set(self):
@@ -153,6 +157,7 @@ class TestLEDGuiCommandHandler:
 
 
 # ── bus factories ─────────────────────────────────────────────────────────────
+
 
 class TestBuildLedBus:
     def test_returns_command_bus(self):
@@ -199,6 +204,7 @@ class TestBuildLedGuiBus:
 
 
 # ── __repr__ ──────────────────────────────────────────────────────────────────
+
 
 class TestLEDHandlerRepr:
     def test_repr_includes_class_name(self):

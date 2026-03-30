@@ -34,17 +34,28 @@ def _ensure_thumb_gif(mp4_path: str, size: int = Sizes.THUMB_IMAGE) -> str | Non
 
     Returns path to the GIF, or None if ffmpeg fails.
     """
-    gif_path = Path(mp4_path).with_suffix('.gif')
+    gif_path = Path(mp4_path).with_suffix(".gif")
     if gif_path.exists():
         return str(gif_path)
     try:
-        subprocess.run([
-            'ffmpeg', '-i', mp4_path,
-            '-vf', f'scale={size}:{size}:force_original_aspect_ratio=decrease,'
-                   f'pad={size}:{size}:(ow-iw)/2:(oh-ih)/2:black,'
-                   'fps=8',
-            '-loop', '0', '-y', str(gif_path),
-        ], capture_output=True, timeout=30, creationflags=_NO_WINDOW)
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-i",
+                mp4_path,
+                "-vf",
+                f"scale={size}:{size}:force_original_aspect_ratio=decrease,"
+                f"pad={size}:{size}:(ow-iw)/2:(oh-ih)/2:black,"
+                "fps=8",
+                "-loop",
+                "0",
+                "-y",
+                str(gif_path),
+            ],
+            capture_output=True,
+            timeout=30,
+            creationflags=_NO_WINDOW,
+        )
         if gif_path.exists():
             return str(gif_path)
     except Exception:
@@ -82,13 +93,11 @@ class CloudThemeThumbnail(BaseThumbnail):
             gif_path = _ensure_thumb_gif(video)
             if gif_path:
                 self._movie = QMovie(gif_path)
-                self._movie.setScaledSize(
-                    QSize(Sizes.THUMB_IMAGE, Sizes.THUMB_IMAGE))
+                self._movie.setScaledSize(QSize(Sizes.THUMB_IMAGE, Sizes.THUMB_IMAGE))
                 self.thumb_label.setMovie(self._movie)
                 return
         # Fall back to static PNG
         super()._load_thumbnail()
-
 
 
 class UCThemeWeb(DownloadableThemeBrowser):
@@ -103,11 +112,13 @@ class UCThemeWeb(DownloadableThemeBrowser):
     CMD_THEME_SELECTED = 16
     CMD_CATEGORY_CHANGED = 4
 
-    def __init__(self,
-                 download_fn: Callable[[str, str, str], str | None] | None = None,
-                 extract_fn: Callable[[str, str], None] | None = None,
-                 parent=None):
-        self.current_category = 'all'
+    def __init__(
+        self,
+        download_fn: Callable[[str, str, str], str | None] | None = None,
+        extract_fn: Callable[[str, str], None] | None = None,
+        parent=None,
+    ):
+        self.current_category = "all"
         self.web_directory = None
         self._resolution = "320x320"
         self._download_fn = download_fn
@@ -125,7 +136,7 @@ class UCThemeWeb(DownloadableThemeBrowser):
     def _set_movies_running(self, running: bool) -> None:
         """Start or stop all QMovie animations on cloud thumbnails."""
         for widget in self.item_widgets:
-            movie = getattr(widget, '_movie', None)
+            movie = getattr(widget, "_movie", None)
             if movie:
                 movie.start() if running else movie.stop()
 
@@ -136,11 +147,12 @@ class UCThemeWeb(DownloadableThemeBrowser):
         self._btn_refs = [btn_normal, btn_active]
 
         for cat_id, x, y, w, h in Layout.WEB_CATEGORIES:
-            btn = self._make_filter_button(x, y, w, h, btn_normal, btn_active,
-                lambda checked, c=cat_id: self._set_category(c))
+            btn = self._make_filter_button(
+                x, y, w, h, btn_normal, btn_active, lambda checked, c=cat_id: self._set_category(c)
+            )
             self.cat_buttons[cat_id] = btn
 
-        self.cat_buttons['all'].setChecked(True)
+        self.cat_buttons["all"].setChecked(True)
 
     def _create_thumbnail(self, item_info: CloudThemeItem) -> CloudThemeThumbnail:
         return CloudThemeThumbnail(item_info)
@@ -172,7 +184,7 @@ class UCThemeWeb(DownloadableThemeBrowser):
         if not self.web_directory:
             return
         # Check if PNGs already exist
-        if list(self.web_directory.glob('*.png')):
+        if list(self.web_directory.glob("*.png")):
             return
         # Look for .7z archive next to the directory (Web/{resolution}.7z)
         archive = self.web_directory.parent / f"{self.web_directory.name}.7z"
@@ -202,14 +214,14 @@ class UCThemeWeb(DownloadableThemeBrowser):
 
         # Find cached MP4s (already downloaded)
         cached = set()
-        for mp4 in self.web_directory.glob('*.mp4'):
+        for mp4 in self.web_directory.glob("*.mp4"):
             cached.add(mp4.stem)
 
         # Scan for preview PNGs (matches Windows CheakWebFile)
         known_ids = []
-        for png in sorted(self.web_directory.glob('*.png')):
+        for png in sorted(self.web_directory.glob("*.png")):
             theme_id = png.stem
-            if self.current_category != 'all':
+            if self.current_category != "all":
                 if not theme_id.startswith(self.current_category):
                     continue
             known_ids.append(theme_id)
@@ -219,16 +231,23 @@ class UCThemeWeb(DownloadableThemeBrowser):
             is_local = theme_id in cached
             preview_path = self.web_directory / f"{theme_id}.png"
 
-            themes.append(CloudThemeItem(
-                name=theme_id,
-                id=theme_id,
-                video=str(self.web_directory / f"{theme_id}.mp4") if is_local else None,
-                preview=str(preview_path) if preview_path.exists() else None,
-                is_local=is_local,
-            ))
+            themes.append(
+                CloudThemeItem(
+                    name=theme_id,
+                    id=theme_id,
+                    video=str(self.web_directory / f"{theme_id}.mp4") if is_local else None,
+                    preview=str(preview_path) if preview_path.exists() else None,
+                    is_local=is_local,
+                )
+            )
 
-        log.debug("load_themes: category=%r, %d themes (%d cached), dir=%s",
-                   self.current_category, len(themes), len(cached), self.web_directory)
+        log.debug(
+            "load_themes: category=%r, %d themes (%d cached), dir=%s",
+            self.current_category,
+            len(themes),
+            len(cached),
+            self.web_directory,
+        )
         self._populate_grid(themes)
 
     def _on_item_clicked(self, item_info: CloudThemeItem):
@@ -269,10 +288,12 @@ class UCThemeWeb(DownloadableThemeBrowser):
             mp4_path = self.web_directory / f"{theme_id}.mp4"
             png_path = self.web_directory / f"{theme_id}.png"
             if mp4_path.exists() and not png_path.exists():
-                subprocess.run([
-                    'ffmpeg', '-i', str(mp4_path),
-                    '-vframes', '1', '-y', str(png_path)
-                ], capture_output=True, timeout=10, creationflags=_NO_WINDOW)
+                subprocess.run(
+                    ["ffmpeg", "-i", str(mp4_path), "-vframes", "1", "-y", str(png_path)],
+                    capture_output=True,
+                    timeout=10,
+                    creationflags=_NO_WINDOW,
+                )
         except Exception:
             pass
 

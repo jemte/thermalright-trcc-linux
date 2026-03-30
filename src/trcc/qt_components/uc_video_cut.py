@@ -82,15 +82,15 @@ def _format_time(ms):
 # Export worker thread
 # ============================================================================
 
+
 class ExportWorker(QThread):
     """Background thread for FFmpeg frame extraction + Theme.zt assembly."""
 
     progress = Signal(int, str)  # percent, message
-    finished = Signal(str)       # output path (empty on error)
+    finished = Signal(str)  # output path (empty on error)
     error = Signal(str)
 
-    def __init__(self, video_path, start_ms, end_ms, target_w, target_h,
-                 rotation, width_fit):
+    def __init__(self, video_path, start_ms, end_ms, target_w, target_h, rotation, width_fit):
         super().__init__()
         self.video_path = str(video_path)
         self.start_ms = start_ms
@@ -107,8 +107,8 @@ class ExportWorker(QThread):
             self.error.emit(str(e))
 
     def _do_export(self):
-        temp_dir = tempfile.mkdtemp(prefix='trcc_videocut_')
-        frames_dir = os.path.join(temp_dir, 'frames')
+        temp_dir = tempfile.mkdtemp(prefix="trcc_videocut_")
+        frames_dir = os.path.join(temp_dir, "frames")
         os.makedirs(frames_dir, exist_ok=True)
 
         duration_ms = self.end_ms - self.start_ms
@@ -118,34 +118,38 @@ class ExportWorker(QThread):
         # Build FFmpeg command
         vf_filters = []
         if self.rotation == 90:
-            vf_filters.append('transpose=1')
+            vf_filters.append("transpose=1")
         elif self.rotation == 180:
-            vf_filters.append('transpose=1,transpose=1')
+            vf_filters.append("transpose=1,transpose=1")
         elif self.rotation == 270:
-            vf_filters.append('transpose=2')
+            vf_filters.append("transpose=2")
 
         cmd = [
-            'ffmpeg', '-ss', str(start_s), '-t', str(duration_s),
-            '-i', self.video_path, '-y',
-            '-r', str(EXPORT_FPS),
-            '-s', f'{self.target_w}x{self.target_h}',
+            "ffmpeg",
+            "-ss",
+            str(start_s),
+            "-t",
+            str(duration_s),
+            "-i",
+            self.video_path,
+            "-y",
+            "-r",
+            str(EXPORT_FPS),
+            "-s",
+            f"{self.target_w}x{self.target_h}",
         ]
         if vf_filters:
-            cmd.extend(['-vf', ','.join(vf_filters)])
-        cmd.extend(['-f', 'image2', '-q:v', '5',
-                    os.path.join(frames_dir, '%04d.jpg')])
+            cmd.extend(["-vf", ",".join(vf_filters)])
+        cmd.extend(["-f", "image2", "-q:v", "5", os.path.join(frames_dir, "%04d.jpg")])
 
         self.progress.emit(5, "Extracting frames...")
-        result = subprocess.run(cmd, capture_output=True, timeout=600,
-                                creationflags=_NO_WINDOW)
+        result = subprocess.run(cmd, capture_output=True, timeout=600, creationflags=_NO_WINDOW)
         if result.returncode != 0:
             self.error.emit(f"FFmpeg error: {result.stderr.decode()[:200]}")
             return
 
         # Collect JPEG files (ffmpeg wrote them directly)
-        jpg_files = sorted(
-            f for f in os.listdir(frames_dir) if f.endswith('.jpg')
-        )
+        jpg_files = sorted(f for f in os.listdir(frames_dir) if f.endswith(".jpg"))
         if not jpg_files:
             self.error.emit("No frames extracted")
             return
@@ -156,30 +160,30 @@ class ExportWorker(QThread):
 
         for i, jpg_name in enumerate(jpg_files):
             jpg_path = os.path.join(frames_dir, jpg_name)
-            with open(jpg_path, 'rb') as fh:
+            with open(jpg_path, "rb") as fh:
                 jpeg_data_list.append(fh.read())
             os.remove(jpg_path)
             pct = 20 + int(60 * (i + 1) / total)
             if i % 10 == 0:
-                self.progress.emit(pct, f"Packaging {i+1}/{total}...")
+                self.progress.emit(pct, f"Packaging {i + 1}/{total}...")
 
         # Write Theme.zt
         self.progress.emit(85, "Writing Theme.zt...")
-        output_path = os.path.join(temp_dir, 'Theme.zt')
+        output_path = os.path.join(temp_dir, "Theme.zt")
         frame_count = len(jpeg_data_list)
 
-        with open(output_path, 'wb') as f:
+        with open(output_path, "wb") as f:
             # Magic byte
-            f.write(struct.pack('B', 0xDC))
+            f.write(struct.pack("B", 0xDC))
             # Frame count
-            f.write(struct.pack('<i', frame_count))
+            f.write(struct.pack("<i", frame_count))
             # Timestamps (41.67ms intervals)
             for i in range(frame_count):
                 ts = int(i * FRAME_INTERVAL_MS)
-                f.write(struct.pack('<i', ts))
+                f.write(struct.pack("<i", ts))
             # Frame data
             for jpeg_bytes in jpeg_data_list:
-                f.write(struct.pack('<i', len(jpeg_bytes)))
+                f.write(struct.pack("<i", len(jpeg_bytes)))
                 f.write(jpeg_bytes)
 
         self.progress.emit(100, "Done!")
@@ -195,6 +199,7 @@ class ExportWorker(QThread):
 # ============================================================================
 # Main video cut widget
 # ============================================================================
+
 
 class UCVideoCut(QWidget):
     """Video trimmer panel (500x702).
@@ -242,7 +247,7 @@ class UCVideoCut(QWidget):
 
         # Dark background via palette
         palette = self.palette()
-        palette.setColor(QPalette.ColorRole.Window, QColor('#232227'))
+        palette.setColor(QPalette.ColorRole.Window, QColor("#232227"))
         self.setPalette(palette)
         self.setAutoFillBackground(True)
 
@@ -287,21 +292,23 @@ class UCVideoCut(QWidget):
 
         # Fit mode buttons
         self._btn_height_fit = make_icon_button(
-            self, BTN_HEIGHT_FIT, 'P高度适应.png', "H", self._on_height_fit)
+            self, BTN_HEIGHT_FIT, "P高度适应.png", "H", self._on_height_fit
+        )
         self._btn_width_fit = make_icon_button(
-            self, BTN_WIDTH_FIT, 'P宽度适应.png', "W", self._on_width_fit)
-        self._btn_rotate = make_icon_button(
-            self, BTN_ROTATE, 'P旋转.png', "R", self._on_rotate)
-        self._btn_export = make_icon_button(
-            self, BTN_EXPORT, 'P裁减.png', "OK", self._on_export)
+            self, BTN_WIDTH_FIT, "P宽度适应.png", "W", self._on_width_fit
+        )
+        self._btn_rotate = make_icon_button(self, BTN_ROTATE, "P旋转.png", "R", self._on_rotate)
+        self._btn_export = make_icon_button(self, BTN_EXPORT, "P裁减.png", "OK", self._on_export)
 
         # Preview button
         self._btn_preview = make_icon_button(
-            self, BTN_PREVIEW, 'P0预览.png', "\u25b6", self._on_preview_toggle)
+            self, BTN_PREVIEW, "P0预览.png", "\u25b6", self._on_preview_toggle
+        )
 
         # Close button
         self._btn_close = make_icon_button(
-            self, BTN_CLOSE, 'P关闭按钮.png', "\u2715", self._on_close)
+            self, BTN_CLOSE, "P关闭按钮.png", "\u2715", self._on_close
+        )
 
     # =========================================================================
     # Painting
@@ -313,8 +320,8 @@ class UCVideoCut(QWidget):
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # Preview area background
-        p.setPen(QPen(QColor('#444'), 1))
-        p.setBrush(QBrush(QColor('#000000')))
+        p.setPen(QPen(QColor("#444"), 1))
+        p.setBrush(QBrush(QColor("#000000")))
         p.drawRect(PREVIEW_X, PREVIEW_Y, PREVIEW_W, PREVIEW_H)
 
         # Draw preview frame
@@ -326,27 +333,24 @@ class UCVideoCut(QWidget):
             p.drawPixmap(x, y, px)
 
         # Timeline background
-        p.setPen(QPen(QColor('#555'), 1))
-        p.setBrush(QBrush(QColor('#333')))
+        p.setPen(QPen(QColor("#555"), 1))
+        p.setBrush(QBrush(QColor("#333")))
         p.drawRect(TIMELINE_X, TIMELINE_Y, TIMELINE_W, TIMELINE_H)
 
         # Selected range (green bar between handles)
         if self._duration_ms > 0:
             p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(QBrush(QColor('#004400')))
-            p.drawRect(
-                self._start_x, TIMELINE_Y,
-                self._end_x - self._start_x, TIMELINE_H
-            )
+            p.setBrush(QBrush(QColor("#004400")))
+            p.drawRect(self._start_x, TIMELINE_Y, self._end_x - self._start_x, TIMELINE_H)
 
         # Start handle (green)
-        p.setPen(QPen(QColor('#00FF00'), 1))
-        p.setBrush(QBrush(QColor('#00AA00')))
+        p.setPen(QPen(QColor("#00FF00"), 1))
+        p.setBrush(QBrush(QColor("#00AA00")))
         p.drawRect(self._start_x, TIMELINE_Y, HANDLE_W, HANDLE_H)
 
         # End handle (red)
-        p.setPen(QPen(QColor('#FF0000'), 1))
-        p.setBrush(QBrush(QColor('#AA0000')))
+        p.setPen(QPen(QColor("#FF0000"), 1))
+        p.setBrush(QBrush(QColor("#AA0000")))
         p.drawRect(self._end_x - HANDLE_W, TIMELINE_Y, HANDLE_W, HANDLE_H)
 
         p.end()
@@ -366,10 +370,10 @@ class UCVideoCut(QWidget):
 
         # Check start handle
         if self._start_x <= x <= self._start_x + HANDLE_W:
-            self._dragging = 'start'
+            self._dragging = "start"
         # Check end handle
         elif self._end_x - HANDLE_W <= x <= self._end_x:
-            self._dragging = 'end'
+            self._dragging = "end"
         # Click on timeline — seek
         elif TIMELINE_X <= x <= TIMELINE_X + TIMELINE_W:
             ms = self._x_to_ms(x)
@@ -381,7 +385,7 @@ class UCVideoCut(QWidget):
         x = event.position().x()
         x = max(TIMELINE_X, min(TIMELINE_X + TIMELINE_W, x))
 
-        if self._dragging == 'start':
+        if self._dragging == "start":
             self._start_x = min(x, self._end_x - HANDLE_W * 2)
             self._start_ms = self._x_to_ms(self._start_x)
             # Enforce max duration
@@ -391,7 +395,7 @@ class UCVideoCut(QWidget):
             self._lbl_start.setText(_format_time(self._start_ms))
             self._seek_and_show(self._start_ms)
 
-        elif self._dragging == 'end':
+        elif self._dragging == "end":
             self._end_x = max(x, self._start_x + HANDLE_W * 2)
             self._end_ms = self._x_to_ms(self._end_x)
             # Enforce max duration
@@ -435,26 +439,39 @@ class UCVideoCut(QWidget):
 
         # Get metadata with ffprobe
         try:
-            result = subprocess.run([
-                'ffprobe', '-v', 'error', '-select_streams', 'v:0',
-                '-show_entries', 'stream=r_frame_rate,nb_frames',
-                '-show_entries', 'format=duration',
-                '-of', 'csv=p=0',
-                self._video_path,
-            ], capture_output=True, text=True, timeout=10, creationflags=_NO_WINDOW)
+            result = subprocess.run(
+                [
+                    "ffprobe",
+                    "-v",
+                    "error",
+                    "-select_streams",
+                    "v:0",
+                    "-show_entries",
+                    "stream=r_frame_rate,nb_frames",
+                    "-show_entries",
+                    "format=duration",
+                    "-of",
+                    "csv=p=0",
+                    self._video_path,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                creationflags=_NO_WINDOW,
+            )
             if result.returncode != 0:
                 self._lbl_info.setText("Failed to open video")
                 self._lbl_info.setVisible(True)
                 return
 
-            lines = result.stdout.strip().split('\n')
+            lines = result.stdout.strip().split("\n")
             # First line: r_frame_rate,nb_frames  (stream)
             # Second line: duration  (format)
             if lines:
-                parts = lines[0].split(',')
+                parts = lines[0].split(",")
                 if parts:
-                    fps_parts = parts[0].split('/')
-                    if len(fps_parts) == 2 and fps_parts[1].strip() not in ('0', ''):
+                    fps_parts = parts[0].split("/")
+                    if len(fps_parts) == 2 and fps_parts[1].strip() not in ("0", ""):
                         self._fps = float(fps_parts[0]) / float(fps_parts[1])
                     elif fps_parts[0].strip():
                         self._fps = float(fps_parts[0])
@@ -508,7 +525,7 @@ class UCVideoCut(QWidget):
         self._target_h = h
 
         # Try to load resolution-specific background
-        bg_name = f'P0裁减{w}{h}.png'
+        bg_name = f"P0裁减{w}{h}.png"
         bg_pix = Assets.load_pixmap(bg_name, PANEL_W, PANEL_H)
         if not bg_pix.isNull():
             palette = self.palette()
@@ -522,11 +539,28 @@ class UCVideoCut(QWidget):
 
         ss = ms / 1000.0
         try:
-            result = subprocess.run([
-                'ffmpeg', '-ss', str(ss), '-i', self._video_path,
-                '-vframes', '1', '-f', 'image2pipe', '-vcodec', 'bmp',
-                '-v', 'error', '-y', '-',
-            ], capture_output=True, timeout=5, creationflags=_NO_WINDOW)
+            result = subprocess.run(
+                [
+                    "ffmpeg",
+                    "-ss",
+                    str(ss),
+                    "-i",
+                    self._video_path,
+                    "-vframes",
+                    "1",
+                    "-f",
+                    "image2pipe",
+                    "-vcodec",
+                    "bmp",
+                    "-v",
+                    "error",
+                    "-y",
+                    "-",
+                ],
+                capture_output=True,
+                timeout=5,
+                creationflags=_NO_WINDOW,
+            )
             if result.returncode != 0 or not result.stdout:
                 return
 
@@ -542,9 +576,12 @@ class UCVideoCut(QWidget):
         scale = min(PREVIEW_W / w, PREVIEW_H / h)
         new_w, new_h = int(w * scale), int(h * scale)
         if new_w > 0 and new_h > 0:
-            img = img.scaled(new_w, new_h,
-                             Qt.AspectRatioMode.IgnoreAspectRatio,
-                             Qt.TransformationMode.SmoothTransformation)
+            img = img.scaled(
+                new_w,
+                new_h,
+                Qt.AspectRatioMode.IgnoreAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
 
         self._preview_pixmap = QPixmap.fromImage(img)
         self._lbl_current.setText(_format_time(ms))
@@ -608,9 +645,13 @@ class UCVideoCut(QWidget):
         self._lbl_info.setVisible(True)
 
         self._export_worker = ExportWorker(
-            self._video_path, self._start_ms, self._end_ms,
-            self._target_w, self._target_h,
-            self._rotation, self._width_fit
+            self._video_path,
+            self._start_ms,
+            self._end_ms,
+            self._target_w,
+            self._target_h,
+            self._rotation,
+            self._width_fit,
         )
         self._export_worker.progress.connect(self._on_export_progress)
         self._export_worker.finished.connect(self._on_export_finished)
@@ -638,7 +679,7 @@ class UCVideoCut(QWidget):
     def _on_close(self):
         self._stop_preview()
         self._cleanup_video()
-        self.video_cut_done.emit('')
+        self.video_cut_done.emit("")
 
     # =========================================================================
     # Cleanup

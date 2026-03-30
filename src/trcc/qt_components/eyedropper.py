@@ -114,9 +114,10 @@ class EyedropperOverlay(BaseScreenOverlay):
 
         region = self._screenshot.copy(src_x, src_y, src_w, src_h)
         scaled = region.scaled(
-            mag_w, mag_h,
+            mag_w,
+            mag_h,
             Qt.AspectRatioMode.IgnoreAspectRatio,
-            Qt.TransformationMode.FastTransformation  # Pixelated look
+            Qt.TransformationMode.FastTransformation,  # Pixelated look
         )
 
         # Draw magnifier background
@@ -137,15 +138,14 @@ class EyedropperOverlay(BaseScreenOverlay):
         cell = self.MAGNIFY_SCALE
         pen = QPen(self._CROSSHAIR_COLOR, 1)
         painter.setPen(pen)
-        painter.drawRect(
-            center_x - cell // 2, center_y - cell // 2,
-            cell, cell
-        )
+        painter.drawRect(center_x - cell // 2, center_y - cell // 2, cell, cell)
 
         # Draw color info below magnifier
-        r, g, b = (self._current_color.red(),
-                    self._current_color.green(),
-                    self._current_color.blue())
+        r, g, b = (
+            self._current_color.red(),
+            self._current_color.green(),
+            self._current_color.blue(),
+        )
         hex_str = f"#{r:02X}{g:02X}{b:02X}"
         rgb_str = f"RGB({r}, {g}, {b})"
 
@@ -154,8 +154,7 @@ class EyedropperOverlay(BaseScreenOverlay):
 
         # Color swatch + hex
         swatch_y = my + mag_h + 6
-        painter.fillRect(mx, swatch_y, 20, 20,
-                         QColor(r, g, b))
+        painter.fillRect(mx, swatch_y, 20, 20, QColor(r, g, b))
         painter.setPen(QPen(self._BORDER_COLOR, 1))
         painter.drawRect(mx, swatch_y, 20, 20)
 

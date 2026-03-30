@@ -3,6 +3,7 @@
 Covers construction, state management, signal emission, position arrays,
 and metrics dispatch. All painting tests are skipped — we test logic only.
 """
+
 from __future__ import annotations
 
 import os
@@ -48,20 +49,40 @@ from trcc.qt_components.uc_screen_led import (
 
 # Expected LED counts per style (from C# UCScreenLED.cs)
 _EXPECTED_COUNTS: dict[int, int] = {
-    1: 30, 2: 84, 3: 64, 4: 31, 5: 93, 6: 93,
-    7: 104, 8: 18, 9: 61, 10: 38, 11: 93, 12: 1,
+    1: 30,
+    2: 84,
+    3: 64,
+    4: 31,
+    5: 93,
+    6: 93,
+    7: 104,
+    8: 18,
+    9: 61,
+    10: 38,
+    11: 93,
+    12: 1,
 }
 
 ALL_POS = {
-    1: _POS_1, 2: _POS_2, 3: _POS_3, 4: _POS_4,
-    5: _POS_5, 6: _POS_6, 7: _POS_7, 8: _POS_8,
-    9: _POS_9, 10: _POS_10, 11: _POS_11, 12: _POS_12,
+    1: _POS_1,
+    2: _POS_2,
+    3: _POS_3,
+    4: _POS_4,
+    5: _POS_5,
+    6: _POS_6,
+    7: _POS_7,
+    8: _POS_8,
+    9: _POS_9,
+    10: _POS_10,
+    11: _POS_11,
+    12: _POS_12,
 }
 
 
 # =========================================================================
 # Fixtures
 # =========================================================================
+
 
 def _asset_mocks() -> dict:
     """Build fresh Asset mock kwargs — must be called after QApplication exists."""
@@ -113,6 +134,7 @@ def led_control(qapp):
 # =========================================================================
 # UCColorWheel tests
 # =========================================================================
+
 
 class TestColorWheelConstruction:
     """UCColorWheel default state."""
@@ -219,9 +241,7 @@ class TestColorWheelIsOnRing:
         color_wheel.resize(216, 216)
         cx = color_wheel.width() / 2.0
         cy = color_wheel.height() / 2.0
-        assert not color_wheel._is_on_ring(
-            QPointF(cx + color_wheel._MAX_RING_R + 1, cy)
-        )
+        assert not color_wheel._is_on_ring(QPointF(cx + color_wheel._MAX_RING_R + 1, cy))
 
 
 class TestColorWheelUpdateHue:
@@ -338,6 +358,7 @@ class TestColorWheelUpdateOnoffImage:
 # UCScreenLED — position array tests
 # =========================================================================
 
+
 class TestScreenLEDPositionArrays:
     """All 12 style position arrays are well-formed."""
 
@@ -382,6 +403,7 @@ class TestScreenLEDPositionArrays:
 # =========================================================================
 # UCScreenLED — widget tests
 # =========================================================================
+
 
 class TestScreenLEDWidget:
     """UCScreenLED construction and public API."""
@@ -465,6 +487,7 @@ class TestScreenLEDWidget:
 # UCScreenLED — decoration config tests
 # =========================================================================
 
+
 class TestScreenLEDDecorations:
     """Decoration config data is well-formed."""
 
@@ -493,6 +516,7 @@ class TestScreenLEDDecorations:
 # =========================================================================
 # UCInfoImage tests
 # =========================================================================
+
 
 class TestUCInfoImage:
     """UCInfoImage sensor gauge widget."""
@@ -526,6 +550,7 @@ class TestUCInfoImage:
 # =========================================================================
 # UCLedControl tests
 # =========================================================================
+
 
 class TestLedControlConstruction:
     """UCLedControl construction and default state."""
@@ -789,33 +814,38 @@ class TestLedControlMetrics:
     @staticmethod
     def _metrics(**kw):
         from trcc.core.models import HardwareMetrics
+
         return HardwareMetrics(**kw)
 
     def test_update_metrics_style_1_updates_sensors(self, led_control):
         """Style 1 (AX120): routes to sensor gauges."""
         led_control._style_id = 1
-        m = self._metrics(cpu_temp=55.0, cpu_freq=3500.0, cpu_percent=30.0,
-                          gpu_temp=60.0, gpu_clock=1800.0, gpu_usage=50.0)
+        m = self._metrics(
+            cpu_temp=55.0,
+            cpu_freq=3500.0,
+            cpu_percent=30.0,
+            gpu_temp=60.0,
+            gpu_clock=1800.0,
+            gpu_usage=50.0,
+        )
         led_control.update_metrics(m)
-        assert led_control._info_images['cpu_temp']._value == 55.0
-        assert led_control._info_images['gpu_clock']._value == 1800.0
+        assert led_control._info_images["cpu_temp"]._value == 55.0
+        assert led_control._info_images["gpu_clock"]._value == 1800.0
 
     def test_update_metrics_style_4_updates_memory(self, led_control):
         """Style 4 (LC1): routes to memory labels."""
         led_control._style_id = 4
-        m = self._metrics(mem_temp=45.0, mem_clock=1600.0,
-                          mem_percent=60.0, mem_available=8000.0)
+        m = self._metrics(mem_temp=45.0, mem_clock=1600.0, mem_percent=60.0, mem_available=8000.0)
         led_control.update_metrics(m)
-        assert "1600" in led_control._mem_labels['mem_clock'].text()
+        assert "1600" in led_control._mem_labels["mem_clock"].text()
 
     def test_update_metrics_style_10_updates_disk(self, led_control):
         """Style 10 (LF11): routes to disk labels."""
         led_control._style_id = 10
-        m = self._metrics(disk_temp=42.0, disk_activity=75.0,
-                          disk_read=100.0, disk_write=50.0)
+        m = self._metrics(disk_temp=42.0, disk_activity=75.0, disk_read=100.0, disk_write=50.0)
         led_control.update_metrics(m)
-        assert "75" in led_control._disk_labels['lf11_disk_usage'].text()
-        assert "100" in led_control._disk_labels['lf11_disk_read'].text()
+        assert "75" in led_control._disk_labels["lf11_disk_usage"].text()
+        assert "100" in led_control._disk_labels["lf11_disk_read"].text()
 
     def test_update_metrics_fahrenheit(self, led_control):
         """Fahrenheit display — mediator pre-converts temps before dispatch."""
@@ -824,7 +854,7 @@ class TestLedControlMetrics:
         # Mediator applies C/F conversion before dispatch — pass pre-converted
         m = self._metrics(cpu_temp=212.0, gpu_temp=32.0)
         led_control.update_metrics(m)
-        assert led_control._info_images['cpu_temp']._value == 212.0
+        assert led_control._info_images["cpu_temp"]._value == 212.0
 
 
 class TestLedControlLayoutConstants:

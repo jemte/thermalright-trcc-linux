@@ -52,8 +52,8 @@ for size in 256 128 64 48 32 24 16; do
     install -Dm644 "src/trcc/assets/icons/trcc_${size}x${size}.png" \
         "$PKG/usr/share/icons/hicolor/${size}x${size}/apps/trcc.png"
 done
-install -Dm644 src/trcc/assets/com.github.lexonight1.trcc.policy \
-    "$PKG/usr/share/polkit-1/actions/com.github.lexonight1.trcc.policy"
+install -Dm644 src/trcc/assets/com.github.jemte.trcc.policy \
+    "$PKG/usr/share/polkit-1/actions/com.github.jemte.trcc.policy"
 install -Dm644 src/trcc/assets/trcc-quirk-fix.service \
     "$PKG/usr/lib/systemd/system/trcc-quirk-fix.service"
 install -Dm644 LICENSE \

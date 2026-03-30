@@ -8,6 +8,7 @@ References:
     - SetupAPI: SetupDiGetClassDevs + SetupDiEnumDeviceInterfaces
     - WMI: Win32_USBControllerDevice + Win32_PnPEntity
 """
+
 from __future__ import annotations
 
 import logging
@@ -69,14 +70,17 @@ def _parse_vid_pid(device_id: str) -> tuple[int | None, int | None]:
     Format: USB\\VID_XXXX&PID_XXXX\\...
     """
     import re
-    match = re.search(r'VID_([0-9A-Fa-f]{4})&PID_([0-9A-Fa-f]{4})', device_id)
+
+    match = re.search(r"VID_([0-9A-Fa-f]{4})&PID_([0-9A-Fa-f]{4})", device_id)
     if not match:
         return None, None
     return int(match.group(1), 16), int(match.group(2), 16)
 
 
 def _match_device(
-    vid: int, pid: int, pnp_entity: object,
+    vid: int,
+    pid: int,
+    pnp_entity: object,
 ) -> DetectedDevice | None:
     """Check if VID:PID matches a known Thermalright device.
 
@@ -92,21 +96,23 @@ def _match_device(
         KNOWN_DEVICES,
     )
 
-    device_id = getattr(pnp_entity, 'DeviceID', '')
+    device_id = getattr(pnp_entity, "DeviceID", "")
 
     # Check SCSI devices
     if (vid, pid) in KNOWN_DEVICES:
         entry = KNOWN_DEVICES[(vid, pid)]
         drive_path = _find_physical_drive(vid, pid)
         return DetectedDevice(
-            vid=vid, pid=pid,
-            vendor_name=entry.vendor, product_name=entry.product,
+            vid=vid,
+            pid=pid,
+            vendor_name=entry.vendor,
+            product_name=entry.product,
             usb_path=device_id,
             scsi_device=drive_path,
             implementation=entry.implementation,
-            model=getattr(entry, 'model', ''),
-            button_image=getattr(entry, 'button_image', ''),
-            protocol='scsi',
+            model=getattr(entry, "model", ""),
+            button_image=getattr(entry, "button_image", ""),
+            protocol="scsi",
             device_type=2,
         )
 
@@ -114,29 +120,33 @@ def _match_device(
     if (vid, pid) in _HID_LCD_DEVICES:
         entry = _HID_LCD_DEVICES[(vid, pid)]
         return DetectedDevice(
-            vid=vid, pid=pid,
-            vendor_name=entry.vendor, product_name=entry.product,
+            vid=vid,
+            pid=pid,
+            vendor_name=entry.vendor,
+            product_name=entry.product,
             usb_path=device_id,
             scsi_device=None,
             implementation=entry.implementation,
-            model=getattr(entry, 'model', ''),
-            button_image=getattr(entry, 'button_image', ''),
-            protocol='hid',
-            device_type=getattr(entry, 'device_type', 2),
+            model=getattr(entry, "model", ""),
+            button_image=getattr(entry, "button_image", ""),
+            protocol="hid",
+            device_type=getattr(entry, "device_type", 2),
         )
 
     # Check Bulk devices
     if (vid, pid) in _BULK_DEVICES:
         entry = _BULK_DEVICES[(vid, pid)]
         return DetectedDevice(
-            vid=vid, pid=pid,
-            vendor_name=entry.vendor, product_name=entry.product,
+            vid=vid,
+            pid=pid,
+            vendor_name=entry.vendor,
+            product_name=entry.product,
             usb_path=device_id,
             scsi_device=None,
             implementation=entry.implementation,
-            model=getattr(entry, 'model', ''),
-            button_image=getattr(entry, 'button_image', ''),
-            protocol='bulk',
+            model=getattr(entry, "model", ""),
+            button_image=getattr(entry, "button_image", ""),
+            protocol="bulk",
             device_type=4,
         )
 
@@ -144,14 +154,16 @@ def _match_device(
     if (vid, pid) in _LY_DEVICES:
         entry = _LY_DEVICES[(vid, pid)]
         return DetectedDevice(
-            vid=vid, pid=pid,
-            vendor_name=entry.vendor, product_name=entry.product,
+            vid=vid,
+            pid=pid,
+            vendor_name=entry.vendor,
+            product_name=entry.product,
             usb_path=device_id,
             scsi_device=None,
             implementation=entry.implementation,
-            model=getattr(entry, 'model', ''),
-            button_image=getattr(entry, 'button_image', ''),
-            protocol='ly',
+            model=getattr(entry, "model", ""),
+            button_image=getattr(entry, "button_image", ""),
+            protocol="ly",
             device_type=10,
         )
 
@@ -159,14 +171,16 @@ def _match_device(
     if (vid, pid) in _LED_DEVICES:
         entry = _LED_DEVICES[(vid, pid)]
         return DetectedDevice(
-            vid=vid, pid=pid,
-            vendor_name=entry.vendor, product_name=entry.product,
+            vid=vid,
+            pid=pid,
+            vendor_name=entry.vendor,
+            product_name=entry.product,
             usb_path=device_id,
             scsi_device=None,
-            implementation='hid_led',
-            model=getattr(entry, 'model', ''),
-            button_image=getattr(entry, 'button_image', ''),
-            protocol='hid',
+            implementation="hid_led",
+            model=getattr(entry, "model", ""),
+            button_image=getattr(entry, "button_image", ""),
+            protocol="hid",
             device_type=0,
         )
 
@@ -183,16 +197,17 @@ def _find_physical_drive(vid: int, pid: int) -> str | None:
     2. Find USBSTOR disk with size < 1 MB — LCD devices report zero real storage,
        unlike USB flash drives or external HDDs. Return the first match.
     """
-    vid_tag = f'VID_{vid:04X}'
-    pid_tag = f'PID_{pid:04X}'
+    vid_tag = f"VID_{vid:04X}"
+    pid_tag = f"PID_{pid:04X}"
     try:
         import wmi  # pyright: ignore[reportMissingImports]
+
         w = wmi.WMI()
 
         # Step 1: confirm VID/PID is present in the USB device tree
         confirmed = False
         for rel in w.Win32_USBControllerDevice():
-            dep = str(rel.Dependent or '').upper()
+            dep = str(rel.Dependent or "").upper()
             if vid_tag in dep and pid_tag in dep:
                 confirmed = True
                 log.debug("VID/PID %04X:%04X confirmed in USB tree", vid, pid)
@@ -205,8 +220,8 @@ def _find_physical_drive(vid: int, pid: int) -> str | None:
         # Step 2: find the USBSTOR disk with tiny capacity — LCD devices
         # report 0 storage; flash drives and HDDs are always > 1 MB.
         for disk in w.Win32_DiskDrive():
-            pnp = (disk.PNPDeviceID or '').upper()
-            if not pnp.startswith('USBSTOR'):
+            pnp = (disk.PNPDeviceID or "").upper()
+            if not pnp.startswith("USBSTOR"):
                 continue
             size = int(disk.Size or 0)
             log.debug("USBSTOR disk %s size=%d PNP=%s", disk.DeviceID, size, pnp[:60])

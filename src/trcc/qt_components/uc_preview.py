@@ -4,6 +4,7 @@ PyQt6 UCPreview - Preview panel with frame.
 Matches Windows TRCC.DCUserControl.UCScreenImageBK (500x500)
 Contains the LCD preview with decorative frame.
 """
+
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
@@ -29,36 +30,36 @@ class UCPreview(BasePanel):
     # All entries fit within the 500x500 UCScreenImageBK container.
     RESOLUTION_OFFSETS = {
         # Square / small — 1:1 native size
-        (240, 240): (130, 130, 240, 240, 'P预览240X240.png'),
-        (320, 320): (90, 90, 320, 320, 'P预览320X320.png'),
-        (360, 360): (70, 70, 360, 360, 'P预览360360圆.png'),
-        (480, 480): (10, 10, 480, 480, 'P预览480X480.png'),
+        (240, 240): (130, 130, 240, 240, "P预览240X240.png"),
+        (320, 320): (90, 90, 320, 320, "P预览320X320.png"),
+        (360, 360): (70, 70, 360, 360, "P预览360360圆.png"),
+        (480, 480): (10, 10, 480, 480, "P预览480X480.png"),
         # Rectangular — 1:1 native size
-        (240, 320): (130, 90, 240, 320, 'P预览240X320.png'),
-        (320, 240): (90, 130, 320, 240, 'P预览320X240.png'),
-        (240, 400): (130, 50, 240, 400, 'P预览240X400.png'),
-        (400, 240): (50, 130, 400, 240, 'P预览400X240.png'),
-        (180, 480): (160, 10, 180, 480, 'P预览180X480.png'),
-        (480, 180): (10, 160, 480, 180, 'P预览480X180.png'),
-        (270, 480): (115, 10, 270, 480, 'P预览270X480.png'),
-        (480, 270): (10, 115, 480, 270, 'P预览480X270.png'),
+        (240, 320): (130, 90, 240, 320, "P预览240X320.png"),
+        (320, 240): (90, 130, 320, 240, "P预览320X240.png"),
+        (240, 400): (130, 50, 240, 400, "P预览240X400.png"),
+        (400, 240): (50, 130, 400, 240, "P预览400X240.png"),
+        (180, 480): (160, 10, 180, 480, "P预览180X480.png"),
+        (480, 180): (10, 160, 480, 180, "P预览480X180.png"),
+        (270, 480): (115, 10, 270, 480, "P预览270X480.png"),
+        (480, 270): (10, 115, 480, 270, "P预览480X270.png"),
         # Widescreen — scaled to fit 500x500 (isBiliPingmu=true)
-        (640, 480): (10, 10, 480, 480, 'P预览480X480.png'),      # no dedicated frame
-        (800, 480): (50, 130, 400, 240, 'P预览400X240.png'),
-        (480, 800): (130, 50, 240, 400, 'P预览240X400.png'),
-        (854, 480): (36, 130, 427, 240, 'P预览427X240.png'),
-        (480, 854): (130, 36, 240, 427, 'P预览240X427.png'),
-        (960, 540): (10, 115, 480, 270, 'P预览480X270.png'),
-        (540, 960): (115, 10, 270, 480, 'P预览270X480.png'),
-        (1280, 480): (10, 160, 480, 180, 'P预览480X180.png'),
-        (480, 1280): (160, 10, 180, 480, 'P预览180X480.png'),
-        (1600, 720): (50, 160, 400, 180, 'P预览400X180.png'),
-        (720, 1600): (160, 50, 180, 400, 'P预览180X400.png'),
-        (1920, 462): (10, 192, 480, 116, 'P预览480X116.png'),
-        (462, 1920): (192, 10, 116, 480, 'P预览116X480.png'),
+        (640, 480): (10, 10, 480, 480, "P预览480X480.png"),  # no dedicated frame
+        (800, 480): (50, 130, 400, 240, "P预览400X240.png"),
+        (480, 800): (130, 50, 240, 400, "P预览240X400.png"),
+        (854, 480): (36, 130, 427, 240, "P预览427X240.png"),
+        (480, 854): (130, 36, 240, 427, "P预览240X427.png"),
+        (960, 540): (10, 115, 480, 270, "P预览480X270.png"),
+        (540, 960): (115, 10, 270, 480, "P预览270X480.png"),
+        (1280, 480): (10, 160, 480, 180, "P预览480X180.png"),
+        (480, 1280): (160, 10, 180, 480, "P预览180X480.png"),
+        (1600, 720): (50, 160, 400, 180, "P预览400X180.png"),
+        (720, 1600): (160, 50, 180, 400, "P预览180X400.png"),
+        (1920, 462): (10, 192, 480, 116, "P预览480X116.png"),
+        (462, 1920): (192, 10, 116, 480, "P预览116X480.png"),
     }
 
-    DEFAULT_OFFSET = (90, 90, 320, 320, 'P预览320X320.png')
+    DEFAULT_OFFSET = (90, 90, 320, 320, "P预览320X320.png")
 
     # Commands
     CMD_ROTATION_CHANGED = 1
@@ -72,18 +73,16 @@ class UCPreview(BasePanel):
     # Signals
     image_clicked = Signal(int, int)
     element_drag_start = Signal(int, int)  # LCD-scaled (x, y)
-    element_drag_move = Signal(int, int)   # LCD-scaled (x, y)
+    element_drag_move = Signal(int, int)  # LCD-scaled (x, y)
     element_drag_end = Signal()
-    element_nudge = Signal(int, int)       # LCD-scaled (dx, dy)
+    element_nudge = Signal(int, int)  # LCD-scaled (dx, dy)
 
     def __init__(self, width=320, height=320, parent=None):
         super().__init__(parent, width=Sizes.PREVIEW_FRAME, height=Sizes.PREVIEW_PANEL_H)
 
         self._lcd_width = width
         self._lcd_height = height
-        self._offset_info = self.RESOLUTION_OFFSETS.get(
-            (width, height), self.DEFAULT_OFFSET
-        )
+        self._offset_info = self.RESOLUTION_OFFSETS.get((width, height), self.DEFAULT_OFFSET)
 
         self._setup_ui()
 
@@ -98,9 +97,13 @@ class UCPreview(BasePanel):
 
         left, top, w, h, frame_name = self._offset_info
 
-        set_background_pixmap(self.frame_container, frame_name,
-            Sizes.PREVIEW_FRAME, Sizes.PREVIEW_FRAME,
-            fallback_style=f"background-color: {Colors.BASE_BG};")
+        set_background_pixmap(
+            self.frame_container,
+            frame_name,
+            Sizes.PREVIEW_FRAME,
+            Sizes.PREVIEW_FRAME,
+            fallback_style=f"background-color: {Colors.BASE_BG};",
+        )
 
         # Preview label positioned inside frame at the LCD area
         self.preview_label = ImageLabel(w, h)
@@ -125,24 +128,32 @@ class UCPreview(BasePanel):
         self.progress_container.setFixedSize(Sizes.VIDEO_CONTROLS_W, Sizes.VIDEO_CONTROLS_H)
         self.progress_container.setVisible(False)
 
-        set_background_pixmap(self.progress_container, Assets.VIDEO_CONTROLS_BG,
-                              Sizes.VIDEO_CONTROLS_W, Sizes.VIDEO_CONTROLS_H)
+        set_background_pixmap(
+            self.progress_container,
+            Assets.VIDEO_CONTROLS_BG,
+            Sizes.VIDEO_CONTROLS_W,
+            Sizes.VIDEO_CONTROLS_H,
+        )
 
         # Video control buttons
         self.play_btn = self._make_video_btn(
-            Layout.PLAY_BTN, Assets.ICON_PLAY, "▶",
-            "Play / Pause", self._on_play_pause)
+            Layout.PLAY_BTN, Assets.ICON_PLAY, "▶", "Play / Pause", self._on_play_pause
+        )
         # Store pause icon for toggling
         pause_pix = Assets.load_pixmap(Assets.ICON_PAUSE, Layout.PLAY_BTN[2], Layout.PLAY_BTN[3])
         play_pix = Assets.load_pixmap(Assets.ICON_PLAY, Layout.PLAY_BTN[2], Layout.PLAY_BTN[3])
         self.play_btn._img_refs = [play_pix, pause_pix]  # type: ignore[attr-defined]
 
         self.height_fit_btn = self._make_video_btn(
-            Layout.HEIGHT_FIT_BTN, 'P高度适应', "H",
-            "Height fit (letterbox/crop)", self._on_height_fit)
+            Layout.HEIGHT_FIT_BTN,
+            "P高度适应",
+            "H",
+            "Height fit (letterbox/crop)",
+            self._on_height_fit,
+        )
         self.width_fit_btn = self._make_video_btn(
-            Layout.WIDTH_FIT_BTN, 'P宽度适应', "W",
-            "Width fit (letterbox/crop)", self._on_width_fit)
+            Layout.WIDTH_FIT_BTN, "P宽度适应", "W", "Width fit (letterbox/crop)", self._on_width_fit
+        )
 
         # Time label
         self.time_label = QLabel("00:00 / 00:00", self.progress_container)
@@ -234,7 +245,7 @@ class UCPreview(BasePanel):
         self.progress_container.setVisible(show)
 
     def set_playing(self, playing):
-        refs = getattr(self.play_btn, '_img_refs', None)
+        refs = getattr(self.play_btn, "_img_refs", None)
         if refs and len(refs) >= 2 and refs[0] and refs[1]:
             icon = QIcon(refs[1] if playing else refs[0])
             self.play_btn.setIcon(icon)
@@ -249,17 +260,16 @@ class UCPreview(BasePanel):
 
     def set_frame_image(self, pixmap_or_path):
         if isinstance(pixmap_or_path, str):
-            set_background_pixmap(self.frame_container, pixmap_or_path,
-                                  Sizes.PREVIEW_FRAME, Sizes.PREVIEW_FRAME)
+            set_background_pixmap(
+                self.frame_container, pixmap_or_path, Sizes.PREVIEW_FRAME, Sizes.PREVIEW_FRAME
+            )
         else:
             set_background_pixmap(self.frame_container, pixmap_or_path)
 
     def set_resolution(self, width, height):
         self._lcd_width = width
         self._lcd_height = height
-        self._offset_info = self.RESOLUTION_OFFSETS.get(
-            (width, height), self.DEFAULT_OFFSET
-        )
+        self._offset_info = self.RESOLUTION_OFFSETS.get((width, height), self.DEFAULT_OFFSET)
 
         left, top, w, h, frame_name = self._offset_info
         self.preview_label.setFixedSize(w, h)

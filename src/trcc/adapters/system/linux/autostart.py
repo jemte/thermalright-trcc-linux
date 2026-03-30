@@ -1,4 +1,5 @@
 """Linux autostart — XDG .desktop file in ~/.config/autostart/."""
+
 from __future__ import annotations
 
 import logging
@@ -8,9 +9,9 @@ from trcc.core.ports import AutostartManager
 
 log = logging.getLogger(__name__)
 
-_AUTOSTART_DIR  = Path.home() / '.config' / 'autostart'
-_AUTOSTART_FILE = _AUTOSTART_DIR / 'trcc-linux.desktop'
-_LEGACY_FILE    = _AUTOSTART_DIR / 'trcc.desktop'
+_AUTOSTART_DIR = Path.home() / ".config" / "autostart"
+_AUTOSTART_FILE = _AUTOSTART_DIR / "trcc-linux.desktop"
+_LEGACY_FILE = _AUTOSTART_DIR / "trcc.desktop"
 
 
 class LinuxAutostartManager(AutostartManager):

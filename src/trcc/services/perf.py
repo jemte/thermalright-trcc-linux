@@ -3,6 +3,7 @@
 Runs benchmarks against core services and returns a PerfReport.
 No pytest dependency — pure Python with stdlib tracemalloc + time.
 """
+
 from __future__ import annotations
 
 import gc
@@ -25,8 +26,7 @@ def _cpu_per_iter(fn: Callable[[], Any], iterations: int = 100) -> float:
     return (time.process_time() - start) / iterations
 
 
-def _mem_growth(setup: Callable[[], Any], body: Callable[[], Any],
-                iterations: int) -> int:
+def _mem_growth(setup: Callable[[], Any], body: Callable[[], Any], iterations: int) -> int:
     """Run body() N times and return peak memory growth in bytes."""
     setup()
     gc.collect()
@@ -54,8 +54,7 @@ def run_benchmarks() -> PerfReport:
     report = PerfReport()
     r = ImageService._r()
 
-    def _surface(w: int = 320, h: int = 320,
-                 color: tuple[int, ...] = (128, 0, 0)) -> Any:
+    def _surface(w: int = 320, h: int = 320, color: tuple[int, ...] = (128, 0, 0)) -> Any:
         return r.create_surface(w, h, color)
 
     # ── CPU benchmarks ────────────────────────────────────────────
@@ -73,11 +72,11 @@ def run_benchmarks() -> PerfReport:
 
     # RGB565 encoding
     s320 = _surface(320, 320, (255, 128, 0))
-    avg = _cpu_per_iter(lambda: r.encode_rgb565(s320, '>'))
+    avg = _cpu_per_iter(lambda: r.encode_rgb565(s320, ">"))
     report.record_cpu("encode_rgb565 320x320", avg, 0.005)
 
     s480 = _surface(480, 480, (0, 128, 255))
-    avg = _cpu_per_iter(lambda: r.encode_rgb565(s480, '>'))
+    avg = _cpu_per_iter(lambda: r.encode_rgb565(s480, ">"))
     report.record_cpu("encode_rgb565 480x480", avg, 0.010)
 
     # Overlay rendering
@@ -90,10 +89,8 @@ def run_benchmarks() -> PerfReport:
     report.record_cpu("overlay render (no config)", avg, 0.0005)
 
     overlay.config = {
-        'cpu_temp': {'x': 10, 'y': 10, 'color': '#ff0000', 'font_size': 20,
-                     'text': '65\u00b0C'},
-        'gpu_temp': {'x': 10, 'y': 40, 'color': '#00ff00', 'font_size': 20,
-                     'text': '70\u00b0C'},
+        "cpu_temp": {"x": 10, "y": 10, "color": "#ff0000", "font_size": 20, "text": "65\u00b0C"},
+        "gpu_temp": {"x": 10, "y": 40, "color": "#00ff00", "font_size": 20, "text": "70\u00b0C"},
     }
     metrics = HardwareMetrics(cpu_temp=65.0, gpu_temp=70.0)
     avg = _cpu_per_iter(lambda: overlay.render(bg, metrics=metrics))
@@ -101,12 +98,12 @@ def run_benchmarks() -> PerfReport:
 
     # Cache hit
     overlay.render(bg, metrics=metrics)  # prime
-    avg = _cpu_per_iter(
-        lambda: overlay.render(bg, metrics=metrics), iterations=500)
+    avg = _cpu_per_iter(lambda: overlay.render(bg, metrics=metrics), iterations=500)
     report.record_cpu("overlay cache hit", avg, 0.0001)
 
     # DisplayService pipeline
     from ..services.display import DisplayService
+
     mock_devices = MagicMock()
     mock_devices.selected = None
     dsvc = DisplayService(
@@ -250,18 +247,21 @@ def run_benchmarks() -> PerfReport:
     m = HardwareMetrics(cpu_temp=65.0, gpu_temp=70.0)
 
     overlay2.config = {
-        'cpu_temp': {'x': 10, 'y': 10, 'color': '#ff0000',
-                     'font_size': 20, 'text': '65\u00b0C'},
-        'gpu_temp': {'x': 10, 'y': 40, 'color': '#00ff00',
-                     'font_size': 20, 'text': '70\u00b0C'},
+        "cpu_temp": {"x": 10, "y": 10, "color": "#ff0000", "font_size": 20, "text": "65\u00b0C"},
+        "gpu_temp": {"x": 10, "y": 40, "color": "#00ff00", "font_size": 20, "text": "70\u00b0C"},
     }
     overlay2._cache_key = None
     overlay2._overlay_cache = None
     t2 = _cpu_per_iter(lambda: overlay2.render(bg, metrics=m), iterations=50)
 
     overlay2.config = {
-        f'el_{i}': {'x': 10, 'y': 10 + i * 30, 'color': '#ffffff',
-                    'font_size': 20, 'text': f'val{i}'}
+        f"el_{i}": {
+            "x": 10,
+            "y": 10 + i * 30,
+            "color": "#ffffff",
+            "font_size": 20,
+            "text": f"val{i}",
+        }
         for i in range(6)
     }
     overlay2._cache_key = None
@@ -278,8 +278,10 @@ def _ipc_pause() -> bool:
     """Pause the GUI daemon's display refresh via IPC. Returns True if paused."""
     try:
         from ..core.instance import InstanceKind, find_active
+
         if find_active() == InstanceKind.GUI:
             from ..ipc import IPCClient
+
             IPCClient.send("display.pause")
             return True
     except Exception:
@@ -291,8 +293,10 @@ def _ipc_resume() -> None:
     """Resume the GUI daemon's display refresh via IPC."""
     try:
         from ..core.instance import InstanceKind, find_active
+
         if find_active() == InstanceKind.GUI:
             from ..ipc import IPCClient
+
             IPCClient.send("display.resume")
     except Exception:
         pass
@@ -325,7 +329,8 @@ def run_device_benchmarks(
 
     try:
         return _run_device_benchmarks_inner(
-            report, gui_paused,
+            report,
+            gui_paused,
             detect_fn=detect_fn,
             get_protocol=get_protocol,
             get_protocol_info=get_protocol_info,
@@ -362,8 +367,7 @@ def _run_device_benchmarks_inner(
         return report  # no devices — empty report
 
     # ── LCD benchmarks ─────────────────────────────────────────────
-    lcd_dev = next(
-        (d for d in svc.devices if d.implementation != 'hid_led'), None)
+    lcd_dev = next((d for d in svc.devices if d.implementation != "hid_led"), None)
 
     if lcd_dev:
         if not svc.selected or svc.selected is not lcd_dev:
@@ -387,8 +391,7 @@ def _run_device_benchmarks_inner(
 
         # Encode-only timing
         t0 = time.perf_counter()
-        data = ImageService.encode_for_device(
-            img, ep[0], resolution, fbl, use_jpeg)
+        data = ImageService.encode_for_device(img, ep[0], resolution, fbl, use_jpeg)
         encode_s = time.perf_counter() - t0
         report.record_device(f"LCD encode {w}x{h}", encode_s, 0.010)
 
@@ -402,8 +405,7 @@ def _run_device_benchmarks_inner(
         # Full pipeline: encode + send
         img2 = r.create_surface(w, h, (0, 255, 0))
         t0 = time.perf_counter()
-        data2 = ImageService.encode_for_device(
-            img2, ep[0], resolution, fbl, use_jpeg)
+        data2 = ImageService.encode_for_device(img2, ep[0], resolution, fbl, use_jpeg)
         protocol.send_image(data2, w, h)
         pipeline_s = time.perf_counter() - t0
         report.record_device("LCD encode+send pipeline", pipeline_s, 0.200)
@@ -413,15 +415,15 @@ def _run_device_benchmarks_inner(
         frames_data = []
         for color in colors:
             frame_img = r.create_surface(w, h, color)
-            frames_data.append(ImageService.encode_for_device(
-                frame_img, ep[0], resolution, fbl, use_jpeg))
+            frames_data.append(
+                ImageService.encode_for_device(frame_img, ep[0], resolution, fbl, use_jpeg)
+            )
 
         frame_count = 0
         duration = 3.0
         t_start = time.perf_counter()
         while time.perf_counter() - t_start < duration:
-            protocol.send_image(
-                frames_data[frame_count % len(frames_data)], w, h)
+            protocol.send_image(frames_data[frame_count % len(frames_data)], w, h)
             frame_count += 1
 
         elapsed = time.perf_counter() - t_start
@@ -431,13 +433,14 @@ def _run_device_benchmarks_inner(
         # Avg frame time — limit 150ms = ~7fps minimum (SCSI is ~80-90ms)
         report.record_device(
             f"LCD sustained ({frame_count}f/{elapsed:.1f}s = {fps:.1f}fps)",
-            avg_frame_ms / 1000, 0.150)
+            avg_frame_ms / 1000,
+            0.150,
+        )
 
         protocol.close()
 
     # ── LED benchmarks ─────────────────────────────────────────────
-    led_dev = next(
-        (d for d in svc.devices if d.implementation == 'hid_led'), None)
+    led_dev = next((d for d in svc.devices if d.implementation == "hid_led"), None)
 
     if led_dev:
         led_protocol: Any = get_protocol(led_dev)
@@ -450,9 +453,9 @@ def _run_device_benchmarks_inner(
 
         # Single LED data send
         led_count = 64
-        if hasattr(led_protocol, 'handshake_info') and led_protocol.handshake_info:
+        if hasattr(led_protocol, "handshake_info") and led_protocol.handshake_info:
             info = led_protocol.handshake_info
-            if hasattr(info, 'style') and info.style:
+            if hasattr(info, "style") and info.style:
                 led_count = info.style.led_count
 
         colors = [(255, 0, 0)] * led_count
@@ -478,7 +481,9 @@ def _run_device_benchmarks_inner(
         avg_update_ms = elapsed / update_count * 1000
         report.record_device(
             f"LED sustained ({update_count}u/{elapsed:.1f}s = {ups:.0f}ups)",
-            avg_update_ms / 1000, 0.050)
+            avg_update_ms / 1000,
+            0.050,
+        )
 
         led_protocol.close()
 

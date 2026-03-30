@@ -21,9 +21,11 @@ import pytest
 # Minimal DeviceInfo stand-in (avoids importing full models.py)
 # =========================================================================
 
+
 @dataclass
 class FakeDeviceInfo:
     """Minimal stand-in for core.models.DeviceInfo."""
+
     name: str = "Test LCD"
     path: str = "/dev/sg0"
     vid: int = 0x87CD
@@ -51,6 +53,7 @@ from trcc.adapters.device.factory import (  # noqa: E402
 # =========================================================================
 # Fixtures
 # =========================================================================
+
 
 @pytest.fixture(autouse=True)
 def _clear_factory_cache():
@@ -99,6 +102,7 @@ def hid_type3_device():
 # Tests: DeviceProtocol ABC
 # =========================================================================
 
+
 class TestDeviceProtocolABC:
     """Verify the abstract base class contract."""
 
@@ -119,6 +123,7 @@ class TestDeviceProtocolABC:
 # Tests: Observer callbacks on DeviceProtocol
 # =========================================================================
 
+
 class TestObserverCallbacks:
     """Test observer pattern on protocol instances."""
 
@@ -128,7 +133,7 @@ class TestObserverCallbacks:
         callback = MagicMock()
         s.on_send_complete = callback
 
-        s.send_image(b'\x00' * 100, 320, 320)
+        s.send_image(b"\x00" * 100, 320, 320)
 
         callback.assert_called_once_with(True)
 
@@ -138,7 +143,7 @@ class TestObserverCallbacks:
         callback = MagicMock()
         s.on_send_complete = callback
 
-        s.send_image(b'\x00' * 100, 320, 320)
+        s.send_image(b"\x00" * 100, 320, 320)
 
         callback.assert_called_once_with(False)
 
@@ -148,7 +153,7 @@ class TestObserverCallbacks:
         error_cb = MagicMock()
         s.on_error = error_cb
 
-        s.send_image(b'\x00', 320, 320)
+        s.send_image(b"\x00", 320, 320)
 
         error_cb.assert_called_once()
         assert "SCSI" in error_cb.call_args[0][0]
@@ -164,7 +169,7 @@ class TestObserverCallbacks:
         state_cb = MagicMock()
         s.on_state_changed = state_cb
 
-        s.send_image(b'\x00' * 100, 320, 320)
+        s.send_image(b"\x00" * 100, 320, 320)
 
         state_cb.assert_called_with("transport_open", True)
 
@@ -194,6 +199,7 @@ class TestObserverCallbacks:
 # Tests: ScsiProtocol
 # =========================================================================
 
+
 class TestScsiProtocol:
     """Test SCSI protocol creation and send routing."""
 
@@ -206,7 +212,7 @@ class TestScsiProtocol:
     def test_send_calls_scsi_send_image(self, mock_scsi_send):
         mock_scsi_send.return_value = True
         s = ScsiProtocol("/dev/sg0")
-        data = b'\xAB' * 204800
+        data = b"\xab" * 204800
         result = s.send_image(data, 320, 320)
         assert result is True
         mock_scsi_send.assert_called_once_with("/dev/sg0", data, 320, 320)
@@ -215,13 +221,13 @@ class TestScsiProtocol:
     def test_send_returns_false_on_failure(self, mock_scsi_send):
         mock_scsi_send.return_value = False
         s = ScsiProtocol("/dev/sg0")
-        result = s.send_image(b'\x00', 320, 320)
+        result = s.send_image(b"\x00", 320, 320)
         assert result is False
 
     @patch("trcc.adapters.device.scsi.send_image_to_device", side_effect=Exception("hw err"))
     def test_send_returns_false_on_exception(self, mock_scsi_send):
         s = ScsiProtocol("/dev/sg0")
-        result = s.send_image(b'\x00', 320, 320)
+        result = s.send_image(b"\x00", 320, 320)
         assert result is False
 
     def test_close_is_noop(self):
@@ -245,6 +251,7 @@ class TestScsiProtocol:
 # =========================================================================
 # Tests: HidProtocol
 # =========================================================================
+
 
 class TestHidProtocol:
     """Test HID protocol creation and send routing."""
@@ -270,12 +277,12 @@ class TestHidProtocol:
         mock_send_hid.return_value = True
 
         s = HidProtocol(0x0416, 0x5302, 2)
-        result = s.send_image(b'\x00' * 100, 320, 320)
+        result = s.send_image(b"\x00" * 100, 320, 320)
 
         assert result is True
         MockPyUsb.assert_called_once_with(0x0416, 0x5302)
         mock_transport.open.assert_called_once()
-        mock_send_hid.assert_called_once_with(mock_transport, b'\x00' * 100, 2)
+        mock_send_hid.assert_called_once_with(mock_transport, b"\x00" * 100, 2)
 
     @patch("trcc.adapters.device.hid.PYUSB_AVAILABLE", False)
     @patch("trcc.adapters.device.hid.HIDAPI_AVAILABLE", True)
@@ -287,12 +294,12 @@ class TestHidProtocol:
         mock_send_hid.return_value = True
 
         s = HidProtocol(0x0418, 0x5303, 3)
-        result = s.send_image(b'\xFF' * 50, 320, 320)
+        result = s.send_image(b"\xff" * 50, 320, 320)
 
         assert result is True
         MockHidApi.assert_called_once_with(0x0418, 0x5303)
         mock_transport.open.assert_called_once()
-        mock_send_hid.assert_called_once_with(mock_transport, b'\xFF' * 50, 3)
+        mock_send_hid.assert_called_once_with(mock_transport, b"\xff" * 50, 3)
 
     @patch("trcc.adapters.device.hid.PYUSB_AVAILABLE", False)
     @patch("trcc.adapters.device.hid.HIDAPI_AVAILABLE", False)
@@ -302,7 +309,7 @@ class TestHidProtocol:
         error_cb = MagicMock()
         s.on_error = error_cb
 
-        result = s.send_image(b'\x00', 320, 320)
+        result = s.send_image(b"\x00", 320, 320)
 
         assert result is False
         error_cb.assert_called_once()
@@ -316,8 +323,8 @@ class TestHidProtocol:
         mock_send_hid.return_value = True
 
         s = HidProtocol(0x0416, 0x5302, 2)
-        s.send_image(b'\x00', 320, 320)
-        s.send_image(b'\x01', 320, 320)
+        s.send_image(b"\x00", 320, 320)
+        s.send_image(b"\x01", 320, 320)
 
         # Transport created and opened only once
         MockPyUsb.assert_called_once()
@@ -337,7 +344,7 @@ class TestHidProtocol:
         mock_send_hid.return_value = True
 
         s = HidProtocol(0x0416, 0x5302, 2)
-        s.send_image(b'\x00', 320, 320)
+        s.send_image(b"\x00", 320, 320)
         s.close()
 
         mock_transport.close.assert_called_once()
@@ -355,6 +362,7 @@ class TestHidProtocol:
 # =========================================================================
 # Tests: DeviceProtocolFactory
 # =========================================================================
+
 
 class TestDeviceProtocolFactory:
     """Test factory creation, caching, and routing."""
@@ -414,10 +422,12 @@ class TestDeviceProtocolFactory:
 
     def test_default_protocol_is_scsi(self):
         """Device without protocol attr defaults to SCSI."""
+
         class BareDevice:
             path = "/dev/sg1"
             vid = 0x87CD
             pid = 0x70DB
+
         proto = DeviceProtocolFactory.create_protocol(BareDevice())
         assert isinstance(proto, ScsiProtocol)
 
@@ -425,6 +435,7 @@ class TestDeviceProtocolFactory:
 # =========================================================================
 # Tests: End-to-end wiring (DeviceModel → Factory → Protocol)
 # =========================================================================
+
 
 class TestDeviceServiceFactoryWiring:
     """Test that DeviceService.send_rgb565() routes through the factory.
@@ -438,6 +449,7 @@ class TestDeviceServiceFactoryWiring:
         from tests.conftest import make_device_service
         from trcc.adapters.device.factory import DeviceProtocolFactory
         from trcc.core.models import DeviceInfo
+
         svc = make_device_service(get_protocol=DeviceProtocolFactory.get_protocol)
         dev = DeviceInfo(
             name=device_info.name,
@@ -454,7 +466,7 @@ class TestDeviceServiceFactoryWiring:
     def test_scsi_device_routes_to_scsi(self, mock_scsi_send, scsi_device):
         mock_scsi_send.return_value = True
         svc = self._make_svc(scsi_device)
-        data = b'\x00' * 204800
+        data = b"\x00" * 204800
 
         result = svc.send_rgb565(data, 320, 320)
 
@@ -469,7 +481,7 @@ class TestDeviceServiceFactoryWiring:
         MockPyUsb.return_value = mock_transport
         mock_hid_send.return_value = True
         svc = self._make_svc(hid_type2_device)
-        data = b'\xFF' * 5000
+        data = b"\xff" * 5000
 
         result = svc.send_rgb565(data, 320, 320)
 
@@ -484,7 +496,7 @@ class TestDeviceServiceFactoryWiring:
         MockPyUsb.return_value = mock_transport
         mock_hid_send.return_value = True
         svc = self._make_svc(hid_type3_device)
-        data = b'\xAB' * 204800
+        data = b"\xab" * 204800
 
         result = svc.send_rgb565(data, 320, 320)
 
@@ -495,25 +507,26 @@ class TestDeviceServiceFactoryWiring:
     def test_send_returns_false_on_failure(self, mock_scsi_send, scsi_device):
         mock_scsi_send.return_value = False
         svc = self._make_svc(scsi_device)
-        result = svc.send_rgb565(b'\x00', 320, 320)
+        result = svc.send_rgb565(b"\x00", 320, 320)
         assert result is False
 
     def test_send_returns_false_when_no_device(self):
         from tests.conftest import make_device_service
+
         svc = make_device_service()
-        result = svc.send_rgb565(b'\x00', 320, 320)
+        result = svc.send_rgb565(b"\x00", 320, 320)
         assert result is False
 
     def test_send_returns_false_when_busy(self, scsi_device):
         svc = self._make_svc(scsi_device)
         svc._send_busy = True
-        result = svc.send_rgb565(b'\x00', 320, 320)
+        result = svc.send_rgb565(b"\x00", 320, 320)
         assert result is False
 
     @patch("trcc.adapters.device.scsi.send_image_to_device", side_effect=Exception("SCSI error"))
     def test_exception_clears_busy_flag(self, mock_scsi_send, scsi_device):
         svc = self._make_svc(scsi_device)
-        result = svc.send_rgb565(b'\x00', 320, 320)
+        result = svc.send_rgb565(b"\x00", 320, 320)
         assert result is False
         assert svc._send_busy is False
 
@@ -522,11 +535,13 @@ class TestDeviceServiceFactoryWiring:
 # Tests: Device detection includes protocol field
 # =========================================================================
 
+
 class TestDeviceDetectorProtocol:
     """Verify KNOWN_DEVICES entries carry protocol/device_type."""
 
     def test_scsi_devices_have_scsi_protocol(self):
         from trcc.adapters.device.detector import KNOWN_DEVICES
+
         scsi_pids = [(0x87CD, 0x70DB), (0x0416, 0x5406), (0x0402, 0x3922)]
         for vid_pid in scsi_pids:
             info = KNOWN_DEVICES[vid_pid]
@@ -534,6 +549,7 @@ class TestDeviceDetectorProtocol:
 
     def test_hid_type2_in_known_devices(self):
         from trcc.adapters.device.detector import _HID_LCD_DEVICES
+
         info = _HID_LCD_DEVICES[(0x0416, 0x5302)]
         assert info.protocol == "hid"
         assert info.device_type == 2
@@ -541,6 +557,7 @@ class TestDeviceDetectorProtocol:
 
     def test_hid_type3_in_known_devices(self):
         from trcc.adapters.device.detector import _HID_LCD_DEVICES
+
         info = _HID_LCD_DEVICES[(0x0418, 0x5303)]
         assert info.protocol == "hid"
         assert info.device_type == 3
@@ -548,19 +565,27 @@ class TestDeviceDetectorProtocol:
 
     def test_detected_device_has_protocol_field(self):
         from trcc.adapters.device.detector import DetectedDevice
+
         dev = DetectedDevice(
-            vid=0x0416, pid=0x5302,
-            vendor_name="ALi Corp", product_name="LCD (HID)",
-            usb_path="1-2", protocol="hid", device_type=2,
+            vid=0x0416,
+            pid=0x5302,
+            vendor_name="ALi Corp",
+            product_name="LCD (HID)",
+            usb_path="1-2",
+            protocol="hid",
+            device_type=2,
         )
         assert dev.protocol == "hid"
         assert dev.device_type == 2
 
     def test_detected_device_defaults_to_scsi(self):
         from trcc.adapters.device.detector import DetectedDevice
+
         dev = DetectedDevice(
-            vid=0x87CD, pid=0x70DB,
-            vendor_name="Thermalright", product_name="LCD",
+            vid=0x87CD,
+            pid=0x70DB,
+            vendor_name="Thermalright",
+            product_name="LCD",
             usb_path="1-1",
         )
         assert dev.protocol == "scsi"
@@ -571,85 +596,111 @@ class TestDeviceDetectorProtocol:
 # Tests: find_lcd_devices includes HID devices
 # =========================================================================
 
+
 class TestFindLcdDevicesHid:
     """Verify find_lcd_devices() returns HID devices with protocol info."""
 
     def test_hid_device_included_without_scsi_path(self, fake_detect):
         from trcc.adapters.device.detector import DetectedDevice
+
         fake_detect.return_value = [
             DetectedDevice(
-                vid=0x0416, pid=0x5302,
-                vendor_name="ALi Corp", product_name="LCD (HID H)",
+                vid=0x0416,
+                pid=0x5302,
+                vendor_name="ALi Corp",
+                product_name="LCD (HID H)",
                 usb_path="1-3",
-                protocol="hid", device_type=2,
+                protocol="hid",
+                device_type=2,
             )
         ]
         from trcc.adapters.device.scsi import find_lcd_devices
+
         devices = find_lcd_devices(detect_fn=fake_detect)
         assert len(devices) == 1
-        assert devices[0]['protocol'] == 'hid'
-        assert devices[0]['device_type'] == 2
-        assert devices[0]['path'] == 'hid:0416:5302'
+        assert devices[0]["protocol"] == "hid"
+        assert devices[0]["device_type"] == 2
+        assert devices[0]["path"] == "hid:0416:5302"
 
     def test_scsi_device_needs_scsi_path(self, fake_detect):
         from trcc.adapters.device.detector import DetectedDevice
+
         fake_detect.return_value = [
             DetectedDevice(
-                vid=0x87CD, pid=0x70DB,
-                vendor_name="Thermalright", product_name="LCD",
+                vid=0x87CD,
+                pid=0x70DB,
+                vendor_name="Thermalright",
+                product_name="LCD",
                 usb_path="1-1",
                 scsi_device=None,  # No SCSI path found
             )
         ]
         from trcc.adapters.device.scsi import find_lcd_devices
+
         devices = find_lcd_devices(detect_fn=fake_detect)
         assert len(devices) == 0  # SCSI device without path is excluded
 
     def test_mixed_scsi_and_hid(self, fake_detect):
         from trcc.adapters.device.detector import DetectedDevice
+
         fake_detect.return_value = [
             DetectedDevice(
-                vid=0x87CD, pid=0x70DB,
-                vendor_name="Thermalright", product_name="LCD",
-                usb_path="1-1", scsi_device="/dev/sg0",
+                vid=0x87CD,
+                pid=0x70DB,
+                vendor_name="Thermalright",
+                product_name="LCD",
+                usb_path="1-1",
+                scsi_device="/dev/sg0",
             ),
             DetectedDevice(
-                vid=0x0418, pid=0x5303,
-                vendor_name="ALi Corp", product_name="LCD (HID ALi)",
+                vid=0x0418,
+                pid=0x5303,
+                vendor_name="ALi Corp",
+                product_name="LCD (HID ALi)",
                 usb_path="1-2",
-                protocol="hid", device_type=3,
+                protocol="hid",
+                device_type=3,
             ),
         ]
         from trcc.adapters.device.scsi import find_lcd_devices
+
         devices = find_lcd_devices(detect_fn=fake_detect)
 
         assert len(devices) == 2
-        scsi_dev = next(d for d in devices if d['protocol'] == 'scsi')
-        hid_dev = next(d for d in devices if d['protocol'] == 'hid')
+        scsi_dev = next(d for d in devices if d["protocol"] == "scsi")
+        hid_dev = next(d for d in devices if d["protocol"] == "hid")
 
-        assert scsi_dev['path'] == '/dev/sg0'
-        assert hid_dev['path'] == 'hid:0418:5303'
-        assert hid_dev['device_type'] == 3
+        assert scsi_dev["path"] == "/dev/sg0"
+        assert hid_dev["path"] == "hid:0418:5303"
+        assert hid_dev["device_type"] == 3
 
     def test_device_index_assigned_across_protocols(self, fake_detect):
         from trcc.adapters.device.detector import DetectedDevice
+
         fake_detect.return_value = [
             DetectedDevice(
-                vid=0x87CD, pid=0x70DB,
-                vendor_name="Thermalright", product_name="LCD",
-                usb_path="1-1", scsi_device="/dev/sg0",
+                vid=0x87CD,
+                pid=0x70DB,
+                vendor_name="Thermalright",
+                product_name="LCD",
+                usb_path="1-1",
+                scsi_device="/dev/sg0",
             ),
             DetectedDevice(
-                vid=0x0416, pid=0x5302,
-                vendor_name="ALi Corp", product_name="LCD (HID H)",
+                vid=0x0416,
+                pid=0x5302,
+                vendor_name="ALi Corp",
+                product_name="LCD (HID H)",
                 usb_path="1-2",
-                protocol="hid", device_type=2,
+                protocol="hid",
+                device_type=2,
             ),
         ]
         from trcc.adapters.device.scsi import find_lcd_devices
+
         devices = find_lcd_devices(detect_fn=fake_detect)
 
-        indices = [d['device_index'] for d in devices]
+        indices = [d["device_index"] for d in devices]
         assert sorted(indices) == [0, 1]
 
 
@@ -657,20 +708,25 @@ class TestFindLcdDevicesHid:
 # Tests: DeviceInfo model carries protocol
 # =========================================================================
 
+
 class TestDeviceInfoProtocol:
     """Verify DeviceInfo dataclass has protocol fields."""
 
     def test_default_protocol_is_scsi(self):
         from trcc.core.models import DeviceInfo
+
         dev = DeviceInfo(name="LCD", path="/dev/sg0")
         assert dev.protocol == "scsi"
         assert dev.device_type == 1
 
     def test_hid_protocol(self):
         from trcc.core.models import DeviceInfo
+
         dev = DeviceInfo(
-            name="HID LCD", path="hid:0416:5302",
-            protocol="hid", device_type=2,
+            name="HID LCD",
+            path="hid:0416:5302",
+            protocol="hid",
+            device_type=2,
         )
         assert dev.protocol == "hid"
         assert dev.device_type == 2
@@ -682,9 +738,12 @@ class TestDeviceInfoProtocol:
 
         svc = make_device_service()
         dev = DeviceInfo(
-            name="HID ALi", path="hid:0418:5303",
-            vid=0x0418, pid=0x5303,
-            protocol="hid", device_type=3,
+            name="HID ALi",
+            path="hid:0418:5303",
+            vid=0x0418,
+            pid=0x5303,
+            protocol="hid",
+            device_type=3,
         )
         svc.select(dev)
 
@@ -695,6 +754,7 @@ class TestDeviceInfoProtocol:
 # =========================================================================
 # Tests: ProtocolInfo API
 # =========================================================================
+
 
 class TestProtocolInfo:
     """Test the get_protocol_info() GUI API."""
@@ -786,12 +846,14 @@ class TestProtocolInfo:
 # Tests: DeviceService.get_protocol_info()
 # =========================================================================
 
+
 class TestDeviceServiceProtocolInfo:
     """Test the protocol info API used by the GUI."""
 
     def _make(self):
         from tests.conftest import make_device_service
         from trcc.adapters.device.factory import DeviceProtocolFactory
+
         return make_device_service(
             get_protocol_info=DeviceProtocolFactory.get_protocol_info,
         )
@@ -804,23 +866,34 @@ class TestDeviceServiceProtocolInfo:
 
     def test_scsi_device_selected(self):
         from trcc.core.models import DeviceInfo
+
         svc = self._make()
-        svc.select(DeviceInfo(
-            name="LCD", path="/dev/sg0",
-            protocol="scsi", device_type=1,
-        ))
+        svc.select(
+            DeviceInfo(
+                name="LCD",
+                path="/dev/sg0",
+                protocol="scsi",
+                device_type=1,
+            )
+        )
         info = svc.get_protocol_info()
         assert info.protocol == "scsi"
         assert info.is_scsi is True
 
     def test_hid_device_selected(self):
         from trcc.core.models import DeviceInfo
+
         svc = self._make()
-        svc.select(DeviceInfo(
-            name="HID LCD", path="hid:0416:5302",
-            vid=0x0416, pid=0x5302,
-            protocol="hid", device_type=2,
-        ))
+        svc.select(
+            DeviceInfo(
+                name="HID LCD",
+                path="hid:0416:5302",
+                vid=0x0416,
+                pid=0x5302,
+                protocol="hid",
+                device_type=2,
+            )
+        )
         info = svc.get_protocol_info()
         assert info.protocol == "hid"
         assert info.is_hid is True
@@ -835,8 +908,7 @@ class TestDeviceServiceProtocolInfo:
 class TestWindowsScsiProtocolHandshake:
     """Windows SCSI handshake polls FBL from device via read_cdb."""
 
-    def _make_proto(self, vid: int = 0x0402, pid: int = 0x3922,
-                    poll_response: bytes = b''):
+    def _make_proto(self, vid: int = 0x0402, pid: int = 0x3922, poll_response: bytes = b""):
         from trcc.adapters.device.factory import WindowsScsiProtocol
 
         proto = WindowsScsiProtocol(r"\\.\PhysicalDrive1", vid=vid, pid=pid)
@@ -850,7 +922,7 @@ class TestWindowsScsiProtocolHandshake:
     def test_handshake_reads_fbl_from_poll(self):
         """FBL extracted from poll response byte[0]."""
         # FBL=100 → 320x320
-        poll_resp = bytes([100]) + b'\x00' * 63
+        poll_resp = bytes([100]) + b"\x00" * 63
         proto = self._make_proto(poll_response=poll_resp)
 
         result = proto._do_handshake()
@@ -862,7 +934,7 @@ class TestWindowsScsiProtocolHandshake:
 
     def test_handshake_fbl_72_480x480(self):
         """FBL=72 → 480x480 resolution."""
-        poll_resp = bytes([72]) + b'\x00' * 63
+        poll_resp = bytes([72]) + b"\x00" * 63
         proto = self._make_proto(poll_response=poll_resp)
 
         result = proto._do_handshake()
@@ -873,7 +945,7 @@ class TestWindowsScsiProtocolHandshake:
 
     def test_empty_poll_falls_back_to_fbl_100(self):
         """Empty poll response (error 121 on Windows) → fallback to FBL 100 (320x320)."""
-        proto = self._make_proto(poll_response=b'')
+        proto = self._make_proto(poll_response=b"")
 
         result = proto._do_handshake()
 

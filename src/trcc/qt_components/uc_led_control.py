@@ -77,7 +77,7 @@ PRESET_X_POSITIONS = [901, 935, 970, 1004, 1039, 1073, 1108, 1142]
 PRESET_Y = 444
 PRESET_SIZE = 24
 # C# image assets: D3红/橙/黄/绿/湖/蓝/紫/白
-PRESET_ASSETS = ['D3红', 'D3橙', 'D3黄', 'D3绿', 'D3湖', 'D3蓝', 'D3紫', 'D3白']
+PRESET_ASSETS = ["D3红", "D3橙", "D3黄", "D3绿", "D3湖", "D3蓝", "D3紫", "D3白"]
 
 # Brightness slider — C#: ucScrollA at (976, 537) 190x20
 BRIGHT_X = 976
@@ -107,17 +107,30 @@ ZONE_W, ZONE_H = 140, 50
 # button1-4 (D4模式1-4): styles 1, 2
 # button5-6 (D4模式5-6): styles 3, 5, 6, 11
 # buttonN1-4 (D4按钮1-4): styles 4, 7, 8, 10
-ZONE_ASSETS_BTN14 = [('D4模式1', 'D4模式1a'), ('D4模式2', 'D4模式2a'),
-                     ('D4模式3', 'D4模式3a'), ('D4模式4', 'D4模式4a')]
-ZONE_ASSETS_BTN56 = [('D4模式5', 'D4模式5a'), ('D4模式6', 'D4模式6a')]
-ZONE_ASSETS_BTNN = [('D4按钮1', 'D4按钮1a'), ('D4按钮2', 'D4按钮2a'),
-                    ('D4按钮3', 'D4按钮3a'), ('D4按钮4', 'D4按钮4a')]
+ZONE_ASSETS_BTN14 = [
+    ("D4模式1", "D4模式1a"),
+    ("D4模式2", "D4模式2a"),
+    ("D4模式3", "D4模式3a"),
+    ("D4模式4", "D4模式4a"),
+]
+ZONE_ASSETS_BTN56 = [("D4模式5", "D4模式5a"), ("D4模式6", "D4模式6a")]
+ZONE_ASSETS_BTNN = [
+    ("D4按钮1", "D4按钮1a"),
+    ("D4按钮2", "D4按钮2a"),
+    ("D4按钮3", "D4按钮3a"),
+    ("D4按钮4", "D4按钮4a"),
+]
 _ZONE_STYLE_TO_ASSETS: dict = {
-    1: ZONE_ASSETS_BTN14, 2: ZONE_ASSETS_BTN14,
-    3: ZONE_ASSETS_BTN56, 5: ZONE_ASSETS_BTN56,
-    6: ZONE_ASSETS_BTN56, 11: ZONE_ASSETS_BTN56,
-    4: ZONE_ASSETS_BTNN, 7: ZONE_ASSETS_BTNN,
-    8: ZONE_ASSETS_BTNN, 10: ZONE_ASSETS_BTNN,
+    1: ZONE_ASSETS_BTN14,
+    2: ZONE_ASSETS_BTN14,
+    3: ZONE_ASSETS_BTN56,
+    5: ZONE_ASSETS_BTN56,
+    6: ZONE_ASSETS_BTN56,
+    11: ZONE_ASSETS_BTN56,
+    4: ZONE_ASSETS_BTNN,
+    7: ZONE_ASSETS_BTNN,
+    8: ZONE_ASSETS_BTNN,
+    10: ZONE_ASSETS_BTNN,
 }
 
 # Power/close button — C#: buttonPower at (1212, 24) 40x40
@@ -141,13 +154,13 @@ MODE_LABELS = [
 
 # Preset colors (from FormLED.cs buttonC1-C8)
 PRESET_COLORS = [
-    (255, 0, 42),     # Red-pink
-    (255, 110, 0),    # Orange
-    (255, 255, 0),    # Yellow
-    (0, 255, 0),      # Green
-    (0, 255, 255),    # Cyan
-    (0, 91, 255),     # Blue
-    (214, 0, 255),    # Purple
+    (255, 0, 42),  # Red-pink
+    (255, 110, 0),  # Orange
+    (255, 255, 0),  # Yellow
+    (0, 255, 0),  # Green
+    (0, 255, 255),  # Cyan
+    (0, 91, 255),  # Blue
+    (214, 0, 255),  # Purple
     (255, 255, 255),  # White
 ]
 
@@ -176,8 +189,8 @@ _STYLE_CHECKABLE_BTN = (
 
 def _checkbox_image_style() -> str:
     """Build stylesheet for P点选框/P点选框A radio-style buttons (°C/°F, 24H/12H, etc.)."""
-    normal = Assets.get('P点选框')
-    active = Assets.get('P点选框A')
+    normal = Assets.get("P点选框")
+    active = Assets.get("P点选框A")
     if normal and active:
         return (
             f"QPushButton {{ border: none; "
@@ -246,9 +259,15 @@ class UCInfoImage(QWidget):
                 bar_w = max(0, min(200, int(self._value / 25)))
             if bar_w > 0:
                 p.drawPixmap(
-                    35, 22, bar_w, 3,
+                    35,
+                    22,
+                    bar_w,
+                    3,
                     self._bar_pixmap,
-                    0, 0, bar_w, 3,
+                    0,
+                    0,
+                    bar_w,
+                    3,
                 )
 
         # Value text overlay
@@ -262,6 +281,7 @@ class UCInfoImage(QWidget):
 
         p.end()
 
+
 class UCLedControl(QWidget):
     """LED control panel matching Windows FormLED.
 
@@ -271,29 +291,29 @@ class UCLedControl(QWidget):
     """
 
     # Signals for controller binding
-    mode_changed = Signal(int)              # LEDMode value
-    color_changed = Signal(int, int, int)   # R, G, B
-    brightness_changed = Signal(int)         # 0-100
-    global_toggled = Signal(bool)            # on/off (from color wheel center button)
-    close_requested = Signal()               # close/hide LED panel (C# cmd 255)
-    segment_clicked = Signal(int)            # segment index
+    mode_changed = Signal(int)  # LEDMode value
+    color_changed = Signal(int, int, int)  # R, G, B
+    brightness_changed = Signal(int)  # 0-100
+    global_toggled = Signal(bool)  # on/off (from color wheel center button)
+    close_requested = Signal()  # close/hide LED panel (C# cmd 255)
+    segment_clicked = Signal(int)  # segment index
     # Zone signals
-    zone_selected = Signal(int)              # zone index (0-based)
-    zone_toggled = Signal(int, bool)         # zone index, on/off
-    carousel_changed = Signal(bool)          # carousel mode toggled
+    zone_selected = Signal(int)  # zone index (0-based)
+    zone_toggled = Signal(int, bool)  # zone index, on/off
+    carousel_changed = Signal(bool)  # carousel mode toggled
     carousel_zone_changed = Signal(int, bool)  # zone index, in carousel
     carousel_interval_changed = Signal(int)  # interval in seconds
     # LC2 clock signals (style 9)
-    clock_format_changed = Signal(bool)      # True = 24h
-    week_start_changed = Signal(bool)        # True = Sunday
+    clock_format_changed = Signal(bool)  # True = 24h
+    week_start_changed = Signal(bool)  # True = Sunday
     # Temperature unit signal
-    temp_unit_changed = Signal(str)          # "C" or "F"
+    temp_unit_changed = Signal(str)  # "C" or "F"
     # Disk selector (LF11 style 10)
-    disk_index_changed = Signal(int)         # disk index (0-based)
+    disk_index_changed = Signal(int)  # disk index (0-based)
     # DDR multiplier (LC1 style 4)
-    memory_ratio_changed = Signal(int)       # 1, 2, or 4
+    memory_ratio_changed = Signal(int)  # 1, 2, or 4
     # Test mode
-    test_mode_changed = Signal(bool)         # test mode toggled
+    test_mode_changed = Signal(bool)  # test mode toggled
 
     # Header drag area — C# FormLED uses delegate cmds 241/242/243 for
     # MouseDown/Move/Up so the user can drag the window from the header.
@@ -353,9 +373,7 @@ class UCLedControl(QWidget):
         self._title = QLabel("RGB LED Control", self)
         self._title.setGeometry(PREVIEW_X, 20, PREVIEW_W, 40)
         self._title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._title.setStyleSheet(
-            "color: white; font-size: 20px; font-weight: bold;"
-        )
+        self._title.setStyleSheet("color: white; font-size: 20px; font-weight: bold;")
         self._title.setVisible(False)
 
         # -- Mode buttons --
@@ -413,12 +431,9 @@ class UCLedControl(QWidget):
             spinbox.setRange(0, 255)
             spinbox.setValue(255 if i == 0 else 0)
             spinbox.setStyleSheet(
-                "color: white; background: rgba(40, 40, 40, 180); "
-                "border: none; font-size: 11px;"
+                "color: white; background: rgba(40, 40, 40, 180); border: none; font-size: 11px;"
             )
-            spinbox.valueChanged.connect(
-                lambda val, idx=i: self._on_spinbox_changed(idx, val)
-            )
+            spinbox.valueChanged.connect(lambda val, idx=i: self._on_spinbox_changed(idx, val))
             self._rgb_spinboxes.append(spinbox)
 
             # Slider (right of spinbox — C# ucScrollAR/G/B)
@@ -466,16 +481,12 @@ class UCLedControl(QWidget):
                     f"QPushButton:hover {{ border: 2px solid white; }}"
                 )
             btn.setFlat(True)
-            btn.clicked.connect(
-                lambda checked, cr=r, cg=g, cb=b: self._set_color(cr, cg, cb)
-            )
+            btn.clicked.connect(lambda checked, cr=r, cg=g, cb=b: self._set_color(cr, cg, cb))
             self._preset_buttons.append(btn)
 
         # -- Temperature color legend (modes 5-6, hidden by default) --
         self._temp_legend = QLabel(self)
-        self._temp_legend.setGeometry(
-            TEMP_LEGEND_X, TEMP_LEGEND_Y, TEMP_LEGEND_W, TEMP_LEGEND_H
-        )
+        self._temp_legend.setGeometry(TEMP_LEGEND_X, TEMP_LEGEND_Y, TEMP_LEGEND_W, TEMP_LEGEND_H)
         self._temp_legend.setStyleSheet(
             "background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
             "stop:0 #00CCFF, stop:0.33 #00FF00, stop:0.55 #FFFF00, "
@@ -485,11 +496,11 @@ class UCLedControl(QWidget):
         self._temp_legend.setVisible(False)
 
         self._temp_legend_labels = QLabel(
-            "<30\u00b0         <50\u00b0         <70\u00b0         <90\u00b0         >90\u00b0", self
+            "<30\u00b0         <50\u00b0         <70\u00b0         <90\u00b0         >90\u00b0",
+            self,
         )
         self._temp_legend_labels.setGeometry(
-            TEMP_LEGEND_X, TEMP_LEGEND_Y + TEMP_LEGEND_H + 2,
-            TEMP_LEGEND_W, 14
+            TEMP_LEGEND_X, TEMP_LEGEND_Y + TEMP_LEGEND_H + 2, TEMP_LEGEND_W, 14
         )
         self._temp_legend_labels.setStyleSheet(
             "color: #aaa; font-size: 10px; background: transparent;"
@@ -516,10 +527,10 @@ class UCLedControl(QWidget):
         self._brightness_slider.valueChanged.connect(self.brightness_changed.emit)
 
         self._brightness_label = QLabel("100%", self)
-        self._brightness_label.setGeometry(
-            BRIGHT_X + BRIGHT_W + 5, BRIGHT_Y, 40, 20)
+        self._brightness_label.setGeometry(BRIGHT_X + BRIGHT_W + 5, BRIGHT_Y, 40, 20)
         self._brightness_label.setStyleSheet(
-            "color: white; font-size: 11px; background: transparent;")
+            "color: white; font-size: 11px; background: transparent;"
+        )
         self._brightness_slider.valueChanged.connect(
             lambda v: self._brightness_label.setText(f"{v}%")
         )
@@ -530,8 +541,8 @@ class UCLedControl(QWidget):
         self._close_btn = QPushButton(self)
         self._close_btn.setGeometry(POWER_X, POWER_Y, POWER_W, POWER_H)
         self._close_btn.setFlat(True)
-        _pwr_normal = Assets.get('Alogout默认')
-        _pwr_active = Assets.get('Alogout选中')
+        _pwr_normal = Assets.get("Alogout默认")
+        _pwr_active = Assets.get("Alogout选中")
         if _pwr_normal and _pwr_active:
             self._close_btn.setStyleSheet(
                 f"QPushButton {{ border: none; "
@@ -556,8 +567,7 @@ class UCLedControl(QWidget):
             "background: #FF9800; }"
         )
         self._test_cb.setToolTip("LED test mode — cycles white/red/green/blue")
-        self._test_cb.toggled.connect(
-            lambda on: self.test_mode_changed.emit(on))
+        self._test_cb.toggled.connect(lambda on: self.test_mode_changed.emit(on))
         self._test_cb.setVisible(False)  # C# checkBox1.Visible = false
 
         # -- Zone buttons (C# button1-4/5-6/N1-4 — images swapped per style) --
@@ -570,9 +580,7 @@ class UCLedControl(QWidget):
             btn.setFlat(True)
             btn.setToolTip(f"Select zone {i + 1}")
             btn.setStyleSheet(_STYLE_FLAT_CHECKABLE_BTN)
-            btn.clicked.connect(
-                lambda checked, idx=i: self._on_zone_clicked(idx)
-            )
+            btn.clicked.connect(lambda checked, idx=i: self._on_zone_clicked(idx))
             btn.setVisible(False)
             self._zone_buttons.append(btn)
 
@@ -582,8 +590,8 @@ class UCLedControl(QWidget):
         self._carousel_btn.setGeometry(739, 680, 14, 14)
         self._carousel_btn.setCheckable(True)
         self._carousel_btn.setFlat(True)
-        _cb_normal = Assets.get('P点选框')
-        _cb_active = Assets.get('P点选框A')
+        _cb_normal = Assets.get("P点选框")
+        _cb_active = Assets.get("P点选框A")
         if _cb_normal and _cb_active:
             self._carousel_btn.setStyleSheet(
                 f"QPushButton {{ border: none; "
@@ -605,10 +613,10 @@ class UCLedControl(QWidget):
         self._carousel_interval.setValidator(QIntValidator(1, 60, self))
         self._carousel_interval.setStyleSheet(
             "QLineEdit { background: rgb(67, 67, 67); color: white; "
-            "border: none; font-size: 11px; }")
+            "border: none; font-size: 11px; }"
+        )
         self._carousel_interval.setToolTip("Carousel rotation interval (seconds)")
-        self._carousel_interval.textChanged.connect(
-            self._on_carousel_interval_changed)
+        self._carousel_interval.textChanged.connect(self._on_carousel_interval_changed)
         self._carousel_interval.setVisible(False)
 
         # ============================================================
@@ -669,10 +677,10 @@ class UCLedControl(QWidget):
         # 6 UCInfoImage widgets: CPU temp/clock/usage, GPU temp/clock/usage
         # Windows layout: col1 x=16, col2 x=276, rows y=659/707/755
         INFO_DEFS = [
-            (1, "cpu_temp", 1),   # M1 CPU Temp (mode=1: temp/percent)
+            (1, "cpu_temp", 1),  # M1 CPU Temp (mode=1: temp/percent)
             (2, "cpu_clock", 2),  # M2 CPU Clock (mode=2: MHz)
             (3, "cpu_usage", 1),  # M3 CPU Usage (mode=1: percent)
-            (4, "gpu_temp", 1),   # M4 GPU Temp
+            (4, "gpu_temp", 1),  # M4 GPU Temp
             (5, "gpu_clock", 2),  # M5 GPU Clock
             (6, "gpu_usage", 1),  # M6 GPU Usage
         ]
@@ -691,8 +699,7 @@ class UCLedControl(QWidget):
         # °C/°F toggle buttons — C#: buttonC at (699, 144) 14x14, buttonF at (759, 144)
         # Uses P点选框 (unchecked) / P点选框A (checked) images like C#.
         self._btn_celsius = QPushButton(self)
-        self._btn_celsius.setGeometry(
-            TEMP_BTN_C_X, TEMP_BTN_Y, TEMP_BTN_SIZE, TEMP_BTN_SIZE)
+        self._btn_celsius.setGeometry(TEMP_BTN_C_X, TEMP_BTN_Y, TEMP_BTN_SIZE, TEMP_BTN_SIZE)
         self._btn_celsius.setCheckable(True)
         self._btn_celsius.setChecked(True)
         self._btn_celsius.setFlat(True)
@@ -702,8 +709,7 @@ class UCLedControl(QWidget):
         self._btn_celsius.setVisible(False)
 
         self._btn_fahrenheit = QPushButton(self)
-        self._btn_fahrenheit.setGeometry(
-            TEMP_BTN_F_X, TEMP_BTN_Y, TEMP_BTN_SIZE, TEMP_BTN_SIZE)
+        self._btn_fahrenheit.setGeometry(TEMP_BTN_F_X, TEMP_BTN_Y, TEMP_BTN_SIZE, TEMP_BTN_SIZE)
         self._btn_fahrenheit.setCheckable(True)
         self._btn_fahrenheit.setFlat(True)
         self._btn_fahrenheit.setStyleSheet(_cb_style)
@@ -715,9 +721,7 @@ class UCLedControl(QWidget):
         # LC1 memory info panel (style 4 — C# UCLEDMemoryInfo)
         # Panel at (13, 656) 506x132, transparent bg (bg PNG has labels)
         # ============================================================
-        _mem_lbl_style = (
-            "color: rgb(180, 150, 83); font-size: 13px;"
-            " background: transparent;")
+        _mem_lbl_style = "color: rgb(180, 150, 83); font-size: 13px; background: transparent;"
 
         self._mem_bg = QFrame(self)
         self._mem_bg.setGeometry(13, 656, 506, 132)
@@ -730,24 +734,23 @@ class UCLedControl(QWidget):
         # label5-10=timings (tCAS/tRCD/tRP/tRAS/tRC/tRFC)
         self._mem_labels: Dict[str, QLabel] = {}
         _mem_layout = [
-            ("mem_temp",    136, 15, 166, 23),
-            ("mem_clock",   136, 35, 166, 23),
-            ("mem_mts",     311, 35, 128, 23),
-            ("mem_used",    136, 54, 166, 23),
-            ("mem_ratio",   136, 74, 166, 23),
-            ("mem_tcas",    169, 94,  38, 23),
-            ("mem_trcd",    228, 94,  38, 23),
-            ("mem_trp",     283, 94,  38, 23),
-            ("mem_tras",    346, 94,  38, 23),
-            ("mem_trc",     401, 94,  38, 23),
-            ("mem_trfc",    464, 94,  38, 23),
+            ("mem_temp", 136, 15, 166, 23),
+            ("mem_clock", 136, 35, 166, 23),
+            ("mem_mts", 311, 35, 128, 23),
+            ("mem_used", 136, 54, 166, 23),
+            ("mem_ratio", 136, 74, 166, 23),
+            ("mem_tcas", 169, 94, 38, 23),
+            ("mem_trcd", 228, 94, 38, 23),
+            ("mem_trp", 283, 94, 38, 23),
+            ("mem_tras", 346, 94, 38, 23),
+            ("mem_trc", 401, 94, 38, 23),
+            ("mem_trfc", 464, 94, 38, 23),
         ]
         for key, ix, iy, w, h in _mem_layout:
             lbl = QLabel("NC", self)
             lbl.setGeometry(13 + ix, 656 + iy, w, h)
             lbl.setStyleSheet(_mem_lbl_style)
-            lbl.setAlignment(Qt.AlignmentFlag.AlignLeft
-                             | Qt.AlignmentFlag.AlignVCenter)
+            lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             lbl.setVisible(False)
             self._mem_labels[key] = lbl
         self._mem_slots: list[dict] = []
@@ -764,7 +767,8 @@ class UCLedControl(QWidget):
             "border: 1px solid #555; font-size: 11px; }"
             "QComboBox::drop-down { border: none; }"
             "QComboBox QAbstractItemView { background: #333; "
-            "color: rgb(180, 150, 83); selection-background-color: #555; }")
+            "color: rgb(180, 150, 83); selection-background-color: #555; }"
+        )
         self._ddr_combo.currentIndexChanged.connect(self._on_ddr_changed)
         self._ddr_combo.setVisible(False)
         self._memory_ratio = 2
@@ -783,17 +787,16 @@ class UCLedControl(QWidget):
         # label1=temp  label2=health%  label3=read  label4=write
         self._disk_labels: Dict[str, QLabel] = {}
         _disk_layout = [
-            ("lf11_disk_temp",  170, 21, 166, 23),
+            ("lf11_disk_temp", 170, 21, 166, 23),
             ("lf11_disk_usage", 170, 43, 166, 23),
-            ("lf11_disk_read",  170, 66, 166, 23),
+            ("lf11_disk_read", 170, 66, 166, 23),
             ("lf11_disk_write", 170, 88, 166, 23),
         ]
         for key, ix, iy, w, h in _disk_layout:
             lbl = QLabel("NC", self)
             lbl.setGeometry(13 + ix, 656 + iy, w, h)
             lbl.setStyleSheet(_mem_lbl_style)
-            lbl.setAlignment(Qt.AlignmentFlag.AlignLeft
-                             | Qt.AlignmentFlag.AlignVCenter)
+            lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             lbl.setVisible(False)
             self._disk_labels[key] = lbl
         self._disk_slots: list[dict] = []
@@ -806,7 +809,8 @@ class UCLedControl(QWidget):
             "border: 1px solid #555; font-size: 11px; }"
             "QComboBox::drop-down { border: none; }"
             "QComboBox QAbstractItemView { background: #333; "
-            "color: rgb(180, 150, 83); selection-background-color: #555; }")
+            "color: rgb(180, 150, 83); selection-background-color: #555; }"
+        )
         self._disk_selector.currentIndexChanged.connect(self._on_disk_selected)
         self._disk_selector.setVisible(False)
 
@@ -819,9 +823,9 @@ class UCLedControl(QWidget):
     # Public API
     # ================================================================
 
-    def initialize(self, style_id: int, segment_count: int,
-                   zone_count: int = 1,
-                   model: str = '') -> None:
+    def initialize(
+        self, style_id: int, segment_count: int, zone_count: int = 1, model: str = ""
+    ) -> None:
         """Configure for a specific LED device style.
 
         Args:
@@ -839,6 +843,7 @@ class UCLedControl(QWidget):
 
         # Load device preview background (PM-specific or style default)
         from ..core.models import LED_STYLES, PmRegistry
+
         style = LED_STYLES.get(style_id)
         if style:
             # Resolve preview: check PmRegistry for model-specific image,
@@ -855,6 +860,7 @@ class UCLedControl(QWidget):
 
             # Set panel background (localized with fallback)
             from ..conf import settings
+
             bg_name = Assets.get_localized(style.background_base, settings.lang)
             if Assets.get(bg_name):
                 set_background_pixmap(self, bg_name)
@@ -870,8 +876,7 @@ class UCLedControl(QWidget):
         self._is_select_all_style = style_id in LEDService.SELECT_ALL_STYLES
         self._carousel_btn.setVisible(zone_count > 1)
         self._carousel_btn.setToolTip(
-            "Select all zones" if self._is_select_all_style
-            else "Cycle through selected zones"
+            "Select all zones" if self._is_select_all_style else "Cycle through selected zones"
         )
         self._carousel_interval.setVisible(False)
         self._selected_zone = 0
@@ -881,9 +886,9 @@ class UCLedControl(QWidget):
             self._zone_buttons[0].setChecked(True)
 
         # Show/hide device-specific info panels (mutually exclusive)
-        is_lc2 = (style_id == 9)
-        is_lc1 = (style_id == 4)
-        is_lf11 = (style_id == 10)
+        is_lc2 = style_id == 9
+        is_lc1 = style_id == 4
+        is_lf11 = style_id == 10
         # C# shows ucInfoImage1-6 for ALL styles except LC1 (4) and LF11 (10)
         show_sensors = style_id not in (4, 10)
 
@@ -910,6 +915,7 @@ class UCLedControl(QWidget):
         """Re-apply localized background for current settings.lang."""
         from ..conf import settings
         from ..core.models import LED_STYLES
+
         style = LED_STYLES.get(self._style_id)
         if style:
             bg_name = Assets.get_localized(style.background_base, settings.lang)
@@ -964,8 +970,7 @@ class UCLedControl(QWidget):
         """
         # Brightness
         self._brightness_slider.setGeometry(BRIGHT_X, BRIGHT_Y, BRIGHT_W, 20)
-        self._brightness_label.setGeometry(
-            BRIGHT_X + BRIGHT_W + 5, BRIGHT_Y, 40, 20)
+        self._brightness_label.setGeometry(BRIGHT_X + BRIGHT_W + 5, BRIGHT_Y, 40, 20)
 
         self._close_btn.setVisible(True)
 
@@ -1047,7 +1052,7 @@ class UCLedControl(QWidget):
         """
         if self._is_select_all_style and self._carousel_mode:
             # Select all: keep all buttons checked, ignore click (C# early return)
-            for btn in self._zone_buttons[:self._zone_count]:
+            for btn in self._zone_buttons[: self._zone_count]:
                 btn.setChecked(True)
             return
         if self._carousel_mode:
@@ -1058,9 +1063,11 @@ class UCLedControl(QWidget):
             if is_now_checked:
                 self.carousel_zone_changed.emit(zone_index, True)
             else:
-                others = sum(1 for i in range(self._zone_count)
-                             if i != zone_index
-                             and self._zone_buttons[i].isChecked())
+                others = sum(
+                    1
+                    for i in range(self._zone_count)
+                    if i != zone_index and self._zone_buttons[i].isChecked()
+                )
                 if others > 0:
                     self.carousel_zone_changed.emit(zone_index, False)
                 else:
@@ -1083,15 +1090,14 @@ class UCLedControl(QWidget):
             # Select all: check all zone buttons, never show interval
             self._carousel_interval.setVisible(False)
             if carousel:
-                for btn in self._zone_buttons[:self._zone_count]:
+                for btn in self._zone_buttons[: self._zone_count]:
                     btn.setChecked(True)
             else:
                 for i, btn in enumerate(self._zone_buttons):
                     btn.setChecked(i == self._selected_zone)
         else:
             # Circulate: show interval input when active
-            self._carousel_interval.setVisible(
-                carousel and self._zone_count > 1)
+            self._carousel_interval.setVisible(carousel and self._zone_count > 1)
             if not carousel:
                 for i, btn in enumerate(self._zone_buttons):
                     btn.setChecked(i == self._selected_zone)
@@ -1104,9 +1110,9 @@ class UCLedControl(QWidget):
         if text.isdigit() and int(text) > 0:
             self.carousel_interval_changed.emit(int(text))
 
-    def load_zone_state(self, zone_index: int, mode: int,
-                        color: tuple, brightness: int,
-                        on: bool = True):
+    def load_zone_state(
+        self, zone_index: int, mode: int, color: tuple, brightness: int, on: bool = True
+    ):
         """Load a zone's state into the UI controls."""
         for slider in self._rgb_sliders:
             slider.blockSignals(True)
@@ -1222,6 +1228,7 @@ class UCLedControl(QWidget):
     def _update_clock(self) -> None:
         """LC2 clock display — reads own timer state, no external args."""
         import datetime
+
         now = datetime.datetime.now()
         hour = now.hour
         if not self._is_timer_24h and hour > 12:
@@ -1235,42 +1242,41 @@ class UCLedControl(QWidget):
         """Update UCInfoImage sensor gauges."""
         unit = self._temp_unit
         t = metrics.cpu_temp
-        self._info_images['cpu_temp'].set_value(t, f"{t:.0f}", unit)
-        self._info_images['cpu_clock'].set_value(
-            metrics.cpu_freq, f"{metrics.cpu_freq:.0f}", "MHz")
-        self._info_images['cpu_usage'].set_value(
-            metrics.cpu_percent, f"{metrics.cpu_percent:.0f}", "%")
+        self._info_images["cpu_temp"].set_value(t, f"{t:.0f}", unit)
+        self._info_images["cpu_clock"].set_value(metrics.cpu_freq, f"{metrics.cpu_freq:.0f}", "MHz")
+        self._info_images["cpu_usage"].set_value(
+            metrics.cpu_percent, f"{metrics.cpu_percent:.0f}", "%"
+        )
         t = metrics.gpu_temp
-        self._info_images['gpu_temp'].set_value(t, f"{t:.0f}", unit)
-        self._info_images['gpu_clock'].set_value(
-            metrics.gpu_clock, f"{metrics.gpu_clock:.0f}", "MHz")
-        self._info_images['gpu_usage'].set_value(
-            metrics.gpu_usage, f"{metrics.gpu_usage:.0f}", "%")
+        self._info_images["gpu_temp"].set_value(t, f"{t:.0f}", unit)
+        self._info_images["gpu_clock"].set_value(
+            metrics.gpu_clock, f"{metrics.gpu_clock:.0f}", "MHz"
+        )
+        self._info_images["gpu_usage"].set_value(metrics.gpu_usage, f"{metrics.gpu_usage:.0f}", "%")
 
     def update_memory_metrics(self, metrics: HardwareMetrics) -> None:
         """Update memory info labels (LC1 style 4, C# UCLEDMemoryInfo)."""
         unit = self._temp_unit
         t = metrics.mem_temp
         if t == 0:
-            self._mem_labels['mem_temp'].setText("NC")
+            self._mem_labels["mem_temp"].setText("NC")
         else:
-            self._mem_labels['mem_temp'].setText(
-                f"{t:.0f}\u2103" if unit == "\u00b0C" else f"{t:.0f}\u2109")
+            self._mem_labels["mem_temp"].setText(
+                f"{t:.0f}\u2103" if unit == "\u00b0C" else f"{t:.0f}\u2109"
+            )
         mhz = metrics.mem_clock
-        self._mem_labels['mem_clock'].setText(
-            f"{mhz:.0f}MHz" if mhz else "NC")
+        self._mem_labels["mem_clock"].setText(f"{mhz:.0f}MHz" if mhz else "NC")
         effective = mhz * self._memory_ratio
-        self._mem_labels['mem_mts'].setText(
-            f"{effective:.0f}MT/S" if mhz else "NC")
+        self._mem_labels["mem_mts"].setText(f"{effective:.0f}MT/S" if mhz else "NC")
         # C# shows MemUsed/1000 in GB — derive from available + percent
         if metrics.mem_percent > 0 and metrics.mem_available > 0:
             total = metrics.mem_available / (1.0 - metrics.mem_percent / 100.0)
             used_gb = (total - metrics.mem_available) / 1000.0
-            self._mem_labels['mem_used'].setText(f"{used_gb:.1f}GB")
+            self._mem_labels["mem_used"].setText(f"{used_gb:.1f}GB")
         else:
-            self._mem_labels['mem_used'].setText("NC")
+            self._mem_labels["mem_used"].setText("NC")
         ratio = self._memory_ratio
-        self._mem_labels['mem_ratio'].setText(f"{ratio}X")
+        self._mem_labels["mem_ratio"].setText(f"{ratio}X")
 
     def _populate_memory_identity(self) -> None:
         """Populate memory timing labels from DRAM SPD info."""
@@ -1280,10 +1286,9 @@ class UCLedControl(QWidget):
             self._mem_slots = self._get_memory_info()
             if self._mem_slots:
                 s = self._mem_slots[0]
-                for key in ('mem_tcas', 'mem_trcd', 'mem_trp',
-                            'mem_tras', 'mem_trc', 'mem_trfc'):
-                    field = key.replace('mem_t', 't').replace('mem_', '')
-                    val = s.get(field, '')
+                for key in ("mem_tcas", "mem_trcd", "mem_trp", "mem_tras", "mem_trc", "mem_trfc"):
+                    field = key.replace("mem_t", "t").replace("mem_", "")
+                    val = s.get(field, "")
                     self._mem_labels[key].setText(str(val) if val else "NC")
         except Exception:
             self._mem_slots = []
@@ -1313,10 +1318,10 @@ class UCLedControl(QWidget):
             self._disk_selector.blockSignals(True)
             self._disk_selector.clear()
             for d in self._disk_slots:
-                name = d.get('name', d.get('model', '?'))
+                name = d.get("name", d.get("model", "?"))
                 # C# shows name up to '(' character
-                if '(' in name:
-                    name = name[:name.index('(') - 1]
+                if "(" in name:
+                    name = name[: name.index("(") - 1]
                 self._disk_selector.addItem(name)
             self._disk_selector.blockSignals(False)
         except Exception:
@@ -1331,16 +1336,14 @@ class UCLedControl(QWidget):
         unit = self._temp_unit
         t = metrics.disk_temp
         if t == 0:
-            self._disk_labels['lf11_disk_temp'].setText("NC")
+            self._disk_labels["lf11_disk_temp"].setText("NC")
         else:
-            self._disk_labels['lf11_disk_temp'].setText(
-                f"{t:.0f}\u2103" if unit == "\u00b0C" else f"{t:.0f}\u2109")
-        self._disk_labels['lf11_disk_usage'].setText(
-            f"{metrics.disk_activity:.0f}%")
-        self._disk_labels['lf11_disk_read'].setText(
-            f"{metrics.disk_read:.0f}MB/S")
-        self._disk_labels['lf11_disk_write'].setText(
-            f"{metrics.disk_write:.0f}MB/S")
+            self._disk_labels["lf11_disk_temp"].setText(
+                f"{t:.0f}\u2103" if unit == "\u00b0C" else f"{t:.0f}\u2109"
+            )
+        self._disk_labels["lf11_disk_usage"].setText(f"{metrics.disk_activity:.0f}%")
+        self._disk_labels["lf11_disk_read"].setText(f"{metrics.disk_read:.0f}MB/S")
+        self._disk_labels["lf11_disk_write"].setText(f"{metrics.disk_write:.0f}MB/S")
 
     # ================================================================
     # Window drag (C# delegate cmds 241/242/243)
@@ -1348,12 +1351,9 @@ class UCLedControl(QWidget):
 
     def mousePressEvent(self, event):
         """Start window drag from header area (C# FormLED_MouseDown)."""
-        if (event.button() == Qt.MouseButton.LeftButton
-                and event.position().y() < self._DRAG_MAX_Y):
+        if event.button() == Qt.MouseButton.LeftButton and event.position().y() < self._DRAG_MAX_Y:
             window = self.window()
-            self._drag_pos = (
-                event.globalPosition().toPoint() - window.frameGeometry().topLeft()
-            )
+            self._drag_pos = event.globalPosition().toPoint() - window.frameGeometry().topLeft()
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
@@ -1387,4 +1387,3 @@ class UCLedControl(QWidget):
             "QPushButton:checked { background: rgba(33, 150, 243, 60); }"
             "QPushButton:hover { background: rgba(255, 255, 255, 20); }"
         )
-

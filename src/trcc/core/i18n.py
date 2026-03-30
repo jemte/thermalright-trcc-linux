@@ -24,6 +24,7 @@ Coordinate tuples: (x, y, w, h, font_pt) — estimated from PNG pixel positions.
     - Main view (CZTV): 1274x800
     - Shortcuts: 230x430
 """
+
 from __future__ import annotations
 
 # fmt: off
@@ -1758,7 +1759,7 @@ def tr(key: str, lang: str) -> str:
         if val:
             return val
     # Fall back to English
-    en = TRANSLATIONS.get('en')
+    en = TRANSLATIONS.get("en")
     if en:
         val = en.get(key)
         if val:

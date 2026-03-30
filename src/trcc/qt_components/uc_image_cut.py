@@ -4,6 +4,7 @@ Matches Windows TRCC UCImageCut functionality (500x702).
 Provides pan, zoom, rotation, and fit-mode controls for cropping
 images to LCD target resolution.
 """
+
 from __future__ import annotations
 
 from PySide6.QtCore import QPoint, Qt, Signal
@@ -47,10 +48,17 @@ BTN_CLOSE = (474, 510, 16, 16)
 
 # Pan multipliers per resolution
 _PAN_MULTIPLIERS = {
-    (240, 240): 1, (320, 320): 1, (360, 360): 1,
-    (480, 480): 2, (640, 480): 2, (800, 480): 3,
-    (854, 480): 3, (960, 540): 3, (1280, 480): 4,
-    (1600, 720): 4, (1920, 462): 4,
+    (240, 240): 1,
+    (320, 320): 1,
+    (360, 360): 1,
+    (480, 480): 2,
+    (640, 480): 2,
+    (800, 480): 3,
+    (854, 480): 3,
+    (960, 540): 3,
+    (1280, 480): 4,
+    (1600, 720): 4,
+    (1920, 462): 4,
 }
 
 
@@ -94,7 +102,7 @@ class UCImageCut(QWidget):
 
         # Dark background
         palette = self.palette()
-        palette.setColor(QPalette.ColorRole.Window, QColor('#232227'))
+        palette.setColor(QPalette.ColorRole.Window, QColor("#232227"))
         self.setPalette(palette)
         self.setAutoFillBackground(True)
 
@@ -102,15 +110,16 @@ class UCImageCut(QWidget):
 
     def _setup_ui(self):
         self._btn_height_fit = make_icon_button(
-            self, BTN_HEIGHT_FIT, 'P高度适应.png', "H", self._on_height_fit)
+            self, BTN_HEIGHT_FIT, "P高度适应.png", "H", self._on_height_fit
+        )
         self._btn_width_fit = make_icon_button(
-            self, BTN_WIDTH_FIT, 'P宽度适应.png', "W", self._on_width_fit)
-        self._btn_rotate = make_icon_button(
-            self, BTN_ROTATE, 'P旋转.png', "R", self._on_rotate)
-        self._btn_ok = make_icon_button(
-            self, BTN_OK, 'P裁减.png', "OK", self._on_ok)
+            self, BTN_WIDTH_FIT, "P宽度适应.png", "W", self._on_width_fit
+        )
+        self._btn_rotate = make_icon_button(self, BTN_ROTATE, "P旋转.png", "R", self._on_rotate)
+        self._btn_ok = make_icon_button(self, BTN_OK, "P裁减.png", "OK", self._on_ok)
         self._btn_close = make_icon_button(
-            self, BTN_CLOSE, 'P关闭按钮.png', "\u2715", self._on_close)
+            self, BTN_CLOSE, "P关闭按钮.png", "\u2715", self._on_close
+        )
 
     # =========================================================================
     # Public API
@@ -143,7 +152,7 @@ class UCImageCut(QWidget):
             self._fit_width()
 
         # Load resolution-specific background
-        bg_name = f'P0图片裁减{target_w}{target_h}.png'
+        bg_name = f"P0图片裁减{target_w}{target_h}.png"
         bg_pix = Assets.load_pixmap(bg_name, PANEL_W, PANEL_H)
         if not bg_pix.isNull():
             palette = self.palette()
@@ -181,8 +190,7 @@ class UCImageCut(QWidget):
             return
         src_w = img.width()
         self._zoom = self._target_w / src_w if src_w > 0 else 1.0
-        self._slider_x = max(SLIDER_X_MIN, min(SLIDER_X_MAX,
-                             self._slider_x_from_zoom(self._zoom)))
+        self._slider_x = max(SLIDER_X_MIN, min(SLIDER_X_MAX, self._slider_x_from_zoom(self._zoom)))
         self._pan_x = 0
         self._pan_y = 0
         self._rebuild_display()
@@ -195,8 +203,7 @@ class UCImageCut(QWidget):
             return
         src_h = img.height()
         self._zoom = self._target_h / src_h if src_h > 0 else 1.0
-        self._slider_x = max(SLIDER_X_MIN, min(SLIDER_X_MAX,
-                             self._slider_x_from_zoom(self._zoom)))
+        self._slider_x = max(SLIDER_X_MIN, min(SLIDER_X_MAX, self._slider_x_from_zoom(self._zoom)))
         self._pan_x = 0
         self._pan_y = 0
         self._rebuild_display()
@@ -222,9 +229,12 @@ class UCImageCut(QWidget):
         if new_w < 1 or new_h < 1:
             return None
 
-        scaled = img.scaled(new_w, new_h,
-                            Qt.AspectRatioMode.IgnoreAspectRatio,
-                            Qt.TransformationMode.SmoothTransformation)
+        scaled = img.scaled(
+            new_w,
+            new_h,
+            Qt.AspectRatioMode.IgnoreAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
 
         # Black canvas at target resolution
         output = QImage(self._target_w, self._target_h, QImage.Format.Format_RGB32)
@@ -250,9 +260,12 @@ class UCImageCut(QWidget):
         pw, ph = output.width(), output.height()
         scale = min(PREVIEW_W / pw, PREVIEW_H / ph)
         disp_w, disp_h = int(pw * scale), int(ph * scale)
-        display = output.scaled(disp_w, disp_h,
-                                Qt.AspectRatioMode.IgnoreAspectRatio,
-                                Qt.TransformationMode.SmoothTransformation)
+        display = output.scaled(
+            disp_w,
+            disp_h,
+            Qt.AspectRatioMode.IgnoreAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
         self._display_pixmap = QPixmap.fromImage(display)
         self.update()
 
@@ -266,7 +279,7 @@ class UCImageCut(QWidget):
 
         # Preview area background
         p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QBrush(QColor('#000000')))
+        p.setBrush(QBrush(QColor("#000000")))
         p.drawRect(PREVIEW_X, PREVIEW_Y, PREVIEW_W, PREVIEW_H)
 
         # Display cropped image
@@ -278,16 +291,17 @@ class UCImageCut(QWidget):
 
         # Zoom slider track
         track_y = SLIDER_Y + SLIDER_H // 2
-        p.setPen(QPen(QColor('#555'), 2))
+        p.setPen(QPen(QColor("#555"), 2))
         p.drawLine(SLIDER_X_MIN, track_y, SLIDER_X_MAX, track_y)
 
         # Zoom slider handle
-        p.setPen(QPen(QColor('#AAA'), 1))
-        p.setBrush(QBrush(QColor('#FFF')))
+        p.setPen(QPen(QColor("#AAA"), 1))
+        p.setBrush(QBrush(QColor("#FFF")))
         p.drawEllipse(
             int(self._slider_x - SLIDER_HANDLE_R),
             int(track_y - SLIDER_HANDLE_R),
-            SLIDER_HANDLE_R * 2, SLIDER_HANDLE_R * 2
+            SLIDER_HANDLE_R * 2,
+            SLIDER_HANDLE_R * 2,
         )
 
         p.end()

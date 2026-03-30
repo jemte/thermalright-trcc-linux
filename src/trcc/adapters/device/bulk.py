@@ -27,15 +27,74 @@ log = logging.getLogger(__name__)
 
 
 # Handshake payload: 64 bytes from USBLCDNew ThreadSendDeviceData
-_HANDSHAKE_PAYLOAD = bytes([
-    0x12, 0x34, 0x56, 0x78, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
-    0, 0, 0, 0,
-])
+_HANDSHAKE_PAYLOAD = bytes(
+    [
+        0x12,
+        0x34,
+        0x56,
+        0x78,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ]
+)
 
 # PM values with explicit resolution overrides for bulk devices.
 # All others default to FBL=72 → 480x480.
@@ -89,18 +148,21 @@ class BulkDevice(BulkFrameDevice, FrameDevice):
         log.debug("Handshake sent (%d bytes)", len(_HANDSHAKE_PAYLOAD))
 
         # Read response
-        resp = bytes(self._ep_in.read(  # type: ignore[union-attr]
-            _HANDSHAKE_READ_SIZE, timeout=_HANDSHAKE_TIMEOUT_MS
-        ))
+        resp = bytes(
+            self._ep_in.read(  # type: ignore[union-attr]
+                _HANDSHAKE_READ_SIZE, timeout=_HANDSHAKE_TIMEOUT_MS
+            )
+        )
         self._raw_handshake = resp
         log.info("Handshake response: %d bytes", len(resp))
-        log.debug("Response hex (first 64): %s",
-                  " ".join(f"{b:02x}" for b in resp[:64]))
+        log.debug("Response hex (first 64): %s", " ".join(f"{b:02x}" for b in resp[:64]))
 
         # Validate: resp[24] must be non-zero (from CS code)
         if len(resp) < 41 or resp[24] == 0:
-            log.warning("Handshake failed: resp[24]=%s (expected non-zero)",
-                        resp[24] if len(resp) > 24 else "N/A")
+            log.warning(
+                "Handshake failed: resp[24]=%s (expected non-zero)",
+                resp[24] if len(resp) > 24 else "N/A",
+            )
             return HandshakeResult(raw_response=resp)
 
         # Extract PM and SUB (from USBLCDNew shared memory mapping)
@@ -118,8 +180,14 @@ class BulkDevice(BulkFrameDevice, FrameDevice):
             self.width, self.height = resolution
 
         fbl = pm_to_fbl(self.pm, self.sub_type)
-        log.info("Bulk handshake OK: PM=%d, SUB=%d, FBL=%d, resolution=%s, jpeg=%s",
-                 self.pm, self.sub_type, fbl, resolution, self.use_jpeg)
+        log.info(
+            "Bulk handshake OK: PM=%d, SUB=%d, FBL=%d, resolution=%s, jpeg=%s",
+            self.pm,
+            self.sub_type,
+            fbl,
+            resolution,
+            self.use_jpeg,
+        )
 
         return HandshakeResult(
             resolution=resolution,
@@ -155,12 +223,12 @@ class BulkDevice(BulkFrameDevice, FrameDevice):
 
         # Build 64-byte header
         header = bytearray(64)
-        header[0:4] = _HANDSHAKE_PAYLOAD[0:4]           # magic 12 34 56 78
-        struct.pack_into("<I", header, 4, cmd)            # cmd
-        struct.pack_into("<I", header, 8, self.width)    # width
+        header[0:4] = _HANDSHAKE_PAYLOAD[0:4]  # magic 12 34 56 78
+        struct.pack_into("<I", header, 4, cmd)  # cmd
+        struct.pack_into("<I", header, 8, self.width)  # width
         struct.pack_into("<I", header, 12, self.height)  # height
-        struct.pack_into("<I", header, 56, 2)            # mode
-        struct.pack_into("<I", header, 60, data_size)    # payload length
+        struct.pack_into("<I", header, 56, 2)  # mode
+        struct.pack_into("<I", header, 60, data_size)  # payload length
 
         try:
             frame = bytes(header) + image_data
@@ -168,7 +236,7 @@ class BulkDevice(BulkFrameDevice, FrameDevice):
             # on KVM USB passthrough and slower USB hubs.
             for offset in range(0, len(frame), _WRITE_CHUNK_SIZE):
                 self._ep_out.write(  # type: ignore[union-attr]
-                    frame[offset:offset + _WRITE_CHUNK_SIZE],
+                    frame[offset : offset + _WRITE_CHUNK_SIZE],
                     timeout=_WRITE_TIMEOUT_MS,
                 )
 
@@ -176,8 +244,9 @@ class BulkDevice(BulkFrameDevice, FrameDevice):
             if len(frame) % 512 == 0:
                 self._ep_out.write(b"", timeout=_WRITE_TIMEOUT_MS)  # type: ignore[union-attr]
 
-            log.debug("Bulk frame sent: %dx%d, cmd=%d, %d bytes",
-                      self.width, self.height, cmd, data_size)
+            log.debug(
+                "Bulk frame sent: %dx%d, cmd=%d, %d bytes", self.width, self.height, cmd, data_size
+            )
             return True
         except Exception:
             log.exception("Bulk frame send failed (cmd=%d, %d bytes)", cmd, data_size)

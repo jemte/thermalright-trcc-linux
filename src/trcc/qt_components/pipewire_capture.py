@@ -18,6 +18,7 @@ Dependencies (optional, graceful degradation):
 When deps are missing, PIPEWIRE_AVAILABLE=False and the module is a no-op.
 The screencast timer in trcc_app.py falls back to grab_screen_region().
 """
+
 from __future__ import annotations
 
 import logging
@@ -33,9 +34,11 @@ try:
     import dbus  # pyright: ignore[reportMissingImports]
     import gi  # pyright: ignore[reportMissingImports]
     from dbus.mainloop.glib import DBusGMainLoop  # pyright: ignore[reportMissingImports]
-    gi.require_version('Gst', '1.0')
-    gi.require_version('GstApp', '1.0')
+
+    gi.require_version("Gst", "1.0")
+    gi.require_version("GstApp", "1.0")
     from gi.repository import GLib, Gst, GstApp  # noqa: F401  # type: ignore[attr-defined]
+
     Gst.init(None)
     PIPEWIRE_AVAILABLE = True
 except (ImportError, ValueError) as e:
@@ -44,10 +47,10 @@ except (ImportError, ValueError) as e:
 
 
 # Portal D-Bus constants
-_PORTAL_BUS = 'org.freedesktop.portal.Desktop'
-_PORTAL_PATH = '/org/freedesktop/portal/desktop'
-_SCREENCAST_IFACE = 'org.freedesktop.portal.ScreenCast'
-_REQUEST_IFACE = 'org.freedesktop.portal.Request'
+_PORTAL_BUS = "org.freedesktop.portal.Desktop"
+_PORTAL_PATH = "/org/freedesktop/portal/desktop"
+_SCREENCAST_IFACE = "org.freedesktop.portal.ScreenCast"
+_REQUEST_IFACE = "org.freedesktop.portal.Request"
 
 
 class PipeWireScreenCast:
@@ -154,8 +157,7 @@ class PipeWireScreenCast:
         """Start GLib main loop in background thread for D-Bus signals."""
         DBusGMainLoop(set_as_default=True)
         self._glib_loop = GLib.MainLoop()
-        self._glib_thread = threading.Thread(
-            target=self._glib_loop.run, daemon=True)
+        self._glib_thread = threading.Thread(target=self._glib_loop.run, daemon=True)
         self._glib_thread.start()
 
     def _create_session(self):
@@ -166,20 +168,24 @@ class PipeWireScreenCast:
 
         # Unique token for this session
         import random
+
         token = f"trcc_{random.randint(100000, 999999)}"
         session_token = f"trcc_session_{random.randint(100000, 999999)}"
 
         request_path = screencast.CreateSession(
-            dbus.Dictionary({
-                'handle_token': dbus.String(token),
-                'session_handle_token': dbus.String(session_token),
-            }, signature='sv')
+            dbus.Dictionary(
+                {
+                    "handle_token": dbus.String(token),
+                    "session_handle_token": dbus.String(session_token),
+                },
+                signature="sv",
+            )
         )
 
         # Listen for the Response signal
         bus.add_signal_receiver(
             self._on_create_session_response,
-            signal_name='Response',
+            signal_name="Response",
             dbus_interface=_REQUEST_IFACE,
             path=request_path,
         )
@@ -191,7 +197,7 @@ class PipeWireScreenCast:
             self._session_failed.set()
             return
 
-        self._session_path = str(results.get('session_handle', ''))
+        self._session_path = str(results.get("session_handle", ""))
         if not self._session_path:
             logger.error("No session handle in CreateSession response")
             self._session_failed.set()
@@ -207,21 +213,25 @@ class PipeWireScreenCast:
         screencast = dbus.Interface(portal, _SCREENCAST_IFACE)
 
         import random
+
         token = f"trcc_src_{random.randint(100000, 999999)}"
 
         request_path = screencast.SelectSources(
             dbus.ObjectPath(self._session_path),
-            dbus.Dictionary({
-                'handle_token': dbus.String(token),
-                'types': dbus.UInt32(1),       # 1 = MONITOR (not window)
-                'multiple': dbus.Boolean(False),
-                'persist_mode': dbus.UInt32(2),  # 2 = persist until revoked
-            }, signature='sv')
+            dbus.Dictionary(
+                {
+                    "handle_token": dbus.String(token),
+                    "types": dbus.UInt32(1),  # 1 = MONITOR (not window)
+                    "multiple": dbus.Boolean(False),
+                    "persist_mode": dbus.UInt32(2),  # 2 = persist until revoked
+                },
+                signature="sv",
+            ),
         )
 
         bus.add_signal_receiver(
             self._on_select_sources_response,
-            signal_name='Response',
+            signal_name="Response",
             dbus_interface=_REQUEST_IFACE,
             path=request_path,
         )
@@ -243,19 +253,23 @@ class PipeWireScreenCast:
         screencast = dbus.Interface(portal, _SCREENCAST_IFACE)
 
         import random
+
         token = f"trcc_start_{random.randint(100000, 999999)}"
 
         request_path = screencast.Start(
             dbus.ObjectPath(self._session_path),
-            dbus.String(''),  # parent_window (empty = no parent)
-            dbus.Dictionary({
-                'handle_token': dbus.String(token),
-            }, signature='sv')
+            dbus.String(""),  # parent_window (empty = no parent)
+            dbus.Dictionary(
+                {
+                    "handle_token": dbus.String(token),
+                },
+                signature="sv",
+            ),
         )
 
         bus.add_signal_receiver(
             self._on_start_response,
-            signal_name='Response',
+            signal_name="Response",
             dbus_interface=_REQUEST_IFACE,
             path=request_path,
         )
@@ -263,12 +277,11 @@ class PipeWireScreenCast:
     def _on_start_response(self, response, results):
         """Handle Start response — get PipeWire node ID and start pipeline."""
         if response != 0:
-            logger.error("Start failed with response %d (user denied?)",
-                         response)
+            logger.error("Start failed with response %d (user denied?)", response)
             self._session_failed.set()
             return
 
-        streams = results.get('streams', [])
+        streams = results.get("streams", [])
         if not streams:
             logger.error("No streams in Start response")
             self._session_failed.set()
@@ -285,7 +298,7 @@ class PipeWireScreenCast:
             screencast = dbus.Interface(portal, _SCREENCAST_IFACE)
             self._pipewire_fd = screencast.OpenPipeWireRemote(
                 dbus.ObjectPath(self._session_path),
-                dbus.Dictionary({}, signature='sv'),
+                dbus.Dictionary({}, signature="sv"),
             ).take()
         except Exception as e:
             logger.error("OpenPipeWireRemote failed: %s", e)
@@ -314,8 +327,8 @@ class PipeWireScreenCast:
         )
 
         self._pipeline = Gst.parse_launch(pipeline_str)
-        self._appsink = self._pipeline.get_by_name('sink')
-        self._appsink.connect('new-sample', self._on_new_sample)
+        self._appsink = self._pipeline.get_by_name("sink")
+        self._appsink.connect("new-sample", self._on_new_sample)
 
         ret = self._pipeline.set_state(Gst.State.PLAYING)
         if ret == Gst.StateChangeReturn.FAILURE:
@@ -325,7 +338,7 @@ class PipeWireScreenCast:
 
     def _on_new_sample(self, sink):
         """GStreamer callback: new frame available from PipeWire."""
-        sample = sink.emit('pull-sample')
+        sample = sink.emit("pull-sample")
         if sample is None:
             return Gst.FlowReturn.OK
 
@@ -333,8 +346,8 @@ class PipeWireScreenCast:
         caps = sample.get_caps()
 
         struct = caps.get_structure(0)
-        width = struct.get_int('width')[1]
-        height = struct.get_int('height')[1]
+        width = struct.get_int("width")[1]
+        height = struct.get_int("height")[1]
 
         success, map_info = buf.map(Gst.MapFlags.READ)
         if not success:
@@ -365,6 +378,7 @@ class PipeWireScreenCast:
         if self._pipewire_fd is not None:
             try:
                 import os
+
                 os.close(self._pipewire_fd)
             except OSError:
                 pass
@@ -374,8 +388,7 @@ class PipeWireScreenCast:
             try:
                 bus = dbus.SessionBus()
                 session = bus.get_object(_PORTAL_BUS, self._session_path)
-                session_iface = dbus.Interface(
-                    session, 'org.freedesktop.portal.Session')
+                session_iface = dbus.Interface(session, "org.freedesktop.portal.Session")
                 session_iface.Close()
             except Exception:
                 pass

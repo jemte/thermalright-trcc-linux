@@ -48,6 +48,7 @@ from trcc.adapters.device.led import (
 def _clear_rgb_table_cache():
     """Reset the ColorEngine cached table between tests."""
     from trcc.adapters.device.led import ColorEngine
+
     original = ColorEngine._cached_table
     ColorEngine._cached_table = None
     yield
@@ -63,8 +64,8 @@ def _make_valid_handshake_response(pm: int = 3, sub_type: int = 0) -> bytes:
     """
     resp = bytearray(LED_RESPONSE_SIZE)
     resp[0:4] = LED_MAGIC  # magic echo
-    resp[4] = sub_type     # SUB at raw[4] (Windows data[5])
-    resp[5] = pm           # PM at raw[5] (Windows data[6])
+    resp[4] = sub_type  # SUB at raw[4] (Windows data[5])
+    resp[5] = pm  # PM at raw[5] (Windows data[6])
     resp[12] = LED_CMD_INIT  # cmd echo = 1
     return bytes(resp)
 
@@ -72,6 +73,7 @@ def _make_valid_handshake_response(pm: int = 3, sub_type: int = 0) -> bytes:
 # =========================================================================
 # TestLedDeviceStyle — LED_STYLES registry
 # =========================================================================
+
 
 class TestLedDeviceStyle:
     """Test LED_STYLES registry completeness and correctness."""
@@ -130,27 +132,27 @@ class TestLedDeviceStyle:
 
     def test_known_led_counts(self):
         """Verify specific LED counts from FormLED.cs."""
-        assert LED_STYLES[1].led_count == 30   # AX120_DIGITAL
-        assert LED_STYLES[2].led_count == 84   # PA120_DIGITAL
-        assert LED_STYLES[3].led_count == 64   # AK120_DIGITAL
-        assert LED_STYLES[4].led_count == 31   # LC1
-        assert LED_STYLES[5].led_count == 93   # LF8
+        assert LED_STYLES[1].led_count == 30  # AX120_DIGITAL
+        assert LED_STYLES[2].led_count == 84  # PA120_DIGITAL
+        assert LED_STYLES[3].led_count == 64  # AK120_DIGITAL
+        assert LED_STYLES[4].led_count == 31  # LC1
+        assert LED_STYLES[5].led_count == 93  # LF8
         assert LED_STYLES[6].led_count == 124  # LF12
         assert LED_STYLES[7].led_count == 116  # LF10
-        assert LED_STYLES[8].led_count == 18   # CZ1
-        assert LED_STYLES[9].led_count == 61   # LC2
+        assert LED_STYLES[8].led_count == 18  # CZ1
+        assert LED_STYLES[9].led_count == 61  # LC2
         assert LED_STYLES[10].led_count == 38  # LF11
         assert LED_STYLES[11].led_count == 93  # LF15
         assert LED_STYLES[12].led_count == 62  # LF13
 
     def test_known_zone_counts(self):
         """Verify specific zone counts from FormLED.cs."""
-        assert LED_STYLES[1].zone_count == 4   # AX120 Digital: 4 zones (buttons 1-4)
-        assert LED_STYLES[2].zone_count == 4   # PA120: 4 zones
-        assert LED_STYLES[3].zone_count == 2   # AK120: 2 zones
-        assert LED_STYLES[4].zone_count == 3   # LC1: 3 zones (buttonN1-N3)
-        assert LED_STYLES[8].zone_count == 4   # CZ1: 4 zones
-        assert LED_STYLES[9].zone_count == 0   # LC2: clock-only, no zones (C#)
+        assert LED_STYLES[1].zone_count == 4  # AX120 Digital: 4 zones (buttons 1-4)
+        assert LED_STYLES[2].zone_count == 4  # PA120: 4 zones
+        assert LED_STYLES[3].zone_count == 2  # AK120: 2 zones
+        assert LED_STYLES[4].zone_count == 3  # LC1: 3 zones (buttonN1-N3)
+        assert LED_STYLES[8].zone_count == 4  # CZ1: 4 zones
+        assert LED_STYLES[9].zone_count == 0  # LC2: clock-only, no zones (C#)
         assert LED_STYLES[10].zone_count == 4  # LF11: 4 zones (buttonN1-N4)
         assert LED_STYLES[12].zone_count == 0  # LF13: RGB-only, no zones (C#)
 
@@ -175,6 +177,7 @@ class TestLedDeviceStyle:
 # TestPmMapping — PmRegistry._REGISTRY, PmRegistry.PM_TO_STYLE, PmRegistry.get_model_name
 # =========================================================================
 
+
 class TestPmMapping:
     """Test PM byte to style and model mappings."""
 
@@ -185,18 +188,18 @@ class TestPmMapping:
 
     def test_pm_to_style_known_mappings(self):
         """Verify specific PM→style mappings from FormLEDInit."""
-        assert PmRegistry.PM_TO_STYLE[1] == 1    # FROZEN_HORIZON_PRO → style 1
-        assert PmRegistry.PM_TO_STYLE[16] == 2   # PA120_DIGITAL → style 2
-        assert PmRegistry.PM_TO_STYLE[32] == 3   # AK120_DIGITAL → style 3
-        assert PmRegistry.PM_TO_STYLE[48] == 5   # LF8 → style 5
-        assert PmRegistry.PM_TO_STYLE[49] == 5   # LF10 (product) → style 5 (LF8 layout)
-        assert PmRegistry.PM_TO_STYLE[80] == 6   # LF12 → style 6
-        assert PmRegistry.PM_TO_STYLE[96] == 7   # LF10 → style 7
+        assert PmRegistry.PM_TO_STYLE[1] == 1  # FROZEN_HORIZON_PRO → style 1
+        assert PmRegistry.PM_TO_STYLE[16] == 2  # PA120_DIGITAL → style 2
+        assert PmRegistry.PM_TO_STYLE[32] == 3  # AK120_DIGITAL → style 3
+        assert PmRegistry.PM_TO_STYLE[48] == 5  # LF8 → style 5
+        assert PmRegistry.PM_TO_STYLE[49] == 5  # LF10 (product) → style 5 (LF8 layout)
+        assert PmRegistry.PM_TO_STYLE[80] == 6  # LF12 → style 6
+        assert PmRegistry.PM_TO_STYLE[96] == 7  # LF10 → style 7
         assert PmRegistry.PM_TO_STYLE[112] == 9  # LC2 → style 9
         assert PmRegistry.PM_TO_STYLE[128] == 4  # LC1 → style 4
-        assert PmRegistry.PM_TO_STYLE[129] == 10 # LF11 → style 10
-        assert PmRegistry.PM_TO_STYLE[144] == 11 # LF15 → style 11
-        assert PmRegistry.PM_TO_STYLE[160] == 12 # LF13 → style 12
+        assert PmRegistry.PM_TO_STYLE[129] == 10  # LF11 → style 10
+        assert PmRegistry.PM_TO_STYLE[144] == 11  # LF15 → style 11
+        assert PmRegistry.PM_TO_STYLE[160] == 12  # LF13 → style 12
         assert PmRegistry.PM_TO_STYLE[208] == 8  # CZ1 → style 8
 
     def test_pm_to_style_pa120_variants(self):
@@ -280,8 +283,8 @@ class TestPmMapping:
         """
         assert PmRegistry.get_model_name(49) == "LF10"
         assert PmRegistry.get_model_name(96) == "LF10"
-        assert PmRegistry.get_style(49).style_id == 5   # 93 LEDs
-        assert PmRegistry.get_style(96).style_id == 7   # 116 LEDs
+        assert PmRegistry.get_style(49).style_id == 5  # 93 LEDs
+        assert PmRegistry.get_style(96).style_id == 7  # 116 LEDs
 
     def test_pm23_resolves_to_style_2(self):
         """PM=23 (RK120_DIGITAL) uses style 2, not default 1.
@@ -297,6 +300,7 @@ class TestPmMapping:
 # =========================================================================
 # TestRgbTable — ColorEngine.generate_table() and ColorEngine.get_table()
 # =========================================================================
+
 
 class TestRgbTable:
     """Test the 768-entry RGB rainbow lookup table."""
@@ -407,6 +411,7 @@ class TestRgbTable:
 # TestColorThresholds — ColorEngine.color_for_value()
 # =========================================================================
 
+
 class TestColorThresholds:
     """Test ColorEngine.color_for_value() with temperature and load thresholds."""
 
@@ -489,6 +494,7 @@ class TestColorThresholds:
 # TestPresetColors — PRESET_COLORS list
 # =========================================================================
 
+
 class TestPresetColors:
     """Test PRESET_COLORS constant."""
 
@@ -525,6 +531,7 @@ class TestPresetColors:
 # TestLedPacketBuilder — header, init, and LED packets
 # =========================================================================
 
+
 class TestLedPacketBuilderHeader:
     """Test LedPacketBuilder.build_header()."""
 
@@ -543,15 +550,15 @@ class TestLedPacketBuilderHeader:
 
     def test_reserved_bytes_4_to_11_are_zero(self):
         header = LedPacketBuilder.build_header(100)
-        assert header[4:12] == b'\x00' * 8
+        assert header[4:12] == b"\x00" * 8
 
     def test_reserved_bytes_13_to_15_are_zero(self):
         header = LedPacketBuilder.build_header(100)
-        assert header[13:16] == b'\x00' * 3
+        assert header[13:16] == b"\x00" * 3
 
     def test_reserved_bytes_18_to_19_are_zero(self):
         header = LedPacketBuilder.build_header(100)
-        assert header[18:20] == b'\x00' * 2
+        assert header[18:20] == b"\x00" * 2
 
     def test_payload_length_encoding_small(self):
         """Payload length 90 = 0x5A → byte 16=0x5A, byte 17=0x00."""
@@ -599,20 +606,37 @@ class TestLedPacketBuilderInit:
     def test_rest_is_zeros(self):
         pkt = LedPacketBuilder.build_init_packet()
         # bytes 4-11 should be zero
-        assert pkt[4:12] == b'\x00' * 8
+        assert pkt[4:12] == b"\x00" * 8
         # bytes 13-63 should be zero
-        assert pkt[13:] == b'\x00' * 51
+        assert pkt[13:] == b"\x00" * 51
 
     def test_byte_by_byte_first_20(self):
         """Verify first 20 bytes match expected layout exactly."""
         pkt = LedPacketBuilder.build_init_packet()
-        expected = bytes([
-            0xDA, 0xDB, 0xDC, 0xDD,  # magic
-            0, 0, 0, 0,              # reserved
-            0, 0, 0, 0,              # reserved
-            1, 0, 0, 0,              # cmd=1
-            0, 0, 0, 0,              # reserved
-        ])
+        expected = bytes(
+            [
+                0xDA,
+                0xDB,
+                0xDC,
+                0xDD,  # magic
+                0,
+                0,
+                0,
+                0,  # reserved
+                0,
+                0,
+                0,
+                0,  # reserved
+                1,
+                0,
+                0,
+                0,  # cmd=1
+                0,
+                0,
+                0,
+                0,  # reserved
+            ]
+        )
         assert pkt[:20] == expected
 
     def test_returns_bytes(self):
@@ -649,7 +673,7 @@ class TestLedPacketBuilderLedPacket:
         b = pkt[22]
         assert r == int(255 * 0.4)  # 102
         assert g == int(128 * 0.4)  # 51
-        assert b == int(64 * 0.4)   # 25
+        assert b == int(64 * 0.4)  # 25
 
     def test_color_scaling_pure_white(self):
         """White (255, 255, 255) → (102, 102, 102) at 100% brightness."""
@@ -766,6 +790,7 @@ class TestLedPacketBuilderLedPacket:
 # TestLedHidSender — handshake and send_led_data
 # =========================================================================
 
+
 class TestLedHidSenderHandshake:
     """Test LedHidSender.handshake()."""
 
@@ -861,7 +886,7 @@ class TestLedHidSenderHandshake:
         """
         transport = _make_mock_transport()
         resp = bytearray(LED_RESPONSE_SIZE)
-        resp[0:4] = b'\xFF\xFF\xFF\xFF'  # bad magic
+        resp[0:4] = b"\xff\xff\xff\xff"  # bad magic
         resp[12] = 1
         transport.read.return_value = bytes(resp)
 
@@ -887,7 +912,7 @@ class TestLedHidSenderHandshake:
     def test_handshake_short_response_raises(self):
         """Response shorter than 7 bytes should raise RuntimeError after retries."""
         transport = _make_mock_transport()
-        transport.read.return_value = b'\xDA\xDB\xDC\xDD\x00\x00'  # 6 bytes (< 7)
+        transport.read.return_value = b"\xda\xdb\xdc\xdd\x00\x00"  # 6 bytes (< 7)
 
         sender = LedHidSender(transport)
         with pytest.raises(RuntimeError, match="too short"):
@@ -916,9 +941,9 @@ class TestLedHidSenderHandshake:
         transport = _make_mock_transport()
         resp = bytearray(LED_RESPONSE_SIZE)
         resp[0:4] = LED_MAGIC
-        resp[4] = 0x42   # SUB at raw[4]
-        resp[5] = 0x80   # PM at raw[5] (128 = LC1)
-        resp[6] = 0xFF   # noise — should NOT be read as PM
+        resp[4] = 0x42  # SUB at raw[4]
+        resp[5] = 0x80  # PM at raw[5] (128 = LC1)
+        resp[6] = 0xFF  # noise — should NOT be read as PM
         resp[12] = 1
         transport.read.return_value = bytes(resp)
 
@@ -939,6 +964,7 @@ class TestLedHidSenderHandshake:
         assert len(info.raw_response) == 64
         assert info.raw_response[0:4] == LED_MAGIC
 
+
 class TestLedHidSenderSendLedData:
     """Test LedHidSender.send_led_data() chunking and transport calls."""
 
@@ -948,7 +974,7 @@ class TestLedHidSenderSendLedData:
         sender = LedHidSender(transport)
 
         # 20-byte header + 3 bytes = 23 bytes (fits in one 64-byte chunk)
-        packet = b'\xAB' * 23
+        packet = b"\xab" * 23
         result = sender.send_led_data(packet)
 
         assert result is True
@@ -959,7 +985,7 @@ class TestLedHidSenderSendLedData:
         transport = _make_mock_transport()
         sender = LedHidSender(transport)
 
-        packet = b'\xCC' * 64
+        packet = b"\xcc" * 64
         sender.send_led_data(packet)
 
         assert transport.write.call_count == 1
@@ -972,7 +998,7 @@ class TestLedHidSenderSendLedData:
         transport = _make_mock_transport()
         sender = LedHidSender(transport)
 
-        packet = b'\xDD' * 65
+        packet = b"\xdd" * 65
         sender.send_led_data(packet)
 
         assert transport.write.call_count == 2
@@ -982,7 +1008,7 @@ class TestLedHidSenderSendLedData:
         transport = _make_mock_transport()
         sender = LedHidSender(transport)
 
-        packet = b'\xEE' * 128
+        packet = b"\xee" * 128
         sender.send_led_data(packet)
 
         assert transport.write.call_count == 2
@@ -993,14 +1019,14 @@ class TestLedHidSenderSendLedData:
         sender = LedHidSender(transport)
 
         # 70 bytes = chunk1 (64 bytes) + chunk2 (6 bytes + 58 padding)
-        packet = b'\xFF' * 70
+        packet = b"\xff" * 70
         sender.send_led_data(packet)
 
         second_call = transport.write.call_args_list[1]
         written_data = second_call[0][1]
         assert len(written_data) == 64
-        assert written_data[:6] == b'\xFF' * 6
-        assert written_data[6:] == b'\x00' * 58
+        assert written_data[:6] == b"\xff" * 6
+        assert written_data[6:] == b"\x00" * 58
 
     def test_first_chunk_data_correct(self):
         """First chunk should contain first 64 bytes of packet."""
@@ -1019,7 +1045,7 @@ class TestLedHidSenderSendLedData:
         transport = _make_mock_transport()
         sender = LedHidSender(transport)
 
-        packet = b'\xAA' * 200
+        packet = b"\xaa" * 200
         sender.send_led_data(packet)
 
         for c in transport.write.call_args_list:
@@ -1030,7 +1056,7 @@ class TestLedHidSenderSendLedData:
         transport = _make_mock_transport()
         sender = LedHidSender(transport)
 
-        packet = b'\xAA' * 100
+        packet = b"\xaa" * 100
         sender.send_led_data(packet)
 
         for c in transport.write.call_args_list:
@@ -1042,7 +1068,7 @@ class TestLedHidSenderSendLedData:
         sender = LedHidSender(transport)
 
         with patch("trcc.adapters.device.led.time.sleep") as mock_sleep:
-            sender.send_led_data(b'\xAA' * 20)
+            sender.send_led_data(b"\xaa" * 20)
             mock_sleep.assert_not_called()
 
     def test_concurrent_send_guard(self):
@@ -1052,7 +1078,7 @@ class TestLedHidSenderSendLedData:
 
         # Simulate send in progress
         sender._sending = True
-        result = sender.send_led_data(b'\xAA' * 20)
+        result = sender.send_led_data(b"\xaa" * 20)
 
         assert result is False
         transport.write.assert_not_called()
@@ -1062,7 +1088,7 @@ class TestLedHidSenderSendLedData:
         transport = _make_mock_transport()
         sender = LedHidSender(transport)
 
-        sender.send_led_data(b'\xAA' * 20)
+        sender.send_led_data(b"\xaa" * 20)
         assert sender._sending is False
 
     def test_sending_flag_reset_on_error(self):
@@ -1071,7 +1097,7 @@ class TestLedHidSenderSendLedData:
         transport.write.side_effect = OSError("USB error")
         sender = LedHidSender(transport)
 
-        result = sender.send_led_data(b'\xAA' * 20)
+        result = sender.send_led_data(b"\xaa" * 20)
         assert result is False
         assert sender._sending is False
 
@@ -1081,7 +1107,7 @@ class TestLedHidSenderSendLedData:
         transport.write.side_effect = OSError("USB disconnected")
         sender = LedHidSender(transport)
 
-        result = sender.send_led_data(b'\xAA' * 20)
+        result = sender.send_led_data(b"\xaa" * 20)
         assert result is False
 
     def test_is_sending_property(self):
@@ -1123,7 +1149,7 @@ class TestLedHidSenderSendLedData:
         transport = _make_mock_transport()
         sender = LedHidSender(transport)
 
-        result = sender.send_led_data(b'')
+        result = sender.send_led_data(b"")
         assert result is True
         transport.write.assert_not_called()
 
@@ -1131,6 +1157,7 @@ class TestLedHidSenderSendLedData:
 # =========================================================================
 # TestSendLedColors — public convenience function
 # =========================================================================
+
 
 class TestSendLedColors:
     """Test send_led_colors() convenience function."""
@@ -1191,6 +1218,7 @@ class TestSendLedColors:
 # TestLedHandshakeInfo — dataclass
 # =========================================================================
 
+
 class TestLedHandshakeInfo:
     """Test LedHandshakeInfo dataclass fields and defaults."""
 
@@ -1227,6 +1255,7 @@ class TestLedHandshakeInfo:
 # =========================================================================
 # TestConstants — sanity checks on module-level constants
 # =========================================================================
+
 
 class TestLedConstants:
     """Verify LED device constants match the C# source values."""
@@ -1283,6 +1312,7 @@ class TestLedConstants:
 # TestRemapLedColors — LED index remapping
 # =========================================================================
 
+
 class TestRemapLedColors:
     """Test LED color remapping from logical to physical wire order."""
 
@@ -1309,8 +1339,8 @@ class TestRemapLedColors:
         PA120 uses ReSetUCScreenLED2() indices: Cpu1=0, Cpu2=1.
         """
         colors = [(0, 0, 0)] * 84
-        colors[0] = (10, 20, 30)   # Cpu1 at logical 0
-        colors[1] = (40, 50, 60)   # Cpu2 at logical 1
+        colors[0] = (10, 20, 30)  # Cpu1 at logical 0
+        colors[1] = (40, 50, 60)  # Cpu2 at logical 1
         remapped = remap_led_colors(colors, style_id=2)
         assert remapped[0] == (40, 50, 60)  # Physical 0 = Cpu2
         assert remapped[1] == (10, 20, 30)  # Physical 1 = Cpu1
@@ -1321,27 +1351,27 @@ class TestRemapLedColors:
         Gpu1=2, Gpu2=3, SSD=4, HSD=5, BFB=6, SSD1=7, HSD1=8, BFB1=9.
         """
         colors = [(0, 0, 0)] * 84
-        colors[2] = (100, 0, 0)    # Gpu1 at logical 2
-        colors[3] = (0, 100, 0)    # Gpu2 at logical 3
-        colors[4] = (0, 0, 100)    # SSD at logical 4
-        colors[5] = (50, 50, 0)    # HSD at logical 5
-        colors[6] = (10, 10, 10)   # BFB at logical 6
-        colors[7] = (20, 20, 20)   # SSD1 at logical 7
-        colors[8] = (30, 30, 30)   # HSD1 at logical 8
-        colors[9] = (40, 40, 40)   # BFB1 at logical 9
-        colors[81] = (0, 50, 50)   # LEDC11 at logical 81
-        colors[80] = (50, 0, 50)   # LEDB11 at logical 80
+        colors[2] = (100, 0, 0)  # Gpu1 at logical 2
+        colors[3] = (0, 100, 0)  # Gpu2 at logical 3
+        colors[4] = (0, 0, 100)  # SSD at logical 4
+        colors[5] = (50, 50, 0)  # HSD at logical 5
+        colors[6] = (10, 10, 10)  # BFB at logical 6
+        colors[7] = (20, 20, 20)  # SSD1 at logical 7
+        colors[8] = (30, 30, 30)  # HSD1 at logical 8
+        colors[9] = (40, 40, 40)  # BFB1 at logical 9
+        colors[81] = (0, 50, 50)  # LEDC11 at logical 81
+        colors[80] = (50, 0, 50)  # LEDB11 at logical 80
         remapped = remap_led_colors(colors, style_id=2)
-        assert remapped[82] == (100, 0, 0)    # Physical 82 = Gpu1
-        assert remapped[83] == (0, 100, 0)    # Physical 83 = Gpu2
-        assert remapped[23] == (0, 0, 100)    # Physical 23 = SSD
-        assert remapped[24] == (50, 50, 0)    # Physical 24 = HSD
-        assert remapped[41] == (10, 10, 10)   # Physical 41 = BFB (%)
-        assert remapped[42] == (40, 40, 40)   # Physical 42 = BFB1 (GPU %)
-        assert remapped[59] == (20, 20, 20)   # Physical 59 = SSD1
-        assert remapped[60] == (30, 30, 30)   # Physical 60 = HSD1
-        assert remapped[25] == (0, 50, 50)    # Physical 25 = LEDC11
-        assert remapped[26] == (50, 0, 50)    # Physical 26 = LEDB11
+        assert remapped[82] == (100, 0, 0)  # Physical 82 = Gpu1
+        assert remapped[83] == (0, 100, 0)  # Physical 83 = Gpu2
+        assert remapped[23] == (0, 0, 100)  # Physical 23 = SSD
+        assert remapped[24] == (50, 50, 0)  # Physical 24 = HSD
+        assert remapped[41] == (10, 10, 10)  # Physical 41 = BFB (%)
+        assert remapped[42] == (40, 40, 40)  # Physical 42 = BFB1 (GPU %)
+        assert remapped[59] == (20, 20, 20)  # Physical 59 = SSD1
+        assert remapped[60] == (30, 30, 30)  # Physical 60 = HSD1
+        assert remapped[25] == (0, 50, 50)  # Physical 25 = LEDC11
+        assert remapped[26] == (50, 0, 50)  # Physical 26 = LEDB11
 
     def test_style_2_uniform_color_unchanged_count(self):
         """Uniform color (all same) remaps to same colors in different order."""
@@ -1359,19 +1389,19 @@ class TestRemapLedColors:
         at physical 44/45/46, Gpu1 at physical 49.
         """
         colors = [(0, 0, 0)] * 64
-        colors[0] = (10, 20, 30)   # Cpu1 at logical 0
-        colors[1] = (40, 50, 60)   # WATT at logical 1
-        colors[2] = (70, 80, 90)   # SSD at logical 2
-        colors[3] = (100, 0, 0)    # HSD at logical 3
-        colors[4] = (0, 100, 0)    # BFB at logical 4
-        colors[5] = (0, 0, 100)    # Gpu1 at logical 5
+        colors[0] = (10, 20, 30)  # Cpu1 at logical 0
+        colors[1] = (40, 50, 60)  # WATT at logical 1
+        colors[2] = (70, 80, 90)  # SSD at logical 2
+        colors[3] = (100, 0, 0)  # HSD at logical 3
+        colors[4] = (0, 100, 0)  # BFB at logical 4
+        colors[5] = (0, 0, 100)  # Gpu1 at logical 5
         remapped = remap_led_colors(colors, style_id=3)
-        assert remapped[0] == (40, 50, 60)    # Physical 0 = WATT
-        assert remapped[9] == (10, 20, 30)    # Physical 9 = Cpu1
-        assert remapped[44] == (70, 80, 90)   # Physical 44 = SSD
-        assert remapped[45] == (100, 0, 0)    # Physical 45 = HSD
-        assert remapped[46] == (0, 100, 0)    # Physical 46 = BFB
-        assert remapped[55] == (0, 0, 100)    # Physical 55 = Gpu1
+        assert remapped[0] == (40, 50, 60)  # Physical 0 = WATT
+        assert remapped[9] == (10, 20, 30)  # Physical 9 = Cpu1
+        assert remapped[44] == (70, 80, 90)  # Physical 44 = SSD
+        assert remapped[45] == (100, 0, 0)  # Physical 45 = HSD
+        assert remapped[46] == (0, 100, 0)  # Physical 46 = BFB
+        assert remapped[55] == (0, 0, 100)  # Physical 55 = Gpu1
 
     def test_style_4_first_positions(self):
         """Style 4 (LC1) first physical positions use ReSetUCScreenLED4() indices.
@@ -1379,9 +1409,9 @@ class TestRemapLedColors:
         SSD=0, MTNo=1, GNo=2, LEDA1=3..LEDG4=30.
         """
         colors = [(0, 0, 0)] * 31
-        colors[0] = (70, 70, 70)   # SSD at logical 0
-        colors[1] = (10, 10, 10)   # MTNo at logical 1
-        colors[2] = (20, 20, 20)   # GNo at logical 2
+        colors[0] = (70, 70, 70)  # SSD at logical 0
+        colors[1] = (10, 10, 10)  # MTNo at logical 1
+        colors[2] = (20, 20, 20)  # GNo at logical 2
         remapped = remap_led_colors(colors, style_id=4)
         assert remapped[0] == (20, 20, 20)  # Physical 0 = GNo
         assert remapped[1] == (10, 10, 10)  # Physical 1 = MTNo
@@ -1413,9 +1443,7 @@ class TestRemapLedColors:
         """Each remap table has a reasonable number of entries."""
         for style_id, table in LED_REMAP_TABLES.items():
             style = LED_STYLES[style_id]
-            assert len(table) > 0, (
-                f"Style {style_id} ({style.model_name}): remap is empty"
-            )
+            assert len(table) > 0, f"Style {style_id} ({style.model_name}): remap is empty"
 
     def test_all_remap_indices_in_range(self):
         """All remap indices within led_count for their style."""
@@ -1439,9 +1467,7 @@ class TestRemapLedColors:
         table = LED_REMAP_SUB_TABLES[(5, 1)]
         segment_part = table[:93]
         for i, idx in enumerate(segment_part):
-            assert 0 <= idx < 93, (
-                f"LF25 segment position {i}: index {idx} >= 93"
-            )
+            assert 0 <= idx < 93, f"LF25 segment position {i}: index {idx} >= 93"
 
     def test_sub_table_lf25_covers_all_segments(self):
         """LF25 segment portion references all 93 logical LEDs."""
@@ -1455,9 +1481,7 @@ class TestRemapLedColors:
         ring_part = table[93:]
         assert len(ring_part) == 77
         for i, idx in enumerate(ring_part):
-            assert 93 <= idx <= 169, (
-                f"LF25 ring position {i}: index {idx} not in 93-169"
-            )
+            assert 93 <= idx <= 169, f"LF25 ring position {i}: index {idx} not in 93-169"
 
     def test_sub_table_lf25_decoration_covers_all(self):
         """LF25 decoration ring references all 77 logical ring LEDs."""

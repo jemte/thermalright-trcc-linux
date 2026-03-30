@@ -110,13 +110,10 @@ class BasePanel(QFrame):
         super().__init_subclass__(**kwargs)
         # Skip enforcement on intermediate abstract classes (e.g. BaseThemeBrowser)
         # by checking if _setup_ui is still the base stub or a real override.
-        if '_setup_ui' not in cls.__dict__ and not any(
-            '_setup_ui' in base.__dict__ for base in cls.__mro__[1:]
-            if base is not BasePanel
+        if "_setup_ui" not in cls.__dict__ and not any(
+            "_setup_ui" in base.__dict__ for base in cls.__mro__[1:] if base is not BasePanel
         ):
-            raise TypeError(
-                f"{cls.__name__} must implement _setup_ui()"
-            )
+            raise TypeError(f"{cls.__name__} must implement _setup_ui()")
 
     def _setup_ui(self) -> None:
         """Create child widgets and lay out the panel.
@@ -124,9 +121,7 @@ class BasePanel(QFrame):
         Called by subclass __init__ (not called automatically by BasePanel).
         Must be overridden by every concrete subclass.
         """
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement _setup_ui()"
-        )
+        raise NotImplementedError(f"{type(self).__name__} must implement _setup_ui()")
 
     # === Virtual hooks (default no-op) ===
 
@@ -150,7 +145,9 @@ class BasePanel(QFrame):
         return set_background_pixmap(self, asset_name)
 
     def start_periodic_updates(
-        self, interval_ms: int, callback: Callable[[], None],
+        self,
+        interval_ms: int,
+        callback: Callable[[], None],
     ) -> None:
         """Start a periodic timer calling `callback` every `interval_ms`.
 
@@ -203,10 +200,10 @@ class ImageLabel(QLabel):
     """
 
     clicked = Signal()
-    drag_started = Signal(int, int)    # (x, y) in widget coords
-    drag_moved = Signal(int, int)      # (x, y) in widget coords
+    drag_started = Signal(int, int)  # (x, y) in widget coords
+    drag_moved = Signal(int, int)  # (x, y) in widget coords
     drag_ended = Signal()
-    nudge = Signal(int, int)           # (dx, dy) in pixels (1 or 10)
+    nudge = Signal(int, int)  # (dx, dy) in pixels (1 or 10)
 
     def __init__(self, width=320, height=320, parent=None):
         super().__init__(parent)
@@ -233,15 +230,17 @@ class ImageLabel(QLabel):
 
         if isinstance(image, QImage):
             if (image.width(), image.height()) != (self._width, self._height):
-                mode = (Qt.TransformationMode.FastTransformation if fast
-                        else Qt.TransformationMode.SmoothTransformation)
+                mode = (
+                    Qt.TransformationMode.FastTransformation
+                    if fast
+                    else Qt.TransformationMode.SmoothTransformation
+                )
                 image = image.scaled(
-                    self._width, self._height,
-                    Qt.AspectRatioMode.IgnoreAspectRatio, mode)
+                    self._width, self._height, Qt.AspectRatioMode.IgnoreAspectRatio, mode
+                )
             self.setPixmap(QPixmap.fromImage(image))
 
-    def set_rgb565(self, data: bytes, width: int, height: int,
-                   byte_order: str = '>'):
+    def set_rgb565(self, data: bytes, width: int, height: int, byte_order: str = ">"):
         """Set image from pre-converted RGB565 bytes.
 
         Creates QPixmap directly from the RGB565 bytes sent to the LCD device.
@@ -249,9 +248,11 @@ class ImageLabel(QLabel):
         pixmap = rgb565_to_pixmap(data, width, height, byte_order)
         if (width, height) != (self._width, self._height):
             pixmap = pixmap.scaled(
-                self._width, self._height,
+                self._width,
+                self._height,
                 Qt.AspectRatioMode.IgnoreAspectRatio,
-                Qt.TransformationMode.SmoothTransformation)
+                Qt.TransformationMode.SmoothTransformation,
+            )
         self.setPixmap(pixmap)
 
     def mousePressEvent(self, event):
@@ -305,8 +306,7 @@ class ClickableFrame(QFrame):
         super().mousePressEvent(event)
 
 
-def rgb565_to_pixmap(data: bytes, width: int, height: int,
-                     byte_order: str = '>') -> QPixmap:
+def rgb565_to_pixmap(data: bytes, width: int, height: int, byte_order: str = ">") -> QPixmap:
     """Create QPixmap from RGB565 bytes.
 
     Qt Format_RGB16 expects native byte order (little-endian on x86).
@@ -316,15 +316,14 @@ def rgb565_to_pixmap(data: bytes, width: int, height: int,
 
     import numpy as np
 
-    if byte_order == '>' and sys.byteorder == 'little':
-        buf = np.frombuffer(data, dtype='>u2').astype('<u2').tobytes()
-    elif byte_order == '<' and sys.byteorder == 'big':
-        buf = np.frombuffer(data, dtype='<u2').astype('>u2').tobytes()
+    if byte_order == ">" and sys.byteorder == "little":
+        buf = np.frombuffer(data, dtype=">u2").astype("<u2").tobytes()
+    elif byte_order == "<" and sys.byteorder == "big":
+        buf = np.frombuffer(data, dtype="<u2").astype(">u2").tobytes()
     else:
         buf = bytes(data)
 
-    qimage = QImage(buf, width, height, width * 2,
-                    QImage.Format.Format_RGB16)
+    qimage = QImage(buf, width, height, width * 2, QImage.Format.Format_RGB16)
     return QPixmap.fromImage(qimage)
 
 
@@ -348,8 +347,7 @@ class _BgPaintFilter(QObject):
         return False
 
 
-def set_background_pixmap(widget, asset_name, width=None, height=None,
-                          fallback_style=None):
+def set_background_pixmap(widget, asset_name, width=None, height=None, fallback_style=None):
     """Apply a background image to a widget (no tiling).
 
     Uses a paint event filter to draw the pixmap once at (0,0), matching
@@ -397,8 +395,10 @@ def set_background_pixmap(widget, asset_name, width=None, height=None,
 # Shared utilities
 # ============================================================================
 
-def create_image_button(parent, x, y, w, h, normal_img, active_img,
-                        checkable=False, fallback_text=None):
+
+def create_image_button(
+    parent, x, y, w, h, normal_img, active_img, checkable=False, fallback_text=None
+):
     """Create a flat image button matching Windows style.
 
     Args:
@@ -487,6 +487,7 @@ def make_icon_button(parent, rect, img_name, fallback, handler):
 # Base Thumbnail
 # ============================================================================
 
+
 class BaseThumbnail(ClickableFrame):
     """
     Base class for all theme/mask thumbnail widgets (120x140).
@@ -503,7 +504,7 @@ class BaseThumbnail(ClickableFrame):
     def __init__(self, item_info, parent=None):
         super().__init__(parent)
         self.item_info = item_info
-        self.is_local: bool = getattr(item_info, 'is_local', True)
+        self.is_local: bool = getattr(item_info, "is_local", True)
         self.selected = False
 
         self.setFixedSize(Sizes.THUMB_W, Sizes.THUMB_H)
@@ -524,7 +525,7 @@ class BaseThumbnail(ClickableFrame):
         # Name label
         name = self._get_display_name(item_info)
         if len(name) > Sizes.THUMB_NAME_MAX:
-            name = name[:Sizes.THUMB_NAME_TRUNC] + "..."
+            name = name[: Sizes.THUMB_NAME_TRUNC] + "..."
         self.name_label = QLabel(name)
         self.name_label.setFixedHeight(Sizes.THUMB_NAME_H)
         self.name_label.setStyleSheet(Styles.THUMB_NAME)
@@ -535,11 +536,11 @@ class BaseThumbnail(ClickableFrame):
 
     def _get_display_name(self, info) -> str:
         """Extract display name from item. Override for custom field."""
-        return getattr(info, 'name', 'Unknown')
+        return getattr(info, "name", "Unknown")
 
     def _get_image_path(self, info) -> str | None:
         """Extract image path from item. Override for custom field."""
-        return getattr(info, 'thumbnail', None)
+        return getattr(info, "thumbnail", None)
 
     def _get_extra_style(self) -> str | None:
         """Return dashed-border style for non-local (downloadable) items."""
@@ -557,9 +558,11 @@ class BaseThumbnail(ClickableFrame):
                 if src.isNull():
                     raise ValueError("QImage failed to load")
                 scaled = src.scaled(
-                    thumb_size, thumb_size,
+                    thumb_size,
+                    thumb_size,
                     Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation)
+                    Qt.TransformationMode.SmoothTransformation,
+                )
                 bg = QImage(thumb_size, thumb_size, QImage.Format.Format_RGB32)
                 bg.fill(QColor(0, 0, 0))
                 px = (thumb_size - scaled.width()) // 2
@@ -588,9 +591,8 @@ class BaseThumbnail(ClickableFrame):
             font.setPointSize(8)
             painter.setFont(font)
             painter.drawText(
-                QRect(0, 0, thumb_size, thumb_size),
-                Qt.AlignmentFlag.AlignCenter,
-                text)
+                QRect(0, 0, thumb_size, thumb_size), Qt.AlignmentFlag.AlignCenter, text
+            )
             painter.end()
             self.thumb_label.setPixmap(QPixmap.fromImage(bg))
         except Exception:
@@ -619,6 +621,7 @@ class BaseThumbnail(ClickableFrame):
 # ============================================================================
 # Base Theme Browser
 # ============================================================================
+
 
 class BaseThemeBrowser(BasePanel):
     """
@@ -657,9 +660,7 @@ class BaseThemeBrowser(BasePanel):
         self.scroll_area = QScrollArea(self)
         self.scroll_area.setGeometry(*Layout.THEME_SCROLL)
         self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-        )
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.scroll_area.setStyleSheet(Styles.SCROLL_AREA)
 
         self.grid_container = QWidget()
@@ -668,9 +669,7 @@ class BaseThemeBrowser(BasePanel):
         self.grid_layout.setContentsMargins(*Sizes.GRID_MARGIN)
         self.grid_layout.setHorizontalSpacing(Sizes.GRID_H_SPACE)
         self.grid_layout.setVerticalSpacing(Sizes.GRID_V_SPACE)
-        self.grid_layout.setAlignment(
-            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft
-        )
+        self.grid_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         self.scroll_area.setWidget(self.grid_container)
 
     def _create_filter_buttons(self):
@@ -680,8 +679,9 @@ class BaseThemeBrowser(BasePanel):
     def _load_filter_assets(self):
         """Load shared filter button pixmaps (normal + active)."""
         from .assets import Assets
-        normal = Assets.load_pixmap('P主题分类选择.png', Sizes.FILTER_BTN_W, Sizes.FILTER_BTN_H)
-        active = Assets.load_pixmap('P主题分类选择0.png', Sizes.FILTER_BTN_W, Sizes.FILTER_BTN_H)
+
+        normal = Assets.load_pixmap("P主题分类选择.png", Sizes.FILTER_BTN_W, Sizes.FILTER_BTN_H)
+        active = Assets.load_pixmap("P主题分类选择0.png", Sizes.FILTER_BTN_W, Sizes.FILTER_BTN_H)
         return normal, active
 
     def _make_filter_button(self, x, y, w, h, normal_pix, active_pix, callback):
@@ -760,6 +760,7 @@ class BaseThemeBrowser(BasePanel):
 # Downloadable Theme Browser
 # ============================================================================
 
+
 class DownloadableThemeBrowser(BaseThemeBrowser):
     """Base for theme browsers that download content on-demand.
 
@@ -773,7 +774,7 @@ class DownloadableThemeBrowser(BaseThemeBrowser):
 
     import threading as _threading
 
-    download_started = Signal(str)        # item_id
+    download_started = Signal(str)  # item_id
     download_finished = Signal(str, bool)  # item_id, success
 
     def __init__(self, parent=None):

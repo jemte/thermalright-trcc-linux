@@ -1,15 +1,16 @@
 """Tests for macOS SCSI transport (mocked — runs on Linux)."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-MODULE = 'trcc.adapters.device.macos.scsi'
+MODULE = "trcc.adapters.device.macos.scsi"
 
 
 class TestMacOSScsiTransport:
-
     def test_init(self):
         from trcc.adapters.device.macos.scsi import MacOSScsiTransport
+
         t = MacOSScsiTransport(vid=0x0416, pid=0x5020)
         assert t._vid == 0x0416
         assert t._pid == 0x5020
@@ -17,19 +18,21 @@ class TestMacOSScsiTransport:
 
     def test_send_cdb_fails_when_not_open(self):
         from trcc.adapters.device.macos.scsi import MacOSScsiTransport
+
         t = MacOSScsiTransport(vid=0x0416, pid=0x5020)
-        assert t.send_cdb(b'\xef', b'\x00' * 512) is False
+        assert t.send_cdb(b"\xef", b"\x00" * 512) is False
 
     def test_close_noop_when_not_open(self):
         from trcc.adapters.device.macos.scsi import MacOSScsiTransport
+
         t = MacOSScsiTransport(vid=0x0416, pid=0x5020)
         t.close()  # Should not raise
 
     def test_context_manager(self):
         from trcc.adapters.device.macos.scsi import MacOSScsiTransport
+
         t = MacOSScsiTransport(vid=0x0416, pid=0x5020)
-        with patch.object(t, 'open') as m_open, \
-             patch.object(t, 'close') as m_close:
+        with patch.object(t, "open") as m_open, patch.object(t, "close") as m_close:
             with t:
                 pass
             m_open.assert_called_once()
@@ -37,14 +40,15 @@ class TestMacOSScsiTransport:
 
     def test_cbw_constants(self):
         from trcc.adapters.device.macos.scsi import CBW_SIGNATURE, CBW_SIZE, CSW_SIZE
+
         assert CBW_SIGNATURE == 0x43425355
         assert CBW_SIZE == 31
         assert CSW_SIZE == 13
 
-    @patch('usb.core.find')
-    @patch('usb.util.endpoint_direction')
-    @patch('usb.util.ENDPOINT_OUT', 0x00)
-    @patch('usb.util.ENDPOINT_IN', 0x80)
+    @patch("usb.core.find")
+    @patch("usb.util.endpoint_direction")
+    @patch("usb.util.ENDPOINT_OUT", 0x00)
+    @patch("usb.util.ENDPOINT_IN", 0x80)
     def test_open_detaches_kernel_driver(self, mock_ep_dir, mock_find):
         """On macOS, open() must detach kernel driver."""
         mock_dev = MagicMock()
@@ -61,6 +65,7 @@ class TestMacOSScsiTransport:
         mock_ep_dir.side_effect = lambda addr: 0x00 if addr == 0x02 else 0x80
 
         from trcc.adapters.device.macos.scsi import MacOSScsiTransport
+
         t = MacOSScsiTransport(vid=0x0416, pid=0x5020)
         result = t.open()
 

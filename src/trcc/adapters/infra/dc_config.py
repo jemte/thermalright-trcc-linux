@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 
 def get_hardware_metric_name(main_count: int, sub_count: int) -> str:
     """Map hardware sensor indices to metric name."""
-    return HARDWARE_METRICS.get((main_count, sub_count), f'sensor_{main_count}_{sub_count}')
+    return HARDWARE_METRICS.get((main_count, sub_count), f"sensor_{main_count}_{sub_count}")
 
 
 def metric_to_hardware_ids(metric: str) -> tuple[int, int]:
@@ -89,33 +89,34 @@ class DcConfig:
         parsed = DcParser.parse(filepath)
 
         # Raw parsed dict fields
-        self.version = parsed.get('version', 0)
-        self.fonts = parsed.get('fonts', [])
-        self.flags = parsed.get('flags', {})
-        self.custom_text = parsed.get('custom_text', '')
-        self.legacy_elements = parsed.get('elements', {})
-        self.elements = parsed.get('display_elements', [])
-        self.display_options = parsed.get('display_options', {})
-        self.mask_settings = parsed.get('mask_settings', {})
+        self.version = parsed.get("version", 0)
+        self.fonts = parsed.get("fonts", [])
+        self.flags = parsed.get("flags", {})
+        self.custom_text = parsed.get("custom_text", "")
+        self.legacy_elements = parsed.get("elements", {})
+        self.elements = parsed.get("display_elements", [])
+        self.display_options = parsed.get("display_options", {})
+        self.mask_settings = parsed.get("mask_settings", {})
 
         # Map display_options → flat attributes
         opts = self.display_options
-        self.system_info_enabled = self.flags.get('system_info', True)
-        self.background_display = opts.get('background_display', True)
+        self.system_info_enabled = self.flags.get("system_info", True)
+        self.background_display = opts.get("background_display", True)
         self.transparent_display = opts.get(
-            'transparent_display', opts.get('screencast_display', False))
-        self.rotation = opts.get('direction', 0)
-        self.ui_mode = opts.get('ui_mode', 0)
-        self.display_mode = opts.get('mode', opts.get('display_mode', 0))
+            "transparent_display", opts.get("screencast_display", False)
+        )
+        self.rotation = opts.get("direction", 0)
+        self.ui_mode = opts.get("ui_mode", 0)
+        self.display_mode = opts.get("mode", opts.get("display_mode", 0))
 
         # Map mask_settings → flat attributes
         ms = self.mask_settings
-        self.overlay_enabled = ms.get('overlay_enabled', True)
-        rect = ms.get('overlay_rect')
+        self.overlay_enabled = ms.get("overlay_enabled", True)
+        rect = ms.get("overlay_rect")
         if rect and len(rect) == 4:
             self.overlay_x, self.overlay_y, self.overlay_w, self.overlay_h = rect
-        self.mask_enabled = ms.get('mask_enabled', False)
-        pos = ms.get('mask_position')
+        self.mask_enabled = ms.get("mask_enabled", False)
+        pos = ms.get("mask_position")
         if pos and len(pos) == 2:
             self.mask_x, self.mask_y = pos
 
@@ -154,16 +155,15 @@ class DcConfig:
     def to_overlay_config(self, width: int = 320, height: int = 320) -> dict:
         """Convert to overlay renderer config dict."""
         parsed = {
-            'elements': self.legacy_elements,
-            'display_elements': self.elements,
-            'custom_text': self.custom_text,
-            'flags': self.flags,
+            "elements": self.legacy_elements,
+            "display_elements": self.elements,
+            "custom_text": self.custom_text,
+            "flags": self.flags,
         }
         return DcParser.to_overlay_config(parsed, width, height)
 
     @classmethod
-    def from_overlay_config(cls, overlay_config: dict,
-                            width: int, height: int) -> DcConfig:
+    def from_overlay_config(cls, overlay_config: dict, width: int, height: int) -> DcConfig:
         """Create DcConfig from an overlay renderer config dict."""
         from .dc_writer import overlay_to_theme
 
@@ -179,17 +179,16 @@ class DcConfig:
     def to_dict(self) -> dict:
         """Return parsed-dict representation for backward compatibility."""
         return {
-            'version': self.version,
-            'elements': self.legacy_elements,
-            'fonts': self.fonts,
-            'flags': self.flags,
-            'display_elements': self.elements,
-            'custom_text': self.custom_text,
-            'display_options': self.display_options,
-            'mask_settings': self.mask_settings,
+            "version": self.version,
+            "elements": self.legacy_elements,
+            "fonts": self.fonts,
+            "flags": self.flags,
+            "display_elements": self.elements,
+            "custom_text": self.custom_text,
+            "display_options": self.display_options,
+            "mask_settings": self.mask_settings,
         }
 
     def __repr__(self) -> str:
-        fmt = '0xDD' if (self.version & 0xFF) == 0xDD else '0xDC'
-        return (f"DcConfig(format={fmt}, elements={len(self.elements)}, "
-                f"rotation={self.rotation})")
+        fmt = "0xDD" if (self.version & 0xFF) == 0xDD else "0xDC"
+        return f"DcConfig(format={fmt}, elements={len(self.elements)}, rotation={self.rotation})"

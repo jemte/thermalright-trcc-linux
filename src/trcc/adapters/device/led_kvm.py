@@ -46,9 +46,11 @@ DEFAULT_CHANNEL_ENABLES = [1, 1, 1, 1, 1, 1, 1, 1, 0, 1]
 # Data model
 # =========================================================================
 
+
 @dataclass
 class KvmChannelState:
     """Per-channel LED state."""
+
     on: bool = True
     mode: int = 1
     brightness: int = 100
@@ -60,17 +62,17 @@ class KvmChannelState:
 @dataclass
 class KvmLedState:
     """Complete KVM LED controller state (10 channels)."""
-    channels: List[KvmChannelState] = field(default_factory=lambda: [
-        KvmChannelState() for _ in range(NUM_CHANNELS)
-    ])
-    channel_enables: List[int] = field(
-        default_factory=lambda: list(DEFAULT_CHANNEL_ENABLES)
+
+    channels: List[KvmChannelState] = field(
+        default_factory=lambda: [KvmChannelState() for _ in range(NUM_CHANNELS)]
     )
+    channel_enables: List[int] = field(default_factory=lambda: list(DEFAULT_CHANNEL_ENABLES))
 
 
 # =========================================================================
 # Packet builder
 # =========================================================================
+
 
 class KvmPacketBuilder:
     """Builds HID packets for KVM LED protocol commands."""
@@ -92,8 +94,7 @@ class KvmPacketBuilder:
         return bytes(pkt)
 
     @staticmethod
-    def build_led(state: KvmLedState, channel: int = 0,
-                  mode: int = 0) -> bytes:
+    def build_led(state: KvmLedState, channel: int = 0, mode: int = 0) -> bytes:
         """Build LED data command packet (CMD_LED = 0x10).
 
         Packet: [0xDC, 0xDD, 0x10, channel, mode,
@@ -108,7 +109,7 @@ class KvmPacketBuilder:
         pkt[4] = mode
         # Data payload (18 bytes)
         pkt[5] = ch.brightness
-        pkt[6] = 1   # speed (default)
+        pkt[6] = 1  # speed (default)
         pkt[7] = ch.r
         pkt[8] = ch.g
         pkt[9] = ch.b
@@ -167,6 +168,7 @@ class KvmPacketBuilder:
 # Persistence (proMode.dc)
 # =========================================================================
 
+
 class KvmProModePersistence:
     """Read/write proMode.dc config files for KVM LED state.
 
@@ -201,8 +203,9 @@ class KvmProModePersistence:
             return None
         data = path.read_bytes()
         if len(data) < PROMODE_SIZE or data[0] != PROMODE_HEADER:
-            log.warning("Invalid proMode.dc: size=%d header=0x%02X",
-                        len(data), data[0] if data else 0)
+            log.warning(
+                "Invalid proMode.dc: size=%d header=0x%02X", len(data), data[0] if data else 0
+            )
             return None
         state = KvmLedState()
         for i in range(NUM_CHANNELS):

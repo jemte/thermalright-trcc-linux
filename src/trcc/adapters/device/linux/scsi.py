@@ -4,6 +4,7 @@ Provides LinuxScsiTransport: a class-based SCSI transport matching the
 interface of MacOSScsiTransport and BSDScsiTransport. Uses fcntl.ioctl
 with the kernel SG_IO interface for zero-copy SCSI command execution.
 """
+
 from __future__ import annotations
 
 import ctypes
@@ -25,28 +26,28 @@ class _SgIoHdr(ctypes.Structure):
     """Linux sg_io_hdr_t for SG_IO ioctl."""
 
     _fields_ = [
-        ('interface_id', ctypes.c_int),
-        ('dxfer_direction', ctypes.c_int),
-        ('cmd_len', ctypes.c_ubyte),
-        ('mx_sb_len', ctypes.c_ubyte),
-        ('iovec_count', ctypes.c_ushort),
-        ('dxfer_len', ctypes.c_uint),
-        ('dxferp', ctypes.c_void_p),
-        ('cmdp', ctypes.c_void_p),
-        ('sbp', ctypes.c_void_p),
-        ('timeout', ctypes.c_uint),
-        ('flags', ctypes.c_uint),
-        ('pack_id', ctypes.c_int),
-        ('usr_ptr', ctypes.c_void_p),
-        ('status', ctypes.c_ubyte),
-        ('masked_status', ctypes.c_ubyte),
-        ('msg_status', ctypes.c_ubyte),
-        ('sb_len_wr', ctypes.c_ubyte),
-        ('host_status', ctypes.c_ushort),
-        ('driver_status', ctypes.c_ushort),
-        ('resid', ctypes.c_int),
-        ('duration', ctypes.c_uint),
-        ('info', ctypes.c_uint),
+        ("interface_id", ctypes.c_int),
+        ("dxfer_direction", ctypes.c_int),
+        ("cmd_len", ctypes.c_ubyte),
+        ("mx_sb_len", ctypes.c_ubyte),
+        ("iovec_count", ctypes.c_ushort),
+        ("dxfer_len", ctypes.c_uint),
+        ("dxferp", ctypes.c_void_p),
+        ("cmdp", ctypes.c_void_p),
+        ("sbp", ctypes.c_void_p),
+        ("timeout", ctypes.c_uint),
+        ("flags", ctypes.c_uint),
+        ("pack_id", ctypes.c_int),
+        ("usr_ptr", ctypes.c_void_p),
+        ("status", ctypes.c_ubyte),
+        ("masked_status", ctypes.c_ubyte),
+        ("msg_status", ctypes.c_ubyte),
+        ("sb_len_wr", ctypes.c_ubyte),
+        ("host_status", ctypes.c_ushort),
+        ("driver_status", ctypes.c_ushort),
+        ("resid", ctypes.c_int),
+        ("duration", ctypes.c_uint),
+        ("info", ctypes.c_uint),
     ]
 
 
@@ -113,7 +114,7 @@ class LinuxScsiTransport:
             sense_buf = (ctypes.c_ubyte * 32)()
             hdr = _SgIoHdr()
             ioctl_buf = ctypes.create_string_buffer(_SG_HDR_SIZE)
-            hdr.interface_id = ord('S')
+            hdr.interface_id = ord("S")
             hdr.dxfer_direction = _SG_DXFER_TO_DEV
             hdr.cmd_len = cdb_len
             hdr.mx_sb_len = 32
@@ -149,7 +150,7 @@ class LinuxScsiTransport:
         sense_buf = (ctypes.c_ubyte * 32)()
 
         hdr = _SgIoHdr()
-        hdr.interface_id = ord('S')
+        hdr.interface_id = ord("S")
         hdr.dxfer_direction = _SG_DXFER_FROM_DEV
         hdr.cmd_len = len(cdb)
         hdr.mx_sb_len = 32
@@ -165,7 +166,7 @@ class LinuxScsiTransport:
         ctypes.memmove(ctypes.addressof(hdr), buf, ctypes.sizeof(hdr))
 
         if hdr.status != 0:
-            return b''
+            return b""
         actual = length - hdr.resid
         return bytes(data_buf[:actual])
 

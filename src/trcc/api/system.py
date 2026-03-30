@@ -1,4 +1,5 @@
 """System metrics and diagnostic report endpoints."""
+
 from __future__ import annotations
 
 import dataclasses
@@ -16,6 +17,7 @@ def _get_system_svc():
     from fastapi import HTTPException
 
     import trcc.api as api
+
     if api._system_svc is None:
         raise HTTPException(status_code=503, detail="System service not initialized")
     return api._system_svc

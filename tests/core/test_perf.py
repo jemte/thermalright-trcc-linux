@@ -1,4 +1,5 @@
 """Tests for trcc.core.perf — PerfReport domain object."""
+
 from __future__ import annotations
 
 from trcc.core.perf import PerfEntry, PerfReport, _bar, _fmt_bytes

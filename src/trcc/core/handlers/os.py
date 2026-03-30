@@ -16,6 +16,7 @@ TrccApp.build_os_bus() injects its own methods:
         download_pack_fn=download_pack,
     )
 """
+
 from __future__ import annotations
 
 from typing import Any, Callable
@@ -53,14 +54,14 @@ class OSCommandHandler:
     """
 
     __slots__ = (
-        '_bootstrap',
-        '_set_renderer',
-        '_scan',
-        '_ensure_data',
-        '_has_device',
-        '_build_setup',
-        '_list_themes',
-        '_download_pack',
+        "_bootstrap",
+        "_set_renderer",
+        "_scan",
+        "_ensure_data",
+        "_has_device",
+        "_build_setup",
+        "_list_themes",
+        "_download_pack",
     )
 
     def __init__(
@@ -98,7 +99,7 @@ class OSCommandHandler:
                 self._ensure_data()
                 return CommandResult.ok(
                     message=f"{len(devices)} device(s) found",
-                    devices=[getattr(d, 'device_path', str(d)) for d in devices],
+                    devices=[getattr(d, "device_path", str(d)) for d in devices],
                 )
 
             case SetLanguageCommand(code=code):
@@ -109,45 +110,43 @@ class OSCommandHandler:
 
             case SetupPlatformCommand(auto_yes=auto_yes):
                 rc = self._build_setup().run(auto_yes=auto_yes)
-                return CommandResult.ok() if rc == 0 else CommandResult.fail(
-                    "Setup failed")
+                return CommandResult.ok() if rc == 0 else CommandResult.fail("Setup failed")
 
             case SetupUdevCommand(dry_run=dry_run):
                 rc = self._build_setup().setup_udev(dry_run=dry_run)
-                return CommandResult.ok() if rc == 0 else CommandResult.fail(
-                    "udev setup failed")
+                return CommandResult.ok() if rc == 0 else CommandResult.fail("udev setup failed")
 
             case SetupSelinuxCommand():
                 rc = self._build_setup().setup_selinux()
-                return CommandResult.ok() if rc == 0 else CommandResult.fail(
-                    "SELinux setup failed")
+                return CommandResult.ok() if rc == 0 else CommandResult.fail("SELinux setup failed")
 
             case SetupPolkitCommand():
                 rc = self._build_setup().setup_polkit()
-                return CommandResult.ok() if rc == 0 else CommandResult.fail(
-                    "polkit setup failed")
+                return CommandResult.ok() if rc == 0 else CommandResult.fail("polkit setup failed")
 
             case InstallDesktopCommand():
                 rc = self._build_setup().install_desktop()
-                return CommandResult.ok() if rc == 0 else CommandResult.fail(
-                    "Desktop install failed")
+                return (
+                    CommandResult.ok() if rc == 0 else CommandResult.fail("Desktop install failed")
+                )
 
             case SetupWinUsbCommand():
                 rc = self._build_setup().setup_winusb()
-                return CommandResult.ok() if rc == 0 else CommandResult.fail(
-                    "WinUSB setup failed")
+                return CommandResult.ok() if rc == 0 else CommandResult.fail("WinUSB setup failed")
 
             case DownloadThemesCommand(pack=pack, force=force):
                 if not pack:
                     self._list_themes()
                     return CommandResult.ok(message="Listed available theme packs")
                 rc = self._download_pack(pack, force)
-                return CommandResult.ok() if rc == 0 else CommandResult.fail(
-                    f"Download failed: {pack}")
+                return (
+                    CommandResult.ok()
+                    if rc == 0
+                    else CommandResult.fail(f"Download failed: {pack}")
+                )
 
             case _:
-                return CommandResult.fail(
-                    f"BUG: unhandled OS command {type(cmd).__name__}")
+                return CommandResult.fail(f"BUG: unhandled OS command {type(cmd).__name__}")
 
     def __repr__(self) -> str:
         return "OSCommandHandler()"
@@ -178,16 +177,18 @@ def build_os_bus(
         list_themes_fn=list_themes_fn,
         download_pack_fn=download_pack_fn,
     )
-    return (CommandBus()
-            .add_middleware(LoggingMiddleware())
-            .add_middleware(TimingMiddleware(threshold_ms=5000.0))
-            .register(InitPlatformCommand, h)
-            .register(DiscoverDevicesCommand, h)
-            .register(SetLanguageCommand, h)
-            .register(SetupPlatformCommand, h)
-            .register(SetupUdevCommand, h)
-            .register(SetupSelinuxCommand, h)
-            .register(SetupPolkitCommand, h)
-            .register(InstallDesktopCommand, h)
-            .register(SetupWinUsbCommand, h)
-            .register(DownloadThemesCommand, h))
+    return (
+        CommandBus()
+        .add_middleware(LoggingMiddleware())
+        .add_middleware(TimingMiddleware(threshold_ms=5000.0))
+        .register(InitPlatformCommand, h)
+        .register(DiscoverDevicesCommand, h)
+        .register(SetLanguageCommand, h)
+        .register(SetupPlatformCommand, h)
+        .register(SetupUdevCommand, h)
+        .register(SetupSelinuxCommand, h)
+        .register(SetupPolkitCommand, h)
+        .register(InstallDesktopCommand, h)
+        .register(SetupWinUsbCommand, h)
+        .register(DownloadThemesCommand, h)
+    )

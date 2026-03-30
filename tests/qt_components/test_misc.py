@@ -89,8 +89,13 @@ def _mock_all_assets(qapp):
         if hasattr(mock, "get_localized"):
             mock.get_localized.return_value = "bg.png"
         # Class-level constants referenced by UCAbout._setup_ui
-        for attr in ("ABOUT_BG", "ABOUT_LOGOUT", "ABOUT_LOGOUT_HOVER",
-                      "CHECKBOX_OFF", "CHECKBOX_ON"):
+        for attr in (
+            "ABOUT_BG",
+            "ABOUT_LOGOUT",
+            "ABOUT_LOGOUT_HOVER",
+            "CHECKBOX_OFF",
+            "CHECKBOX_ON",
+        ):
             if not hasattr(mock, attr) or isinstance(getattr(mock, attr), MagicMock):
                 setattr(mock, attr, "dummy.png")
 
@@ -600,6 +605,7 @@ class TestAboutWidget:
     @pytest.fixture
     def widget(self, tmp_config):
         from unittest.mock import MagicMock
+
         mock_manager = MagicMock()
         mock_manager.is_enabled.return_value = False
         with patch("trcc.qt_components.uc_about.Thread"):
@@ -768,12 +774,30 @@ class TestUCActivitySidebar:
     def test_update_from_metrics(self, sidebar):
         """update_from_metrics updates sensor items."""
         metrics = SimpleNamespace(
-            cpu_temp=65.0, cpu_percent=30.0, cpu_freq=3200.0, cpu_power=95.0,
-            gpu_temp=55.0, gpu_usage=45.0, gpu_clock=1800.0, gpu_power=120.0,
-            mem_temp=40.0, mem_percent=60.0, mem_clock=3200.0, mem_available=8192.0,
-            disk_temp=35.0, disk_activity=10.0, disk_read=100.0, disk_write=50.0,
-            net_up=500.0, net_down=1200.0, net_total_up=2048.0, net_total_down=4096.0,
-            fan_cpu=1200, fan_gpu=1500, fan_ssd=800, fan_sys2=900,
+            cpu_temp=65.0,
+            cpu_percent=30.0,
+            cpu_freq=3200.0,
+            cpu_power=95.0,
+            gpu_temp=55.0,
+            gpu_usage=45.0,
+            gpu_clock=1800.0,
+            gpu_power=120.0,
+            mem_temp=40.0,
+            mem_percent=60.0,
+            mem_clock=3200.0,
+            mem_available=8192.0,
+            disk_temp=35.0,
+            disk_activity=10.0,
+            disk_read=100.0,
+            disk_write=50.0,
+            net_up=500.0,
+            net_down=1200.0,
+            net_total_up=2048.0,
+            net_total_down=4096.0,
+            fan_cpu=1200,
+            fan_gpu=1500,
+            fan_ssd=800,
+            fan_sys2=900,
         )
         sidebar.update_from_metrics(metrics)
         # Spot check: first item is cpu_temp
@@ -840,11 +864,14 @@ class TestUCInfoModule:
     def test_update_from_metrics(self, module):
         """update_from_metrics updates sensor boxes."""
         metrics = SimpleNamespace(
-            cpu_temp=65.0, gpu_temp=55.0, cpu_percent=30.0, gpu_usage=45.0,
+            cpu_temp=65.0,
+            gpu_temp=55.0,
+            cpu_percent=30.0,
+            gpu_usage=45.0,
         )
         module.update_from_metrics(metrics)
-        assert module._sensor_boxes['cpu_temp'].value_label.text() == "65\u00b0C"
-        assert module._sensor_boxes['gpu_usage'].value_label.text() == "45%"
+        assert module._sensor_boxes["cpu_temp"].value_label.text() == "65\u00b0C"
+        assert module._sensor_boxes["gpu_usage"].value_label.text() == "45%"
 
     def test_stop_updates_noop(self, module):
         """stop_updates() is a no-op (MetricsMediator drives updates)."""
@@ -859,12 +886,22 @@ class TestUCInfoModule:
 class TestSensorRow:
     """Test SensorRow widget."""
 
-    def _make_sensor_info(self, sensor_id="hwmon:temp1", name="CPU Temp",
-                          category="temperature", unit="\u00b0C", source="hwmon"):
+    def _make_sensor_info(
+        self,
+        sensor_id="hwmon:temp1",
+        name="CPU Temp",
+        category="temperature",
+        unit="\u00b0C",
+        source="hwmon",
+    ):
         from trcc.core.models import SensorInfo
 
         return SensorInfo(
-            id=sensor_id, name=name, category=category, unit=unit, source=source,
+            id=sensor_id,
+            name=name,
+            category=category,
+            unit=unit,
+            source=source,
         )
 
     def test_construction(self):
@@ -964,10 +1001,20 @@ class TestSensorPickerDialog:
 
         mock_enum = MagicMock()
         mock_enum.get_sensors.return_value = [
-            SensorInfo(id="hwmon:temp1", name="CPU Temp",
-                       category="temperature", unit="\u00b0C", source="hwmon"),
-            SensorInfo(id="psutil:cpu_percent", name="CPU Usage",
-                       category="usage", unit="%", source="psutil"),
+            SensorInfo(
+                id="hwmon:temp1",
+                name="CPU Temp",
+                category="temperature",
+                unit="\u00b0C",
+                source="hwmon",
+            ),
+            SensorInfo(
+                id="psutil:cpu_percent",
+                name="CPU Usage",
+                category="usage",
+                unit="%",
+                source="psutil",
+            ),
         ]
         mock_enum.read_all.return_value = {"hwmon:temp1": 65.0, "psutil:cpu_percent": 30.0}
         return mock_enum

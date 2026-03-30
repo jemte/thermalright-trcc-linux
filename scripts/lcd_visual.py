@@ -12,6 +12,7 @@ Usage:
     PYTHONPATH=src python3 scripts/lcd_visual.py
     PYTHONPATH=src python3 scripts/lcd_visual.py --overlay   # start with overlay
 """
+
 from __future__ import annotations
 
 import os
@@ -19,9 +20,9 @@ import shutil
 import sys
 import tempfile
 
-os.environ.setdefault('QT_QPA_PLATFORM', '')  # use real display
+os.environ.setdefault("QT_QPA_PLATFORM", "")  # use real display
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from pathlib import Path
 
@@ -50,10 +51,10 @@ from trcc.services.image import ImageService
 from trcc.services.overlay import OverlayService
 from trcc.services.theme import ThemeInfo, ThemeService
 
-_start_with_overlay = '--overlay' in sys.argv
+_start_with_overlay = "--overlay" in sys.argv
 
 # Test themes live here — separate from real app data
-_TEST_DIR = Path.home() / '.trcc' / '.lcd_test'
+_TEST_DIR = Path.home() / ".trcc" / ".lcd_test"
 
 # Button style shared across all buttons
 _BTN_STYLE = (
@@ -66,6 +67,7 @@ _BTN_STYLE = (
 
 
 # ── Test pattern generation ──────────────────────────────────────────
+
 
 def _checkerboard(w: int, h: int, block: int = 16) -> QImage:
     """Generate a checkerboard test pattern at the given resolution."""
@@ -100,6 +102,7 @@ def _gradient(w: int, h: int) -> QImage:
 
 # ── Main harness ─────────────────────────────────────────────────────
 
+
 class LCDPanelTestHarness(QWidget):
     """LCD preview harness — vertical layout matching LED visual style.
 
@@ -115,7 +118,7 @@ class LCDPanelTestHarness(QWidget):
         self.setMinimumSize(1300, 900)
 
         # Persistent working dir for copy-based theme loading
-        self._working_dir = Path(tempfile.mkdtemp(prefix='trcc_lcd_test_'))
+        self._working_dir = Path(tempfile.mkdtemp(prefix="trcc_lcd_test_"))
 
         # State
         self._width, self._height = 320, 320
@@ -142,8 +145,7 @@ class LCDPanelTestHarness(QWidget):
         btn_layout.setContentsMargins(0, 0, 0, 0)
         btn_layout.setSpacing(2)
 
-        unique_res = sorted(set(FBL_TO_RESOLUTION.values()),
-                            key=lambda r: (r[0] * r[1], r[0]))
+        unique_res = sorted(set(FBL_TO_RESOLUTION.values()), key=lambda r: (r[0] * r[1], r[0]))
 
         self._res_buttons: list[QPushButton] = []
         for w, h in unique_res:
@@ -221,10 +223,12 @@ class LCDPanelTestHarness(QWidget):
         pat_label = QLabel("Patterns")
         pat_label.setStyleSheet("color: #ccc; font-weight: bold; font-size: 12px;")
         pat_col.addWidget(pat_label)
-        for label, fn in [("Checkerboard", self._show_checkerboard),
-                          ("Gradient", self._show_gradient),
-                          ("Black", self._show_black),
-                          ("White", self._show_white)]:
+        for label, fn in [
+            ("Checkerboard", self._show_checkerboard),
+            ("Gradient", self._show_gradient),
+            ("Black", self._show_black),
+            ("White", self._show_white),
+        ]:
             btn = QPushButton(label)
             btn.setStyleSheet(_BTN_STYLE)
             btn.clicked.connect(fn)
@@ -305,7 +309,7 @@ class LCDPanelTestHarness(QWidget):
 
     def _update_status(self):
         overlay_text = "ON" if self._overlay_enabled else "OFF"
-        theme_dir = _TEST_DIR / f'theme{self._width}{self._height}'
+        theme_dir = _TEST_DIR / f"theme{self._width}{self._height}"
         self._status.setText(
             f"Resolution: {self._width}x{self._height} | "
             f"Rotation: {self._rotation}° | "
@@ -317,7 +321,8 @@ class LCDPanelTestHarness(QWidget):
 
     def _update_info(self):
         offset = UCPreview.RESOLUTION_OFFSETS.get(
-            (self._width, self._height), UCPreview.DEFAULT_OFFSET)
+            (self._width, self._height), UCPreview.DEFAULT_OFFSET
+        )
         left, top, pw, ph, frame = offset
         self._info.setText(
             f"Preview: pos=({left},{top})  size={pw}x{ph}  "
@@ -349,8 +354,7 @@ class LCDPanelTestHarness(QWidget):
     def _switch_resolution(self, w: int, h: int):
         self._width, self._height = w, h
 
-        unique_res = sorted(set(FBL_TO_RESOLUTION.values()),
-                            key=lambda r: (r[0] * r[1], r[0]))
+        unique_res = sorted(set(FBL_TO_RESOLUTION.values()), key=lambda r: (r[0] * r[1], r[0]))
         for i, (rw, rh) in enumerate(unique_res):
             self._res_buttons[i].setChecked(rw == w and rh == h)
 
@@ -367,10 +371,9 @@ class LCDPanelTestHarness(QWidget):
         self._theme_list.clear()
         self._themes = []
 
-        theme_dir = _TEST_DIR / f'theme{self._width}{self._height}'
+        theme_dir = _TEST_DIR / f"theme{self._width}{self._height}"
         if theme_dir.exists():
-            self._themes = ThemeService.discover_local(
-                theme_dir, (self._width, self._height))
+            self._themes = ThemeService.discover_local(theme_dir, (self._width, self._height))
 
         for theme in self._themes:
             item = QListWidgetItem(theme.name)
@@ -419,6 +422,7 @@ class LCDPanelTestHarness(QWidget):
             self._preview.set_status(f"Theme: {theme.name}")
         except Exception as e:
             import traceback
+
             traceback.print_exc()
             self._preview.set_status(f"Error: {e}")
 
@@ -475,9 +479,9 @@ class LCDPanelTestHarness(QWidget):
 
 
 def main():
-    argv = [a for a in sys.argv if not a.startswith('--')]
+    argv = [a for a in sys.argv if not a.startswith("--")]
     app = QApplication(argv)
-    app.setStyle('Fusion')
+    app.setStyle("Fusion")
 
     dark = QPalette()
     dark.setColor(QPalette.ColorRole.Window, QColor(53, 53, 53))
@@ -501,5 +505,5 @@ def main():
     sys.exit(app.exec())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

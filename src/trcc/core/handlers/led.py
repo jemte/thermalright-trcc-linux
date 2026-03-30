@@ -8,6 +8,7 @@ Two handlers:
 
 build_led_bus / build_led_gui_bus are the only public entry points.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
@@ -50,7 +51,7 @@ class LEDCommandHandler(DeviceCommandHandler):
     with LCDCommandHandler, same contract, same base method.
     """
 
-    __slots__ = ('_led',)
+    __slots__ = ("_led",)
 
     handles: ClassVar[tuple[type[Command], ...]] = (
         SetLEDColorCommand,
@@ -87,27 +88,22 @@ class LEDCommandHandler(DeviceCommandHandler):
                 return CommandResult.from_dict(self._led.toggle_global(on))
 
             case SetZoneColorCommand(zone=zone, r=r, g=g, b=b):
-                return CommandResult.from_dict(
-                    self._led.set_zone_color(zone, r, g, b))
+                return CommandResult.from_dict(self._led.set_zone_color(zone, r, g, b))
 
             case SetZoneModeCommand(zone=zone, mode=mode):
-                return CommandResult.from_dict(
-                    self._led.set_zone_mode(zone, mode))
+                return CommandResult.from_dict(self._led.set_zone_mode(zone, mode))
 
             case SetZoneBrightnessCommand(zone=zone, level=level):
-                return CommandResult.from_dict(
-                    self._led.set_zone_brightness(zone, level))
+                return CommandResult.from_dict(self._led.set_zone_brightness(zone, level))
 
             case ToggleZoneCommand(zone=zone, on=on):
                 return CommandResult.from_dict(self._led.toggle_zone(zone, on))
 
             case SetZoneSyncCommand(enabled=enabled, interval=interval):
-                return CommandResult.from_dict(
-                    self._led.set_zone_sync(enabled, interval))
+                return CommandResult.from_dict(self._led.set_zone_sync(enabled, interval))
 
             case ToggleSegmentCommand(index=index, on=on):
-                return CommandResult.from_dict(
-                    self._led.toggle_segment(index, on))
+                return CommandResult.from_dict(self._led.toggle_segment(index, on))
 
             case SetClockFormatCommand(is_24h=is_24h):
                 return CommandResult.from_dict(self._led.set_clock_format(is_24h))
@@ -120,13 +116,11 @@ class LEDCommandHandler(DeviceCommandHandler):
 
             case UpdateMetricsLEDCommand(metrics=metrics):
                 if not self._validate_metrics(metrics):
-                    return CommandResult.fail(
-                        "invalid metrics: expected non-None value")
+                    return CommandResult.fail("invalid metrics: expected non-None value")
                 return CommandResult.from_dict(self._led.update_metrics(metrics))
 
             case _:
-                return CommandResult.fail(
-                    f"BUG: unhandled LED command {type(cmd).__name__}")
+                return CommandResult.fail(f"BUG: unhandled LED command {type(cmd).__name__}")
 
     def __repr__(self) -> str:
         return f"LEDCommandHandler(led={self._led!r})"
@@ -140,7 +134,7 @@ class LEDGuiCommandHandler(DeviceCommandHandler):
     Only handles the three slider commands; all others fall through to fail.
     """
 
-    __slots__ = ('_led',)
+    __slots__ = ("_led",)
 
     def __init__(self, led: LEDDevice) -> None:
         self._led = led
@@ -160,8 +154,7 @@ class LEDGuiCommandHandler(DeviceCommandHandler):
                 return CommandResult.ok(message="mode updated")
 
             case _:
-                return CommandResult.fail(
-                    f"BUG: unhandled GUI LED command {type(cmd).__name__}")
+                return CommandResult.fail(f"BUG: unhandled GUI LED command {type(cmd).__name__}")
 
     def __repr__(self) -> str:
         return f"LEDGuiCommandHandler(led={self._led!r})"
@@ -174,9 +167,11 @@ def build_led_bus(led: LEDDevice) -> CommandBus:
     across all command types in LEDCommandHandler.handles.
     """
     h = LEDCommandHandler(led)
-    bus = (CommandBus()
-           .add_middleware(LoggingMiddleware())
-           .add_middleware(TimingMiddleware(threshold_ms=200.0)))
+    bus = (
+        CommandBus()
+        .add_middleware(LoggingMiddleware())
+        .add_middleware(TimingMiddleware(threshold_ms=200.0))
+    )
     for cmd_type in LEDCommandHandler.handles:
         bus.register(cmd_type, h)
     return bus
@@ -189,10 +184,12 @@ def build_led_gui_bus(led: LEDDevice) -> CommandBus:
     to prevent USB saturation from rapid slider movement.
     """
     h = LEDGuiCommandHandler(led)
-    return (CommandBus()
-            .add_middleware(LoggingMiddleware())
-            .add_middleware(TimingMiddleware(threshold_ms=200.0))
-            .add_middleware(RateLimitMiddleware(min_interval_ms=50.0))
-            .register(SetLEDColorCommand, h)
-            .register(SetLEDBrightnessCommand, h)
-            .register(SetLEDModeCommand, h))
+    return (
+        CommandBus()
+        .add_middleware(LoggingMiddleware())
+        .add_middleware(TimingMiddleware(threshold_ms=200.0))
+        .add_middleware(RateLimitMiddleware(min_interval_ms=50.0))
+        .register(SetLEDColorCommand, h)
+        .register(SetLEDBrightnessCommand, h)
+        .register(SetLEDModeCommand, h)
+    )

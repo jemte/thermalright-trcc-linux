@@ -17,6 +17,7 @@ from trcc.core.models import ServerInfo
 # Fixtures
 # =========================================================================
 
+
 @pytest.fixture
 def server_info() -> ServerInfo:
     """Default ServerInfo for tests."""
@@ -44,7 +45,8 @@ def mock_qrcode():
 def mock_lan_ip():
     """Mock get_lan_ip to return a known address."""
     with patch(
-        "trcc.adapters.infra.network.get_lan_ip", return_value="192.168.1.100",
+        "trcc.adapters.infra.network.get_lan_ip",
+        return_value="192.168.1.100",
     ) as m:
         yield m
 
@@ -52,6 +54,7 @@ def mock_lan_ip():
 # =========================================================================
 # Core — ServerInfo DTO
 # =========================================================================
+
 
 class TestServerInfo:
     """ServerInfo dataclass and JSON serialization."""
@@ -85,6 +88,7 @@ class TestServerInfo:
 # Infrastructure — get_lan_ip
 # =========================================================================
 
+
 class TestGetLanIp:
     """Network adapter: LAN IP auto-detection."""
 
@@ -95,11 +99,13 @@ class TestGetLanIp:
         mock_sock.__exit__ = MagicMock(return_value=False)
         with patch("trcc.adapters.infra.network.socket.socket", return_value=mock_sock):
             from trcc.adapters.infra.network import get_lan_ip
+
             assert get_lan_ip() == "192.168.1.42"
 
     def test_fallback_on_oserror(self):
         with patch("trcc.adapters.infra.network.socket.socket", side_effect=OSError):
             from trcc.adapters.infra.network import get_lan_ip
+
             assert get_lan_ip() == "127.0.0.1"
 
 
@@ -107,11 +113,13 @@ class TestGetLanIp:
 # CLI — _print_serve_qr (presentation adapter)
 # =========================================================================
 
+
 class TestPrintServeQr:
     """CLI QR code rendering — thin presentation over ServerInfo + get_lan_ip."""
 
     def test_qr_payload_matches_server_info(self, mock_qrcode: MagicMock):
         from trcc.cli import _print_serve_qr
+
         _print_serve_qr("10.0.0.5", 9876, "secret", True)
 
         added_data = mock_qrcode.add_data.call_args[0][0]
@@ -122,9 +130,12 @@ class TestPrintServeQr:
         assert payload["tls"] is True
 
     def test_wildcard_host_resolves_to_lan_ip(
-        self, mock_qrcode: MagicMock, mock_lan_ip: MagicMock,
+        self,
+        mock_qrcode: MagicMock,
+        mock_lan_ip: MagicMock,
     ):
         from trcc.cli import _print_serve_qr
+
         _print_serve_qr("0.0.0.0", 9876, None, False)
 
         added_data = mock_qrcode.add_data.call_args[0][0]
@@ -133,9 +144,12 @@ class TestPrintServeQr:
         mock_lan_ip.assert_called_once()
 
     def test_ipv6_wildcard_resolves_to_lan_ip(
-        self, mock_qrcode: MagicMock, mock_lan_ip: MagicMock,
+        self,
+        mock_qrcode: MagicMock,
+        mock_lan_ip: MagicMock,
     ):
         from trcc.cli import _print_serve_qr
+
         _print_serve_qr("::", 9876, None, False)
 
         added_data = mock_qrcode.add_data.call_args[0][0]
@@ -144,6 +158,7 @@ class TestPrintServeQr:
 
     def test_no_token_sends_empty_string(self, mock_qrcode: MagicMock):
         from trcc.cli import _print_serve_qr
+
         _print_serve_qr("10.0.0.1", 9876, None, False)
 
         added_data = mock_qrcode.add_data.call_args[0][0]
@@ -151,9 +166,12 @@ class TestPrintServeQr:
         assert payload["token"] == ""
 
     def test_explicit_host_skips_lan_detection(
-        self, mock_qrcode: MagicMock, mock_lan_ip: MagicMock,
+        self,
+        mock_qrcode: MagicMock,
+        mock_lan_ip: MagicMock,
     ):
         from trcc.cli import _print_serve_qr
+
         _print_serve_qr("10.0.0.5", 9876, None, False)
 
         mock_lan_ip.assert_not_called()
@@ -164,10 +182,12 @@ class TestPrintServeQr:
         """No crash when qrcode package is missing."""
         with patch.dict("sys.modules", {"qrcode": None}):
             from trcc.cli import _print_serve_qr
+
             _print_serve_qr("10.0.0.1", 9876, "tok", False)
 
     def test_calls_print_ascii(self, mock_qrcode: MagicMock):
         from trcc.cli import _print_serve_qr
+
         _print_serve_qr("10.0.0.1", 9876, None, False)
 
         mock_qrcode.make.assert_called_once_with(fit=True)

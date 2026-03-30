@@ -3,6 +3,7 @@
 All methods are exercised on Linux directly (no mocking needed — the
 concrete Linux adapters are available in the test environment).
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock

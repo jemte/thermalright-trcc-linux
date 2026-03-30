@@ -18,6 +18,7 @@ C# approach (FormCZTV.Timer_event): overlay text re-renders every ~1s
 (64 ticks × 15ms), but compositing + encoding happens per-frame at
 send time — NOT bulk re-encoding all frames.
 """
+
 from __future__ import annotations
 
 import logging
@@ -51,7 +52,7 @@ class VideoFrameCache:
         self._rotation: int = 0
 
         # Encoding params (from DeviceInfo)
-        self._protocol: str = 'scsi'
+        self._protocol: str = "scsi"
         self._resolution: tuple[int, int] = (320, 320)
         self._fbl: int | None = None
         self._use_jpeg: bool = False
@@ -98,10 +99,12 @@ class VideoFrameCache:
             return
 
         from .image import ImageService
+
         r = ImageService._r()
 
         # Convert frames to native surfaces if needed
         from ..core.ports import RawFrame
+
         first = frames[0]
         if isinstance(first, RawFrame):
             frames = [r.from_raw_rgb24(f) for f in frames]
@@ -206,15 +209,18 @@ class VideoFrameCache:
         Detects settings changes (text/brightness/rotation) and clears all
         L3 slots so they refill with the new settings over the next loop.
         """
-        if (self._text_cache_key != self._l3_text_key
-                or self._brightness != self._l3_brightness
-                or self._rotation != self._l3_rotation):
+        if (
+            self._text_cache_key != self._l3_text_key
+            or self._brightness != self._l3_brightness
+            or self._rotation != self._l3_rotation
+        ):
             self._reset_l3()
 
         if self._l3_encoded[index] is not None:
             return  # L3 hit — pure list lookup
 
         from .image import ImageService
+
         r = ImageService._r()
 
         frame = r.copy_surface(self._masked_frames[index])
@@ -230,8 +236,8 @@ class VideoFrameCache:
 
         self._l3_preview[index] = frame
         self._l3_encoded[index] = ImageService.encode_for_device(
-            frame, self._protocol, self._resolution,
-            self._fbl, self._use_jpeg)
+            frame, self._protocol, self._resolution, self._fbl, self._use_jpeg
+        )
 
     def _pre_render_l3(
         self,
@@ -245,6 +251,7 @@ class VideoFrameCache:
         stale key — old frames keep playing with zero blink during the build.
         """
         from .image import ImageService
+
         r = ImageService._r()
         n = len(self._masked_frames)
         encoded: list[bytes | None] = [None] * n
@@ -264,8 +271,8 @@ class VideoFrameCache:
 
             preview[i] = frame
             encoded[i] = ImageService.encode_for_device(
-                frame, self._protocol, self._resolution,
-                self._fbl, self._use_jpeg)
+                frame, self._protocol, self._resolution, self._fbl, self._use_jpeg
+            )
 
         if cancel.is_set():
             return
@@ -304,6 +311,7 @@ class VideoFrameCache:
             return
 
         from .image import ImageService
+
         r = ImageService._r()
         mask_rgba = r.convert_to_rgba(mask)
         self._masked_frames = []

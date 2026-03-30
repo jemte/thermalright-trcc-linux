@@ -3,6 +3,7 @@
 Zero imports from adapters. Returns string identifiers that composition roots
 use to select the right concrete classes.
 """
+
 from __future__ import annotations
 
 import os
@@ -10,25 +11,25 @@ import shutil
 import subprocess
 import sys
 
-LINUX = sys.platform.startswith('linux')
-WINDOWS = sys.platform == 'win32'
-MACOS = sys.platform == 'darwin'
-BSD = 'bsd' in sys.platform
+LINUX = sys.platform.startswith("linux")
+WINDOWS = sys.platform == "win32"
+MACOS = sys.platform == "darwin"
+BSD = "bsd" in sys.platform
 
 # Suppress console window when spawning subprocesses from a GUI app on Windows.
 # On Linux/macOS this is 0 (no-op). Pass as creationflags= to subprocess.run().
-SUBPROCESS_NO_WINDOW: int = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+SUBPROCESS_NO_WINDOW: int = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
 def platform_name() -> str:
     """Human-readable platform name."""
     if WINDOWS:
-        return 'Windows'
+        return "Windows"
     if MACOS:
-        return 'macOS'
+        return "macOS"
     if BSD:
-        return 'BSD'
-    return 'Linux'
+        return "BSD"
+    return "Linux"
 
 
 def is_root() -> bool:
@@ -37,6 +38,7 @@ def is_root() -> bool:
         return os.geteuid() == 0
     try:
         import ctypes
+
         return ctypes.windll.shell32.IsUserAnAdmin() != 0  # type: ignore[attr-defined]
     except Exception:
         return False
@@ -47,17 +49,18 @@ def detect_install_method() -> str:
 
     Returns 'pipx', 'pip', 'pacman', 'dnf', or 'apt'.
     """
-    if 'pipx' in sys.prefix:
-        return 'pipx'
+    if "pipx" in sys.prefix:
+        return "pipx"
     try:
         from importlib.metadata import distribution
-        dist = distribution('trcc-linux')
-        installer = (dist.read_text('INSTALLER') or '').strip()
-        if installer == 'pip':
-            return 'pip'
+
+        dist = distribution("trcc-linux")
+        installer = (dist.read_text("INSTALLER") or "").strip()
+        if installer == "pip":
+            return "pip"
     except Exception:
         pass
-    for mgr in ('pacman', 'dnf', 'apt'):
+    for mgr in ("pacman", "dnf", "apt"):
         if shutil.which(mgr):
             return mgr
-    return 'pip'
+    return "pip"

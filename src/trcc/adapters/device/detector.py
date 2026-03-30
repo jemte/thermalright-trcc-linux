@@ -11,6 +11,7 @@ Usage (via builder)
     detect_fn = DeviceDetector.make_detect_fn(scsi_resolver)
     devices = detect_fn()
 """
+
 from __future__ import annotations
 
 import logging
@@ -70,14 +71,17 @@ class DeviceDetector:
             scsi_resolver: (vid, pid) -> /dev/sgN or /dev/passN or None.
                 None means SCSI devices have no path (macOS uses pyusb direct).
         """
+
         def detect() -> List[DetectedDevice]:
             return DeviceDetector._detect(scsi_resolver)
+
         return detect
 
     @staticmethod
     def detect() -> List[DetectedDevice]:
         """Linux default — resolves SCSI paths via sysfs."""
         from trcc.adapters.device.linux.detector import linux_scsi_resolver
+
         return DeviceDetector._detect(linux_scsi_resolver)
 
     @staticmethod
@@ -95,29 +99,32 @@ class DeviceDetector:
             if usb_dev is None:
                 continue
 
-            usb_path = f'usb:{usb_dev.bus}:{usb_dev.address}'
+            usb_path = f"usb:{usb_dev.bus}:{usb_dev.address}"
             scsi_dev = (
-                scsi_resolver(vid, pid)
-                if scsi_resolver and entry.protocol == 'scsi'
-                else None
+                scsi_resolver(vid, pid) if scsi_resolver and entry.protocol == "scsi" else None
             )
 
-            devices.append(DetectedDevice(
-                vid=vid, pid=pid,
-                vendor_name=entry.vendor, product_name=entry.product,
-                usb_path=usb_path,
-                scsi_device=scsi_dev,
-                implementation=entry.implementation,
-                model=entry.model,
-                button_image=entry.button_image,
-                protocol=entry.protocol,
-                device_type=entry.device_type,
-            ))
+            devices.append(
+                DetectedDevice(
+                    vid=vid,
+                    pid=pid,
+                    vendor_name=entry.vendor,
+                    product_name=entry.product,
+                    usb_path=usb_path,
+                    scsi_device=scsi_dev,
+                    implementation=entry.implementation,
+                    model=entry.model,
+                    button_image=entry.button_image,
+                    protocol=entry.protocol,
+                    device_type=entry.device_type,
+                )
+            )
 
         log.info(
-            "Detected %d device(s): %s", len(devices),
-            ", ".join(f"{d.vendor_name} {d.product_name} [{d.protocol}]"
-                      for d in devices) or "none",
+            "Detected %d device(s): %s",
+            len(devices),
+            ", ".join(f"{d.vendor_name} {d.product_name} [{d.protocol}]" for d in devices)
+            or "none",
         )
         return devices
 

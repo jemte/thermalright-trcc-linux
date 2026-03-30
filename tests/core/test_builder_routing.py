@@ -13,6 +13,7 @@ Coverage targets:
   - core/models.py: ALL_DEVICES protocol assignments
   - core/models.py: PROTOCOL_TRAITS completeness
 """
+
 from __future__ import annotations
 
 import pytest
@@ -28,10 +29,12 @@ from trcc.core.models import (
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _detected_for(vid: int, pid: int, entry) -> DetectedDevice:
     """Build a DetectedDevice exactly as the detector would for a given registry entry."""
     return DetectedDevice(
-        vid=vid, pid=pid,
+        vid=vid,
+        pid=pid,
         vendor_name=entry.vendor,
         product_name=entry.product,
         usb_path="2-1",
@@ -43,6 +46,7 @@ def _detected_for(vid: int, pid: int, entry) -> DetectedDevice:
 
 # ── for_current_os() — smoke test ─────────────────────────────────────────────
 
+
 def test_for_current_os_returns_controller_builder():
     """for_current_os() must return a ControllerBuilder on any supported OS."""
     # The autouse _mock_builder patches this — bypass it for this specific test.
@@ -53,66 +57,81 @@ def test_for_current_os_returns_controller_builder():
 
 # ── Platform adapter contract — each builder carries the right platform ───────
 
+
 class TestLinuxBuilderContract:
     def test_has_platform_adapter(self, linux_builder):
         from trcc.core.ports import PlatformAdapter
+
         assert isinstance(linux_builder._platform, PlatformAdapter)
 
     def test_build_detect_fn_returns_callable(self, linux_builder):
         from unittest.mock import patch
-        with patch("trcc.adapters.device.detector.DeviceDetector.make_detect_fn",
-                   return_value=lambda: []):
+
+        with patch(
+            "trcc.adapters.device.detector.DeviceDetector.make_detect_fn", return_value=lambda: []
+        ):
             fn = linux_builder.build_detect_fn()
         assert callable(fn)
 
     def test_build_setup_returns_platform_setup(self, linux_builder):
         from trcc.core.ports import PlatformSetup
+
         assert isinstance(linux_builder.build_setup(), PlatformSetup)
 
     def test_build_led_returns_led_device(self, linux_builder):
         from trcc.core.led_device import LEDDevice
+
         assert isinstance(linux_builder.build_led(), LEDDevice)
 
 
 class TestWindowsBuilderContract:
     def test_has_platform_adapter(self, windows_builder):
         from trcc.core.ports import PlatformAdapter
+
         assert isinstance(windows_builder._platform, PlatformAdapter)
 
     def test_build_setup_returns_platform_setup(self, windows_builder):
         from trcc.core.ports import PlatformSetup
+
         assert isinstance(windows_builder.build_setup(), PlatformSetup)
 
     def test_build_led_returns_led_device(self, windows_builder):
         from trcc.core.led_device import LEDDevice
+
         assert isinstance(windows_builder.build_led(), LEDDevice)
 
 
 class TestMacOSBuilderContract:
     def test_has_platform_adapter(self, macos_builder):
         from trcc.core.ports import PlatformAdapter
+
         assert isinstance(macos_builder._platform, PlatformAdapter)
 
     def test_build_setup_returns_platform_setup(self, macos_builder):
         from trcc.core.ports import PlatformSetup
+
         assert isinstance(macos_builder.build_setup(), PlatformSetup)
 
     def test_build_led_returns_led_device(self, macos_builder):
         from trcc.core.led_device import LEDDevice
+
         assert isinstance(macos_builder.build_led(), LEDDevice)
 
 
 class TestBSDBuilderContract:
     def test_has_platform_adapter(self, bsd_builder):
         from trcc.core.ports import PlatformAdapter
+
         assert isinstance(bsd_builder._platform, PlatformAdapter)
 
     def test_build_setup_returns_platform_setup(self, bsd_builder):
         from trcc.core.ports import PlatformSetup
+
         assert isinstance(bsd_builder.build_setup(), PlatformSetup)
 
     def test_build_led_returns_led_device(self, bsd_builder):
         from trcc.core.led_device import LEDDevice
+
         assert isinstance(bsd_builder.build_led(), LEDDevice)
 
 
@@ -121,8 +140,10 @@ class TestBSDBuilderContract:
 # Parametrized over ALL_DEVICES — every known VID:PID is tested.
 # Adding a new device to models.py automatically adds coverage here.
 
-@pytest.mark.parametrize("vid_pid,entry", list(ALL_DEVICES.items()),
-                         ids=[f"{v:04X}:{p:04X}" for v, p in ALL_DEVICES])
+
+@pytest.mark.parametrize(
+    "vid_pid,entry", list(ALL_DEVICES.items()), ids=[f"{v:04X}:{p:04X}" for v, p in ALL_DEVICES]
+)
 def test_build_device_routes_to_correct_type(vid_pid, entry, linux_builder):
     """Every device in ALL_DEVICES must build the right Device subclass.
 
@@ -134,7 +155,7 @@ def test_build_device_routes_to_correct_type(vid_pid, entry, linux_builder):
     from trcc.services.image import ImageService
 
     detected = _detected_for(*vid_pid, entry)
-    trait = PROTOCOL_TRAITS.get(entry.protocol, PROTOCOL_TRAITS['scsi'])
+    trait = PROTOCOL_TRAITS.get(entry.protocol, PROTOCOL_TRAITS["scsi"])
 
     if trait.is_led:
         device = linux_builder.build_device(detected)
@@ -151,14 +172,15 @@ def test_build_device_routes_to_correct_type(vid_pid, entry, linux_builder):
         )
 
 
-@pytest.mark.parametrize("vid_pid,entry", list(ALL_DEVICES.items()),
-                         ids=[f"{v:04X}:{p:04X}" for v, p in ALL_DEVICES])
+@pytest.mark.parametrize(
+    "vid_pid,entry", list(ALL_DEVICES.items()), ids=[f"{v:04X}:{p:04X}" for v, p in ALL_DEVICES]
+)
 def test_build_device_wires_device_service(vid_pid, entry, linux_builder):
     """Every built device has a wired DeviceService so connect() can work."""
     from trcc.services.image import ImageService
 
     detected = _detected_for(*vid_pid, entry)
-    trait = PROTOCOL_TRAITS.get(entry.protocol, PROTOCOL_TRAITS['scsi'])
+    trait = PROTOCOL_TRAITS.get(entry.protocol, PROTOCOL_TRAITS["scsi"])
 
     if not trait.is_led:
         linux_builder._renderer = ImageService._r()
@@ -167,8 +189,9 @@ def test_build_device_wires_device_service(vid_pid, entry, linux_builder):
     assert device._device_svc is not None
 
 
-@pytest.mark.parametrize("vid_pid,entry", list(LED_DEVICES.items()),
-                         ids=[f"{v:04X}:{p:04X}" for v, p in LED_DEVICES])
+@pytest.mark.parametrize(
+    "vid_pid,entry", list(LED_DEVICES.items()), ids=[f"{v:04X}:{p:04X}" for v, p in LED_DEVICES]
+)
 def test_led_devices_wire_get_protocol(vid_pid, entry, linux_builder):
     """LED devices must have get_protocol wired — needed to send LED data."""
     detected = _detected_for(*vid_pid, entry)
@@ -199,6 +222,7 @@ def test_build_device_lcd_without_renderer_raises(linux_builder):
 
 # ── PROTOCOL_TRAITS completeness — models are the contract ───────────────────
 
+
 def test_all_devices_have_known_protocol():
     """Every device in ALL_DEVICES must have a protocol key in PROTOCOL_TRAITS."""
     unknown = [
@@ -213,9 +237,7 @@ def test_scsi_devices_are_not_led():
     """SCSI devices must never classify as LED — they are LCD displays."""
     for (v, p), entry in SCSI_DEVICES.items():
         trait = PROTOCOL_TRAITS[entry.protocol]
-        assert not trait.is_led, (
-            f"{v:04X}:{p:04X} SCSI device incorrectly flagged as LED"
-        )
+        assert not trait.is_led, f"{v:04X}:{p:04X} SCSI device incorrectly flagged as LED"
 
 
 def test_led_devices_classify_as_led():
@@ -238,9 +260,9 @@ def test_lcd_and_led_have_distinct_protocols():
     Now LED uses 'led' and the factory routes cleanly.
     """
     from trcc.core.models import HID_LCD_DEVICES
+
     hid_lcd_protocols = {e.protocol for e in HID_LCD_DEVICES.values()}
     led_protocols = {e.protocol for e in LED_DEVICES.values()}
     assert hid_lcd_protocols.isdisjoint(led_protocols), (
-        f"HID LCD and LED devices share protocol keys: "
-        f"{hid_lcd_protocols & led_protocols}"
+        f"HID LCD and LED devices share protocol keys: {hid_lcd_protocols & led_protocols}"
     )

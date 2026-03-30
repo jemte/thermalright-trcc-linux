@@ -1,4 +1,5 @@
 """Performance report domain object — pure data + formatting, zero deps."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -7,6 +8,7 @@ from dataclasses import dataclass, field
 @dataclass
 class PerfEntry:
     """Single performance measurement."""
+
     label: str
     actual: float
     limit: float
@@ -54,6 +56,7 @@ class PerfReport:
 
     def to_dict(self) -> dict:
         """Serialize for API JSON response."""
+
         def _entry(e: PerfEntry) -> dict:
             return {
                 "label": e.label,
@@ -62,6 +65,7 @@ class PerfReport:
                 "headroom_pct": round(e.headroom_pct, 1),
                 "passed": e.passed,
             }
+
         return {
             "cpu": [_entry(e) for e in sorted(self.cpu, key=lambda x: -x.actual)],
             "memory": [_entry(e) for e in sorted(self.mem, key=lambda x: -x.actual)],
@@ -91,74 +95,63 @@ class PerfReport:
             lines.append("-" * w)
             lines.append(f"{'CPU TIME':^{w}}")
             lines.append("-" * w)
-            lines.append(
-                f"  {'Test':<44} {'Actual':>10} {'Limit':>10} {'Headroom':>10}")
-            lines.append(
-                f"  {'----':<44} {'------':>10} {'-----':>10} {'-------':>10}")
+            lines.append(f"  {'Test':<44} {'Actual':>10} {'Limit':>10} {'Headroom':>10}")
+            lines.append(f"  {'----':<44} {'------':>10} {'-----':>10} {'-------':>10}")
             for e in sorted(self.cpu, key=lambda x: -x.actual):
                 a_ms = e.actual * 1000
                 l_ms = e.limit * 1000
-                a_str = (f"{a_ms:.2f} ms" if a_ms >= 0.1
-                         else f"{a_ms * 1000:.0f} us")
-                l_str = (f"{l_ms:.2f} ms" if l_ms >= 0.1
-                         else f"{l_ms * 1000:.0f} us")
+                a_str = f"{a_ms:.2f} ms" if a_ms >= 0.1 else f"{a_ms * 1000:.0f} us"
+                l_str = f"{l_ms:.2f} ms" if l_ms >= 0.1 else f"{l_ms * 1000:.0f} us"
                 bar = _bar(e.actual, e.limit)
                 lines.append(
-                    f"  {e.label:<44} {a_str:>10} {l_str:>10}"
-                    f" {e.headroom_pct:>7.0f}%  {bar}")
+                    f"  {e.label:<44} {a_str:>10} {l_str:>10} {e.headroom_pct:>7.0f}%  {bar}"
+                )
 
         if self.mem:
             lines.append("")
             lines.append("-" * w)
             lines.append(f"{'MEMORY':^{w}}")
             lines.append("-" * w)
-            lines.append(
-                f"  {'Test':<44} {'Growth':>10} {'Limit':>10} {'Headroom':>10}")
-            lines.append(
-                f"  {'----':<44} {'------':>10} {'-----':>10} {'-------':>10}")
+            lines.append(f"  {'Test':<44} {'Growth':>10} {'Limit':>10} {'Headroom':>10}")
+            lines.append(f"  {'----':<44} {'------':>10} {'-----':>10} {'-------':>10}")
             for e in sorted(self.mem, key=lambda x: -x.actual):
                 a_str = _fmt_bytes(int(e.actual))
                 l_str = _fmt_bytes(int(e.limit))
                 bar = _bar(e.actual, e.limit)
                 lines.append(
-                    f"  {e.label:<44} {a_str:>10} {l_str:>10}"
-                    f" {e.headroom_pct:>7.0f}%  {bar}")
+                    f"  {e.label:<44} {a_str:>10} {l_str:>10} {e.headroom_pct:>7.0f}%  {bar}"
+                )
 
         if self.scale:
             lines.append("")
             lines.append("-" * w)
             lines.append(f"{'SCALING (lower ratio = more linear)':^{w}}")
             lines.append("-" * w)
-            lines.append(
-                f"  {'Test':<44} {'Ratio':>10} {'Limit':>10} {'Headroom':>10}")
-            lines.append(
-                f"  {'----':<44} {'------':>10} {'-----':>10} {'-------':>10}")
+            lines.append(f"  {'Test':<44} {'Ratio':>10} {'Limit':>10} {'Headroom':>10}")
+            lines.append(f"  {'----':<44} {'------':>10} {'-----':>10} {'-------':>10}")
             for e in sorted(self.scale, key=lambda x: -x.actual):
                 bar = _bar(e.actual, e.limit)
                 lines.append(
                     f"  {e.label:<44} {e.actual:>9.1f}x {e.limit:>9.1f}x"
-                    f" {e.headroom_pct:>7.0f}%  {bar}")
+                    f" {e.headroom_pct:>7.0f}%  {bar}"
+                )
 
         if self.device:
             lines.append("")
             lines.append("-" * w)
             lines.append(f"{'DEVICE I/O':^{w}}")
             lines.append("-" * w)
-            lines.append(
-                f"  {'Test':<44} {'Actual':>10} {'Limit':>10} {'Headroom':>10}")
-            lines.append(
-                f"  {'----':<44} {'------':>10} {'-----':>10} {'-------':>10}")
+            lines.append(f"  {'Test':<44} {'Actual':>10} {'Limit':>10} {'Headroom':>10}")
+            lines.append(f"  {'----':<44} {'------':>10} {'-----':>10} {'-------':>10}")
             for e in sorted(self.device, key=lambda x: -x.actual):
                 a_ms = e.actual * 1000
                 l_ms = e.limit * 1000
-                a_str = (f"{a_ms:.1f} ms" if a_ms >= 1.0
-                         else f"{a_ms * 1000:.0f} us")
-                l_str = (f"{l_ms:.1f} ms" if l_ms >= 1.0
-                         else f"{l_ms * 1000:.0f} us")
+                a_str = f"{a_ms:.1f} ms" if a_ms >= 1.0 else f"{a_ms * 1000:.0f} us"
+                l_str = f"{l_ms:.1f} ms" if l_ms >= 1.0 else f"{l_ms * 1000:.0f} us"
                 bar = _bar(e.actual, e.limit)
                 lines.append(
-                    f"  {e.label:<44} {a_str:>10} {l_str:>10}"
-                    f" {e.headroom_pct:>7.0f}%  {bar}")
+                    f"  {e.label:<44} {a_str:>10} {l_str:>10} {e.headroom_pct:>7.0f}%  {bar}"
+                )
 
         lines.append("")
         lines.append("=" * w)
@@ -173,8 +166,7 @@ class PerfReport:
         if self.device:
             parts.append(f"{len(self.device)} device")
         status = "ALL PASSED" if self.all_passed else "FAILURES DETECTED"
-        lines.append(
-            f"  {total} measurements: {', '.join(parts)} — {status}")
+        lines.append(f"  {total} measurements: {', '.join(parts)} — {status}")
         lines.append("=" * w)
         return lines
 

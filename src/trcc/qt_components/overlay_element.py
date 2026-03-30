@@ -3,6 +3,7 @@
 Matches Windows UCXiTongXianShiSub: displays mode-specific styling,
 live hardware metrics, and selection overlay.
 """
+
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
@@ -25,27 +26,27 @@ from .constants import Colors, Sizes
 # ============================================================================
 
 CATEGORY_COLORS = {
-    0: '#32C5FF',   # CPU - cyan
-    1: '#44D7B6',   # GPU - teal
-    2: '#6DD401',   # MEM - lime
-    3: '#F7B501',   # HDD - amber
-    4: '#FA6401',   # NET - orange
-    5: '#E02020',   # FAN - red
+    0: "#32C5FF",  # CPU - cyan
+    1: "#44D7B6",  # GPU - teal
+    2: "#6DD401",  # MEM - lime
+    3: "#F7B501",  # HDD - amber
+    4: "#FA6401",  # NET - orange
+    5: "#E02020",  # FAN - red
 }
 
-TIME_FORMATS = {0: 'HH:mm', 1: 'hh:mm'}
-DATE_FORMATS = {1: 'yyyy/MM/dd', 2: 'dd/MM/yyyy', 3: 'MM/dd', 4: 'dd/MM'}
+TIME_FORMATS = {0: "HH:mm", 1: "hh:mm"}
+DATE_FORMATS = {1: "yyyy/MM/dd", 2: "dd/MM/yyyy", 3: "MM/dd", 4: "dd/MM"}
 
 # Background images per mode (60x60 icons)
 MODE_IMAGES = {
-    OverlayMode.HARDWARE: 'P数据.png',
-    OverlayMode.TIME: 'P时间.png',
-    OverlayMode.WEEKDAY: 'P星期.png',
-    OverlayMode.DATE: 'P日期.png',
-    OverlayMode.CUSTOM: 'P文本.png',
+    OverlayMode.HARDWARE: "P数据.png",
+    OverlayMode.TIME: "P时间.png",
+    OverlayMode.WEEKDAY: "P星期.png",
+    OverlayMode.DATE: "P日期.png",
+    OverlayMode.CUSTOM: "P文本.png",
 }
 
-SELECT_IMAGE = 'P选中.png'
+SELECT_IMAGE = "P选中.png"
 
 
 class OverlayElementWidget(QWidget):
@@ -60,8 +61,8 @@ class OverlayElementWidget(QWidget):
     - label3: unit (°C, %, MHz, etc.)
     """
 
-    clicked = Signal(int)           # index
-    double_clicked = Signal(int)    # index (delete)
+    clicked = Signal(int)  # index
+    double_clicked = Signal(int)  # index (delete)
 
     # Single source of truth: HARDWARE_METRICS in core/models.py
 
@@ -70,8 +71,8 @@ class OverlayElementWidget(QWidget):
         self.index = index
         self.config: OverlayElementConfig | None = None
         self._selected = False
-        self._live_value = ''   # label2: formatted value
-        self._live_unit = ''    # label3: unit suffix
+        self._live_value = ""  # label2: formatted value
+        self._live_unit = ""  # label3: unit suffix
 
         self.setFixedSize(Sizes.OVERLAY_CELL, Sizes.OVERLAY_CELL)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -83,13 +84,15 @@ class OverlayElementWidget(QWidget):
             if not px.isNull():
                 self._mode_pixmaps[mode] = px
 
-        self._select_pixmap = Assets.load_pixmap(SELECT_IMAGE, Sizes.OVERLAY_CELL, Sizes.OVERLAY_CELL)
+        self._select_pixmap = Assets.load_pixmap(
+            SELECT_IMAGE, Sizes.OVERLAY_CELL, Sizes.OVERLAY_CELL
+        )
 
     def set_config(self, config):
         """Set element config or None to clear."""
         self.config = config
-        self._live_value = ''
-        self._live_unit = ''
+        self._live_value = ""
+        self._live_unit = ""
         self.update()
 
     def set_selected(self, selected):
@@ -109,20 +112,19 @@ class OverlayElementWidget(QWidget):
         # Split formatted value into number + unit (Windows regex pattern)
         import re
 
-        formatted = format_metric(metric_key, raw,
-                                  temp_unit=self.config.mode_sub)
+        formatted = format_metric(metric_key, raw, temp_unit=self.config.mode_sub)
         # Separate number from unit: "52°C" → "52" + "°C"
-        m = re.match(r'([\d.]+)(.*)', formatted)
+        m = re.match(r"([\d.]+)(.*)", formatted)
         if m:
             self._live_value = m.group(1)
             self._live_unit = m.group(2).strip()
         else:
             self._live_value = formatted
-            self._live_unit = ''
+            self._live_unit = ""
         self.update()
 
     # Card UI font matching Windows 微软雅黑 10.5pt
-    _CARD_FONT = QFont('Microsoft YaHei', 10)
+    _CARD_FONT = QFont("Microsoft YaHei", 10)
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -136,14 +138,14 @@ class OverlayElementWidget(QWidget):
             if px:
                 painter.drawPixmap(0, 0, px)
             else:
-                painter.fillRect(self.rect(), QColor('#2D2D2D'))
+                painter.fillRect(self.rect(), QColor("#2D2D2D"))
 
             color_str = self.config.color
 
             if mode == OverlayMode.HARDWARE:
                 mc = self.config.main_count
-                cat_color = CATEGORY_COLORS.get(mc, '#9375FF')
-                cat_name = CATEGORY_NAMES.get(mc, '???')
+                cat_color = CATEGORY_COLORS.get(mc, "#9375FF")
+                cat_name = CATEGORY_NAMES.get(mc, "???")
 
                 # label1: category name in category color (Windows: label1.ForeColor)
                 painter.setPen(QColor(cat_color))
@@ -151,54 +153,57 @@ class OverlayElementWidget(QWidget):
                 # label2: live value or sub-metric name (Windows: label2.ForeColor = myColor)
                 painter.setPen(QColor(color_str))
                 if self._live_value:
-                    painter.drawText(2, 21, 56, 18, Qt.AlignmentFlag.AlignCenter,
-                                     self._live_value)
+                    painter.drawText(2, 21, 56, 18, Qt.AlignmentFlag.AlignCenter, self._live_value)
                 else:
-                    sub_name = SUB_METRICS.get(mc, {}).get(self.config.sub_count, '--')
+                    sub_name = SUB_METRICS.get(mc, {}).get(self.config.sub_count, "--")
                     painter.drawText(2, 21, 56, 18, Qt.AlignmentFlag.AlignCenter, sub_name)
                 # label3: unit suffix (Windows: label3.ForeColor = myColor)
-                painter.drawText(2, 41, 56, 18, Qt.AlignmentFlag.AlignCenter,
-                                 self._live_unit or '--')
+                painter.drawText(
+                    2, 41, 56, 18, Qt.AlignmentFlag.AlignCenter, self._live_unit or "--"
+                )
             elif mode == OverlayMode.TIME:
                 # Windows: label1+label3 hidden, only label2 visible
                 from datetime import datetime
+
                 if self.config.mode_sub == 1:
-                    text = datetime.now().strftime('%I:%M').lstrip('0')
+                    text = datetime.now().strftime("%I:%M").lstrip("0")
                 else:
-                    text = datetime.now().strftime('%H:%M')
+                    text = datetime.now().strftime("%H:%M")
                 painter.setPen(QColor(color_str))
                 painter.drawText(2, 21, 56, 18, Qt.AlignmentFlag.AlignCenter, text)
             elif mode == OverlayMode.DATE:
                 # Windows: label1+label3 hidden, only label2 visible
                 from datetime import datetime
-                fmts = {0: '%Y/%m/%d', 1: '%Y/%m/%d', 2: '%d/%m/%Y', 3: '%m/%d', 4: '%d/%m'}
-                text = datetime.now().strftime(fmts.get(self.config.mode_sub, '%Y/%m/%d'))
+
+                fmts = {0: "%Y/%m/%d", 1: "%Y/%m/%d", 2: "%d/%m/%Y", 3: "%m/%d", 4: "%d/%m"}
+                text = datetime.now().strftime(fmts.get(self.config.mode_sub, "%Y/%m/%d"))
                 painter.setPen(QColor(color_str))
                 painter.drawText(2, 21, 56, 18, Qt.AlignmentFlag.AlignCenter, text)
             elif mode == OverlayMode.WEEKDAY:
                 # Windows: label1+label3 hidden, only label2 visible
                 # Windows uses SUN=0..SAT=6 array indexed by DayOfWeek
                 from datetime import datetime
-                days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
+
+                days = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
                 painter.setPen(QColor(color_str))
-                painter.drawText(2, 21, 56, 18, Qt.AlignmentFlag.AlignCenter,
-                                 days[datetime.now().weekday()])
+                painter.drawText(
+                    2, 21, 56, 18, Qt.AlignmentFlag.AlignCenter, days[datetime.now().weekday()]
+                )
             elif mode == OverlayMode.CUSTOM:
                 # Windows: label1+label3 hidden, label2.Text = myText
                 painter.setPen(QColor(color_str))
-                painter.drawText(2, 21, 56, 18, Qt.AlignmentFlag.AlignCenter,
-                                 self.config.text)
+                painter.drawText(2, 21, 56, 18, Qt.AlignmentFlag.AlignCenter, self.config.text)
 
             # Selection overlay (Windows: OnPaint draws imageSelect)
             if self._selected and not self._select_pixmap.isNull():
                 painter.drawPixmap(0, 0, self._select_pixmap)
             elif self._selected:
-                painter.setPen(QColor('white'))
+                painter.setPen(QColor("white"))
                 painter.drawRect(0, 0, self.width() - 1, self.height() - 1)
         else:
             # Empty slot — draw subtle "+"
             painter.setPen(QColor(Colors.EMPTY_TEXT))
-            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, '+')
+            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "+")
 
         painter.end()
 

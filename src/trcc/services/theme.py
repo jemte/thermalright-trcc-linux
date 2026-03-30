@@ -3,6 +3,7 @@
 Pure Python (filesystem + Qt renderer), no direct Qt widget dependencies.
 LCDDevice.ThemeOps delegates to this service.
 """
+
 from __future__ import annotations
 
 import json
@@ -32,23 +33,25 @@ class ThemeService:
 
     # Category mappings (Windows prefix → display name)
     CATEGORIES = {
-        'all': 'All',
-        'a': 'Gallery',
-        'b': 'Tech',
-        'c': 'HUD',
-        'd': 'Light',
-        'e': 'Nature',
-        'y': 'Aesthetic',
+        "all": "All",
+        "a": "Gallery",
+        "b": "Tech",
+        "c": "HUD",
+        "d": "Light",
+        "e": "Nature",
+        "y": "Aesthetic",
     }
 
-    def __init__(self,
-                 export_theme_fn: Any = None,
-                 import_theme_fn: Any = None,
-                 load_config_json_fn: Any = None,
-                 dc_config_cls: Any = None) -> None:
+    def __init__(
+        self,
+        export_theme_fn: Any = None,
+        import_theme_fn: Any = None,
+        load_config_json_fn: Any = None,
+        dc_config_cls: Any = None,
+    ) -> None:
         self._themes: list[ThemeInfo] = []
         self._selected: ThemeInfo | None = None
-        self._filter_mode: str = 'all'
+        self._filter_mode: str = "all"
         self._category: str | None = None
         self._local_dir: Path | None = None
         self._web_dir: Path | None = None
@@ -76,12 +79,14 @@ class ThemeService:
         self._filter_mode = mode
 
     def set_category(self, category: str) -> None:
-        self._category = category if category != 'all' else None
+        self._category = category if category != "all" else None
 
-    def set_directories(self,
-                        local_dir: Path | None = None,
-                        web_dir: Path | None = None,
-                        masks_dir: Path | None = None) -> None:
+    def set_directories(
+        self,
+        local_dir: Path | None = None,
+        web_dir: Path | None = None,
+        masks_dir: Path | None = None,
+    ) -> None:
         if local_dir is not None:
             self._local_dir = local_dir
         if web_dir is not None:
@@ -109,7 +114,8 @@ class ThemeService:
         """Discover local themes and store them. Returns the list."""
         if self._local_dir:
             self._themes = ThemeService.discover_local(
-                self._local_dir, resolution, self._filter_mode)
+                self._local_dir, resolution, self._filter_mode
+            )
         else:
             self._themes = []
         return self._themes
@@ -117,8 +123,7 @@ class ThemeService:
     def load_cloud_themes(self) -> list[ThemeInfo]:
         """Discover cloud themes and store them. Returns the list."""
         if self._web_dir:
-            self._themes = ThemeService.discover_cloud(
-                self._web_dir, self._category)
+            self._themes = ThemeService.discover_cloud(self._web_dir, self._category)
         else:
             self._themes = []
         return self._themes
@@ -127,7 +132,7 @@ class ThemeService:
     def discover_local(
         theme_dir: Path,
         resolution: tuple[int, int] = (320, 320),
-        filter_mode: str = 'all',
+        filter_mode: str = "all",
     ) -> list[ThemeInfo]:
         """Load themes from a local directory.
 
@@ -166,13 +171,13 @@ class ThemeService:
         if not web_dir or not web_dir.exists():
             return themes
 
-        for video_file in sorted(web_dir.glob('*.mp4')):
+        for video_file in sorted(web_dir.glob("*.mp4")):
             preview_path = web_dir / f"{video_file.stem}.png"
             theme = ThemeInfo.from_video(
                 video_file,
                 preview_path if preview_path.exists() else None,
             )
-            if category and category != 'all':
+            if category and category != "all":
                 if theme.category != category:
                     continue
             themes.append(theme)
@@ -208,30 +213,41 @@ class ThemeService:
         if td.json.exists():
             opts = self._load_dc_display_options(td.dc, w, h)
 
-            mask_ref = opts.get('mask_path')
+            mask_ref = opts.get("mask_path")
             if mask_ref:
                 self._load_mask_into(data, ThemeDir(mask_ref), w, h)
 
-            bg_ref = opts.get('background_path')
+            bg_ref = opts.get("background_path")
             if bg_ref:
                 bg_path = Path(bg_ref)
                 if bg_path.exists():
-                    if bg_path.suffix in ('.mp4', '.avi', '.mkv', '.webm', '.zt'):
+                    if bg_path.suffix in (".mp4", ".avi", ".mkv", ".webm", ".zt"):
                         data.animation_path = bg_path
                         data.is_animated = True
-                    elif bg_path.suffix == '.gif':
+                    elif bg_path.suffix == ".gif":
                         try:
                             import subprocess
 
                             from ..core.platform import SUBPROCESS_NO_WINDOW as _NO_WINDOW
-                            probe = subprocess.run([
-                                'ffprobe', '-v', 'error',
-                                '-select_streams', 'v:0',
-                                '-show_entries', 'stream=nb_frames',
-                                '-of', 'default=noprint_wrappers=1:nokey=1',
-                                str(bg_path),
-                            ], capture_output=True, timeout=5, text=True,
-                               creationflags=_NO_WINDOW)
+
+                            probe = subprocess.run(
+                                [
+                                    "ffprobe",
+                                    "-v",
+                                    "error",
+                                    "-select_streams",
+                                    "v:0",
+                                    "-show_entries",
+                                    "stream=nb_frames",
+                                    "-of",
+                                    "default=noprint_wrappers=1:nokey=1",
+                                    str(bg_path),
+                                ],
+                                capture_output=True,
+                                timeout=5,
+                                text=True,
+                                creationflags=_NO_WINDOW,
+                            )
                             nb_frames = probe.stdout.strip()
                             if probe.returncode == 0 and nb_frames.isdigit() and int(nb_frames) > 1:
                                 data.animation_path = bg_path
@@ -239,8 +255,7 @@ class ThemeService:
                         except Exception:
                             pass
                     else:
-                        data.background = ThemeService._open_image(
-                            bg_path, w, h)
+                        data.background = ThemeService._open_image(bg_path, w, h)
 
             return data
 
@@ -252,7 +267,8 @@ class ThemeService:
 
         # Determine background / animation
         anim_path, static_path, is_mask_only = ThemeService._resolve_content(
-            theme, opts, wd, working_dir)
+            theme, opts, wd, working_dir
+        )
         if anim_path:
             data.animation_path = anim_path
             data.is_animated = True
@@ -264,8 +280,7 @@ class ThemeService:
         # Mask from working dir
         if wd.mask.exists():
             data.mask_source_dir = theme.path
-            self._load_mask_into(
-                data, wd, w, h, dc_path=wd.dc if wd.dc.exists() else None)
+            self._load_mask_into(data, wd, w, h, dc_path=wd.dc if wd.dc.exists() else None)
 
         return data
 
@@ -281,7 +296,7 @@ class ThemeService:
         Returns (animation_path, static_bg_path, is_mask_only).
         At most one of animation_path / static_bg_path is set.
         """
-        anim_file = opts.get('animation_file')
+        anim_file = opts.get("animation_file")
         if anim_file:
             anim_path = working_dir / anim_file
             if anim_path.exists():
@@ -295,7 +310,7 @@ class ThemeService:
         elif wd.zt.exists():
             return wd.zt, None, False
         elif wd.bg.exists():
-            mp4_files = list(working_dir.glob('*.mp4'))
+            mp4_files = list(working_dir.glob("*.mp4"))
             if mp4_files:
                 return mp4_files[0], None, False
             return None, wd.bg, False
@@ -328,8 +343,8 @@ class ThemeService:
             return False, "No image to save"
 
         w, h = lcd_size
-        safe_name = f'Custom_{name}' if not name.startswith('Custom_') else name
-        theme_path = data_dir / f'theme{w}{h}' / safe_name
+        safe_name = f"Custom_{name}" if not name.startswith("Custom_") else name
+        theme_path = data_dir / f"theme{w}{h}" / safe_name
 
         try:
             theme_path.mkdir(parents=True, exist_ok=True)
@@ -337,13 +352,14 @@ class ThemeService:
 
             # Thumbnail from rendered preview (with overlay)
             from .image import ImageService
+
             r = ImageService._r()
             thumb_src = preview or background
             src_w, src_h = r.surface_size(thumb_src)
             scale = min(120 / src_w, 120 / src_h, 1.0)
-            thumb = r.resize(r.copy_surface(thumb_src),
-                             max(1, int(src_w * scale)),
-                             max(1, int(src_h * scale)))
+            thumb = r.resize(
+                r.copy_surface(thumb_src), max(1, int(src_w * scale)), max(1, int(src_h * scale))
+            )
             thumb.save(str(td.preview))
 
             # Save current frame as 00.png
@@ -357,7 +373,7 @@ class ThemeService:
                 if video_src.exists():
                     # Preserve original extension so the correct decoder is
                     # used on reload (.zt → ThemeZtDecoder, .mp4 → VideoDecoder)
-                    dest = theme_path / f'Theme{video_src.suffix}'
+                    dest = theme_path / f"Theme{video_src.suffix}"
                     if video_src.resolve() != dest.resolve():
                         shutil.copy2(str(video_src), str(dest))
                     background_path = str(dest)
@@ -368,30 +384,31 @@ class ThemeService:
             # Determine mask source path
             mask_path_str = None
             log.debug(
-                "ThemeService.save: mask=%s (type=%s), mask_source=%s, "
-                "mask_source exists=%s",
-                bool(mask), type(mask).__name__,
+                "ThemeService.save: mask=%s (type=%s), mask_source=%s, mask_source exists=%s",
+                bool(mask),
+                type(mask).__name__,
                 mask_source,
-                mask_source.exists() if mask_source else 'N/A',
+                mask_source.exists() if mask_source else "N/A",
             )
             if mask and mask_source:
                 mask_file = ThemeDir(mask_source).mask
                 log.debug(
                     "ThemeService.save: mask_file=%s, exists=%s",
-                    mask_file, mask_file.exists(),
+                    mask_file,
+                    mask_file.exists(),
                 )
                 if mask_file.exists():
                     mask_path_str = str(mask_source)
 
             config_json = {
-                'background': background_path,
-                'mask': mask_path_str,
-                'dc': overlay_config or {},
+                "background": background_path,
+                "mask": mask_path_str,
+                "dc": overlay_config or {},
             }
             if mask_path_str and mask_position:
-                config_json['mask_position'] = list(mask_position)
+                config_json["mask_position"] = list(mask_position)
 
-            with open(str(td.json), 'w') as f:
+            with open(str(td.json), "w") as f:
                 json.dump(config_json, f, indent=2)
 
             return True, f"Saved: {safe_name}"
@@ -426,17 +443,21 @@ class ThemeService:
         try:
             w, h = lcd_size
             name = import_path.stem
-            theme_path = data_dir / f'theme{w}{h}' / name
+            theme_path = data_dir / f"theme{w}{h}" / name
             self._import_theme_fn(str(import_path), str(theme_path))
             theme = ThemeInfo.from_directory(theme_path)
 
             # Warn if imported theme resolution doesn't match device
-            if (isinstance(theme, ThemeInfo)
-                    and theme.resolution != (0, 0)
-                    and theme.resolution != lcd_size):
+            if (
+                isinstance(theme, ThemeInfo)
+                and theme.resolution != (0, 0)
+                and theme.resolution != lcd_size
+            ):
                 log.warning(
-                    "Imported theme resolution %s doesn't match "
-                    "device resolution %s", theme.resolution, lcd_size)
+                    "Imported theme resolution %s doesn't match device resolution %s",
+                    theme.resolution,
+                    lcd_size,
+                )
 
             return True, theme
         except Exception as e:
@@ -446,14 +467,14 @@ class ThemeService:
 
     @staticmethod
     def _passes_filter(theme: ThemeInfo, filter_mode: str) -> bool:
-        if filter_mode == 'all':
+        if filter_mode == "all":
             return True
-        elif filter_mode == 'default':
-            return (theme.theme_type == ThemeType.LOCAL
-                    and not theme.name.startswith(('User', 'Custom')))
-        elif filter_mode == 'user':
-            return (theme.theme_type == ThemeType.USER
-                    or theme.name.startswith(('User', 'Custom')))
+        elif filter_mode == "default":
+            return theme.theme_type == ThemeType.LOCAL and not theme.name.startswith(
+                ("User", "Custom")
+            )
+        elif filter_mode == "user":
+            return theme.theme_type == ThemeType.USER or theme.name.startswith(("User", "Custom"))
         return True
 
     @staticmethod
@@ -524,7 +545,7 @@ class ThemeService:
         try:
             dc = self._dc_config_cls(dc_path)
             if dc.mask_enabled:
-                center_pos = dc.mask_settings.get('mask_position')
+                center_pos = dc.mask_settings.get("mask_position")
                 if center_pos:
                     return (
                         center_pos[0] - mask_w // 2,
@@ -548,12 +569,13 @@ class ThemeService:
             return
         try:
             from .image import ImageService
+
             r = ImageService._r()
             mask_img = r.open_image(str(mask_file))
             mask_w, mask_h = r.surface_size(mask_img)
             position = self._parse_mask_position(
-                dc_path or (td.dc if td.dc.exists() else None),
-                mask_w, mask_h, w, h)
+                dc_path or (td.dc if td.dc.exists() else None), mask_w, mask_h, w, h
+            )
             data.mask = mask_img
             data.mask_position = position
             data.mask_source_dir = td.path

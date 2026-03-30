@@ -26,6 +26,7 @@ from trcc.services.led import LEDService
 # Fixtures
 # =========================================================================
 
+
 @pytest.fixture
 def led_state():
     """Default LEDState with 10 segments."""
@@ -41,6 +42,7 @@ def led_svc():
 # =========================================================================
 # Tests: LEDMode enum
 # =========================================================================
+
 
 class TestLEDMode:
     """Verify enum values match FormLED.cs mode IDs."""
@@ -75,6 +77,7 @@ class TestLEDMode:
 # Tests: LEDZoneState dataclass
 # =========================================================================
 
+
 class TestLEDZoneState:
     """Verify default creation and field semantics."""
 
@@ -101,6 +104,7 @@ class TestLEDZoneState:
 # =========================================================================
 # Tests: LEDState dataclass
 # =========================================================================
+
 
 class TestLEDState:
     """Verify LEDState creation, defaults, __post_init__ logic."""
@@ -153,6 +157,7 @@ class TestLEDState:
 # =========================================================================
 # Tests: LEDService — state mutations
 # =========================================================================
+
 
 class TestLEDServiceStateMutations:
     """Test set_mode, set_color, set_brightness, toggles, zone methods."""
@@ -248,11 +253,13 @@ class TestLEDServiceStateMutations:
 # Tests: LEDService — configure_for_style
 # =========================================================================
 
+
 class TestLEDServiceConfigureForStyle:
     """configure_for_style() derives LED/segment counts from LED_STYLES — the model."""
 
-    @pytest.mark.parametrize("style_id,style", list(LED_STYLES.items()),
-                             ids=[str(sid) for sid in LED_STYLES])
+    @pytest.mark.parametrize(
+        "style_id,style", list(LED_STYLES.items()), ids=[str(sid) for sid in LED_STYLES]
+    )
     def test_configure_matches_model(self, style_id, style):
         """Every style in LED_STYLES: configure_for_style sets counts from the model."""
         svc = LEDService()
@@ -262,18 +269,22 @@ class TestLEDServiceConfigureForStyle:
         assert svc.state.segment_count == style.segment_count
         assert len(svc.state.segment_on) == style.segment_count
 
-    @pytest.mark.parametrize("style_id,style",
-                             [(sid, s) for sid, s in LED_STYLES.items() if s.zone_count > 1],
-                             ids=[str(sid) for sid, s in LED_STYLES.items() if s.zone_count > 1])
+    @pytest.mark.parametrize(
+        "style_id,style",
+        [(sid, s) for sid, s in LED_STYLES.items() if s.zone_count > 1],
+        ids=[str(sid) for sid, s in LED_STYLES.items() if s.zone_count > 1],
+    )
     def test_multi_zone_styles_create_zones(self, style_id, style):
         """Multi-zone styles create a zones list matching zone_count."""
         svc = LEDService()
         svc.configure_for_style(style_id)
         assert len(svc.state.zones) == style.zone_count
 
-    @pytest.mark.parametrize("style_id,style",
-                             [(sid, s) for sid, s in LED_STYLES.items() if s.zone_count == 0],
-                             ids=[str(sid) for sid, s in LED_STYLES.items() if s.zone_count == 0])
+    @pytest.mark.parametrize(
+        "style_id,style",
+        [(sid, s) for sid, s in LED_STYLES.items() if s.zone_count == 0],
+        ids=[str(sid) for sid, s in LED_STYLES.items() if s.zone_count == 0],
+    )
     def test_zero_zone_styles_have_empty_zones(self, style_id, style):
         """Zero-zone styles leave zones list empty."""
         svc = LEDService()
@@ -291,6 +302,7 @@ class TestLEDServiceConfigureForStyle:
 # =========================================================================
 # Tests: LEDService — tick dispatch
 # =========================================================================
+
 
 class TestLEDServiceTickDispatch:
     """Test that tick() dispatches to the correct mode algorithm."""
@@ -345,6 +357,7 @@ class TestLEDServiceTickDispatch:
 # Tests: LEDService — physical zone mapping (style 7 / LF10)
 # =========================================================================
 
+
 class TestPhysicalZones:
     """Style 7 (LF10) has 3 physical zones with independent color/mode/brightness."""
 
@@ -361,6 +374,7 @@ class TestPhysicalZones:
 
     def test_zones_get_independent_colors(self, svc7):
         from trcc.core.led_segment import get_display
+
         zone_map = get_display(7).zone_led_map
         z0_first = zone_map[0][0]  # first LED index of zone 0
         z1_first = zone_map[1][0]  # first LED index of zone 1
@@ -378,6 +392,7 @@ class TestPhysicalZones:
 
     def test_zone_brightness_scales(self, svc7):
         from trcc.core.led_segment import get_display
+
         z0_first = get_display(7).zone_led_map[0][0]
         svc7.state.zones[0].brightness = 100
         svc7.set_zone_color(0, 200, 100, 50)
@@ -387,6 +402,7 @@ class TestPhysicalZones:
 
     def test_zone_off_produces_black(self, svc7):
         from trcc.core.led_segment import get_display
+
         z2_first = get_display(7).zone_led_map[2][0]
         svc7.set_zone_color(2, 255, 255, 255)
         svc7.state.zones[2].on = False
@@ -395,6 +411,7 @@ class TestPhysicalZones:
 
     def test_mask_gates_physical_zone_colors(self, svc7):
         from trcc.core.led_segment import get_display
+
         z0_first = get_display(7).zone_led_map[0][0]
         svc7.state.zones[0].brightness = 100
         svc7.set_zone_color(0, 255, 0, 0)
@@ -406,6 +423,7 @@ class TestPhysicalZones:
 
     def test_breathing_mode_per_zone(self, svc7):
         from trcc.core.led_segment import get_display
+
         z1_first = get_display(7).zone_led_map[1][0]
         for z in svc7.state.zones:
             z.brightness = 100
@@ -422,24 +440,28 @@ class TestPhysicalZones:
 # Tests: LEDService — _tick_static
 # =========================================================================
 
+
 class TestTickStatic:
     """DSCL_Timer: all segments = user color."""
 
     def test_all_segments_same_color(self, led_svc):
         led_svc.set_color(100, 200, 50)
         colors = led_svc._tick_single_mode(
-            LEDMode.STATIC, led_svc.state.color, led_svc.state.segment_count)
+            LEDMode.STATIC, led_svc.state.color, led_svc.state.segment_count
+        )
         assert all(c == (100, 200, 50) for c in colors)
 
     def test_segment_count_matches(self, led_svc):
         colors = led_svc._tick_single_mode(
-            LEDMode.STATIC, led_svc.state.color, led_svc.state.segment_count)
+            LEDMode.STATIC, led_svc.state.color, led_svc.state.segment_count
+        )
         assert len(colors) == led_svc.state.segment_count
 
 
 # =========================================================================
 # Tests: LEDService — _tick_breathing
 # =========================================================================
+
 
 class TestTickBreathing:
     """DSHX_Timer: pulse brightness, period=66."""
@@ -484,6 +506,7 @@ class TestTickBreathing:
 # =========================================================================
 # Tests: LEDService — _tick_colorful
 # =========================================================================
+
 
 class TestTickColorful:
     """QCJB_Timer: 6-phase gradient, period=168."""
@@ -540,6 +563,7 @@ class TestTickColorful:
 # Tests: LEDService — _tick_rainbow
 # =========================================================================
 
+
 class TestTickRainbow:
     """CHMS_Timer: 768-entry table, offset per segment."""
 
@@ -584,6 +608,7 @@ class TestTickRainbow:
 # Tests: LEDService — _tick_temp_linked
 # =========================================================================
 
+
 class TestTickTempLinked:
     """WDLD_Timer: color from CPU/GPU temperature thresholds."""
 
@@ -625,6 +650,7 @@ class TestTickTempLinked:
 # Tests: LEDService — _tick_load_linked
 # =========================================================================
 
+
 class TestTickLoadLinked:
     """FZLD_Timer: color from CPU/GPU load thresholds."""
 
@@ -655,6 +681,7 @@ class TestTickLoadLinked:
 # =========================================================================
 # Tests: Multi-zone tick()
 # =========================================================================
+
 
 class TestMultiZoneTick:
     """Test _tick_multi_zone() — per-zone color computation via zone map."""
@@ -756,8 +783,12 @@ class TestMultiZoneTick:
             LEDZoneState(mode=LEDMode.STATIC, color=(0, 0, 255), brightness=100),
             LEDZoneState(mode=LEDMode.STATIC, color=(255, 255, 0), brightness=100),
         ]
-        zone_map = (tuple(range(0, 5)), tuple(range(5, 10)),
-                    tuple(range(10, 14)), tuple(range(14, 18)))
+        zone_map = (
+            tuple(range(0, 5)),
+            tuple(range(5, 10)),
+            tuple(range(10, 14)),
+            tuple(range(14, 18)),
+        )
         colors = model._tick_multi_zone(zone_map)
         assert len(colors) == 18
         assert all(c == (255, 0, 0) for c in colors[0:5])
@@ -769,6 +800,7 @@ class TestMultiZoneTick:
 # =========================================================================
 # Tests: LEDState clock fields
 # =========================================================================
+
 
 class TestLEDStateClockFields:
     """Test LC2 clock fields on LEDState dataclass."""
@@ -788,41 +820,38 @@ class TestLEDStateClockFields:
 # Tests: _tick_single_mode dispatcher
 # =========================================================================
 
+
 class TestTickSingleMode:
     """Test _tick_single_mode dispatches correctly."""
 
     def test_static(self, led_svc):
-        colors = led_svc._tick_single_mode(
-            LEDMode.STATIC, (10, 20, 30), 5)
+        colors = led_svc._tick_single_mode(LEDMode.STATIC, (10, 20, 30), 5)
         assert colors == [(10, 20, 30)] * 5
 
     def test_breathing(self, led_svc):
-        colors = led_svc._tick_single_mode(
-            LEDMode.BREATHING, (100, 100, 100), 3)
+        colors = led_svc._tick_single_mode(LEDMode.BREATHING, (100, 100, 100), 3)
         assert len(colors) == 3
 
     def test_colorful(self, led_svc):
-        colors = led_svc._tick_single_mode(
-            LEDMode.COLORFUL, (0, 0, 0), 4)
+        colors = led_svc._tick_single_mode(LEDMode.COLORFUL, (0, 0, 0), 4)
         assert len(colors) == 4
 
-    @patch("trcc.adapters.device.led.ColorEngine.get_table",
-           return_value=[(i, i, i) for i in range(768)])
+    @patch(
+        "trcc.adapters.device.led.ColorEngine.get_table",
+        return_value=[(i, i, i) for i in range(768)],
+    )
     def test_rainbow(self, mock_table, led_svc):
-        colors = led_svc._tick_single_mode(
-            LEDMode.RAINBOW, (0, 0, 0), 6)
+        colors = led_svc._tick_single_mode(LEDMode.RAINBOW, (0, 0, 0), 6)
         assert len(colors) == 6
 
     @patch("trcc.adapters.device.led.ColorEngine.color_for_value", return_value=(0, 255, 255))
     def test_temp_linked(self, mock_cfv, led_svc):
-        colors = led_svc._tick_single_mode(
-            LEDMode.TEMP_LINKED, (0, 0, 0), 3)
+        colors = led_svc._tick_single_mode(LEDMode.TEMP_LINKED, (0, 0, 0), 3)
         assert len(colors) == 3
 
     @patch("trcc.adapters.device.led.ColorEngine.color_for_value", return_value=(255, 0, 0))
     def test_load_linked(self, mock_cfv, led_svc):
-        colors = led_svc._tick_single_mode(
-            LEDMode.LOAD_LINKED, (0, 0, 0), 3)
+        colors = led_svc._tick_single_mode(LEDMode.LOAD_LINKED, (0, 0, 0), 3)
         assert len(colors) == 3
 
     def test_unknown_mode_returns_black(self, led_svc):
@@ -834,6 +863,7 @@ class TestTickSingleMode:
 # Tests: UCInfoImage widget (headless — no display needed)
 # =========================================================================
 
+
 class TestUCInfoImageWidget:
     """Test UCInfoImage sensor gauge widget logic."""
 
@@ -841,6 +871,7 @@ class TestUCInfoImageWidget:
         """UCInfoImage class is importable."""
         try:
             from trcc.qt_components.uc_led_control import UCInfoImage
+
             assert UCInfoImage is not None
         except ImportError:
             pytest.skip("PyQt6 not available")
@@ -852,9 +883,9 @@ class TestUCInfoImageWidget:
         except ImportError:
             pytest.skip("PyQt6 not available")
         # Can't instantiate without QApplication, just verify class exists
-        assert hasattr(UCInfoImage, 'set_value')
-        assert hasattr(UCInfoImage, 'set_mode')
-        assert hasattr(UCInfoImage, 'paintEvent')
+        assert hasattr(UCInfoImage, "set_value")
+        assert hasattr(UCInfoImage, "set_mode")
+        assert hasattr(UCInfoImage, "paintEvent")
 
     def test_bar_width_calculation_temp(self):
         """Progress bar width for temp/percent mode: value*2, max 200."""
@@ -869,6 +900,7 @@ class TestUCInfoImageWidget:
 # =========================================================================
 # Tests: LEDService — style resolution and style info
 # =========================================================================
+
 
 class TestLEDServiceStyleResolution:
     """resolve_style_id and get_style_info static methods."""
@@ -900,6 +932,7 @@ class TestLEDServiceStyleResolution:
 # Tests: LEDService — toggle_global, toggle_segment
 # =========================================================================
 
+
 class TestLEDServiceToggles:
     """toggle_global and toggle_segment contracts."""
 
@@ -925,6 +958,7 @@ class TestLEDServiceToggles:
 # =========================================================================
 # Tests: LEDService — selected zone and zone sync
 # =========================================================================
+
 
 class TestLEDServiceZoneSync:
     """set_selected_zone, set_zone_sync, set_zone_sync_zone, set_zone_sync_interval."""
@@ -965,7 +999,7 @@ class TestLEDServiceZoneSync:
         """set_zone_sync_zone cannot deselect the last active zone."""
         # Ensure only zone 0 is active
         for i in range(len(multi_zone_svc.state.zone_sync_zones)):
-            multi_zone_svc.state.zone_sync_zones[i] = (i == 0)
+            multi_zone_svc.state.zone_sync_zones[i] = i == 0
         multi_zone_svc.set_zone_sync_zone(0, False)
         # Zone 0 must remain True because it's the only active one
         assert multi_zone_svc.state.zone_sync_zones[0] is True
@@ -979,6 +1013,7 @@ class TestLEDServiceZoneSync:
 # =========================================================================
 # Tests: LEDService — disk/memory/sensor/clock mutations
 # =========================================================================
+
 
 class TestLEDServiceMutations:
     """Basic mutation methods: set_disk_index, set_memory_ratio, etc."""
@@ -1027,6 +1062,7 @@ class TestLEDServiceMutations:
 # Tests: LEDService — configure_for_style
 # =========================================================================
 
+
 class TestLEDServiceConfigureForStyleExtra:
     """configure_for_style sets up state from style registry."""
 
@@ -1042,6 +1078,7 @@ class TestLEDServiceConfigureForStyleExtra:
         svc.configure_for_style(5, 1)  # LF25 sub1 — has remap sub table
         # ring_count = len(sub_table) - style.led_count
         from trcc.core.models import LED_REMAP_SUB_TABLES, LED_STYLES
+
         sub = LED_REMAP_SUB_TABLES.get((5, 1))
         style = LED_STYLES[5]
         expected = len(sub) - style.led_count if sub else 0
@@ -1052,6 +1089,7 @@ class TestLEDServiceConfigureForStyleExtra:
 # Tests: LEDService — tick in segment mode, circulate mode
 # =========================================================================
 
+
 class TestLEDServiceTick:
     """tick() dispatches through segment/circulate paths."""
 
@@ -1060,6 +1098,7 @@ class TestLEDServiceTick:
         svc = LEDService()
         svc.configure_for_style(2)  # PA120 — has zone_led_map
         from trcc.core.led_segment import get_display
+
         seg = get_display(2)
         if seg and seg.zone_led_map:
             colors = svc.tick()
@@ -1085,6 +1124,7 @@ class TestLEDServiceTick:
 # Tests: LEDService — _sync_all_zones_to_selected
 # =========================================================================
 
+
 class TestLEDServiceSyncAllZones:
     """_sync_all_zones_to_selected copies selected zone settings to all."""
 
@@ -1107,6 +1147,7 @@ class TestLEDServiceSyncAllZones:
 # Tests: LEDService — apply_mask
 # =========================================================================
 
+
 class TestLEDServiceApplyMask:
     """apply_mask contracts for segment mode and non-segment mode."""
 
@@ -1115,8 +1156,7 @@ class TestLEDServiceApplyMask:
         svc = LEDService()
         svc.configure_for_style(1)  # AX120 — has segment display
         # Force a known segment mask
-        svc._segment_mask = [True, False, True, False, True,
-                              False, True, False, True, False]
+        svc._segment_mask = [True, False, True, False, True, False, True, False, True, False]
         colors = [(255, 0, 0)] * 10
         result = svc.apply_mask(colors)
         assert len(result) == 10
@@ -1130,8 +1170,7 @@ class TestLEDServiceApplyMask:
         """apply_mask uses broadcast (single-color) path when colors length != mask length."""
         svc = LEDService()
         svc.configure_for_style(1)
-        svc._segment_mask = [True, False, True, False, True,
-                              False, True, False, True, False]
+        svc._segment_mask = [True, False, True, False, True, False, True, False, True, False]
         colors = [(0, 255, 0)]  # Single broadcast color
         result = svc.apply_mask(colors)
         assert len(result) == 10
@@ -1149,6 +1188,7 @@ class TestLEDServiceApplyMask:
 # =========================================================================
 # Tests: LEDService — protocol, send, initialize, config, cleanup
 # =========================================================================
+
 
 class TestLEDServiceProtocolAndConfig:
     """has_protocol, set_protocol, send_colors, send_tick, initialize, config."""
@@ -1194,10 +1234,11 @@ class TestLEDServiceProtocolAndConfig:
         dev_info.pid = 0x5678
         dev_info.led_style_sub = 0
         result = svc.initialize(dev_info, led_style=1)
-        assert 'not configured' in result
+        assert "not configured" in result
 
     def test_initialize_protocol_error_returns_error_message(self):
         """initialize returns error message when protocol raises."""
+
         def bad_protocol(_):
             raise RuntimeError("USB error")
 
@@ -1208,7 +1249,7 @@ class TestLEDServiceProtocolAndConfig:
         dev_info.pid = 0x5678
         dev_info.led_style_sub = 0
         result = svc.initialize(dev_info, led_style=1)
-        assert 'LED protocol error' in result
+        assert "LED protocol error" in result
 
     def test_initialize_success_returns_name(self):
         """initialize returns LED device name on success."""
@@ -1221,31 +1262,31 @@ class TestLEDServiceProtocolAndConfig:
         dev_info.pid = 0x5678
         dev_info.led_style_sub = 0
         result = svc.initialize(dev_info, led_style=1)
-        assert 'LED:' in result or 'AX120' in result
+        assert "LED:" in result or "AX120" in result
 
     def test_save_config_delegates_when_device_key_set(self):
         """save_config calls save_led_config when _device_key is set."""
         svc = LEDService()
-        svc._device_key = '0:1234:5678'
-        with patch('trcc.services.led.save_led_config') as m:
+        svc._device_key = "0:1234:5678"
+        with patch("trcc.services.led.save_led_config") as m:
             svc.save_config()
-        m.assert_called_once_with(svc.state, '0:1234:5678')
+        m.assert_called_once_with(svc.state, "0:1234:5678")
 
     def test_load_config_delegates_when_device_key_set(self):
         """load_config calls load_led_config when _device_key is set."""
         svc = LEDService()
-        svc._device_key = '0:1234:5678'
-        with patch('trcc.services.led.load_led_config') as m:
+        svc._device_key = "0:1234:5678"
+        with patch("trcc.services.led.load_led_config") as m:
             svc.load_config()
-        m.assert_called_once_with(svc.state, '0:1234:5678')
+        m.assert_called_once_with(svc.state, "0:1234:5678")
 
     def test_cleanup_saves_config_and_clears_protocol(self):
         """cleanup saves config and sets protocol to None."""
         svc = LEDService()
-        svc._device_key = '0:1234:5678'
+        svc._device_key = "0:1234:5678"
         proto = MagicMock()
         svc.set_protocol(proto)
-        with patch('trcc.services.led.save_led_config') as m:
+        with patch("trcc.services.led.save_led_config") as m:
             svc.cleanup()
         m.assert_called_once()
         assert svc.has_protocol is False
@@ -1254,6 +1295,7 @@ class TestLEDServiceProtocolAndConfig:
 # =========================================================================
 # Tests: LEDService — __getattr__ delegation
 # =========================================================================
+
 
 class TestLEDServiceGetattr:
     """__getattr__ delegates engine methods; raises for unknown attributes."""

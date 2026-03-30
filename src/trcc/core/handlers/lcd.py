@@ -4,6 +4,7 @@ LCDCommandHandler closes over an LCDDevice and dispatches every LCD command
 via a single match statement. build_lcd_bus / build_lcd_gui_bus are the only
 public entry points — callers never instantiate the handler directly.
 """
+
 from __future__ import annotations
 
 import threading
@@ -53,7 +54,7 @@ class LCDCommandHandler(DeviceCommandHandler):
     the GUI bus adds RateLimitMiddleware on top.
     """
 
-    __slots__ = ('_lcd', '_ensure_fn')
+    __slots__ = ("_lcd", "_ensure_fn")
 
     handles: ClassVar[tuple[type[Command], ...]] = (
         RestoreLastThemeCommand,
@@ -100,8 +101,7 @@ class LCDCommandHandler(DeviceCommandHandler):
                 return CommandResult.from_dict(self._lcd.send_image(image_path))
 
             case LoadThemeByNameCommand(name=name, width=width, height=height):
-                return CommandResult.from_dict(
-                    self._lcd.load_theme_by_name(name, width, height))
+                return CommandResult.from_dict(self._lcd.load_theme_by_name(name, width, height))
 
             case SelectThemeCommand(theme=theme):
                 return CommandResult.from_dict(self._lcd.select(theme))
@@ -116,13 +116,12 @@ class LCDCommandHandler(DeviceCommandHandler):
                 return CommandResult.from_dict(self._lcd.import_config(path, data_dir))
 
             case LoadMaskCommand(mask_path=mask_path):
-                return CommandResult.from_dict(
-                    self._lcd.load_mask_standalone(mask_path))
+                return CommandResult.from_dict(self._lcd.load_mask_standalone(mask_path))
 
             case RenderOverlayFromDCCommand(dc_path=dc_path, send=send, output=output):
                 return CommandResult.from_dict(
-                    self._lcd.render_overlay_from_dc(
-                        dc_path, send=send, output=output or None))
+                    self._lcd.render_overlay_from_dc(dc_path, send=send, output=output or None)
+                )
 
             case SetOverlayConfigCommand(config=config):
                 return CommandResult.from_dict(self._lcd.set_config(config))
@@ -138,7 +137,8 @@ class LCDCommandHandler(DeviceCommandHandler):
 
             case PlayVideoLoopCommand(video_path=video_path, loop=loop, duration=duration):
                 return CommandResult.from_dict(
-                    self._lcd.play_video_loop(video_path, loop=loop, duration=duration))
+                    self._lcd.play_video_loop(video_path, loop=loop, duration=duration)
+                )
 
             case SetSplitModeCommand(mode=mode):
                 return CommandResult.from_dict(self._lcd.set_split_mode(mode))
@@ -148,8 +148,7 @@ class LCDCommandHandler(DeviceCommandHandler):
 
             case UpdateMetricsLCDCommand(metrics=metrics):
                 if not self._validate_metrics(metrics):
-                    return CommandResult.fail(
-                        "invalid metrics: expected non-None value")
+                    return CommandResult.fail("invalid metrics: expected non-None value")
                 return CommandResult.from_dict(self._lcd.update_metrics(metrics))
 
             case EnsureDataCommand(width=width, height=height):
@@ -158,19 +157,17 @@ class LCDCommandHandler(DeviceCommandHandler):
 
                 def _bg() -> None:
                     import trcc.conf as _conf
+
                     if ensure_fn is not None:
                         ensure_fn(width, height)
                     _conf.settings._resolve_paths()
                     lcd.notify_data_ready()
 
-                threading.Thread(
-                    target=_bg, daemon=True, name="data-extract").start()
-                return CommandResult.ok(
-                    message=f"Data download started for {width}x{height}")
+                threading.Thread(target=_bg, daemon=True, name="data-extract").start()
+                return CommandResult.ok(message=f"Data download started for {width}x{height}")
 
             case _:
-                return CommandResult.fail(
-                    f"BUG: unhandled LCD command {type(cmd).__name__}")
+                return CommandResult.fail(f"BUG: unhandled LCD command {type(cmd).__name__}")
 
     def __repr__(self) -> str:
         return f"LCDCommandHandler(lcd={self._lcd!r})"
@@ -186,9 +183,11 @@ def build_lcd_bus(
     registered command types — auto-registered from LCDCommandHandler.handles.
     """
     h = LCDCommandHandler(lcd, ensure_fn)
-    bus = (CommandBus()
-           .add_middleware(LoggingMiddleware())
-           .add_middleware(TimingMiddleware(threshold_ms=200.0)))
+    bus = (
+        CommandBus()
+        .add_middleware(LoggingMiddleware())
+        .add_middleware(TimingMiddleware(threshold_ms=200.0))
+    )
     for cmd_type in LCDCommandHandler.handles:
         bus.register(cmd_type, h)
     return bus

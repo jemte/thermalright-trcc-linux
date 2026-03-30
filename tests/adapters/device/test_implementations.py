@@ -11,27 +11,27 @@ class TestRGBToBytes(unittest.TestCase):
     """RGB565 big-endian conversion."""
 
     def test_white(self):
-        result = rgb_to_bytes(255, 255, 255, '>')
-        self.assertEqual(result, struct.pack('>H', 0xFFFF))
+        result = rgb_to_bytes(255, 255, 255, ">")
+        self.assertEqual(result, struct.pack(">H", 0xFFFF))
 
     def test_black(self):
-        result = rgb_to_bytes(0, 0, 0, '>')
-        self.assertEqual(result, struct.pack('>H', 0x0000))
+        result = rgb_to_bytes(0, 0, 0, ">")
+        self.assertEqual(result, struct.pack(">H", 0x0000))
 
     def test_pure_red(self):
-        result = rgb_to_bytes(255, 0, 0, '>')
-        self.assertEqual(result, struct.pack('>H', 0xF800))
+        result = rgb_to_bytes(255, 0, 0, ">")
+        self.assertEqual(result, struct.pack(">H", 0xF800))
 
     def test_pure_green(self):
-        result = rgb_to_bytes(0, 255, 0, '>')
-        self.assertEqual(result, struct.pack('>H', 0x07E0))
+        result = rgb_to_bytes(0, 255, 0, ">")
+        self.assertEqual(result, struct.pack(">H", 0x07E0))
 
     def test_pure_blue(self):
-        result = rgb_to_bytes(0, 0, 255, '>')
-        self.assertEqual(result, struct.pack('>H', 0x001F))
+        result = rgb_to_bytes(0, 0, 255, ">")
+        self.assertEqual(result, struct.pack(">H", 0x001F))
 
     def test_output_is_two_bytes(self):
-        result = rgb_to_bytes(128, 64, 32, '>')
+        result = rgb_to_bytes(128, 64, 32, ">")
         self.assertEqual(len(result), 2)
 
 
@@ -73,12 +73,14 @@ class TestCommands(unittest.TestCase):
 
     def test_frame_chunks_count(self):
         from trcc.adapters.device.scsi import ScsiDevice
+
         chunks = ScsiDevice._get_frame_chunks(self.cfg.width, self.cfg.height)
         self.assertEqual(len(chunks), 4)
 
     def test_frame_chunks_total_size(self):
         """Total frame data = sum of chunk sizes."""
         from trcc.adapters.device.scsi import ScsiDevice
+
         total = sum(size for _, size in ScsiDevice._get_frame_chunks(320, 320))
         # 3 * 0x10000 + 0x2000 = 196608 + 8192 = 204800 = 320*320*2
         self.assertEqual(total, 320 * 320 * 2)
@@ -95,23 +97,23 @@ class TestRegistry(unittest.TestCase):
     """LCDDeviceConfig.from_key() and IMPL_NAMES registry."""
 
     def test_get_thermalright(self):
-        cfg = LCDDeviceConfig.from_key('thermalright_lcd_v1')
+        cfg = LCDDeviceConfig.from_key("thermalright_lcd_v1")
         self.assertIsInstance(cfg, LCDDeviceConfig)
-        self.assertIn('Thermalright', cfg.name)
+        self.assertIn("Thermalright", cfg.name)
 
     def test_get_ali_corp(self):
-        cfg = LCDDeviceConfig.from_key('ali_corp_lcd_v1')
+        cfg = LCDDeviceConfig.from_key("ali_corp_lcd_v1")
         self.assertIsInstance(cfg, LCDDeviceConfig)
-        self.assertIn('ALi Corp', cfg.name)
+        self.assertIn("ALi Corp", cfg.name)
 
     def test_get_generic(self):
-        cfg = LCDDeviceConfig.from_key('generic')
+        cfg = LCDDeviceConfig.from_key("generic")
         self.assertIsInstance(cfg, LCDDeviceConfig)
-        self.assertEqual(cfg.name, 'Generic LCD')
+        self.assertEqual(cfg.name, "Generic LCD")
 
     def test_unknown_falls_back_to_generic(self):
-        cfg = LCDDeviceConfig.from_key('nonexistent_device')
-        self.assertEqual(cfg.name, 'Generic LCD')
+        cfg = LCDDeviceConfig.from_key("nonexistent_device")
+        self.assertEqual(cfg.name, "Generic LCD")
 
     def test_all_implementations_are_lcd_config(self):
         for name in IMPL_NAMES:
@@ -121,7 +123,7 @@ class TestRegistry(unittest.TestCase):
     def test_list_all(self):
         result = LCDDeviceConfig.list_all()
         self.assertEqual(len(result), len(IMPL_NAMES))
-        names = {item['name'] for item in result}
+        names = {item["name"] for item in result}
         self.assertEqual(names, set(IMPL_NAMES.keys()))
 
 
@@ -129,20 +131,18 @@ class TestConcreteDevices(unittest.TestCase):
     """Concrete device names."""
 
     def test_thermalright_name(self):
-        self.assertIn('Thermalright', LCDDeviceConfig.from_key('thermalright_lcd_v1').name)
+        self.assertIn("Thermalright", LCDDeviceConfig.from_key("thermalright_lcd_v1").name)
 
     def test_ali_corp_name(self):
-        self.assertIn('ALi Corp', LCDDeviceConfig.from_key('ali_corp_lcd_v1').name)
+        self.assertIn("ALi Corp", LCDDeviceConfig.from_key("ali_corp_lcd_v1").name)
 
     def test_generic_name(self):
-        self.assertEqual(LCDDeviceConfig.from_key('generic').name, 'Generic LCD')
+        self.assertEqual(LCDDeviceConfig.from_key("generic").name, "Generic LCD")
 
     def test_pixel_format(self):
         for key in IMPL_NAMES:
-            self.assertEqual(LCDDeviceConfig.from_key(key).pixel_format, 'RGB565')
+            self.assertEqual(LCDDeviceConfig.from_key(key).pixel_format, "RGB565")
 
 
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

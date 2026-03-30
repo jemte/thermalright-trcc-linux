@@ -1,4 +1,5 @@
 """Windows autostart — HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run."""
+
 from __future__ import annotations
 
 import logging
@@ -8,13 +9,14 @@ from trcc.core.ports import AutostartManager
 
 log = logging.getLogger(__name__)
 
-_REG_KEY   = r'Software\Microsoft\Windows\CurrentVersion\Run'
-_REG_VALUE = 'TRCC Linux'
+_REG_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+_REG_VALUE = "TRCC Linux"
 
 
 def _winreg() -> Any:
     """Return winreg stdlib module as Any (Windows-only, avoids pyright platform errors)."""
     import winreg  # pyright: ignore[reportMissingImports]
+
     return winreg
 
 
@@ -57,7 +59,9 @@ class WindowsAutostartManager(AutostartManager):
         expected = f'"{exec_path}" gui --resume'
         try:
             key = wr.OpenKey(
-                wr.HKEY_CURRENT_USER, _REG_KEY, 0,
+                wr.HKEY_CURRENT_USER,
+                _REG_KEY,
+                0,
                 wr.KEY_READ | wr.KEY_SET_VALUE,
             )
             current, _ = wr.QueryValueEx(key, _REG_VALUE)

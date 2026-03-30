@@ -16,12 +16,12 @@ from .system import SystemService
 from .theme import ThemeService
 
 __all__ = [
-    'DeviceService',
-    'DisplayService',
-    'ImageService',
-    'LEDService',
-    'MediaService',
-    'OverlayService',
-    'SystemService',
-    'ThemeService',
+    "DeviceService",
+    "DisplayService",
+    "ImageService",
+    "LEDService",
+    "MediaService",
+    "OverlayService",
+    "SystemService",
+    "ThemeService",
 ]

@@ -24,6 +24,7 @@ from trcc.adapters.device.led_kvm import (
 # KvmChannelState
 # =============================================================================
 
+
 class TestKvmChannelState(unittest.TestCase):
     """Default channel state values."""
 
@@ -39,8 +40,8 @@ class TestKvmChannelState(unittest.TestCase):
 # KvmLedState
 # =============================================================================
 
-class TestKvmLedState(unittest.TestCase):
 
+class TestKvmLedState(unittest.TestCase):
     def test_default_10_channels(self):
         state = KvmLedState()
         self.assertEqual(len(state.channels), NUM_CHANNELS)
@@ -63,8 +64,8 @@ class TestKvmLedState(unittest.TestCase):
 # KvmPacketBuilder — ON/OFF
 # =============================================================================
 
-class TestBuildOnoff(unittest.TestCase):
 
+class TestBuildOnoff(unittest.TestCase):
     def test_packet_length(self):
         pkt = KvmPacketBuilder.build_onoff(KvmLedState())
         self.assertEqual(len(pkt), 15)
@@ -98,8 +99,8 @@ class TestBuildOnoff(unittest.TestCase):
 # KvmPacketBuilder — LED
 # =============================================================================
 
-class TestBuildLed(unittest.TestCase):
 
+class TestBuildLed(unittest.TestCase):
     def test_packet_length(self):
         pkt = KvmPacketBuilder.build_led(KvmLedState())
         self.assertEqual(len(pkt), 23)
@@ -118,10 +119,10 @@ class TestBuildLed(unittest.TestCase):
         state.channels[2].b = 30
         state.channels[2].brightness = 80
         pkt = KvmPacketBuilder.build_led(state, channel=2)
-        self.assertEqual(pkt[5], 80)   # brightness
-        self.assertEqual(pkt[7], 10)   # R
-        self.assertEqual(pkt[8], 20)   # G
-        self.assertEqual(pkt[9], 30)   # B
+        self.assertEqual(pkt[5], 80)  # brightness
+        self.assertEqual(pkt[7], 10)  # R
+        self.assertEqual(pkt[8], 20)  # G
+        self.assertEqual(pkt[9], 30)  # B
 
     def test_reserved_bytes_zero(self):
         pkt = KvmPacketBuilder.build_led(KvmLedState())
@@ -144,8 +145,8 @@ class TestBuildLed(unittest.TestCase):
 # KvmPacketBuilder — Scene Save
 # =============================================================================
 
-class TestBuildSceneSave(unittest.TestCase):
 
+class TestBuildSceneSave(unittest.TestCase):
     def test_packet_length(self):
         pkt = KvmPacketBuilder.build_scene_save(KvmLedState())
         self.assertEqual(len(pkt), 65)
@@ -159,22 +160,21 @@ class TestBuildSceneSave(unittest.TestCase):
     def test_payload_layout(self):
         """Verify on/off, mode, brightness, RGB are at correct offsets."""
         state = KvmLedState()
-        state.channels[0] = KvmChannelState(on=False, mode=7, brightness=50,
-                                            r=11, g=22, b=33)
+        state.channels[0] = KvmChannelState(on=False, mode=7, brightness=50, r=11, g=22, b=33)
         pkt = KvmPacketBuilder.build_scene_save(state)
         # On/off at offset 5
-        self.assertEqual(pkt[5], 0)   # ch 0 off
-        self.assertEqual(pkt[6], 1)   # ch 1 on
+        self.assertEqual(pkt[5], 0)  # ch 0 off
+        self.assertEqual(pkt[6], 1)  # ch 1 on
         # Modes at offset 15
         self.assertEqual(pkt[15], 7)  # ch 0 mode
         self.assertEqual(pkt[16], 1)  # ch 1 mode (default)
         # Brightness at offset 25
-        self.assertEqual(pkt[25], 50)   # ch 0
+        self.assertEqual(pkt[25], 50)  # ch 0
         self.assertEqual(pkt[26], 100)  # ch 1 (default)
         # RGB at offset 35
-        self.assertEqual(pkt[35], 11)   # ch 0 R
-        self.assertEqual(pkt[36], 22)   # ch 0 G
-        self.assertEqual(pkt[37], 33)   # ch 0 B
+        self.assertEqual(pkt[35], 11)  # ch 0 R
+        self.assertEqual(pkt[36], 22)  # ch 0 G
+        self.assertEqual(pkt[37], 33)  # ch 0 B
         self.assertEqual(pkt[38], 255)  # ch 1 R (default)
 
     def test_all_channels_present(self):
@@ -187,8 +187,8 @@ class TestBuildSceneSave(unittest.TestCase):
 # KvmPacketBuilder — State Query
 # =============================================================================
 
-class TestBuildStateQuery(unittest.TestCase):
 
+class TestBuildStateQuery(unittest.TestCase):
     def test_packet_length(self):
         pkt = KvmPacketBuilder.build_state_query()
         self.assertEqual(len(pkt), 5)
@@ -205,21 +205,20 @@ class TestBuildStateQuery(unittest.TestCase):
 # KvmProModePersistence
 # =============================================================================
 
-class TestKvmProModePersistence(unittest.TestCase):
 
+class TestKvmProModePersistence(unittest.TestCase):
     def setUp(self):
         self.tmpdir = Path(tempfile.mkdtemp())
 
     def tearDown(self):
         import shutil
+
         shutil.rmtree(self.tmpdir)
 
     def test_save_and_load_roundtrip(self):
         state = KvmLedState()
-        state.channels[0] = KvmChannelState(on=False, mode=6, brightness=77,
-                                            r=11, g=22, b=33)
-        state.channels[9] = KvmChannelState(on=True, mode=2, brightness=50,
-                                            r=100, g=200, b=150)
+        state.channels[0] = KvmChannelState(on=False, mode=6, brightness=77, r=11, g=22, b=33)
+        state.channels[9] = KvmChannelState(on=True, mode=2, brightness=50, r=100, g=200, b=150)
 
         path = self.tmpdir / "proMode.dc"
         KvmProModePersistence.save(state, path)
@@ -290,7 +289,7 @@ class TestKvmProModePersistence(unittest.TestCase):
         state = KvmLedState()
         for i in range(NUM_CHANNELS):
             ch = state.channels[i]
-            ch.on = (i % 2 == 0)
+            ch.on = i % 2 == 0
             ch.mode = i
             ch.brightness = i * 10
             ch.r = i * 25
@@ -308,9 +307,8 @@ class TestKvmProModePersistence(unittest.TestCase):
             self.assertEqual(got.on, orig.on, f"ch{i} on")
             self.assertEqual(got.mode, orig.mode, f"ch{i} mode")
             self.assertEqual(got.brightness, orig.brightness, f"ch{i} brightness")
-            self.assertEqual((got.r, got.g, got.b),
-                             (orig.r, orig.g, orig.b), f"ch{i} rgb")
+            self.assertEqual((got.r, got.g, got.b), (orig.r, orig.g, orig.b), f"ch{i} rgb")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

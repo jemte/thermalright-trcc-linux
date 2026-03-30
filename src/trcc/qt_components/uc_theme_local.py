@@ -10,6 +10,7 @@ Features:
 - Delete user themes with confirmation (Windows cmd 32)
 - Slideshow/carousel: select up to 6 themes for auto-rotation (Windows cmd 48)
 """
+
 from __future__ import annotations
 
 import shutil
@@ -49,8 +50,7 @@ class ThemeThumbnail(BaseThumbnail):
             )
             self._delete_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             self._delete_btn.setToolTip("Delete theme")
-            self._delete_btn.clicked.connect(
-                lambda: self.delete_clicked.emit(self.item_info))
+            self._delete_btn.clicked.connect(lambda: self.delete_clicked.emit(self.item_info))
             self._delete_btn.raise_()
             self._delete_btn.show()
         elif not deletable and self._delete_btn is not None:
@@ -126,7 +126,7 @@ class UCThemeLocal(BaseThemeBrowser):
         self._slideshow = False
         self._slideshow_interval = 3
         self._lunbo_array = []  # Theme names in slideshow order (max 6)
-        self._all_themes = []   # Full unfiltered theme list
+        self._all_themes = []  # Full unfiltered theme list
         super().__init__(parent)
 
     def _create_filter_buttons(self):
@@ -141,15 +141,16 @@ class UCThemeLocal(BaseThemeBrowser):
             (Layout.LOCAL_BTN_USER, self.MODE_USER),
         ]
         for (x, y, w, h), mode in configs:
-            btn = self._make_filter_button(x, y, w, h, btn_normal, btn_active,
-                lambda checked, m=mode: self._set_filter(m))
+            btn = self._make_filter_button(
+                x, y, w, h, btn_normal, btn_active, lambda checked, m=mode: self._set_filter(m)
+            )
             self._filter_buttons.append(btn)
 
         self._filter_buttons[0].setChecked(True)
 
         # Slideshow toggle — Windows: buttonLunbo (531, 28) 40x17
-        self._lunbo_off = Assets.load_pixmap('P主题轮播.png', 40, 17)
-        self._lunbo_on = Assets.load_pixmap('P主题轮播a.png', 40, 17)
+        self._lunbo_off = Assets.load_pixmap("P主题轮播.png", 40, 17)
+        self._lunbo_on = Assets.load_pixmap("P主题轮播a.png", 40, 17)
         self.slideshow_btn = QPushButton(self)
         self.slideshow_btn.setGeometry(531, 28, 40, 17)
         self.slideshow_btn.setFlat(True)
@@ -175,7 +176,7 @@ class UCThemeLocal(BaseThemeBrowser):
         self.timer_input.editingFinished.connect(self._on_timer_changed)
 
         # Export button — Windows: buttonThemeOut (651, 27) 60x18 (empty handler)
-        export_px = Assets.load_pixmap('P导出所有主题.png', 60, 18)
+        export_px = Assets.load_pixmap("P导出所有主题.png", 60, 18)
         self.export_btn = QPushButton(self)
         self.export_btn.setGeometry(651, 27, 60, 18)
         self.export_btn.setFlat(True)
@@ -214,6 +215,7 @@ class UCThemeLocal(BaseThemeBrowser):
         # Scan primary dir + user content dir (merge, dedup by name).
         # Custom themes are saved to ~/.trcc-user/ so they survive uninstall.
         from ..conf import settings
+
         dirs_to_scan = [self.theme_directory]
         user_theme_dir = settings.user_content_dir / self.theme_directory.name
         if user_theme_dir != self.theme_directory and user_theme_dir.exists():
@@ -223,22 +225,25 @@ class UCThemeLocal(BaseThemeBrowser):
         seen_names: set[str] = set()
 
         def _sort_key(p):
-            is_user = p.name.startswith('User') or p.name.startswith('Custom')
+            is_user = p.name.startswith("User") or p.name.startswith("Custom")
             return (is_user, p.name)
 
         for scan_dir in dirs_to_scan:
             for item in sorted(scan_dir.iterdir(), key=_sort_key):
                 if item.is_dir() and item.name not in seen_names:
-                    thumb = item / 'Theme.png'
-                    bg = item / '00.png'
+                    thumb = item / "Theme.png"
+                    bg = item / "00.png"
                     if thumb.exists() or bg.exists():
                         seen_names.add(item.name)
-                        all_items.append(LocalThemeItem(
-                            name=item.name,
-                            path=str(item),
-                            thumbnail=str(thumb if thumb.exists() else bg),
-                            is_user=item.name.startswith('User') or item.name.startswith('Custom'),
-                        ))
+                        all_items.append(
+                            LocalThemeItem(
+                                name=item.name,
+                                path=str(item),
+                                thumbnail=str(thumb if thumb.exists() else bg),
+                                is_user=item.name.startswith("User")
+                                or item.name.startswith("Custom"),
+                            )
+                        )
 
         # Re-sort merged list
         all_items.sort(key=lambda t: (t.is_user, t.name))

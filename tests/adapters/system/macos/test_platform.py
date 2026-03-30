@@ -4,6 +4,7 @@ Runs on Linux. Each OS-specific concrete class is mocked at its import
 path so the lazy `from X import Y` inside each factory method resolves
 to a controllable spec-mock that inherits from the correct port ABC.
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -31,7 +32,7 @@ class TestMacOSPlatformContract:
     def test_create_detect_fn_returns_callable(self):
         mock_detect_fn = MagicMock(return_value=[])
         with patch(
-            'trcc.adapters.device.detector.DeviceDetector.make_detect_fn',
+            "trcc.adapters.device.detector.DeviceDetector.make_detect_fn",
             return_value=mock_detect_fn,
         ):
             fn = self._p.create_detect_fn()
@@ -40,7 +41,7 @@ class TestMacOSPlatformContract:
     def test_create_detect_fn_passes_none_scsi_resolver(self):
         """macOS uses pyusb direct — scsi_resolver must be None."""
         with patch(
-            'trcc.adapters.device.detector.DeviceDetector.make_detect_fn',
+            "trcc.adapters.device.detector.DeviceDetector.make_detect_fn",
         ) as mock_make:
             mock_make.return_value = MagicMock()
             self._p.create_detect_fn()
@@ -49,7 +50,7 @@ class TestMacOSPlatformContract:
     def test_create_sensor_enumerator_returns_sensor_enumerator(self):
         mock_instance = MagicMock(spec=SensorEnumerator)
         with patch(
-            'trcc.adapters.system.macos.sensors.MacOSSensorEnumerator',
+            "trcc.adapters.system.macos.sensors.MacOSSensorEnumerator",
             return_value=mock_instance,
         ):
             result = self._p.create_sensor_enumerator()
@@ -58,7 +59,7 @@ class TestMacOSPlatformContract:
     def test_create_autostart_manager_returns_autostart_manager(self):
         mock_instance = MagicMock(spec=AutostartManager)
         with patch(
-            'trcc.adapters.system.macos.autostart.MacOSAutostartManager',
+            "trcc.adapters.system.macos.autostart.MacOSAutostartManager",
             return_value=mock_instance,
         ):
             result = self._p.create_autostart_manager()
@@ -67,7 +68,7 @@ class TestMacOSPlatformContract:
     def test_create_setup_returns_platform_setup(self):
         mock_instance = MagicMock(spec=PlatformSetup)
         with patch(
-            'trcc.adapters.system.macos.setup.MacOSSetup',
+            "trcc.adapters.system.macos.setup.MacOSSetup",
             return_value=mock_instance,
         ):
             result = self._p.create_setup()
@@ -75,13 +76,13 @@ class TestMacOSPlatformContract:
 
     def test_get_memory_info_fn_returns_callable(self):
         mock_fn = MagicMock(return_value=[])
-        with patch('trcc.adapters.system.macos.hardware.get_memory_info', mock_fn):
+        with patch("trcc.adapters.system.macos.hardware.get_memory_info", mock_fn):
             fn = self._p.get_memory_info_fn()
         assert callable(fn)
 
     def test_get_disk_info_fn_returns_callable(self):
         mock_fn = MagicMock(return_value=[])
-        with patch('trcc.adapters.system.macos.hardware.get_disk_info', mock_fn):
+        with patch("trcc.adapters.system.macos.hardware.get_disk_info", mock_fn):
             fn = self._p.get_disk_info_fn()
         assert callable(fn)
 

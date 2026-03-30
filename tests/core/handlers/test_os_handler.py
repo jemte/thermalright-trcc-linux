@@ -1,4 +1,5 @@
 """Tests for core/handlers/os.py — OSCommandHandler with injected callables."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -25,14 +26,16 @@ def _defaults() -> dict:
         scan_fn=MagicMock(return_value=[]),
         ensure_data_fn=MagicMock(),
         has_device_fn=MagicMock(return_value=True),
-        build_setup_fn=MagicMock(return_value=MagicMock(
-            run=MagicMock(return_value=0),
-            setup_udev=MagicMock(return_value=0),
-            setup_selinux=MagicMock(return_value=0),
-            setup_polkit=MagicMock(return_value=0),
-            install_desktop=MagicMock(return_value=0),
-            setup_winusb=MagicMock(return_value=0),
-        )),
+        build_setup_fn=MagicMock(
+            return_value=MagicMock(
+                run=MagicMock(return_value=0),
+                setup_udev=MagicMock(return_value=0),
+                setup_selinux=MagicMock(return_value=0),
+                setup_polkit=MagicMock(return_value=0),
+                install_desktop=MagicMock(return_value=0),
+                setup_winusb=MagicMock(return_value=0),
+            )
+        ),
         list_themes_fn=MagicMock(),
         download_pack_fn=MagicMock(return_value=0),
     )
@@ -47,6 +50,7 @@ def _make_bus(**overrides):
 
 
 # ── InitPlatformCommand ───────────────────────────────────────────────────────
+
 
 class TestInitPlatformHandler:
     def test_calls_bootstrap_with_verbosity(self):
@@ -78,6 +82,7 @@ class TestInitPlatformHandler:
 
 # ── DiscoverDevicesCommand ────────────────────────────────────────────────────
 
+
 class TestDiscoverHandler:
     def test_calls_scan(self):
         scan = MagicMock(return_value=[])
@@ -104,27 +109,29 @@ class TestDiscoverHandler:
 
 # ── SetLanguageCommand ────────────────────────────────────────────────────────
 
+
 class TestSetLanguageHandler:
     def test_valid_code_updates_settings(self):
         h = _make_handler()
-        with patch('trcc.conf.settings') as mock_settings:
-            h(SetLanguageCommand(code='en'))
-        assert mock_settings.lang == 'en'
+        with patch("trcc.conf.settings") as mock_settings:
+            h(SetLanguageCommand(code="en"))
+        assert mock_settings.lang == "en"
 
     def test_unknown_code_returns_fail(self):
         h = _make_handler()
-        result = h(SetLanguageCommand(code='xx_unknown'))
+        result = h(SetLanguageCommand(code="xx_unknown"))
         assert not result
 
     def test_unknown_code_does_not_update_settings(self):
         h = _make_handler()
-        with patch('trcc.conf.settings') as mock_settings:
-            mock_settings.lang = 'en'
-            h(SetLanguageCommand(code='xx_unknown'))
-            assert mock_settings.lang == 'en'
+        with patch("trcc.conf.settings") as mock_settings:
+            mock_settings.lang = "en"
+            h(SetLanguageCommand(code="xx_unknown"))
+            assert mock_settings.lang == "en"
 
 
 # ── Setup commands ────────────────────────────────────────────────────────────
+
 
 class TestSetupCommandHandlers:
     def _setup(self, rc: int = 0) -> tuple[OSCommandHandler, MagicMock]:
@@ -170,45 +177,53 @@ class TestSetupCommandHandlers:
 
     def test_fail_rc_returns_fail(self):
         h, _ = self._setup(rc=1)
-        for cmd in (SetupPlatformCommand(), SetupUdevCommand(),
-                    SetupSelinuxCommand(), SetupPolkitCommand(),
-                    InstallDesktopCommand(), SetupWinUsbCommand()):
+        for cmd in (
+            SetupPlatformCommand(),
+            SetupUdevCommand(),
+            SetupSelinuxCommand(),
+            SetupPolkitCommand(),
+            InstallDesktopCommand(),
+            SetupWinUsbCommand(),
+        ):
             result = h(cmd)
             assert not result, f"{cmd} should return fail on rc=1"
 
 
 # ── DownloadThemesCommand ─────────────────────────────────────────────────────
 
+
 class TestDownloadThemesHandler:
     def test_no_pack_calls_list_themes(self):
         list_fn = MagicMock()
         h = _make_handler(list_themes_fn=list_fn)
-        h(DownloadThemesCommand(pack=''))
+        h(DownloadThemesCommand(pack=""))
         list_fn.assert_called_once()
 
     def test_pack_calls_download_pack(self):
         dl = MagicMock(return_value=0)
         h = _make_handler(download_pack_fn=dl)
-        h(DownloadThemesCommand(pack='320x320'))
-        dl.assert_called_once_with('320x320', False)
+        h(DownloadThemesCommand(pack="320x320"))
+        dl.assert_called_once_with("320x320", False)
 
     def test_pack_force_passed_through(self):
         dl = MagicMock(return_value=0)
         h = _make_handler(download_pack_fn=dl)
-        h(DownloadThemesCommand(pack='320x320', force=True))
-        dl.assert_called_once_with('320x320', True)
+        h(DownloadThemesCommand(pack="320x320", force=True))
+        dl.assert_called_once_with("320x320", True)
 
     def test_download_fail_returns_fail(self):
         h = _make_handler(download_pack_fn=MagicMock(return_value=1))
-        result = h(DownloadThemesCommand(pack='320x320'))
+        result = h(DownloadThemesCommand(pack="320x320"))
         assert not result
 
 
 # ── build_os_bus ──────────────────────────────────────────────────────────────
 
+
 class TestBuildOsBus:
     def test_returns_command_bus(self):
         from trcc.core.command_bus import CommandBus
+
         assert isinstance(_make_bus(), CommandBus)
 
     def test_dispatches_init_platform(self):
@@ -219,6 +234,7 @@ class TestBuildOsBus:
 
 
 # ── repr ──────────────────────────────────────────────────────────────────────
+
 
 class TestOSHandlerRepr:
     def test_repr(self):

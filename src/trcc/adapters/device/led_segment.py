@@ -1,4 +1,5 @@
 """Re-export from canonical location in core/ for backward compatibility."""
+
 from trcc.core.led_segment import (  # noqa: F401
     DISPLAYS,
     AK120Display,

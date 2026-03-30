@@ -6,6 +6,7 @@ wires operations to the service.
 
 CLI, GUI, and API all consume this directly (DIP — core/, not adapter/).
 """
+
 from __future__ import annotations
 
 import functools
@@ -20,11 +21,13 @@ log = logging.getLogger(__name__)
 
 def _forward_to_proxy(method):
     """Forward method call to proxy if one is active."""
+
     @functools.wraps(method)
     def wrapper(self, *args, **kwargs):
         if self._proxy is not None:
             return getattr(self._proxy, method.__name__)(*args, **kwargs)
         return method(self, *args, **kwargs)
+
     return wrapper
 
 
@@ -40,11 +43,14 @@ class LEDDevice(Device):
         led.set_color(255, 0, 0)             # set static red
     """
 
-    def __init__(self, svc: Any = None,
-                 get_protocol: Any = None,
-                 device_svc: Any = None,
-                 find_active_fn: Any = None,
-                 proxy_factory_fn: Any = None) -> None:
+    def __init__(
+        self,
+        svc: Any = None,
+        get_protocol: Any = None,
+        device_svc: Any = None,
+        find_active_fn: Any = None,
+        proxy_factory_fn: Any = None,
+    ) -> None:
         self._svc = svc
         self._get_protocol = get_protocol
         self._device_svc = device_svc
@@ -93,12 +99,11 @@ class LEDDevice(Device):
         if self._device_svc is None:
             raise RuntimeError(
                 "LEDDevice requires a DeviceService. "
-                "Use ControllerBuilder.build_led() to wire dependencies.")
+                "Use ControllerBuilder.build_led() to wire dependencies."
+            )
 
         self._device_svc.detect()
-        led_dev = next(
-            (d for d in self._device_svc.devices
-             if d.implementation == 'hid_led'), None)
+        led_dev = next((d for d in self._device_svc.devices if d.implementation == "hid_led"), None)
         if not led_dev:
             return {"success": False, "error": "No LED device found"}
 
@@ -111,7 +116,7 @@ class LEDDevice(Device):
     @property
     def connected(self) -> bool:
         if self._proxy is not None:
-            return getattr(self._proxy, 'connected', True)
+            return getattr(self._proxy, "connected", True)
         return self._svc is not None
 
     @property
@@ -148,11 +153,11 @@ class LEDDevice(Device):
         """
         if not self._svc:
             from ..services import LEDService
+
             self._svc = LEDService(get_protocol=self._get_protocol)
         self._device = device
         self._init_status = self._svc.initialize(device, led_style)
-        return {"success": True, "status": self._init_status or "",
-                "style": led_style}
+        return {"success": True, "status": self._init_status or "", "style": led_style}
 
     # ── Internal helpers ───────────────────────────────────────────
 
@@ -190,18 +195,15 @@ class LEDDevice(Device):
         if n == 0:
             return {"success": False, "error": "This LED device has no zones"}
         if zone < 0 or zone >= n:
-            return {"success": False,
-                    "error": f"Zone {zone} out of range (valid: 0–{n - 1})"}
+            return {"success": False, "error": f"Zone {zone} out of range (valid: 0–{n - 1})"}
         return None
 
     def _validate_segment(self, index: int) -> dict | None:
         n = len(self._svc.state.segment_on)
         if n == 0:
-            return {"success": False,
-                    "error": "This LED device has no segments"}
+            return {"success": False, "error": "This LED device has no segments"}
         if index < 0 or index >= n:
-            return {"success": False,
-                    "error": f"Segment {index} out of range (valid: 0–{n - 1})"}
+            return {"success": False, "error": f"Segment {index} out of range (valid: 0–{n - 1})"}
         return None
 
     # ── State-only mutators (GUI path — timer handles send) ───────
@@ -291,22 +293,36 @@ class LEDDevice(Device):
         self._svc.set_mode(LEDMode.STATIC)
         self._svc.set_color(r, g, b)
         colors = self._apply_and_send()
-        return {"success": True, "colors": colors,
-                "message": f"LED color set to #{r:02x}{g:02x}{b:02x}"}
+        return {
+            "success": True,
+            "colors": colors,
+            "message": f"LED color set to #{r:02x}{g:02x}{b:02x}",
+        }
 
     @_forward_to_proxy
     def set_mode(self, mode: LEDMode | str | int) -> dict:
         resolved = self._resolve_mode(mode)
         if not resolved:
-            return {"success": False, "error": f"Unknown mode '{mode}'",
-                    "available": [m.name.lower() for m in LEDMode]}
+            return {
+                "success": False,
+                "error": f"Unknown mode '{mode}'",
+                "available": [m.name.lower() for m in LEDMode],
+            }
         self._svc.set_mode(resolved)
         colors = self._apply_and_send()
-        animated = resolved in (LEDMode.BREATHING, LEDMode.COLORFUL,
-                                LEDMode.RAINBOW, LEDMode.TEMP_LINKED,
-                                LEDMode.LOAD_LINKED)
-        return {"success": True, "colors": colors, "animated": animated,
-                "message": f"LED mode: {resolved.name.lower()}"}
+        animated = resolved in (
+            LEDMode.BREATHING,
+            LEDMode.COLORFUL,
+            LEDMode.RAINBOW,
+            LEDMode.TEMP_LINKED,
+            LEDMode.LOAD_LINKED,
+        )
+        return {
+            "success": True,
+            "colors": colors,
+            "animated": animated,
+            "message": f"LED mode: {resolved.name.lower()}",
+        }
 
     @_forward_to_proxy
     def set_brightness(self, level: int) -> dict:
@@ -314,8 +330,7 @@ class LEDDevice(Device):
             return {"success": False, "error": "Brightness must be 0-100"}
         self._svc.set_brightness(level)
         colors = self._apply_and_send()
-        return {"success": True, "colors": colors,
-                "message": f"LED brightness set to {level}%"}
+        return {"success": True, "colors": colors, "message": f"LED brightness set to {level}%"}
 
     @_forward_to_proxy
     def toggle_global(self, on: bool) -> dict:
@@ -332,13 +347,11 @@ class LEDDevice(Device):
     @_forward_to_proxy
     def set_sensor_source(self, source: str) -> dict:
         source = source.lower()
-        if source not in ('cpu', 'gpu'):
-            return {"success": False,
-                    "error": "Source must be 'cpu' or 'gpu'"}
+        if source not in ("cpu", "gpu"):
+            return {"success": False, "error": "Source must be 'cpu' or 'gpu'"}
         self._svc.set_sensor_source(source)
         self._svc.save_config()
-        return {"success": True,
-                "message": f"LED sensor source set to {source.upper()}"}
+        return {"success": True, "message": f"LED sensor source set to {source.upper()}"}
 
     # ── Zone operations ────────────────────────────────────────────
 
@@ -348,8 +361,11 @@ class LEDDevice(Device):
             return err
         self._svc.set_zone_color(zone, r, g, b)
         colors = self._apply_and_send()
-        return {"success": True, "colors": colors,
-                "message": f"Zone {zone} color set to #{r:02x}{g:02x}{b:02x}"}
+        return {
+            "success": True,
+            "colors": colors,
+            "message": f"Zone {zone} color set to #{r:02x}{g:02x}{b:02x}",
+        }
 
     @_forward_to_proxy
     def set_zone_mode(self, zone: int, mode: LEDMode | str | int) -> dict:
@@ -360,8 +376,11 @@ class LEDDevice(Device):
             return {"success": False, "error": f"Unknown mode '{mode}'"}
         self._svc.set_zone_mode(zone, resolved)
         colors = self._apply_and_send()
-        return {"success": True, "colors": colors,
-                "message": f"Zone {zone} mode set to {resolved.name.lower()}"}
+        return {
+            "success": True,
+            "colors": colors,
+            "message": f"Zone {zone} mode set to {resolved.name.lower()}",
+        }
 
     @_forward_to_proxy
     def set_zone_brightness(self, zone: int, level: int) -> dict:
@@ -371,8 +390,11 @@ class LEDDevice(Device):
             return {"success": False, "error": "Brightness must be 0-100"}
         self._svc.set_zone_brightness(zone, level)
         colors = self._apply_and_send()
-        return {"success": True, "colors": colors,
-                "message": f"Zone {zone} brightness set to {level}%"}
+        return {
+            "success": True,
+            "colors": colors,
+            "message": f"Zone {zone} brightness set to {level}%",
+        }
 
     @_forward_to_proxy
     def toggle_zone(self, zone: int, on: bool) -> dict:
@@ -380,18 +402,15 @@ class LEDDevice(Device):
             return err
         self._svc.toggle_zone(zone, on)
         self._send_and_save()
-        return {"success": True,
-                "message": f"Zone {zone} {'ON' if on else 'OFF'}"}
+        return {"success": True, "message": f"Zone {zone} {'ON' if on else 'OFF'}"}
 
     @_forward_to_proxy
-    def set_zone_sync(self, enabled: bool,
-                      interval: int | None = None) -> dict:
+    def set_zone_sync(self, enabled: bool, interval: int | None = None) -> dict:
         if interval is not None:
             self._svc.set_zone_sync_interval(interval)
         self._svc.set_zone_sync(enabled)
         self._send_and_save()
-        return {"success": True,
-                "message": f"Zone sync {'enabled' if enabled else 'disabled'}"}
+        return {"success": True, "message": f"Zone sync {'enabled' if enabled else 'disabled'}"}
 
     def set_zone_sync_zone(self, zone: int, selected: bool) -> dict:
         self._svc.set_zone_sync_zone(zone, selected)
@@ -413,15 +432,13 @@ class LEDDevice(Device):
             return err
         self._svc.toggle_segment(index, on)
         self._send_and_save()
-        return {"success": True,
-                "message": f"Segment {index} {'ON' if on else 'OFF'}"}
+        return {"success": True, "message": f"Segment {index} {'ON' if on else 'OFF'}"}
 
     @_forward_to_proxy
     def set_clock_format(self, is_24h: bool) -> dict:
         self._svc.set_clock_format(is_24h)
         self._send_and_save()
-        return {"success": True,
-                "message": f"Clock format set to {'24h' if is_24h else '12h'}"}
+        return {"success": True, "message": f"Clock format set to {'24h' if is_24h else '12h'}"}
 
     @_forward_to_proxy
     def set_week_start(self, is_sunday: bool) -> dict:
@@ -432,12 +449,11 @@ class LEDDevice(Device):
     @_forward_to_proxy
     def set_temp_unit(self, unit: str) -> dict:
         unit = unit.upper()
-        if unit not in ('C', 'F'):
+        if unit not in ("C", "F"):
             return {"success": False, "error": "Unit must be 'C' or 'F'"}
         self._svc.set_seg_temp_unit(unit)
         self._send_and_save()
-        return {"success": True,
-                "message": f"Temperature unit set to {unit}"}
+        return {"success": True, "message": f"Temperature unit set to {unit}"}
 
     # Alias — GUI calls this name directly
     def set_seg_temp_unit(self, unit: str) -> dict:

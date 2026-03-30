@@ -5,6 +5,7 @@ Any adapter (GUI, CLI, API) calls find_active() before touching USB.
 
 Priority: GUI > API > direct.
 """
+
 from __future__ import annotations
 
 import enum
@@ -24,6 +25,7 @@ _SOCK_NAME = "trcc-linux.sock"
 
 class InstanceKind(enum.Enum):
     """Which type of trcc instance is running."""
+
     GUI = "gui"
     API = "api"
 
@@ -34,7 +36,7 @@ def _socket_path() -> Path:
 
 def _gui_running() -> bool:
     """Check if GUI daemon is listening on IPC socket."""
-    if not hasattr(socket, 'AF_UNIX'):
+    if not hasattr(socket, "AF_UNIX"):
         return False
     path = _socket_path()
     if not path.exists():

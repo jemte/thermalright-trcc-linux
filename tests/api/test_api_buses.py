@@ -11,6 +11,7 @@ Strategy:
   - Set api_module._display_dispatcher / _led_dispatcher to the mock device.
   - POST to the endpoint and assert the device method was invoked.
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -23,6 +24,7 @@ from trcc.api import app, configure_auth
 from trcc.core.app import TrccApp
 
 # ── Fixtures ──────────────────────────────────────────────────────────────
+
 
 @pytest.fixture()
 def real_app():
@@ -65,9 +67,10 @@ def client():
 
 # ── LCD endpoints ─────────────────────────────────────────────────────────
 
+
 class TestDisplayAPIBus:
-    @patch('trcc.api.stop_overlay_loop')
-    @patch('trcc.api.stop_video_playback')
+    @patch("trcc.api.stop_overlay_loop")
+    @patch("trcc.api.stop_video_playback")
     def test_set_color_calls_device(self, _sv, _so, mock_lcd, client):
         mock_lcd.send_color.return_value = {"success": True, "message": "ok"}
         resp = client.post("/display/color", json={"hex": "ff0000"})
@@ -93,18 +96,18 @@ class TestDisplayAPIBus:
         mock_lcd.set_split_mode.assert_called_once_with(1)
 
     def test_brightness_failure_returns_400(self, mock_lcd, client):
-        mock_lcd.set_brightness.return_value = {
-            "success": False, "error": "Device not responding"}
+        mock_lcd.set_brightness.return_value = {"success": False, "error": "Device not responding"}
         resp = client.post("/display/brightness", json={"level": 2})
         assert resp.status_code == 400
 
 
 # ── LED endpoints ─────────────────────────────────────────────────────────
 
+
 class TestLEDAPIBus:
     def test_set_color_calls_device(self, mock_led, client):
         mock_led.set_color.return_value = {"success": True, "message": "ok"}
-        with patch('trcc.api.stop_led_loop'):
+        with patch("trcc.api.stop_led_loop"):
             resp = client.post("/led/color", json={"hex": "00ff00"})
         assert resp.status_code == 200
         mock_led.set_color.assert_called_once_with(0, 255, 0)

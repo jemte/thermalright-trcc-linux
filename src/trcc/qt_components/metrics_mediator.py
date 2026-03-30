@@ -4,6 +4,7 @@ Conky-inspired design: single timer, period-multiplied callbacks,
 guard functions to skip inactive subscribers.  Replaces scattered
 QTimers and manual dedup flags with one clean dispatch loop.
 """
+
 from __future__ import annotations
 
 import logging
@@ -42,13 +43,15 @@ class MetricsMediator(QObject):
         mediator.ensure_running()
     """
 
-    def __init__(self, parent: QObject,
-                 metrics_fn: Callable[[], HardwareMetrics] | None = None) -> None:
+    def __init__(
+        self, parent: QObject, metrics_fn: Callable[[], HardwareMetrics] | None = None
+    ) -> None:
         super().__init__(parent)
         if metrics_fn is None:
             raise RuntimeError(
                 "MetricsMediator requires a metrics_fn. "
-                "Pass SystemService.all_metrics from a composition root.")
+                "Pass SystemService.all_metrics from a composition root."
+            )
         self._metrics_fn = metrics_fn
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
@@ -131,6 +134,7 @@ class MetricsMediator(QObject):
         except Exception:
             return
         from ..conf import settings
+
         HardwareMetrics.with_temp_unit(metrics, settings.temp_unit)
         for sub in active:
             try:

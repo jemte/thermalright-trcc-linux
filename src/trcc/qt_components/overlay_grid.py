@@ -3,6 +3,7 @@
 Matches Windows UCXiTongXianShi (472x430). Manages element configs,
 selection, add/delete, and serialization to overlay config format.
 """
+
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
@@ -29,10 +30,10 @@ class OverlayGridPanel(QFrame):
     """
 
     element_selected = Signal(int, object)  # index, OverlayElementConfig
-    element_deleted = Signal(int)           # index
+    element_deleted = Signal(int)  # index
     add_requested = Signal()
-    elements_changed = Signal()             # any add/delete/reorder
-    toggle_changed = Signal(bool)           # overlay on/off
+    elements_changed = Signal()  # any add/delete/reorder
+    toggle_changed = Signal(bool)  # overlay on/off
 
     MAX_ELEMENTS = 42
 
@@ -40,14 +41,18 @@ class OverlayGridPanel(QFrame):
         super().__init__(parent)
         self.setFixedSize(Sizes.OVERLAY_GRID_W, Sizes.OVERLAY_GRID_H)
 
-        set_background_pixmap(self, 'ucXiTongXianShi1.BackgroundImage.png',
-            Sizes.OVERLAY_GRID_W, Sizes.OVERLAY_GRID_H,
-            fallback_style=f"background-color: {Colors.BASE_BG}; border-radius: 5px;")
+        set_background_pixmap(
+            self,
+            "ucXiTongXianShi1.BackgroundImage.png",
+            Sizes.OVERLAY_GRID_W,
+            Sizes.OVERLAY_GRID_H,
+            fallback_style=f"background-color: {Colors.BASE_BG}; border-radius: 5px;",
+        )
 
         self._configs: list[OverlayElementConfig] = []
         self._selected_index = -1
         self._overlay_enabled = True
-        self._cells = []           # OverlayElementWidget instances (always 42)
+        self._cells = []  # OverlayElementWidget instances (always 42)
 
         self._setup_toggle()
         self._setup_cells()
@@ -60,8 +65,8 @@ class OverlayGridPanel(QFrame):
         self._toggle_btn.setCheckable(True)
         self._toggle_btn.setChecked(True)
 
-        on_px = Assets.load_pixmap('P滑动开.png', 36, 18)
-        off_px = Assets.load_pixmap('P滑动关.png', 36, 18)
+        on_px = Assets.load_pixmap("P滑动开.png", 36, 18)
+        off_px = Assets.load_pixmap("P滑动关.png", 36, 18)
         if not on_px.isNull() and not off_px.isNull():
             icon = QIcon()
             icon.addPixmap(on_px, QIcon.Mode.Normal, QIcon.State.On)
@@ -141,7 +146,7 @@ class OverlayGridPanel(QFrame):
         if not self._configs:
             return -1
         best_idx = -1
-        best_dist = float('inf')
+        best_dist = float("inf")
         for i, cfg in enumerate(self._configs):
             d = (cfg.x - x) ** 2 + (cfg.y - y) ** 2
             if d < best_dist:
@@ -203,7 +208,8 @@ class OverlayGridPanel(QFrame):
     def load_configs(self, configs: list[OverlayElementConfig]):
         """Load element configs from list."""
         from dataclasses import replace
-        self._configs = [replace(c) for c in configs[:self.MAX_ELEMENTS]]
+
+        self._configs = [replace(c) for c in configs[: self.MAX_ELEMENTS]]
         self._selected_index = -1
         self._refresh_cells()
 
@@ -221,37 +227,37 @@ class OverlayGridPanel(QFrame):
 
         for i, cfg in enumerate(self._configs):
             entry = {
-                'x': cfg.x,
-                'y': cfg.y,
-                'color': cfg.color,
-                'font': {
-                    'size': cfg.font_size,
-                    'style': 'bold' if cfg.font_style == 1 else 'regular',
-                    'name': cfg.font_name,
+                "x": cfg.x,
+                "y": cfg.y,
+                "color": cfg.color,
+                "font": {
+                    "size": cfg.font_size,
+                    "style": "bold" if cfg.font_style == 1 else "regular",
+                    "name": cfg.font_name,
                 },
-                'enabled': True,
+                "enabled": True,
             }
 
             if cfg.mode == OverlayMode.TIME:
-                entry['metric'] = 'time'
-                entry['time_format'] = cfg.mode_sub
-                key = f'time_{i}'
+                entry["metric"] = "time"
+                entry["time_format"] = cfg.mode_sub
+                key = f"time_{i}"
             elif cfg.mode == OverlayMode.DATE:
-                entry['metric'] = 'date'
-                entry['date_format'] = cfg.mode_sub
-                key = f'date_{i}'
+                entry["metric"] = "date"
+                entry["date_format"] = cfg.mode_sub
+                key = f"date_{i}"
             elif cfg.mode == OverlayMode.WEEKDAY:
-                entry['metric'] = 'weekday'
-                key = f'weekday_{i}'
+                entry["metric"] = "weekday"
+                key = f"weekday_{i}"
             elif cfg.mode == OverlayMode.CUSTOM:
-                entry['text'] = cfg.text
-                key = f'custom_{i}'
+                entry["text"] = cfg.text
+                key = f"custom_{i}"
             elif cfg.mode == OverlayMode.HARDWARE:
-                entry['metric'] = HARDWARE_METRICS.get(
-                    (cfg.main_count, cfg.sub_count),
-                    f'hw_{cfg.main_count}_{cfg.sub_count}')
-                entry['temp_unit'] = cfg.mode_sub
-                key = f'hw_{cfg.main_count}_{cfg.sub_count}_{i}'
+                entry["metric"] = HARDWARE_METRICS.get(
+                    (cfg.main_count, cfg.sub_count), f"hw_{cfg.main_count}_{cfg.sub_count}"
+                )
+                entry["temp_unit"] = cfg.mode_sub
+                key = f"hw_{cfg.main_count}_{cfg.sub_count}_{i}"
             else:
                 continue
 
@@ -263,41 +269,43 @@ class OverlayGridPanel(QFrame):
         """Load from OverlayRenderer config format."""
         configs: list[OverlayElementConfig] = []
         for _key, cfg in overlay_config.items():
-            if not isinstance(cfg, dict) or not cfg.get('enabled', True):
+            if not isinstance(cfg, dict) or not cfg.get("enabled", True):
                 continue
 
-            font = cfg.get('font', {})
-            font_size = font.get('size', 36) if isinstance(font, dict) else 36
-            font_style = (1 if font.get('style') == 'bold' else 0) if isinstance(font, dict) else 0
-            font_name = font.get('name', 'Microsoft YaHei') if isinstance(font, dict) else 'Microsoft YaHei'
+            font = cfg.get("font", {})
+            font_size = font.get("size", 36) if isinstance(font, dict) else 36
+            font_style = (1 if font.get("style") == "bold" else 0) if isinstance(font, dict) else 0
+            font_name = (
+                font.get("name", "Microsoft YaHei") if isinstance(font, dict) else "Microsoft YaHei"
+            )
 
             elem = OverlayElementConfig(
-                x=cfg.get('x', 100),
-                y=cfg.get('y', 100),
-                color=cfg.get('color', '#FFFFFF'),
+                x=cfg.get("x", 100),
+                y=cfg.get("y", 100),
+                color=cfg.get("color", "#FFFFFF"),
                 font_size=font_size,
                 font_style=font_style,
                 font_name=font_name,
             )
 
-            metric = cfg.get('metric', '')
-            if metric == 'time':
+            metric = cfg.get("metric", "")
+            if metric == "time":
                 elem.mode = OverlayMode.TIME
-                elem.mode_sub = cfg.get('time_format', 0)
-            elif metric == 'date':
+                elem.mode_sub = cfg.get("time_format", 0)
+            elif metric == "date":
                 elem.mode = OverlayMode.DATE
-                elem.mode_sub = cfg.get('date_format', 0)
-            elif metric == 'weekday':
+                elem.mode_sub = cfg.get("date_format", 0)
+            elif metric == "weekday":
                 elem.mode = OverlayMode.WEEKDAY
-            elif 'text' in cfg:
+            elif "text" in cfg:
                 elem.mode = OverlayMode.CUSTOM
-                elem.text = cfg['text']
+                elem.text = cfg["text"]
             elif metric in METRIC_TO_IDS:
                 mc, sc = METRIC_TO_IDS[metric]
                 elem.mode = OverlayMode.HARDWARE
                 elem.main_count = mc
                 elem.sub_count = sc
-                elem.mode_sub = cfg.get('temp_unit', 0)
+                elem.mode_sub = cfg.get("temp_unit", 0)
             else:
                 continue
             configs.append(elem)

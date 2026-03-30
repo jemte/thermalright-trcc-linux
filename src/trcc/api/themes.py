@@ -1,4 +1,5 @@
 """Theme listing, loading, saving, and import endpoints."""
+
 from __future__ import annotations
 
 import logging
@@ -34,13 +35,12 @@ def _parse_resolution(resolution: str) -> tuple[int, int]:
     return w, h
 
 
-
 def _preview_url(theme_name: str, theme_dir: str) -> str:
     """Resolve preview URL for a local theme — Theme.png or 00.png fallback."""
     theme_path = os.path.join(theme_dir, theme_name)
-    if os.path.isfile(os.path.join(theme_path, 'Theme.png')):
+    if os.path.isfile(os.path.join(theme_path, "Theme.png")):
         return f"/static/themes/{theme_name}/Theme.png"
-    if os.path.isfile(os.path.join(theme_path, '00.png')):
+    if os.path.isfile(os.path.join(theme_path, "00.png")):
         return f"/static/themes/{theme_name}/00.png"
     return ""
 
@@ -61,6 +61,7 @@ def init_theme_data(resolution: str = "320x320") -> dict:
 
     # Remount static dirs now that data exists on disk
     from trcc.api import mount_static_dirs
+
     mount_static_dirs(w, h)
 
     return {"success": True, "resolution": f"{w}x{h}"}
@@ -74,6 +75,7 @@ def list_themes(resolution: str = "320x320") -> list[ThemeResponse]:
     from pathlib import Path
 
     from trcc.adapters.infra.data_repository import ThemeDir
+
     td = ThemeDir.for_resolution(w, h)
     theme_dir = Path(str(td))
     themes = ThemeService.discover_local(theme_dir, (w, h))
@@ -95,6 +97,7 @@ def list_web_themes(resolution: str = "320x320") -> list[WebThemeResponse]:
     w, h = _parse_resolution(resolution)
 
     from trcc.adapters.infra.data_repository import DataManager
+
     web_dir = DataManager.get_web_dir(w, h)
 
     results: list[WebThemeResponse] = []
@@ -102,19 +105,21 @@ def list_web_themes(resolution: str = "320x320") -> list[WebThemeResponse]:
         return results
 
     for fname in sorted(os.listdir(web_dir)):
-        if not fname.endswith('.png'):
+        if not fname.endswith(".png"):
             continue
         theme_id = fname[:-4]  # strip .png
         # Infer category from first letter (a=Gallery, b=Tech, etc.)
         category = theme_id[0] if theme_id else ""
         has_video = os.path.isfile(os.path.join(web_dir, f"{theme_id}.mp4"))
-        results.append(WebThemeResponse(
-            id=theme_id,
-            category=category,
-            preview_url=f"/static/web/{fname}",
-            has_video=has_video,
-            download_url=f"/themes/web/{theme_id}/download",
-        ))
+        results.append(
+            WebThemeResponse(
+                id=theme_id,
+                category=category,
+                preview_url=f"/static/web/{fname}",
+                has_video=has_video,
+                download_url=f"/themes/web/{theme_id}/download",
+            )
+        )
     return results
 
 
@@ -131,7 +136,7 @@ def download_web_theme(
     import re
 
     # Validate theme_id — alphanumeric only, no path traversal
-    if not re.fullmatch(r'[a-zA-Z0-9_\-]+', theme_id):
+    if not re.fullmatch(r"[a-zA-Z0-9_\-]+", theme_id):
         raise HTTPException(status_code=400, detail="Invalid theme ID")
     from trcc.adapters.infra.data_repository import DataManager
     from trcc.adapters.infra.theme_cloud import CloudThemeDownloader
@@ -153,7 +158,8 @@ def download_web_theme(
     # Download (or use cache)
     web_dir = DataManager.get_web_dir(w, h)
     downloader = CloudThemeDownloader(
-        resolution=f"{w}x{h}", cache_dir=web_dir,
+        resolution=f"{w}x{h}",
+        cache_dir=web_dir,
     )
 
     already_cached = downloader.is_cached(theme_id)
@@ -185,6 +191,7 @@ def list_masks(resolution: str = "320x320") -> list[MaskResponse]:
     w, h = _parse_resolution(resolution)
 
     from trcc.adapters.infra.data_repository import DataManager
+
     masks_dir = DataManager.get_web_masks_dir(w, h)
 
     results: list[MaskResponse] = []
@@ -196,9 +203,9 @@ def list_masks(resolution: str = "320x320") -> list[MaskResponse]:
         if not os.path.isdir(entry_path):
             continue
         # Use Theme.png if available, else 00.png
-        if os.path.isfile(os.path.join(entry_path, 'Theme.png')):
+        if os.path.isfile(os.path.join(entry_path, "Theme.png")):
             url = f"/static/masks/{entry}/Theme.png"
-        elif os.path.isfile(os.path.join(entry_path, '00.png')):
+        elif os.path.isfile(os.path.join(entry_path, "00.png")):
             url = f"/static/masks/{entry}/00.png"
         else:
             continue
@@ -224,7 +231,9 @@ def load_theme(body: ThemeLoadRequest) -> dict:
     from trcc.api.models import dispatch_result
 
     if not api._display_dispatcher or not api._display_dispatcher.connected:
-        raise HTTPException(status_code=409, detail="No LCD device selected. POST /devices/{id}/select first.")
+        raise HTTPException(
+            status_code=409, detail="No LCD device selected. POST /devices/{id}/select first."
+        )
 
     api.stop_video_playback()
     api.stop_overlay_loop()
@@ -248,19 +257,20 @@ def load_theme(body: ThemeLoadRequest) -> dict:
     config_path = result.get("config_path")
 
     if not w or not h:
-        res = getattr(api._display_dispatcher, 'resolution', None)
+        res = getattr(api._display_dispatcher, "resolution", None)
         if res:
             w, h = res
         else:
-            w, h = getattr(api._display_dispatcher, 'lcd_size', (320, 320))
+            w, h = getattr(api._display_dispatcher, "lcd_size", (320, 320))
 
     if is_animated and theme_path:
         # Find video file (Theme.zt or .mp4)
         from pathlib import Path
+
         theme_dir = Path(str(theme_path))
         video_path = None
-        for ext in ('.zt', '.mp4'):
-            for name in ('Theme', 'theme'):
+        for ext in (".zt", ".mp4"):
+            for name in ("Theme", "theme"):
                 candidate = theme_dir / f"{name}{ext}"
                 if candidate.exists():
                     video_path = str(candidate)
@@ -299,12 +309,13 @@ def export_theme(theme_name: str, resolution: str = "320x320") -> Response:
     from fastapi.responses import FileResponse
 
     # Validate theme_name — no path traversal
-    if not re.fullmatch(r'[a-zA-Z0-9_ \-().]+', theme_name):
+    if not re.fullmatch(r"[a-zA-Z0-9_ \-().]+", theme_name):
         raise HTTPException(status_code=400, detail="Invalid theme name")
 
     w, h = _parse_resolution(resolution)
 
     from trcc.adapters.infra.data_repository import ThemeDir
+
     td = ThemeDir.for_resolution(w, h)
     theme_dir = Path(str(td))
 
@@ -321,13 +332,14 @@ def export_theme(theme_name: str, resolution: str = "320x320") -> Response:
     from trcc.adapters.infra.dc_config import DcConfig
     from trcc.adapters.infra.dc_parser import load_config_json
     from trcc.adapters.infra.dc_writer import export_theme as _export_fn
+
     theme_svc = ThemeService(
         export_theme_fn=_export_fn,
         load_config_json_fn=load_config_json,
         dc_config_cls=DcConfig,
     )
 
-    tmp = tempfile.NamedTemporaryFile(suffix='.tr', delete=False)
+    tmp = tempfile.NamedTemporaryFile(suffix=".tr", delete=False)
     tmp.close()
     ok, msg = theme_svc.export_tr(match.path, Path(tmp.name))
     if not ok:
@@ -348,20 +360,21 @@ async def import_theme(file: UploadFile) -> dict:
     import tempfile
     from pathlib import Path
 
-    if not file.filename or not file.filename.endswith('.tr'):
+    if not file.filename or not file.filename.endswith(".tr"):
         raise HTTPException(status_code=400, detail="File must be a .tr theme archive")
 
     data = await file.read()
     if len(data) > 50 * 1024 * 1024:  # 50 MB limit for theme archives
         raise HTTPException(status_code=413, detail="Theme archive exceeds 50 MB limit")
 
-    with tempfile.NamedTemporaryFile(suffix='.tr', delete=False) as tmp:
+    with tempfile.NamedTemporaryFile(suffix=".tr", delete=False) as tmp:
         tmp.write(data)
         tmp_path = tmp.name
 
     try:
         from trcc.adapters.infra.data_repository import ThemeDir
         from trcc.api import _display_dispatcher
+
         w, h = (320, 320)
         if _display_dispatcher and _display_dispatcher.connected:
             w, h = _display_dispatcher.resolution  # type: ignore[union-attr]
@@ -369,6 +382,7 @@ async def import_theme(file: UploadFile) -> dict:
         from trcc.adapters.infra.dc_config import DcConfig
         from trcc.adapters.infra.dc_parser import load_config_json
         from trcc.adapters.infra.dc_writer import import_theme as _import_fn
+
         theme_svc = ThemeService(
             import_theme_fn=_import_fn,
             load_config_json_fn=load_config_json,

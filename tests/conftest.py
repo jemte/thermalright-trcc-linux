@@ -6,6 +6,7 @@ Tier 2: Filesystem — isolated config dirs, theme dirs, temp PNGs
 Tier 3: Qt — session-scoped QApplication (offscreen)
 Tier 4: Performance report — Valgrind-style summary for CPU + memory tests
 """
+
 from __future__ import annotations
 
 import os
@@ -34,19 +35,22 @@ def pytest_configure(config: pytest.Config) -> None:
 
 
 def pytest_terminal_summary(
-    terminalreporter: Any, exitstatus: int, config: pytest.Config,
+    terminalreporter: Any,
+    exitstatus: int,
+    config: pytest.Config,
 ) -> None:
     """Print Valgrind-style performance summary after test run."""
-    report: PerfReport = getattr(config, '_perf_report', None)  # type: ignore[assignment]
+    report: PerfReport = getattr(config, "_perf_report", None)  # type: ignore[assignment]
     if report and report.has_data:
         tw = terminalreporter._tw
         for line in report.format_report():
             tw.line(line)
 
+
 # ── Qt + Renderer initialization (once per test session) ────────────────
 # QApplication must exist before QtRenderer — QFontDatabase.addApplicationFont
 # segfaults without one. Create it once at module level for all tests.
-os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 _app = QApplication.instance() or QApplication([])
 ImageService.set_renderer(QtRenderer())
 
@@ -54,8 +58,10 @@ ImageService.set_renderer(QtRenderer())
 # Surface helpers — create/inspect native renderer surfaces in tests
 # =========================================================================
 
+
 def make_test_surface(
-    w: int = 320, h: int = 320,
+    w: int = 320,
+    h: int = 320,
     color: tuple[int, ...] = (128, 0, 0),
 ) -> Any:
     """Create a native renderer surface (QImage) for testing.
@@ -82,9 +88,11 @@ def get_pixel(surface: Any, x: int, y: int) -> tuple[int, ...]:
         return (color.red(), color.green(), color.blue(), color.alpha())
     return (color.red(), color.green(), color.blue())
 
+
 # =========================================================================
 # Tier 0: Environment — disable live IPC daemon + builder
 # =========================================================================
+
 
 @pytest.fixture(autouse=True)
 def _restore_renderer():
@@ -97,9 +105,11 @@ def _restore_renderer():
     of a real Renderer.  This fixture makes the renderer restore automatic.
     """
     from trcc.services.image import ImageService
+
     saved = ImageService._renderer
     yield
     ImageService.set_renderer(saved)
+
 
 @pytest.fixture
 def mock_platform():
@@ -132,6 +142,7 @@ def _mock_builder(mock_platform):
     mock_builder.with_data_dir.return_value = mock_builder
 
     from trcc.core.command_bus import CommandResult
+
     mock_app = MagicMock(spec=TrccApp)
     mock_app.builder = mock_builder
     mock_app._ensure_data_fn = None
@@ -155,8 +166,10 @@ def _mock_builder(mock_platform):
     # Composition roots call TrccApp.get() in CLI commands — this prevents RuntimeError.
     TrccApp._instance = mock_app  # type: ignore[assignment]
 
-    with patch("trcc.core.builder.ControllerBuilder.for_current_os", return_value=mock_builder), \
-         patch("trcc.core.app.TrccApp.init", return_value=mock_app):
+    with (
+        patch("trcc.core.builder.ControllerBuilder.for_current_os", return_value=mock_builder),
+        patch("trcc.core.app.TrccApp.init", return_value=mock_app),
+    ):
         yield mock_builder
 
 
@@ -168,17 +181,22 @@ def _no_ipc():
     and core routes through proxies, bypassing mocked services.
     Patch both the core detection and legacy IPCClient.available().
     """
-    with patch("trcc.core.instance.find_active", return_value=None), \
-         patch("trcc.ipc.IPCClient.available", return_value=False):
+    with (
+        patch("trcc.core.instance.find_active", return_value=None),
+        patch("trcc.ipc.IPCClient.available", return_value=False),
+    ):
         yield
+
 
 # =========================================================================
 # Tier 1: Data factories
 # =========================================================================
 
+
 @pytest.fixture
 def device_info():
     """Factory fixture: create DeviceInfo with sensible defaults."""
+
     def _make(
         path: str = "/dev/sg0",
         name: str = "LCD",
@@ -189,15 +207,22 @@ def device_info():
         **kw,
     ) -> DeviceInfo:
         return DeviceInfo(
-            name=name, path=path, vid=vid, pid=pid,
-            protocol=protocol, resolution=resolution, **kw,
+            name=name,
+            path=path,
+            vid=vid,
+            pid=pid,
+            protocol=protocol,
+            resolution=resolution,
+            **kw,
         )
+
     return _make
 
 
 @pytest.fixture
 def mock_device():
     """Factory fixture: MagicMock DetectedDevice."""
+
     def _make(
         path: str = "/dev/sg0",
         name: str = "LCD",
@@ -214,12 +239,14 @@ def mock_device():
         dev.usb_path = "1-2"
         dev.vendor_name = "Thermalright"
         return dev
+
     return _make
 
 
 @pytest.fixture
 def mock_service(device_info):
     """Factory fixture: mock DeviceService with pre-selected device."""
+
     def _make(device=None) -> MagicMock:
         svc = MagicMock()
         dev = device or device_info()
@@ -228,21 +255,24 @@ def mock_service(device_info):
         svc.detect.return_value = svc.devices
         svc.send_frame.return_value = True
         return svc
+
     return _make
 
 
 @pytest.fixture
 def test_image():
     """Factory fixture: native renderer surface for testing."""
-    def _make(w: int = 320, h: int = 320,
-              color: tuple[int, ...] = (128, 0, 0)) -> Any:
+
+    def _make(w: int = 320, h: int = 320, color: tuple[int, ...] = (128, 0, 0)) -> Any:
         return make_test_surface(w, h, color)
+
     return _make
 
 
 # =========================================================================
 # Tier 2: Filesystem fixtures
 # =========================================================================
+
 
 @pytest.fixture(autouse=True)
 def tmp_config(tmp_path, monkeypatch):
@@ -268,7 +298,8 @@ def tmp_config(tmp_path, monkeypatch):
     # ~/.trcc/trcc.log during tests.
     test_log = Path(config_dir) / "trcc.log"
     monkeypatch.setattr(
-        "trcc.adapters.infra.diagnostics._DEFAULT_LOG_FILE", test_log,
+        "trcc.adapters.infra.diagnostics._DEFAULT_LOG_FILE",
+        test_log,
     )
     # Strip any real file handlers the root logger may have accumulated from a
     # previous configure() call (e.g. from a prior test that bootstrapped the app).
@@ -291,8 +322,12 @@ def tmp_config(tmp_path, monkeypatch):
     resolver.user_content_dir.return_value = str(tmp_path / "trcc-user")
     resolver.theme_dir.side_effect = lambda w, h: str(tmp_path / "trcc" / "data" / f"theme{w}{h}")
     resolver.web_dir.side_effect = lambda w, h: str(tmp_path / "trcc" / "data" / "web" / f"{w}{h}")
-    resolver.web_masks_dir.side_effect = lambda w, h: str(tmp_path / "trcc" / "data" / "web" / f"zt{w}{h}")
-    resolver.user_masks_dir.side_effect = lambda w, h: str(tmp_path / "trcc-user" / "data" / "web" / f"zt{w}{h}")
+    resolver.web_masks_dir.side_effect = lambda w, h: str(
+        tmp_path / "trcc" / "data" / "web" / f"zt{w}{h}"
+    )
+    resolver.user_masks_dir.side_effect = lambda w, h: str(
+        tmp_path / "trcc-user" / "data" / "web" / f"zt{w}{h}"
+    )
     os.makedirs(str(tmp_path / "trcc" / "data"), exist_ok=True)
     init_settings(resolver)
 
@@ -302,35 +337,44 @@ def tmp_config(tmp_path, monkeypatch):
 @pytest.fixture
 def theme_dir(tmp_path):
     """Factory fixture: create a valid theme directory structure."""
-    def _make(name: str = "TestTheme", *, has_bg: bool = True,
-              has_dc: bool = False, has_mask: bool = False) -> Path:
+
+    def _make(
+        name: str = "TestTheme",
+        *,
+        has_bg: bool = True,
+        has_dc: bool = False,
+        has_mask: bool = False,
+    ) -> Path:
         td = tmp_path / name
         td.mkdir(exist_ok=True)
         if has_bg:
             make_test_surface(320, 320, (0, 0, 0)).save(str(td / "00.png"))
         if has_dc:
             # Minimal 0xDD format stub
-            (td / "config1.dc").write_bytes(b"\xDD" + b"\x00" * 100)
+            (td / "config1.dc").write_bytes(b"\xdd" + b"\x00" * 100)
         if has_mask:
-            make_test_surface(320, 320, (255, 255, 255, 128)).save(
-                str(td / "mask.png"))
+            make_test_surface(320, 320, (255, 255, 255, 128)).save(str(td / "mask.png"))
         return td
+
     return _make
 
 
 @pytest.fixture
 def png_factory(tmp_path):
     """Factory fixture: write a minimal PNG and return its path."""
+
     def _make(filename: str = "test.png", w: int = 320, h: int = 320) -> str:
         path = str(tmp_path / filename)
         make_test_surface(w, h, (128, 0, 0)).save(path, "PNG")
         return path
+
     return _make
 
 
 # =========================================================================
 # Tier 2b: DI fixtures — injectable ports for pure hexagonal tests
 # =========================================================================
+
 
 @pytest.fixture
 def failed_lcd_bus():
@@ -348,6 +392,7 @@ def failed_lcd_bus():
     from unittest.mock import MagicMock
 
     from trcc.core.command_bus import CommandBus, CommandResult
+
     bus = MagicMock(spec=CommandBus)
     bus.dispatch.return_value = CommandResult.fail("simulated failure")
     return bus
@@ -362,6 +407,7 @@ def failed_led_bus():
     from unittest.mock import MagicMock
 
     from trcc.core.command_bus import CommandBus, CommandResult
+
     bus = MagicMock(spec=CommandBus)
     bus.dispatch.return_value = CommandResult.fail("simulated failure")
     return bus
@@ -387,6 +433,7 @@ def fake_detect():
 # Tier 3: Qt fixture
 # =========================================================================
 
+
 @pytest.fixture(scope="session")
 def qapp():
     """Session-scoped QApplication for all GUI tests (offscreen).
@@ -400,6 +447,7 @@ def qapp():
 # Legacy factory functions — used by test_cli.py and test_integration.py
 # =========================================================================
 
+
 def make_device_info(
     path: str = "/dev/sg0",
     name: str = "LCD",
@@ -411,8 +459,13 @@ def make_device_info(
 ) -> DeviceInfo:
     """Create DeviceInfo with sensible defaults. Used by test_cli."""
     return DeviceInfo(
-        name=name, path=path, vid=vid, pid=pid,
-        protocol=protocol, resolution=resolution, **kw,
+        name=name,
+        path=path,
+        vid=vid,
+        pid=pid,
+        protocol=protocol,
+        resolution=resolution,
+        **kw,
     )
 
 
@@ -443,11 +496,13 @@ def save_test_png(path: str, w: int = 320, h: int = 320) -> None:
 # tests all share the same platform contract.
 # =========================================================================
 
+
 @pytest.fixture()
 def linux_builder():
     """ControllerBuilder wired with the real LinuxPlatform adapter."""
     from trcc.adapters.system.linux.platform import LinuxPlatform
     from trcc.core.builder import ControllerBuilder
+
     return ControllerBuilder(LinuxPlatform())
 
 
@@ -456,6 +511,7 @@ def windows_builder():
     """ControllerBuilder wired with the real WindowsPlatform adapter."""
     from trcc.adapters.system.windows.platform import WindowsPlatform
     from trcc.core.builder import ControllerBuilder
+
     return ControllerBuilder(WindowsPlatform())
 
 
@@ -464,6 +520,7 @@ def macos_builder():
     """ControllerBuilder wired with the real MacOSPlatform adapter."""
     from trcc.adapters.system.macos.platform import MacOSPlatform
     from trcc.core.builder import ControllerBuilder
+
     return ControllerBuilder(MacOSPlatform())
 
 
@@ -472,6 +529,7 @@ def bsd_builder():
     """ControllerBuilder wired with the real BSDPlatform adapter."""
     from trcc.adapters.system.bsd.platform import BSDPlatform
     from trcc.core.builder import ControllerBuilder
+
     return ControllerBuilder(BSDPlatform())
 
 
@@ -484,10 +542,10 @@ def make_device_service(**overrides):
     from trcc.services import DeviceService
 
     defaults = {
-        'detect_fn': MagicMock(return_value=[]),
-        'probe_led_fn': MagicMock(return_value=None),
-        'get_protocol': MagicMock(return_value=MagicMock()),
-        'get_protocol_info': MagicMock(return_value=None),
+        "detect_fn": MagicMock(return_value=[]),
+        "probe_led_fn": MagicMock(return_value=None),
+        "get_protocol": MagicMock(return_value=MagicMock()),
+        "get_protocol_info": MagicMock(return_value=None),
     }
     defaults.update(overrides)
     return DeviceService(**defaults)

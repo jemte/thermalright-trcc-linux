@@ -5,6 +5,7 @@ video frames, overlay caches, or USB handles across repeated cycles.
 Uses tracemalloc (memory growth), weakref (object reclaimability),
 and gc (no uncollectable cycles).
 """
+
 from __future__ import annotations
 
 import gc
@@ -33,6 +34,7 @@ from trcc.services.overlay import OverlayService
 # ═══════════════════════════════════════════════════════════════════════
 # Fixtures
 # ═══════════════════════════════════════════════════════════════════════
+
 
 @pytest.fixture()
 def overlay_svc():
@@ -75,6 +77,7 @@ def lcd_png(tmp_path):
 # ═══════════════════════════════════════════════════════════════════════
 # 1. QImage Lifecycle
 # ═══════════════════════════════════════════════════════════════════════
+
 
 class TestImageLifecycle:
     """Verify QImages are reclaimable after resize/convert operations."""
@@ -121,6 +124,7 @@ class TestImageLifecycle:
 # ═══════════════════════════════════════════════════════════════════════
 # 2. MediaService Frame Accumulation
 # ═══════════════════════════════════════════════════════════════════════
+
 
 class TestMediaFrameAccumulation:
     """Verify MediaService releases frames on close/reload."""
@@ -177,6 +181,7 @@ class TestMediaFrameAccumulation:
 # ═══════════════════════════════════════════════════════════════════════
 # 3. OverlayService Render Cycles
 # ═══════════════════════════════════════════════════════════════════════
+
 
 class TestOverlayRenderCycles:
     """Verify OverlayService releases old caches on replacement/clear."""
@@ -254,6 +259,7 @@ class TestOverlayRenderCycles:
 # 4. Theme Image Cycles
 # ═══════════════════════════════════════════════════════════════════════
 
+
 class TestThemeImageCycles:
     """Verify theme load cycles release old images."""
 
@@ -291,6 +297,7 @@ class TestThemeImageCycles:
 # ═══════════════════════════════════════════════════════════════════════
 # 5. LED Tick Loop
 # ═══════════════════════════════════════════════════════════════════════
+
 
 class TestLedTickLoop:
     """Verify LED tick loops do not accumulate per-tick objects."""
@@ -349,6 +356,7 @@ class TestLedTickLoop:
 # 6. USB Handle Cleanup
 # ═══════════════════════════════════════════════════════════════════════
 
+
 class TestUsbHandleCleanup:
     """Verify USB protocol handles are released on close/error paths."""
 
@@ -360,7 +368,7 @@ class TestUsbHandleCleanup:
         # Simulate a protocol with a transport attribute
         svc = MagicMock()
         svc._transport = mock_transport
-        svc.close = lambda: setattr(svc, '_transport', None)
+        svc.close = lambda: setattr(svc, "_transport", None)
 
         svc.close()
         assert svc._transport is None
@@ -388,6 +396,7 @@ class TestUsbHandleCleanup:
 # 7. Garbage Collectability
 # ═══════════════════════════════════════════════════════════════════════
 
+
 class TestGarbageCollectability:
     """Verify service objects do not create uncollectable circular references."""
 
@@ -405,16 +414,15 @@ class TestGarbageCollectability:
         gc.collect()
 
         assert len(gc.garbage) == garbage_before, (
-            f"Uncollectable objects: {len(gc.garbage) - garbage_before}")
+            f"Uncollectable objects: {len(gc.garbage) - garbage_before}"
+        )
 
     def test_media_no_uncollectable(self, media_svc):
         """MediaService with mock frames produces no uncollectable cycles."""
         gc.collect()
         garbage_before = len(gc.garbage)
 
-        media_svc._frames = [
-            make_test_surface(4, 4, (i, 0, 0)) for i in range(10)
-        ]
+        media_svc._frames = [make_test_surface(4, 4, (i, 0, 0)) for i in range(10)]
         media_svc._frames.clear()
         media_svc._decoder = None
         del media_svc
@@ -439,6 +447,7 @@ class TestGarbageCollectability:
 # ═══════════════════════════════════════════════════════════════════════
 # 8. Config Read/Write Cycles
 # ═══════════════════════════════════════════════════════════════════════
+
 
 class TestConfigCycles:
     """Verify config load/save cycles do not leak memory."""
@@ -498,7 +507,7 @@ class TestConfigCycles:
 
         # Write old format directly (bypass save_config to avoid migration)
         os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
-        with open(CONFIG_PATH, 'w') as f:
+        with open(CONFIG_PATH, "w") as f:
             json.dump({"devices": {"0:0402_3922": {"brightness": 2}}}, f)
 
         tracemalloc.start()
@@ -524,6 +533,7 @@ class TestConfigCycles:
 # 9. DisplayService Long-Running Loops
 # ═══════════════════════════════════════════════════════════════════════
 
+
 class TestDisplayServiceCycles:
     """Verify DisplayService render loops do not accumulate memory."""
 
@@ -535,6 +545,7 @@ class TestDisplayServiceCycles:
         overlay = OverlayService(320, 320, renderer=ImageService._r())
         media = MediaService()
         from trcc.services.display import DisplayService
+
         svc = DisplayService(
             devices=mock_devices,
             overlay=overlay,
@@ -654,12 +665,14 @@ class TestDisplayServiceCycles:
         gc.collect()
 
         assert len(gc.garbage) == garbage_before, (
-            f"Uncollectable objects: {len(gc.garbage) - garbage_before}")
+            f"Uncollectable objects: {len(gc.garbage) - garbage_before}"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # 10. Qt Widget Layer
 # ═══════════════════════════════════════════════════════════════════════
+
 
 class TestQtWidgetMemory:
     """Verify Qt widgets release resources on destruction."""

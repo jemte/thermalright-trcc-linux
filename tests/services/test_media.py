@@ -9,6 +9,7 @@ Covers:
 - tick() — frame counter, progress counter, LCD send interval
 - Properties: is_playing, frame_interval_ms, source_path, has_frames
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -19,9 +20,9 @@ from trcc.core.models import PlaybackState
 from trcc.services.media import MediaService
 
 
-def _make_decoder(frame_count: int = 10, fps: float = 30.0,
-                  frames: list | None = None,
-                  delays: list | None = None):
+def _make_decoder(
+    frame_count: int = 10, fps: float = 30.0, frames: list | None = None, delays: list | None = None
+):
     """Create a mock decoder class that returns a mock instance."""
     decoder = MagicMock()
     decoder.frame_count = frame_count
@@ -50,7 +51,7 @@ class TestConstruction:
         assert svc.is_playing is False
         assert svc.source_path is None
         assert svc.has_frames is False
-        assert svc.fit_mode == 'fill'
+        assert svc.fit_mode == "fill"
 
     def test_missing_decoders_raises(self):
         svc = MediaService()
@@ -71,13 +72,13 @@ class TestTargetAndFit:
 
     def test_set_fit_mode_valid(self):
         svc = _make_service()
-        svc.set_fit_mode('width')
-        assert svc.fit_mode == 'width'
+        svc.set_fit_mode("width")
+        assert svc.fit_mode == "width"
 
     def test_set_fit_mode_invalid_defaults_to_fill(self):
         svc = _make_service()
-        svc.set_fit_mode('invalid')
-        assert svc.fit_mode == 'fill'
+        svc.set_fit_mode("invalid")
+        assert svc.fit_mode == "fill"
 
     def test_set_fit_mode_reloads_if_video_loaded(self, tmp_path):
         svc = _make_service()
@@ -85,7 +86,7 @@ class TestTargetAndFit:
         video_file.write_bytes(b"fake")
         svc.load(video_file)
         svc.play()
-        reloaded = svc.set_fit_mode('height')
+        reloaded = svc.set_fit_mode("height")
         assert reloaded is True
 
     def test_set_fit_mode_skips_zt(self, tmp_path):
@@ -93,7 +94,7 @@ class TestTargetAndFit:
         zt_file = tmp_path / "test.zt"
         zt_file.write_bytes(b"fake")
         svc.load(zt_file)
-        reloaded = svc.set_fit_mode('width')
+        reloaded = svc.set_fit_mode("width")
         assert reloaded is False
 
 

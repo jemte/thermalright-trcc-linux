@@ -1,4 +1,5 @@
 """Tests for TrccApp bus factory methods — Phase 2."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -71,6 +72,7 @@ def _mock_led():
 
 # ── build_lcd_bus ────────────────────────────────────────────────────────────
 
+
 class TestBuildLcdBus:
     def test_returns_command_bus(self, app):
         assert isinstance(app.build_lcd_bus(_mock_lcd()), CommandBus)
@@ -106,7 +108,9 @@ class TestBuildLcdBus:
 
     def test_dispatches_load_theme_by_name(self, app):
         lcd = _mock_lcd()
-        app.build_lcd_bus(lcd).dispatch(LoadThemeByNameCommand(name="Theme1", width=320, height=320))
+        app.build_lcd_bus(lcd).dispatch(
+            LoadThemeByNameCommand(name="Theme1", width=320, height=320)
+        )
         lcd.load_theme_by_name.assert_called_once_with("Theme1", 320, 320)
 
     def test_dispatches_set_split_mode(self, app):
@@ -128,6 +132,7 @@ class TestBuildLcdBus:
 
 # ── build_lcd_gui_bus ────────────────────────────────────────────────────────
 
+
 class TestBuildLcdGuiBus:
     def test_has_rate_limit_middleware(self, app):
         assert app.build_lcd_gui_bus(_mock_lcd()).has_middleware(RateLimitMiddleware)
@@ -144,6 +149,7 @@ class TestBuildLcdGuiBus:
 
 
 # ── build_led_bus ────────────────────────────────────────────────────────────
+
 
 class TestBuildLedBus:
     def test_returns_command_bus(self, app):
@@ -191,6 +197,7 @@ class TestBuildLedBus:
 
 # ── build_led_gui_bus ────────────────────────────────────────────────────────
 
+
 class TestBuildLedGuiBus:
     def test_has_rate_limit_middleware(self, app):
         assert app.build_led_gui_bus(_mock_led()).has_middleware(RateLimitMiddleware)
@@ -209,12 +216,14 @@ class TestBuildLedGuiBus:
 
     def test_dispatches_update_mode(self, app):
         from trcc.core.models import LEDMode
+
         led = _mock_led()
         app.build_led_gui_bus(led).dispatch(SetLEDModeCommand(mode=LEDMode.BREATHING))
         led.update_mode.assert_called_once_with(LEDMode.BREATHING)
 
 
 # ── Metrics validation (symmetric LCD + LED) ──────────────────────────────────
+
 
 class TestMetricsValidation:
     def test_lcd_none_metrics_returns_fail(self, app):
@@ -245,6 +254,7 @@ class TestMetricsValidation:
 
 
 # ── Command __post_init__ validation ─────────────────────────────────────────
+
 
 class TestCommandValidation:
     def test_brightness_out_of_range_raises(self):

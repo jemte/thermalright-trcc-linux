@@ -11,6 +11,7 @@ detach since macOS doesn't have udev rules.
 
 Requires: brew install libusb
 """
+
 from __future__ import annotations
 
 import logging
@@ -64,8 +65,7 @@ class MacOSScsiTransport:
             # macOS requires explicit kernel driver detach (needs root)
             if dev.is_kernel_driver_active(0):
                 dev.detach_kernel_driver(0)
-                log.info("Detached macOS kernel driver for %04X:%04X",
-                         self._vid, self._pid)
+                log.info("Detached macOS kernel driver for %04X:%04X", self._vid, self._pid)
 
             dev.set_configuration()
 
@@ -73,11 +73,9 @@ class MacOSScsiTransport:
             cfg = dev.get_active_configuration()
             intf = cfg[(0, 0)]
             for ep in intf:
-                if usb.util.endpoint_direction(ep.bEndpointAddress) == \
-                        usb.util.ENDPOINT_OUT:
+                if usb.util.endpoint_direction(ep.bEndpointAddress) == usb.util.ENDPOINT_OUT:
                     self._ep_out = ep.bEndpointAddress
-                elif usb.util.endpoint_direction(ep.bEndpointAddress) == \
-                        usb.util.ENDPOINT_IN:
+                elif usb.util.endpoint_direction(ep.bEndpointAddress) == usb.util.ENDPOINT_IN:
                     self._ep_in = ep.bEndpointAddress
 
             if self._ep_out is None or self._ep_in is None:
@@ -88,8 +86,7 @@ class MacOSScsiTransport:
             return True
 
         except Exception:
-            log.exception("Failed to open macOS SCSI device %04X:%04X",
-                          self._vid, self._pid)
+            log.exception("Failed to open macOS SCSI device %04X:%04X", self._vid, self._pid)
             return False
 
     def close(self) -> None:
@@ -97,6 +94,7 @@ class MacOSScsiTransport:
         if self._dev is not None:
             try:
                 import usb.util  # pyright: ignore[reportMissingImports]
+
                 usb.util.dispose_resources(self._dev)
                 # Re-attach kernel driver so Finder can see the device again
                 try:
@@ -132,15 +130,15 @@ class MacOSScsiTransport:
 
         # Build Command Block Wrapper (CBW)
         cbw = struct.pack(
-            '<IIIBBB',
+            "<IIIBBB",
             CBW_SIGNATURE,
             self._tag,
             len(data),
             0x00,  # Direction: host-to-device
-            0,     # LUN
+            0,  # LUN
             len(cdb),
         )
-        cbw += cdb.ljust(16, b'\x00')
+        cbw += cdb.ljust(16, b"\x00")
 
         try:
             # Send CBW

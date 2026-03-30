@@ -42,6 +42,7 @@ from .frame import FrameDevice
 # hidapi is optional ([hid] extra)
 try:
     import hid as hidapi  # pyright: ignore[reportMissingImports]
+
     HIDAPI_AVAILABLE = True
 except ImportError:
     HIDAPI_AVAILABLE = False
@@ -64,7 +65,7 @@ TYPE3_VID = 0x0418
 TYPE3_PID = 0x5303  # device3: UsbHidDevice(1048, 21251); also 0x5304 = device4
 
 # Endpoint addresses (LibUsbDotNet enum values)
-EP_READ_01 = 0x81   # ReadEndpointID.Ep01
+EP_READ_01 = 0x81  # ReadEndpointID.Ep01
 EP_WRITE_01 = 0x01  # WriteEndpointID.Ep01
 EP_WRITE_02 = 0x02  # WriteEndpointID.Ep02
 
@@ -78,7 +79,7 @@ TYPE3_FRAME_PREFIX = bytes([0xF5, 0x01, 0x01, 0x00, 0xBC, 0xFF, 0xB6, 0xC8])
 # Buffer / packet sizes
 TYPE2_INIT_SIZE = 512
 TYPE2_RESPONSE_SIZE = 512
-TYPE3_INIT_SIZE = 1040   # 16-byte header + 1024 zeros
+TYPE3_INIT_SIZE = 1040  # 16-byte header + 1024 zeros
 TYPE3_RESPONSE_SIZE = 1024
 TYPE3_DATA_SIZE = 204800  # 320*320*2, fixed payload size
 TYPE3_FRAME_TOTAL = 204816  # 16-byte prefix + 204800 data
@@ -101,6 +102,7 @@ def _frame_timeout_ms(packet_size: int) -> int:
     """
     return max(DEFAULT_TIMEOUT_MS, packet_size // 4 + 100)
 
+
 # Handshake timeout (ms) — much longer than frame-send.
 # Windows uses async HID API with no explicit timeout; our synchronous read
 # needs a generous window.  UCDevice.cs retries at 200ms then 3s intervals.
@@ -111,15 +113,14 @@ HANDSHAKE_MAX_RETRIES = 3
 HANDSHAKE_RETRY_DELAY_S = 0.500
 
 # Timing delays from C# (Thread.Sleep calls in USBLCDNEW.exe)
-DELAY_PRE_INIT_S = 0.050    # Sleep(50)  — before sending init packet
-DELAY_POST_INIT_S = 0.200   # Sleep(200) — after async init write+read
+DELAY_PRE_INIT_S = 0.050  # Sleep(50)  — before sending init packet
+DELAY_POST_INIT_S = 0.200  # Sleep(200) — after async init write+read
 DELAY_FRAME_TYPE2_S = 0.001  # Sleep(1)  — between Type 2 frames
-DELAY_FRAME_TYPE3_S = 0.0    # Type 3 has no inter-frame delay (write+ACK is blocking)
+DELAY_FRAME_TYPE3_S = 0.0  # Type 3 has no inter-frame delay (write+ACK is blocking)
 
 # USB configuration values from C# (SetConfiguration / ClaimInterface)
 USB_CONFIGURATION = 1
 USB_INTERFACE = 0
-
 
 
 # Domain data re-exported from core.models (canonical location):
@@ -128,6 +129,7 @@ USB_INTERFACE = 0
 # =========================================================================
 # Abstract USB transport
 # =========================================================================
+
 
 class UsbTransport(ABC):
     """Abstract USB bulk transport — mockable for testing."""
@@ -158,6 +160,7 @@ class UsbTransport(ABC):
 # Helpers
 # =========================================================================
 
+
 def _ceil_to_512(n: int) -> int:
     """Round *n* up to the next multiple of 512 (or *n* itself if aligned).
 
@@ -173,6 +176,7 @@ def _ceil_to_512(n: int) -> int:
 # =========================================================================
 # HID device base class
 # =========================================================================
+
 
 class HidDevice(FrameDevice):
     """Base for HID LCD device handlers (Type 2 and Type 3).
@@ -223,15 +227,19 @@ class HidDevice(FrameDevice):
                 time.sleep(DELAY_POST_INIT_S)
 
                 resp = self.transport.read(
-                    EP_READ_01, self._response_size(), HANDSHAKE_TIMEOUT_MS,
+                    EP_READ_01,
+                    self._response_size(),
+                    HANDSHAKE_TIMEOUT_MS,
                 )
 
                 if not self.validate_response(resp):
                     log.warning(
-                        "%s handshake attempt %d/%d: invalid response "
-                        "(len=%d, first 16 bytes: %s)",
-                        type(self).__name__, attempt, HANDSHAKE_MAX_RETRIES,
-                        len(resp), resp[:16].hex() if resp else "empty",
+                        "%s handshake attempt %d/%d: invalid response (len=%d, first 16 bytes: %s)",
+                        type(self).__name__,
+                        attempt,
+                        HANDSHAKE_MAX_RETRIES,
+                        len(resp),
+                        resp[:16].hex() if resp else "empty",
                     )
                     last_err = RuntimeError(
                         f"{type(self).__name__} handshake failed: invalid response"
@@ -246,7 +254,10 @@ class HidDevice(FrameDevice):
             except Exception as e:
                 log.warning(
                     "%s handshake attempt %d/%d failed: %s",
-                    type(self).__name__, attempt, HANDSHAKE_MAX_RETRIES, e,
+                    type(self).__name__,
+                    attempt,
+                    HANDSHAKE_MAX_RETRIES,
+                    e,
                 )
                 last_err = e
                 if attempt < HANDSHAKE_MAX_RETRIES:
@@ -271,6 +282,7 @@ class HidDevice(FrameDevice):
 # Type 2 — "H" variant  (VID 0x0416, PID 0x5302)
 # =========================================================================
 
+
 class HidDeviceType2(HidDevice):
     """Protocol handler for Type 2 HID LCD devices.
 
@@ -292,13 +304,8 @@ class HidDeviceType2(HidDevice):
              0,0,0,0]                   # reserved
             + 492 zero bytes            # padding to 512
         """
-        header = (
-            TYPE2_MAGIC
-            + b'\x00' * 8
-            + b'\x01\x00\x00\x00'
-            + b'\x00' * 4
-        )
-        return header + b'\x00' * (TYPE2_INIT_SIZE - len(header))
+        header = TYPE2_MAGIC + b"\x00" * 8 + b"\x01\x00\x00\x00" + b"\x00" * 4
+        return header + b"\x00" * (TYPE2_INIT_SIZE - len(header))
 
     # -- Response parsing -----------------------------------------------
 
@@ -320,10 +327,7 @@ class HidDeviceType2(HidDevice):
         """
         if len(resp) < 20:
             return False
-        return (
-            resp[0:4] == TYPE2_MAGIC
-            and resp[12] == 0x01
-        )
+        return resp[0:4] == TYPE2_MAGIC and resp[12] == 0x01
 
     @staticmethod
     def parse_device_info(resp: bytes) -> HidHandshakeInfo:
@@ -388,24 +392,30 @@ class HidDeviceType2(HidDevice):
         """
         is_jpeg = len(image_data) >= 2 and image_data[0] == 0xFF and image_data[1] == 0xD8
 
-        header = bytearray([
-            0xDA, 0xDB, 0xDC, 0xDD,  # magic
-            0x02, 0x00,               # cmd_type = PICTURE
-        ])
+        header = bytearray(
+            [
+                0xDA,
+                0xDB,
+                0xDC,
+                0xDD,  # magic
+                0x02,
+                0x00,  # cmd_type = PICTURE
+            ]
+        )
         if is_jpeg:
             # Mode 2: JPEG — byte[6]=0x00, actual resolution
-            header.extend(b'\x00\x00')
-            header.extend(struct.pack('<HH', width, height))
+            header.extend(b"\x00\x00")
+            header.extend(struct.pack("<HH", width, height))
         else:
             # Mode 3: RGB565 — byte[6]=0x01, hardcoded 240x320
-            header.extend(b'\x01\x00')
-            header.extend(struct.pack('<HH', 240, 320))
+            header.extend(b"\x01\x00")
+            header.extend(struct.pack("<HH", 240, 320))
         header.extend([0x02, 0x00, 0x00, 0x00])  # sub-flag
-        header.extend(struct.pack('<I', len(image_data)))
+        header.extend(struct.pack("<I", len(image_data)))
 
         raw = bytes(header) + image_data
         padded_len = _ceil_to_512(len(raw))
-        return raw.ljust(padded_len, b'\x00')
+        return raw.ljust(padded_len, b"\x00")
 
     def send_frame(self, image_data: bytes) -> bool:
         """Send one image frame to the device.
@@ -447,6 +457,7 @@ class HidDeviceType2(HidDevice):
 # Type 3 — "ALi" variant  (VID 0x0418, PID 0x5303/0x5304)
 # =========================================================================
 
+
 class HidDeviceType3(HidDevice):
     """Protocol handler for Type 3 HID LCD devices.
 
@@ -468,12 +479,8 @@ class HidDeviceType3(HidDevice):
              0x00, 0x04, 0x00, 0x00]   # 16-byte prefix
             + 1024 zero bytes          # padding
         """
-        prefix = (
-            TYPE3_CMD_PREFIX
-            + b'\x00\x00\x00\x00'
-            + b'\x00\x04\x00\x00'
-        )
-        return prefix + b'\x00' * 1024
+        prefix = TYPE3_CMD_PREFIX + b"\x00\x00\x00\x00" + b"\x00\x04\x00\x00"
+        return prefix + b"\x00" * 1024
 
     # -- Response parsing -----------------------------------------------
 
@@ -531,14 +538,10 @@ class HidDeviceType3(HidDevice):
         Data is padded/truncated to exactly 204800 bytes.
         Total packet = 204816 bytes.
         """
-        prefix = (
-            TYPE3_FRAME_PREFIX
-            + b'\x00\x00\x00\x00'
-            + struct.pack('<I', TYPE3_DATA_SIZE)
-        )
+        prefix = TYPE3_FRAME_PREFIX + b"\x00\x00\x00\x00" + struct.pack("<I", TYPE3_DATA_SIZE)
         # Pad or truncate image data to fixed size
         if len(image_data) < TYPE3_DATA_SIZE:
-            padded = image_data + b'\x00' * (TYPE3_DATA_SIZE - len(image_data))
+            padded = image_data + b"\x00" * (TYPE3_DATA_SIZE - len(image_data))
         else:
             padded = image_data[:TYPE3_DATA_SIZE]
         return prefix + padded
@@ -577,6 +580,7 @@ class HidDeviceType3(HidDevice):
 # =========================================================================
 # HidDeviceManager — stateful send API (mirrors ScsiDevice pattern)
 # =========================================================================
+
 
 class HidDeviceManager:
     """Manages HID device state: handshake caching and frame sending.
@@ -644,6 +648,7 @@ class HidDeviceManager:
 #   ReleaseInterface(0)
 #   Close()
 
+
 class PyUsbTransport(UsbTransport):
     """Real USB transport using pyusb (libusb backend).
 
@@ -676,15 +681,13 @@ class PyUsbTransport(UsbTransport):
             usbDevice.SetConfiguration(1);
             usbDevice.ClaimInterface(0);
         """
-        kwargs: dict[str, Any] = {'idVendor': self._vid, 'idProduct': self._pid}
+        kwargs: dict[str, Any] = {"idVendor": self._vid, "idProduct": self._pid}
         if self._serial:
-            kwargs['serial_number'] = self._serial
+            kwargs["serial_number"] = self._serial
 
         self._device = usb.core.find(**kwargs)  # type: ignore[union-attr]
         if self._device is None:
-            raise RuntimeError(
-                f"USB device not found: VID={self._vid:#06x} PID={self._pid:#06x}"
-            )
+            raise RuntimeError(f"USB device not found: VID={self._vid:#06x} PID={self._pid:#06x}")
 
         # Detach kernel driver if active (Linux-specific, matches C# ClaimInterface)
         try:
@@ -751,7 +754,8 @@ class PyUsbTransport(UsbTransport):
                     self._ep_in = ep.bEndpointAddress
             log.debug(
                 "Auto-detected endpoints: OUT=0x%02x IN=0x%02x",
-                self._ep_out or 0, self._ep_in or 0,
+                self._ep_out or 0,
+                self._ep_in or 0,
             )
         except Exception as e:
             log.debug("Endpoint auto-detection failed: %s", e)
@@ -817,6 +821,7 @@ class PyUsbTransport(UsbTransport):
 # Some USB LCD devices enumerate as HID — HIDAPI can access them
 # without needing root or udev rules on some distros.
 
+
 class HidApiTransport(UsbTransport):
     """USB transport using HIDAPI (hidapi library).
 
@@ -847,11 +852,11 @@ class HidApiTransport(UsbTransport):
 
     def open(self) -> None:
         """Open HID device by VID/PID."""
-        kwargs: dict[str, Any] = {'vid': self._vid, 'pid': self._pid}
+        kwargs: dict[str, Any] = {"vid": self._vid, "pid": self._pid}
         if self._serial:
-            kwargs['serial'] = self._serial
+            kwargs["serial"] = self._serial
         # hidapi 0.14 uses Device (uppercase), 0.15+ uses device (lowercase)
-        DeviceClass = getattr(hidapi, 'device', None) or getattr(hidapi, 'Device', None)
+        DeviceClass = getattr(hidapi, "device", None) or getattr(hidapi, "Device", None)
         if DeviceClass is None:
             raise ImportError("hidapi module has neither 'device' nor 'Device' class")
         self._device = DeviceClass(**kwargs)
@@ -892,7 +897,7 @@ class HidApiTransport(UsbTransport):
         if not self._is_open or self._device is None:
             raise RuntimeError("Transport not open")
         data = self._device.read(length, timeout)
-        return bytes(data) if data else b''
+        return bytes(data) if data else b""
 
     @property
     def is_open(self) -> bool:
@@ -909,6 +914,7 @@ class HidApiTransport(UsbTransport):
 # =========================================================================
 # Device discovery helper
 # =========================================================================
+
 
 def find_hid_devices() -> list:
     """Scan for Type 2 and Type 3 HID LCD devices.
@@ -928,14 +934,16 @@ def find_hid_devices() -> list:
     for vid, pid, dtype in known:
         found = usb.core.find(find_all=True, idVendor=vid, idProduct=pid)
         for dev in found or []:
-            serial_idx = getattr(dev, 'iSerialNumber', 0)
+            serial_idx = getattr(dev, "iSerialNumber", 0)
             serial = usb.util.get_string(dev, serial_idx) if serial_idx else ""
-            devices.append({
-                'vid': vid,
-                'pid': pid,
-                'device_type': dtype,
-                'serial': serial or "",
-                'backend': 'pyusb',
-            })
+            devices.append(
+                {
+                    "vid": vid,
+                    "pid": pid,
+                    "device_type": dtype,
+                    "serial": serial or "",
+                    "backend": "pyusb",
+                }
+            )
 
     return devices

@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 
 # USB errno constants.
 _ERRNO_EACCES = 13  # Permission denied — udev rules missing.
-_ERRNO_EBUSY = 16   # Device claimed by another process (e.g. GUI).
+_ERRNO_EBUSY = 16  # Device claimed by another process (e.g. GUI).
 
 
 def _has_usb_errno(exc: Exception, errno_val: int) -> bool:
@@ -50,6 +50,7 @@ def _has_usb_errno(exc: Exception, errno_val: int) -> bool:
 # =========================================================================
 # DeviceProtocol ABC — the contract both SCSI and HID implement
 # =========================================================================
+
 
 class DeviceProtocol(ABC):
     """Abstract protocol interface for LCD device communication.
@@ -90,7 +91,7 @@ class DeviceProtocol(ABC):
         """Release resources (USB transport, SCSI state, etc.)."""
 
     @abstractmethod
-    def get_info(self) -> 'ProtocolInfo':
+    def get_info(self) -> "ProtocolInfo":
         """Get protocol/backend info for GUI display."""
 
     @property
@@ -119,10 +120,10 @@ class DeviceProtocol(ABC):
                 log.warning(
                     "%s permission denied — run 'trcc setup-udev' to "
                     "configure USB device permissions",
-                    self._handshake_label)
+                    self._handshake_label,
+                )
             elif _has_usb_errno(e, _ERRNO_EBUSY):
-                log.warning("%s in use by another process",
-                            self._handshake_label)
+                log.warning("%s in use by another process", self._handshake_label)
             else:
                 log.exception("%s handshake failed", self._handshake_label)
             self._last_error = e
@@ -152,13 +153,16 @@ class DeviceProtocol(ABC):
         """Save handshake result so `trcc report` can read it while GUI runs."""
         try:
             from trcc.conf import save_last_handshake
-            save_last_handshake({
-                "protocol": self.protocol_name,
-                "model_id": result.model_id,
-                "resolution": list(result.resolution) if result.resolution else None,
-                "serial": result.serial,
-                "raw": result.raw_response.hex() if result.raw_response else "",
-            })
+
+            save_last_handshake(
+                {
+                    "protocol": self.protocol_name,
+                    "model_id": result.model_id,
+                    "resolution": list(result.resolution) if result.resolution else None,
+                    "serial": result.serial,
+                    "raw": result.raw_response.hex() if result.raw_response else "",
+                }
+            )
         except Exception:
             log.debug("Failed to cache handshake result", exc_info=True)
 
@@ -193,18 +197,21 @@ class DeviceProtocol(ABC):
             self._notify_send_complete(success)
             return success
         except Exception as e:
-            log.warning("Frame send failed (%s): %s — device may be disconnected",
-                        label, e)
+            log.warning("Frame send failed (%s): %s — device may be disconnected", label, e)
             self._notify_error(f"{label} send failed: {e}")
             self._notify_send_complete(False)
             return False
 
     @staticmethod
     def _build_usb_protocol_info(
-        protocol: str, device_type: int, protocol_display: str,
-        device_type_display: str, transport_open: bool,
-        *, pyusb_only: bool = False,
-    ) -> 'ProtocolInfo':
+        protocol: str,
+        device_type: int,
+        protocol_display: str,
+        device_type_display: str,
+        transport_open: bool,
+        *,
+        pyusb_only: bool = False,
+    ) -> "ProtocolInfo":
         """Build ProtocolInfo for USB-transport protocols (HID, LED, Bulk)."""
         backends = DeviceProtocolFactory._get_hid_backends()
         if pyusb_only:
@@ -217,10 +224,12 @@ class DeviceProtocol(ABC):
             active = "none"
         backends["sg_raw"] = False
         return ProtocolInfo(
-            protocol=protocol, device_type=device_type,
+            protocol=protocol,
+            device_type=device_type,
             protocol_display=protocol_display,
             device_type_display=device_type_display,
-            active_backend=active, backends=backends,
+            active_backend=active,
+            backends=backends,
             transport_open=transport_open,
         )
 
@@ -228,6 +237,7 @@ class DeviceProtocol(ABC):
 # =========================================================================
 # UsbProtocol — shared USB transport lifecycle for HID + LED
 # =========================================================================
+
 
 class UsbProtocol(DeviceProtocol):
     """Base for USB-transport protocols (HID LCD, LED).
@@ -245,10 +255,8 @@ class UsbProtocol(DeviceProtocol):
     def _ensure_transport(self) -> None:
         """Lazily open USB transport on first use."""
         if self._transport is None:
-            log.debug("Opening %s transport: %04X:%04X",
-                      self.protocol_name, self._vid, self._pid)
-            self._transport = DeviceProtocolFactory.create_usb_transport(
-                self._vid, self._pid)
+            log.debug("Opening %s transport: %04X:%04X", self.protocol_name, self._vid, self._pid)
+            self._transport = DeviceProtocolFactory.create_usb_transport(self._vid, self._pid)
             self._transport.open()
             self._notify_state_changed("transport_open", True)
 
@@ -279,6 +287,7 @@ class UsbProtocol(DeviceProtocol):
 # ScsiProtocol — SCSI/sg_raw implementation
 # =========================================================================
 
+
 class ScsiProtocol(DeviceProtocol):
     """LCD communication via SCSI protocol (sg_raw).
 
@@ -292,11 +301,13 @@ class ScsiProtocol(DeviceProtocol):
     def _do_handshake(self) -> Optional[HandshakeResult]:
         """Poll SCSI device to discover FBL → resolution."""
         from .scsi import ScsiDevice
+
         dev = ScsiDevice(self._path)
         return dev.handshake()
 
     def send_image(self, image_data: bytes, width: int, height: int) -> bool:
         from .scsi import send_image_to_device
+
         return self._guarded_send(
             f"SCSI ({self._path})",
             lambda: send_image_to_device(self._path, image_data, width, height),
@@ -305,8 +316,9 @@ class ScsiProtocol(DeviceProtocol):
     def close(self) -> None:
         pass  # SCSI uses subprocess per call, nothing to release
 
-    def get_info(self) -> 'ProtocolInfo':
+    def get_info(self) -> "ProtocolInfo":
         import shutil
+
         sg_raw = shutil.which("sg_raw") is not None
         return ProtocolInfo(
             protocol="scsi",
@@ -324,6 +336,7 @@ class ScsiProtocol(DeviceProtocol):
     @property
     def is_available(self) -> bool:
         import shutil
+
         return shutil.which("sg_raw") is not None
 
     def __repr__(self) -> str:
@@ -333,6 +346,7 @@ class ScsiProtocol(DeviceProtocol):
 # =========================================================================
 # HidProtocol — HID/USB bulk implementation
 # =========================================================================
+
 
 class HidProtocol(UsbProtocol):
     """LCD communication via HID USB bulk protocol (pyusb or hidapi).
@@ -351,6 +365,7 @@ class HidProtocol(UsbProtocol):
         assert self._transport is not None
 
         from .hid import HidDeviceType2, HidDeviceType3
+
         if self._device_type == 2:
             handler = HidDeviceType2(self._transport)
         elif self._device_type == 3:
@@ -361,8 +376,12 @@ class HidProtocol(UsbProtocol):
 
         result = handler.handshake()
         if result:
-            log.info("HID handshake OK: PM=%s, FBL=%s, resolution=%s",
-                     result.mode_byte_1, result.fbl, result.resolution)
+            log.info(
+                "HID handshake OK: PM=%s, FBL=%s, resolution=%s",
+                result.mode_byte_1,
+                result.fbl,
+                result.resolution,
+            )
         else:
             log.warning("HID handshake returned None")
         self._notify_state_changed("handshake_complete", True)
@@ -375,18 +394,20 @@ class HidProtocol(UsbProtocol):
     def send_image(self, image_data: bytes, width: int, height: int) -> bool:
         def _do_send() -> bool:
             from .hid import HidDeviceManager
+
             self._ensure_transport()
             assert self._transport is not None
-            return HidDeviceManager.send_image(
-                self._transport, image_data, self._device_type
-            )
+            return HidDeviceManager.send_image(self._transport, image_data, self._device_type)
+
         return self._guarded_send("HID", _do_send)
 
-    def get_info(self) -> 'ProtocolInfo':
+    def get_info(self) -> "ProtocolInfo":
         return self._build_usb_protocol_info(
-            "hid", self._device_type, "HID (USB bulk)",
+            "hid",
+            self._device_type,
+            "HID (USB bulk)",
             DEVICE_TYPE_NAMES.get(self._device_type, f"Type {self._device_type}"),
-            self._transport is not None and getattr(self._transport, 'is_open', False),
+            self._transport is not None and getattr(self._transport, "is_open", False),
         )
 
     @property
@@ -395,14 +416,14 @@ class HidProtocol(UsbProtocol):
 
     def __repr__(self) -> str:
         return (
-            f"HidProtocol(vid=0x{self._vid:04x}, pid=0x{self._pid:04x}, "
-            f"type={self._device_type})"
+            f"HidProtocol(vid=0x{self._vid:04x}, pid=0x{self._pid:04x}, type={self._device_type})"
         )
 
 
 # =========================================================================
 # LedProtocol — HID LED RGB controller
 # =========================================================================
+
 
 class LedProtocol(UsbProtocol):
     """LED device communication via HID 64-byte reports (FormLED equivalent).
@@ -427,27 +448,34 @@ class LedProtocol(UsbProtocol):
         brightness: int = 100,
     ) -> bool:
         """Send LED color data to the device."""
+
         def _do_send() -> bool:
             self._ensure_transport()
             assert self._transport is not None
 
             if self._sender is None:
                 from .led import LedHidSender
+
                 self._sender = LedHidSender(self._transport)
 
             from .led import LedPacketBuilder, remap_led_colors
 
             hr = self._handshake_result
-            style = getattr(hr, 'style', None) if hr else None
-            style_sub = getattr(hr, 'style_sub', 0) if hr else 0
-            remapped = remap_led_colors(
-                led_colors, style.style_id, style_sub,
-            ) if style else led_colors
-
-            packet = LedPacketBuilder.build_led_packet(
-                remapped, is_on, global_on, brightness
+            style = getattr(hr, "style", None) if hr else None
+            style_sub = getattr(hr, "style_sub", 0) if hr else 0
+            remapped = (
+                remap_led_colors(
+                    led_colors,
+                    style.style_id,
+                    style_sub,
+                )
+                if style
+                else led_colors
             )
+
+            packet = LedPacketBuilder.build_led_packet(remapped, is_on, global_on, brightness)
             return self._sender.send_led_data(packet)
+
         return self._guarded_send("LED", _do_send)
 
     def _do_handshake(self) -> Optional[HandshakeResult]:
@@ -460,6 +488,7 @@ class LedProtocol(UsbProtocol):
 
         if self._sender is None:
             from .led import LedHidSender
+
             self._sender = LedHidSender(self._transport)
 
         result = self._sender.handshake()
@@ -470,10 +499,13 @@ class LedProtocol(UsbProtocol):
         self._close_transport()
         self._sender = None
 
-    def get_info(self) -> 'ProtocolInfo':
+    def get_info(self) -> "ProtocolInfo":
         return self._build_usb_protocol_info(
-            "led", 1, "LED (HID 64-byte)", "RGB LED Controller",
-            self._transport is not None and getattr(self._transport, 'is_open', False),
+            "led",
+            1,
+            "LED (HID 64-byte)",
+            "RGB LED Controller",
+            self._transport is not None and getattr(self._transport, "is_open", False),
         )
 
     @property
@@ -491,6 +523,7 @@ class LedProtocol(UsbProtocol):
 # =========================================================================
 # BulkProtocol — raw USB bulk (USBLCDNew) implementation
 # =========================================================================
+
 
 class _BulkLikeProtocol(DeviceProtocol):
     """Shared base for BulkProtocol + LyProtocol (identical lifecycle)."""
@@ -515,8 +548,12 @@ class _BulkLikeProtocol(DeviceProtocol):
             self._handshake_result = result
             if result.resolution:
                 self._notify_state_changed("handshake_complete", True)
-                log.info("%s handshake OK: PM=%d, resolution=%s",
-                         self._label, result.model_id, result.resolution)
+                log.info(
+                    "%s handshake OK: PM=%d, resolution=%s",
+                    self._label,
+                    result.model_id,
+                    result.resolution,
+                )
             else:
                 log.warning("%s handshake: no resolution detected", self._label)
 
@@ -533,6 +570,7 @@ class _BulkLikeProtocol(DeviceProtocol):
             self._ensure_device()
             assert self._device is not None
             return self._device.send_frame(image_data)
+
         return self._guarded_send(self._label, _do_send)
 
     def close(self) -> None:
@@ -557,12 +595,17 @@ class BulkProtocol(_BulkLikeProtocol):
     @staticmethod
     def _make_device(vid: int, pid: int) -> Any:
         from .bulk import BulkDevice
+
         return BulkDevice(vid, pid)
 
-    def get_info(self) -> 'ProtocolInfo':
+    def get_info(self) -> "ProtocolInfo":
         return self._build_usb_protocol_info(
-            "bulk", 4, "USB Bulk (USBLCDNew)", "Raw USB Bulk LCD",
-            self._device is not None, pyusb_only=True,
+            "bulk",
+            4,
+            "USB Bulk (USBLCDNew)",
+            "Raw USB Bulk LCD",
+            self._device is not None,
+            pyusb_only=True,
         )
 
     @property
@@ -581,12 +624,17 @@ class LyProtocol(_BulkLikeProtocol):
     @staticmethod
     def _make_device(vid: int, pid: int) -> Any:
         from .ly import LyDevice
+
         return LyDevice(vid, pid)
 
-    def get_info(self) -> 'ProtocolInfo':
+    def get_info(self) -> "ProtocolInfo":
         return self._build_usb_protocol_info(
-            "ly", 5, "USB Bulk LY", "USB Bulk LY LCD",
-            self._device is not None, pyusb_only=True,
+            "ly",
+            5,
+            "USB Bulk LY",
+            "USB Bulk LY LCD",
+            self._device is not None,
+            pyusb_only=True,
         )
 
     @property
@@ -600,6 +648,7 @@ class LyProtocol(_BulkLikeProtocol):
 # =========================================================================
 # Factory
 # =========================================================================
+
 
 class DeviceProtocolFactory:
     """Factory that creates and caches protocol instances.
@@ -625,12 +674,13 @@ class DeviceProtocolFactory:
     # ControllerBuilder calls configure_scsi() to inject the platform-specific
     # implementation (e.g. WindowsScsiProtocol) at composition time.
     _PROTOCOL_REGISTRY: ClassVar[Dict[Tuple[str, str], Callable[..., DeviceProtocol]]] = {
-        ('scsi', ''):  lambda di: ScsiProtocol(di.path),
-        ('bulk', ''):  lambda di: BulkProtocol(vid=di.vid, pid=di.pid),
-        ('ly', ''):    lambda di: LyProtocol(vid=di.vid, pid=di.pid),
-        ('led', ''):   lambda di: LedProtocol(vid=di.vid, pid=di.pid),
-        ('hid', ''):   lambda di: HidProtocol(vid=di.vid, pid=di.pid,
-                           device_type=getattr(di, 'device_type', 2)),
+        ("scsi", ""): lambda di: ScsiProtocol(di.path),
+        ("bulk", ""): lambda di: BulkProtocol(vid=di.vid, pid=di.pid),
+        ("ly", ""): lambda di: LyProtocol(vid=di.vid, pid=di.pid),
+        ("led", ""): lambda di: LedProtocol(vid=di.vid, pid=di.pid),
+        ("hid", ""): lambda di: HidProtocol(
+            vid=di.vid, pid=di.pid, device_type=getattr(di, "device_type", 2)
+        ),
     }
 
     @classmethod
@@ -640,14 +690,14 @@ class DeviceProtocolFactory:
         Called by ControllerBuilder before any protocol is created.
         Same pattern as ImageService.set_renderer() — configured once at startup.
         """
-        cls._PROTOCOL_REGISTRY[('scsi', '')] = factory_fn
+        cls._PROTOCOL_REGISTRY[("scsi", "")] = factory_fn
 
     @classmethod
     def _device_key(cls, device_info) -> str:
         """Build a cache key from device info."""
-        vid = getattr(device_info, 'vid', 0)
-        pid = getattr(device_info, 'pid', 0)
-        path = getattr(device_info, 'path', '')
+        vid = getattr(device_info, "vid", 0)
+        pid = getattr(device_info, "pid", 0)
+        path = getattr(device_info, "path", "")
         return f"{vid:04x}_{pid:04x}_{path}"
 
     @classmethod
@@ -666,20 +716,22 @@ class DeviceProtocolFactory:
         Raises:
             ValueError: If protocol is unknown.
         """
-        protocol = getattr(device_info, 'protocol', 'scsi')
-        implementation = getattr(device_info, 'implementation', '')
+        protocol = getattr(device_info, "protocol", "scsi")
+        implementation = getattr(device_info, "implementation", "")
 
         factory_fn = cls._PROTOCOL_REGISTRY.get(
             (protocol, implementation),
-        ) or cls._PROTOCOL_REGISTRY.get((protocol, ''))
+        ) or cls._PROTOCOL_REGISTRY.get((protocol, ""))
 
         if factory_fn is None:
             raise ValueError(f"Unknown protocol: {protocol!r}")
 
         result = factory_fn(device_info)
-        log.info("Created %s for %s", type(result).__name__,
-                 getattr(device_info, 'path',
-                         f'{device_info.vid:04X}:{device_info.pid:04X}'))
+        log.info(
+            "Created %s for %s",
+            type(result).__name__,
+            getattr(device_info, "path", f"{device_info.vid:04X}:{device_info.pid:04X}"),
+        )
         return result
 
     @classmethod
@@ -728,17 +780,21 @@ class DeviceProtocolFactory:
     def _check_sg_raw() -> bool:
         """Check if sg_raw is available on the system."""
         import shutil
+
         return shutil.which("sg_raw") is not None
 
     @staticmethod
     def create_usb_transport(vid: int, pid: int):
         """Create the best available USB transport (pyusb preferred, hidapi fallback)."""
         from .hid import HIDAPI_AVAILABLE, PYUSB_AVAILABLE
+
         if PYUSB_AVAILABLE:
             from .hid import PyUsbTransport
+
             return PyUsbTransport(vid, pid)
         elif HIDAPI_AVAILABLE:
             from .hid import HidApiTransport
+
             return HidApiTransport(vid, pid)
         else:
             raise ImportError(
@@ -752,6 +808,7 @@ class DeviceProtocolFactory:
         """Check HID backend availability."""
         try:
             from .hid import HIDAPI_AVAILABLE, PYUSB_AVAILABLE
+
             return {"pyusb": PYUSB_AVAILABLE, "hidapi": HIDAPI_AVAILABLE}
         except ImportError:
             return {"pyusb": False, "hidapi": False}
@@ -770,7 +827,7 @@ class DeviceProtocolFactory:
         }
 
     @classmethod
-    def get_protocol_info(cls, device_info=None) -> 'ProtocolInfo':
+    def get_protocol_info(cls, device_info=None) -> "ProtocolInfo":
         """Get protocol/backend info for a device (or system defaults).
 
         If a cached protocol exists for this device, delegates to its get_info().
@@ -801,10 +858,11 @@ class DeviceProtocolFactory:
 
         # No cached protocol — build info from scratch
         backends = cls.get_backend_availability()
-        protocol = getattr(device_info, 'protocol', 'scsi')
-        device_type = getattr(device_info, 'device_type', 1)
+        protocol = getattr(device_info, "protocol", "scsi")
+        device_type = getattr(device_info, "device_type", 1)
 
         from trcc.core.models import PROTOCOL_TRAITS
+
         traits = PROTOCOL_TRAITS.get(protocol)
         if traits is None:
             active = "none"
@@ -843,6 +901,7 @@ class ProtocolInfo:
         info = DeviceProtocolFactory.get_protocol_info(device)
         label.setText(f"{info.protocol_display} via {info.active_backend}")
     """
+
     protocol: str = "scsi"
     device_type: int = 1
     protocol_display: str = ""
@@ -867,16 +926,15 @@ class ProtocolInfo:
     def has_backend(self) -> bool:
         """Whether at least one usable backend is available."""
         from trcc.core.models import PROTOCOL_TRAITS
+
         traits = PROTOCOL_TRAITS.get(self.protocol)
         if traits is None:
             return False
         if self.backends.get(traits.backend_key, False):
             return True
-        return bool(traits.fallback_backend
-                    and self.backends.get(traits.fallback_backend, False))
+        return bool(traits.fallback_backend and self.backends.get(traits.fallback_backend, False))
 
 
 # Re-export: WindowsScsiProtocol moved to adapters/device/windows/scsi_protocol.py.
 # Kept here so existing imports (e.g. tests) continue to work.
 from trcc.adapters.device.windows.scsi_protocol import WindowsScsiProtocol as WindowsScsiProtocol  # noqa: E402,F401,I001
-

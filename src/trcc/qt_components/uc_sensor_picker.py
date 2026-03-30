@@ -61,8 +61,8 @@ class SensorRow(QWidget):
         self.setFixedHeight(ROW_H)
 
         # Load checkbox images
-        self._cb_off = Assets.load_pixmap('P点选框.png', CHECKBOX_SIZE, CHECKBOX_SIZE)
-        self._cb_on = Assets.load_pixmap('P点选框A.png', CHECKBOX_SIZE, CHECKBOX_SIZE)
+        self._cb_off = Assets.load_pixmap("P点选框.png", CHECKBOX_SIZE, CHECKBOX_SIZE)
+        self._cb_on = Assets.load_pixmap("P点选框A.png", CHECKBOX_SIZE, CHECKBOX_SIZE)
 
         # Checkbox button
         self._cb = QPushButton(self)
@@ -78,17 +78,13 @@ class SensorRow(QWidget):
         # Name label
         self._name = QLabel(sensor.name, self)
         self._name.setGeometry(NAME_X, 0, NAME_W, ROW_H)
-        self._name.setStyleSheet(
-            "color: #D0D0D0; font-size: 10px; background: transparent;"
-        )
+        self._name.setStyleSheet("color: #D0D0D0; font-size: 10px; background: transparent;")
         self._name.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
         # Value label
-        self._value = QLabel('--', self)
+        self._value = QLabel("--", self)
         self._value.setGeometry(VALUE_X, 0, VALUE_W, ROW_H)
-        self._value.setStyleSheet(
-            "color: #A0A0A0; font-size: 10px; background: transparent;"
-        )
+        self._value.setStyleSheet("color: #A0A0A0; font-size: 10px; background: transparent;")
         self._value.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
     def set_selected(self, selected: bool):
@@ -101,18 +97,18 @@ class SensorRow(QWidget):
     def update_value(self, value: float | None):
         """Update the displayed value."""
         if value is None:
-            self._value.setText('--')
+            self._value.setText("--")
         else:
             unit = self.sensor.unit
-            if unit == '°C':
+            if unit == "°C":
                 self._value.setText(f"{value:.0f}°C")
-            elif unit in ('%', 'RPM', 'W'):
+            elif unit in ("%", "RPM", "W"):
                 self._value.setText(f"{value:.0f}{unit}")
-            elif unit == 'V':
+            elif unit == "V":
                 self._value.setText(f"{value:.2f}V")
-            elif unit in ('MHz',):
+            elif unit in ("MHz",):
                 self._value.setText(f"{value:.0f}MHz")
-            elif unit in ('MB', 'MB/s', 'KB/s'):
+            elif unit in ("MB", "MB/s", "KB/s"):
                 self._value.setText(f"{value:.1f}{unit}")
             else:
                 self._value.setText(f"{value:.1f}")
@@ -136,10 +132,13 @@ class SensorPickerDialog(QDialog):
         self.setModal(True)
 
         # Background image (no tiling — matches Windows ImageLayout.None)
-        bg_name = 'App_sysinfo.png'
+        bg_name = "App_sysinfo.png"
         self._bg_ref = set_background_pixmap(
-            self, bg_name, width=DIALOG_W, height=DIALOG_H,
-            fallback_style="background-color: #1A1A2E;"
+            self,
+            bg_name,
+            width=DIALOG_W,
+            height=DIALOG_H,
+            fallback_style="background-color: #1A1A2E;",
         )
 
         # OK button
@@ -202,15 +201,15 @@ class SensorPickerDialog(QDialog):
 
         # Source display order and names
         source_labels = {
-            'hwmon': 'Hardware Monitor',
-            'nvidia': 'NVIDIA GPU',
-            'drm': 'GPU (DRM)',
-            'psutil': 'System',
-            'rapl': 'Power (RAPL)',
-            'computed': 'Computed Rates',
+            "hwmon": "Hardware Monitor",
+            "nvidia": "NVIDIA GPU",
+            "drm": "GPU (DRM)",
+            "psutil": "System",
+            "rapl": "Power (RAPL)",
+            "computed": "Computed Rates",
         }
 
-        for source in ('hwmon', 'nvidia', 'drm', 'psutil', 'rapl', 'computed'):
+        for source in ("hwmon", "nvidia", "drm", "psutil", "rapl", "computed"):
             group = groups.get(source, [])
             if not group:
                 continue

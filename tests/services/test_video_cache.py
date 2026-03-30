@@ -1,4 +1,5 @@
 """Tests for VideoFrameCache — lazy per-frame encoding (C#-matching)."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -28,7 +29,7 @@ def _make_overlay_svc(w: int = 32, h: int = 32):
     svc.theme_mask_position = (0, 0)
     svc._metrics = HardwareMetrics()
     text_surface = make_test_surface(w, h, (0, 0, 0, 0))
-    svc.render_text_only.return_value = (text_surface, ('key', 1))
+    svc.render_text_only.return_value = (text_surface, ("key", 1))
     return svc
 
 
@@ -39,11 +40,17 @@ class TestBuild:
         frames = _make_frames(5, 32, 32)
         cache = VideoFrameCache()
         cache.build(
-            frames=frames, mask=None, mask_position=(0, 0),
-            overlay_svc=None, metrics=HardwareMetrics(),
-            brightness=100, rotation=0,
-            protocol='scsi', resolution=(32, 32),
-            fbl=None, use_jpeg=False,
+            frames=frames,
+            mask=None,
+            mask_position=(0, 0),
+            overlay_svc=None,
+            metrics=HardwareMetrics(),
+            brightness=100,
+            rotation=0,
+            protocol="scsi",
+            resolution=(32, 32),
+            fbl=None,
+            use_jpeg=False,
         )
         assert cache.active
         # Lazy encoding: get_encoded produces correct bytes on access
@@ -57,11 +64,17 @@ class TestBuild:
         mask = _make_mask(32, 32)
         cache = VideoFrameCache()
         cache.build(
-            frames=frames, mask=mask, mask_position=(0, 0),
-            overlay_svc=None, metrics=HardwareMetrics(),
-            brightness=100, rotation=0,
-            protocol='scsi', resolution=(32, 32),
-            fbl=None, use_jpeg=False,
+            frames=frames,
+            mask=mask,
+            mask_position=(0, 0),
+            overlay_svc=None,
+            metrics=HardwareMetrics(),
+            brightness=100,
+            rotation=0,
+            protocol="scsi",
+            resolution=(32, 32),
+            fbl=None,
+            use_jpeg=False,
         )
         assert cache.active
         assert len(cache._masked_frames) == 3
@@ -72,11 +85,17 @@ class TestBuild:
         frames = _make_frames(3, 32, 32)
         cache = VideoFrameCache()
         cache.build(
-            frames=frames, mask=None, mask_position=(0, 0),
-            overlay_svc=None, metrics=HardwareMetrics(),
-            brightness=100, rotation=0,
-            protocol='scsi', resolution=(32, 32),
-            fbl=None, use_jpeg=False,
+            frames=frames,
+            mask=None,
+            mask_position=(0, 0),
+            overlay_svc=None,
+            metrics=HardwareMetrics(),
+            brightness=100,
+            rotation=0,
+            protocol="scsi",
+            resolution=(32, 32),
+            fbl=None,
+            use_jpeg=False,
         )
         # Without mask, L2 should reference L1 frames directly
         for i in range(3):
@@ -85,11 +104,17 @@ class TestBuild:
     def test_build_empty_frames_inactive(self):
         cache = VideoFrameCache()
         cache.build(
-            frames=[], mask=None, mask_position=(0, 0),
-            overlay_svc=None, metrics=HardwareMetrics(),
-            brightness=100, rotation=0,
-            protocol='scsi', resolution=(32, 32),
-            fbl=None, use_jpeg=False,
+            frames=[],
+            mask=None,
+            mask_position=(0, 0),
+            overlay_svc=None,
+            metrics=HardwareMetrics(),
+            brightness=100,
+            rotation=0,
+            protocol="scsi",
+            resolution=(32, 32),
+            fbl=None,
+            use_jpeg=False,
         )
         assert not cache.active
 
@@ -98,11 +123,17 @@ class TestBuild:
         overlay_svc = _make_overlay_svc(32, 32)
         cache = VideoFrameCache()
         cache.build(
-            frames=frames, mask=None, mask_position=(0, 0),
-            overlay_svc=overlay_svc, metrics=HardwareMetrics(),
-            brightness=100, rotation=0,
-            protocol='scsi', resolution=(32, 32),
-            fbl=None, use_jpeg=False,
+            frames=frames,
+            mask=None,
+            mask_position=(0, 0),
+            overlay_svc=overlay_svc,
+            metrics=HardwareMetrics(),
+            brightness=100,
+            rotation=0,
+            protocol="scsi",
+            resolution=(32, 32),
+            fbl=None,
+            use_jpeg=False,
         )
         assert cache.active
         overlay_svc.render_text_only.assert_called_once()
@@ -115,11 +146,17 @@ class TestAccess:
         frames = _make_frames(3, 32, 32)
         cache = VideoFrameCache()
         cache.build(
-            frames=frames, mask=None, mask_position=(0, 0),
-            overlay_svc=None, metrics=HardwareMetrics(),
-            brightness=100, rotation=0,
-            protocol='scsi', resolution=(32, 32),
-            fbl=None, use_jpeg=False,
+            frames=frames,
+            mask=None,
+            mask_position=(0, 0),
+            overlay_svc=None,
+            metrics=HardwareMetrics(),
+            brightness=100,
+            rotation=0,
+            protocol="scsi",
+            resolution=(32, 32),
+            fbl=None,
+            use_jpeg=False,
         )
         data = cache.get_encoded(0)
         assert isinstance(data, bytes)
@@ -134,11 +171,17 @@ class TestAccess:
         frames = _make_frames(3, 32, 32)
         cache = VideoFrameCache()
         cache.build(
-            frames=frames, mask=None, mask_position=(0, 0),
-            overlay_svc=None, metrics=HardwareMetrics(),
-            brightness=100, rotation=0,
-            protocol='scsi', resolution=(32, 32),
-            fbl=None, use_jpeg=False,
+            frames=frames,
+            mask=None,
+            mask_position=(0, 0),
+            overlay_svc=None,
+            metrics=HardwareMetrics(),
+            brightness=100,
+            rotation=0,
+            protocol="scsi",
+            resolution=(32, 32),
+            fbl=None,
+            use_jpeg=False,
         )
         preview = cache.get_preview(1)
         assert preview is not None
@@ -153,11 +196,17 @@ class TestAccess:
         frames = _make_frames(3, 32, 32)
         cache = VideoFrameCache()
         cache.build(
-            frames=frames, mask=None, mask_position=(0, 0),
-            overlay_svc=None, metrics=HardwareMetrics(),
-            brightness=100, rotation=0,
-            protocol='scsi', resolution=(32, 32),
-            fbl=None, use_jpeg=False,
+            frames=frames,
+            mask=None,
+            mask_position=(0, 0),
+            overlay_svc=None,
+            metrics=HardwareMetrics(),
+            brightness=100,
+            rotation=0,
+            protocol="scsi",
+            resolution=(32, 32),
+            fbl=None,
+            use_jpeg=False,
         )
         data1 = cache.get_encoded(1)
         data2 = cache.get_encoded(1)
@@ -168,11 +217,17 @@ class TestAccess:
         frames = _make_frames(3, 32, 32)
         cache = VideoFrameCache()
         cache.build(
-            frames=frames, mask=None, mask_position=(0, 0),
-            overlay_svc=None, metrics=HardwareMetrics(),
-            brightness=100, rotation=0,
-            protocol='scsi', resolution=(32, 32),
-            fbl=None, use_jpeg=False,
+            frames=frames,
+            mask=None,
+            mask_position=(0, 0),
+            overlay_svc=None,
+            metrics=HardwareMetrics(),
+            brightness=100,
+            rotation=0,
+            protocol="scsi",
+            resolution=(32, 32),
+            fbl=None,
+            use_jpeg=False,
         )
         data0 = cache.get_encoded(0)
         data1 = cache.get_encoded(1)
@@ -187,11 +242,17 @@ class TestRebuild:
         frames = [make_test_surface(32, 32, (255, 255, 255)) for _ in range(3)]
         cache = VideoFrameCache()
         cache.build(
-            frames=frames, mask=None, mask_position=(0, 0),
-            overlay_svc=None, metrics=HardwareMetrics(),
-            brightness=100, rotation=0,
-            protocol='scsi', resolution=(32, 32),
-            fbl=None, use_jpeg=False,
+            frames=frames,
+            mask=None,
+            mask_position=(0, 0),
+            overlay_svc=None,
+            metrics=HardwareMetrics(),
+            brightness=100,
+            rotation=0,
+            protocol="scsi",
+            resolution=(32, 32),
+            fbl=None,
+            use_jpeg=False,
         )
         original_encoded = cache.get_encoded(0)
 
@@ -205,11 +266,17 @@ class TestRebuild:
         frames = [make_test_surface(32, 32, (200, 200, 200)) for _ in range(3)]
         cache = VideoFrameCache()
         cache.build(
-            frames=frames, mask=None, mask_position=(0, 0),
-            overlay_svc=None, metrics=HardwareMetrics(),
-            brightness=100, rotation=0,
-            protocol='scsi', resolution=(32, 32),
-            fbl=None, use_jpeg=False,
+            frames=frames,
+            mask=None,
+            mask_position=(0, 0),
+            overlay_svc=None,
+            metrics=HardwareMetrics(),
+            brightness=100,
+            rotation=0,
+            protocol="scsi",
+            resolution=(32, 32),
+            fbl=None,
+            use_jpeg=False,
         )
         original_encoded = cache.get_encoded(0)
 
@@ -222,11 +289,17 @@ class TestRebuild:
         frames = [make_test_surface(32, 32, (200, 200, 200)) for _ in range(3)]
         cache = VideoFrameCache()
         cache.build(
-            frames=frames, mask=None, mask_position=(0, 0),
-            overlay_svc=None, metrics=HardwareMetrics(),
-            brightness=100, rotation=0,
-            protocol='scsi', resolution=(32, 32),
-            fbl=None, use_jpeg=False,
+            frames=frames,
+            mask=None,
+            mask_position=(0, 0),
+            overlay_svc=None,
+            metrics=HardwareMetrics(),
+            brightness=100,
+            rotation=0,
+            protocol="scsi",
+            resolution=(32, 32),
+            fbl=None,
+            use_jpeg=False,
         )
         original_encoded = cache.get_encoded(0)
 
@@ -235,6 +308,7 @@ class TestRebuild:
 
     def test_rebuild_from_rotation(self):
         from trcc.services.image import ImageService
+
         r = ImageService._r()
         base = r.create_surface(32, 32, (0, 0, 0))
         red_quad = r.create_surface(16, 16, (255, 0, 0))
@@ -242,11 +316,17 @@ class TestRebuild:
         frames = [r.copy_surface(base) for _ in range(3)]
         cache = VideoFrameCache()
         cache.build(
-            frames=frames, mask=None, mask_position=(0, 0),
-            overlay_svc=None, metrics=HardwareMetrics(),
-            brightness=100, rotation=0,
-            protocol='scsi', resolution=(32, 32),
-            fbl=None, use_jpeg=False,
+            frames=frames,
+            mask=None,
+            mask_position=(0, 0),
+            overlay_svc=None,
+            metrics=HardwareMetrics(),
+            brightness=100,
+            rotation=0,
+            protocol="scsi",
+            resolution=(32, 32),
+            fbl=None,
+            use_jpeg=False,
         )
         original_encoded = cache.get_encoded(0)
 
@@ -259,16 +339,22 @@ class TestRebuild:
         overlay_svc = _make_overlay_svc(32, 32)
         cache = VideoFrameCache()
         cache.build(
-            frames=frames, mask=None, mask_position=(0, 0),
-            overlay_svc=overlay_svc, metrics=HardwareMetrics(),
-            brightness=100, rotation=0,
-            protocol='scsi', resolution=(32, 32),
-            fbl=None, use_jpeg=False,
+            frames=frames,
+            mask=None,
+            mask_position=(0, 0),
+            overlay_svc=overlay_svc,
+            metrics=HardwareMetrics(),
+            brightness=100,
+            rotation=0,
+            protocol="scsi",
+            resolution=(32, 32),
+            fbl=None,
+            use_jpeg=False,
         )
 
         # Change text overlay for rebuild
         new_text = make_test_surface(32, 32, (255, 0, 0, 128))
-        overlay_svc.render_text_only.return_value = (new_text, ('key', 2))
+        overlay_svc.render_text_only.return_value = (new_text, ("key", 2))
 
         original_encoded = cache.get_encoded(0)
         cache.rebuild_from_metrics(overlay_svc, HardwareMetrics())
@@ -282,11 +368,17 @@ class TestRebuild:
         overlay_svc = _make_overlay_svc(32, 32)
         cache = VideoFrameCache()
         cache.build(
-            frames=frames, mask=None, mask_position=(0, 0),
-            overlay_svc=overlay_svc, metrics=HardwareMetrics(),
-            brightness=100, rotation=0,
-            protocol='scsi', resolution=(32, 32),
-            fbl=None, use_jpeg=False,
+            frames=frames,
+            mask=None,
+            mask_position=(0, 0),
+            overlay_svc=overlay_svc,
+            metrics=HardwareMetrics(),
+            brightness=100,
+            rotation=0,
+            protocol="scsi",
+            resolution=(32, 32),
+            fbl=None,
+            use_jpeg=False,
         )
 
         # Same key returned — encoding should be identical

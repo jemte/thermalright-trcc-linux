@@ -22,12 +22,12 @@ log = logging.getLogger(__name__)
 
 # Category colors for sidebar display — view-local (Qt layer, will be replaced)
 CATEGORY_COLORS = {
-    'cpu': '#32C5FF',
-    'gpu': '#44D7B6',
-    'memory': '#6DD401',
-    'hdd': '#F7B501',
-    'network': '#FA6401',
-    'fan': '#E02020',
+    "cpu": "#32C5FF",
+    "gpu": "#44D7B6",
+    "memory": "#6DD401",
+    "hdd": "#F7B501",
+    "network": "#FA6401",
+    "fan": "#E02020",
 }
 
 
@@ -52,7 +52,7 @@ class SensorItem(QFrame):
         layout.setSpacing(4)
 
         # Color indicator
-        indicator = QLabel('\u25c6')
+        indicator = QLabel("\u25c6")
         indicator.setFixedWidth(12)
         indicator.setStyleSheet(f"color: {color}; font-size: 6px; background: transparent;")
         layout.addWidget(indicator)
@@ -66,8 +66,10 @@ class SensorItem(QFrame):
         layout.addStretch()
 
         # Sensor value
-        self.value_label = QLabel('--')
-        self.value_label.setStyleSheet(f"color: {color}; font-size: 9px; font-weight: bold; background: transparent;")
+        self.value_label = QLabel("--")
+        self.value_label.setStyleSheet(
+            f"color: {color}; font-size: 9px; font-weight: bold; background: transparent;"
+        )
         self.value_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.value_label.setFixedWidth(80)
         layout.addWidget(self.value_label)
@@ -124,7 +126,7 @@ class UCActivitySidebar(QWidget):
     def _setup_ui(self):
         # Dark background via palette (not stylesheet — children use QPalette)
         palette = self.palette()
-        palette.setColor(QPalette.ColorRole.Window, QColor('#1E1E1E'))
+        palette.setColor(QPalette.ColorRole.Window, QColor("#1E1E1E"))
         self.setPalette(palette)
         self.setAutoFillBackground(True)
 
@@ -159,7 +161,7 @@ class UCActivitySidebar(QWidget):
         inner_layout.setSpacing(0)
 
         for category, sensors in SENSORS.items():
-            color = CATEGORY_COLORS.get(category, '#FFFFFF')
+            color = CATEGORY_COLORS.get(category, "#FFFFFF")
 
             # Category header
             header = QLabel(f"  \u25aa {category.upper()}")

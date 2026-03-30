@@ -19,7 +19,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 from trcc.adapters.device.bulk import (
     _HANDSHAKE_PAYLOAD,
@@ -92,13 +92,15 @@ class TestBulkDeviceInit(unittest.TestCase):
     def test_has_handshake_method(self):
         """BulkDevice must have a handshake() method."""
         bd = BulkDevice(0x87AD, 0x70DB)
-        self.assertTrue(callable(getattr(bd, 'handshake', None)))
+        self.assertTrue(callable(getattr(bd, "handshake", None)))
 
 
 class TestBulkDeviceOpen(unittest.TestCase):
     """Test _open() USB enumeration."""
 
-    @patch.dict("sys.modules", {"usb": MagicMock(), "usb.core": MagicMock(), "usb.util": MagicMock()})
+    @patch.dict(
+        "sys.modules", {"usb": MagicMock(), "usb.core": MagicMock(), "usb.util": MagicMock()}
+    )
     def test_open_success(self):
         """Successful USB open: find device, detach drivers, find endpoints."""
         import usb.core
@@ -130,16 +132,21 @@ class TestBulkDeviceOpen(unittest.TestCase):
         self.assertEqual(bd._ep_out, ep_out)
         self.assertEqual(bd._ep_in, ep_in)
 
-    @patch.dict("sys.modules", {"usb": MagicMock(), "usb.core": MagicMock(), "usb.util": MagicMock()})
+    @patch.dict(
+        "sys.modules", {"usb": MagicMock(), "usb.core": MagicMock(), "usb.util": MagicMock()}
+    )
     def test_open_device_not_found(self):
         import usb.core
+
         usb.core.find.return_value = None
 
         bd = BulkDevice(0x87AD, 0x70DB)
         with self.assertRaises(RuntimeError):
             bd._open()
 
-    @patch.dict("sys.modules", {"usb": MagicMock(), "usb.core": MagicMock(), "usb.util": MagicMock()})
+    @patch.dict(
+        "sys.modules", {"usb": MagicMock(), "usb.core": MagicMock(), "usb.util": MagicMock()}
+    )
     def test_open_no_endpoints(self):
         import usb.core
         import usb.util
@@ -157,7 +164,9 @@ class TestBulkDeviceOpen(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             bd._open()
 
-    @patch.dict("sys.modules", {"usb": MagicMock(), "usb.core": MagicMock(), "usb.util": MagicMock()})
+    @patch.dict(
+        "sys.modules", {"usb": MagicMock(), "usb.core": MagicMock(), "usb.util": MagicMock()}
+    )
     def test_open_selinux_blocked_detach_error_sets_flag(self):
         """When detach_kernel_driver raises USBError and driver is still active,
         selinux_blocked should be True → claim_interface EBUSY gives SELinux message."""
@@ -189,7 +198,9 @@ class TestBulkDeviceOpen(unittest.TestCase):
         self.assertIn("SELinux", str(ctx.exception))
         self.assertIn("setup-selinux", str(ctx.exception))
 
-    @patch.dict("sys.modules", {"usb": MagicMock(), "usb.core": MagicMock(), "usb.util": MagicMock()})
+    @patch.dict(
+        "sys.modules", {"usb": MagicMock(), "usb.core": MagicMock(), "usb.util": MagicMock()}
+    )
     def test_open_claim_ebusy_raises_without_reset(self):
         """claim_interface EBUSY → RuntimeError, no device reset.
 
@@ -457,6 +468,7 @@ class TestBulkDeviceHandshake(unittest.TestCase):
             bd._ep_out = MagicMock()
             bd._ep_in = MagicMock()
             bd._ep_in.read.return_value = _make_handshake_response(pm=100)
+
         bd._open.side_effect = setup_after_open
 
         bd.handshake()
@@ -480,14 +492,14 @@ class TestBulkDeviceSendFrame(unittest.TestCase):
     def test_send_frame_jpeg_header(self):
         """JPEG mode (default): cmd=2 in header."""
         bd = self._setup_device(width=480, height=480, use_jpeg=True)
-        data = b'\x00' * 1000
+        data = b"\x00" * 1000
         bd.send_frame(data)
 
         # Single write: 64-byte header + payload
         frame = bd._ep_out.write.call_args_list[0][0][0]
         self.assertEqual(len(frame), 64 + 1000)
         header = frame[:64]
-        self.assertEqual(header[0:4], b'\x12\x34\x56\x78')
+        self.assertEqual(header[0:4], b"\x12\x34\x56\x78")
         # Cmd = 2 (JPEG)
         self.assertEqual(struct.unpack_from("<I", header, 4)[0], 2)
         self.assertEqual(struct.unpack_from("<I", header, 8)[0], 480)
@@ -498,14 +510,14 @@ class TestBulkDeviceSendFrame(unittest.TestCase):
     def test_send_frame_rgb565_header(self):
         """RGB565 mode (PM=32): cmd=3 in header."""
         bd = self._setup_device(width=320, height=320, use_jpeg=False)
-        data = b'\x00' * 1000
+        data = b"\x00" * 1000
         bd.send_frame(data)
 
         # Single write: 64-byte header + payload
         frame = bd._ep_out.write.call_args_list[0][0][0]
         self.assertEqual(len(frame), 64 + 1000)
         header = frame[:64]
-        self.assertEqual(header[0:4], b'\x12\x34\x56\x78')
+        self.assertEqual(header[0:4], b"\x12\x34\x56\x78")
         # Cmd = 3 (raw RGB565)
         self.assertEqual(struct.unpack_from("<I", header, 4)[0], 3)
         self.assertEqual(struct.unpack_from("<I", header, 8)[0], 320)
@@ -516,7 +528,7 @@ class TestBulkDeviceSendFrame(unittest.TestCase):
     def test_send_frame_small_payload_single_chunk(self):
         """Small payloads (< 16 KiB) are sent in one chunk."""
         bd = self._setup_device()
-        data = b'\xAB\xCD' * 500  # 1000 bytes — well under 16 KiB
+        data = b"\xab\xcd" * 500  # 1000 bytes — well under 16 KiB
         bd.send_frame(data)
 
         calls = bd._ep_out.write.call_args_list
@@ -529,24 +541,25 @@ class TestBulkDeviceSendFrame(unittest.TestCase):
         """Large payloads are split into 16 KiB chunks."""
         bd = self._setup_device()
         # 3 full 16 KiB chunks + remainder
-        data = b'\xAB' * (3 * 16 * 1024 + 500)
+        data = b"\xab" * (3 * 16 * 1024 + 500)
         bd.send_frame(data)
 
         calls = bd._ep_out.write.call_args_list
         # header (64) + data split into 16 KiB chunks
         total = 64 + len(data)
         import math
+
         expected_chunks = math.ceil(total / (16 * 1024))
         self.assertEqual(len(calls), expected_chunks)
         # Reassemble and verify header + payload intact
-        reassembled = b''.join(c[0][0] for c in calls)
+        reassembled = b"".join(c[0][0] for c in calls)
         self.assertEqual(reassembled[64:], data)
 
     def test_send_frame_zlp_when_512_aligned(self):
         """ZLP sent only when total frame size is 512-aligned."""
         bd = self._setup_device()
         # 512 - 64 = 448 bytes of payload → total 512, 512-aligned
-        data = b'\x00' * 448
+        data = b"\x00" * 448
         bd.send_frame(data)
 
         calls = bd._ep_out.write.call_args_list
@@ -556,7 +569,7 @@ class TestBulkDeviceSendFrame(unittest.TestCase):
     def test_send_frame_no_zlp_when_not_aligned(self):
         """No ZLP when total frame size is not 512-aligned."""
         bd = self._setup_device()
-        data = b'\x00' * 100
+        data = b"\x00" * 100
         bd.send_frame(data)
 
         # Only 1 write (no ZLP needed)
@@ -565,13 +578,13 @@ class TestBulkDeviceSendFrame(unittest.TestCase):
 
     def test_send_frame_returns_true_on_success(self):
         bd = self._setup_device()
-        result = bd.send_frame(b'\x00' * 100)
+        result = bd.send_frame(b"\x00" * 100)
         self.assertTrue(result)
 
     def test_send_frame_returns_false_on_error(self):
         bd = self._setup_device()
         bd._ep_out.write.side_effect = Exception("USB error")
-        result = bd.send_frame(b'\x00' * 100)
+        result = bd.send_frame(b"\x00" * 100)
         self.assertFalse(result)
 
     def test_send_frame_triggers_handshake_if_not_open(self):
@@ -583,16 +596,19 @@ class TestBulkDeviceSendFrame(unittest.TestCase):
         def setup_after_hs():
             bd._dev = MagicMock()
             bd._ep_out = MagicMock()
+
         bd.handshake.side_effect = setup_after_hs
 
-        bd.send_frame(b'\x00' * 100)
+        bd.send_frame(b"\x00" * 100)
         bd.handshake.assert_called_once()
 
 
 class TestBulkDeviceClose(unittest.TestCase):
     """Test close/cleanup."""
 
-    @patch.dict("sys.modules", {"usb": MagicMock(), "usb.core": MagicMock(), "usb.util": MagicMock()})
+    @patch.dict(
+        "sys.modules", {"usb": MagicMock(), "usb.core": MagicMock(), "usb.util": MagicMock()}
+    )
     def test_close_releases_resources(self):
         import usb.util
 
@@ -623,11 +639,11 @@ class TestBulkProtocol(unittest.TestCase):
         from trcc.adapters.device.factory import BulkProtocol, DeviceProtocolFactory
 
         device_info = MagicMock()
-        device_info.protocol = 'bulk'
+        device_info.protocol = "bulk"
         device_info.vid = 0x87AD
         device_info.pid = 0x70DB
-        device_info.path = 'bulk:87ad:70db'
-        device_info.implementation = 'bulk_usblcdnew'
+        device_info.path = "bulk:87ad:70db"
+        device_info.implementation = "bulk_usblcdnew"
 
         proto = DeviceProtocolFactory.create_protocol(device_info)
         self.assertIsInstance(proto, BulkProtocol)
@@ -685,7 +701,8 @@ class TestBulkDeviceDetection(unittest.TestCase):
         from trcc.adapters.device.detector import DetectedDevice
 
         fake_dev = DetectedDevice(
-            vid=0x87AD, pid=0x70DB,
+            vid=0x87AD,
+            pid=0x70DB,
             vendor_name="ChiZhu Tech",
             product_name="GrandVision 360 AIO",
             usb_path="2-1",
@@ -697,21 +714,23 @@ class TestBulkDeviceDetection(unittest.TestCase):
         )
 
         from trcc.adapters.device.scsi import find_lcd_devices
+
         devices = find_lcd_devices(detect_fn=lambda: [fake_dev])
 
         self.assertEqual(len(devices), 1)
         d = devices[0]
-        self.assertEqual(d['protocol'], 'bulk')
-        self.assertEqual(d['path'], 'bulk:87ad:70db')
-        self.assertEqual(d['vid'], 0x87AD)
-        self.assertEqual(d['pid'], 0x70DB)
-        self.assertEqual(d['device_type'], 4)
+        self.assertEqual(d["protocol"], "bulk")
+        self.assertEqual(d["path"], "bulk:87ad:70db")
+        self.assertEqual(d["vid"], 0x87AD)
+        self.assertEqual(d["pid"], 0x70DB)
+        self.assertEqual(d["device_type"], 4)
 
 
 # ---------------------------------------------------------------------------
 # Diagnose-driven tests — use device profile fixtures from conftest.py
 # Run normally with defaults; diagnose tool injects real VID/PID/PM from report
 # ---------------------------------------------------------------------------
+
 
 def _make_opened_device(vid: int, pid: int, pm: int = 100, sub: int = 0) -> BulkDevice:
     bd = BulkDevice(vid, pid)
@@ -742,6 +761,7 @@ def test_bulk_send_frame_profile(device_vid, device_pid, device_pm, device_sub):
     import pytest as _pytest
 
     from trcc.adapters.device.bulk import _BULK_RGB565_PMS, _bulk_resolution
+
     w, h = _bulk_resolution(device_pm, device_sub)
     if w == 0 or h == 0:
         _pytest.skip(f"No resolution for PM={device_pm} SUB={device_sub}")
@@ -751,7 +771,7 @@ def test_bulk_send_frame_profile(device_vid, device_pid, device_pm, device_sub):
     bd.height = h
     bd.use_jpeg = device_pm not in _BULK_RGB565_PMS
 
-    result = bd.send_frame(b'\x00' * 1000)
+    result = bd.send_frame(b"\x00" * 1000)
     assert result is True
 
 
@@ -790,5 +810,5 @@ def test_bulk_open_ebusy_no_reset(device_vid, device_pid):
     assert "in use by another process" in str(exc_info.value)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

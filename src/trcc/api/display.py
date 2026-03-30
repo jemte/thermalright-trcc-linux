@@ -1,4 +1,5 @@
 """LCD display control endpoints — brightness, rotation, color, mask, overlay, preview."""
+
 from __future__ import annotations
 
 import asyncio
@@ -38,7 +39,9 @@ def _get_display():
     from trcc.api import _display_dispatcher
 
     if not _display_dispatcher or not _display_dispatcher.connected:
-        raise HTTPException(status_code=409, detail="No LCD device selected. POST /devices/{id}/select first.")
+        raise HTTPException(
+            status_code=409, detail="No LCD device selected. POST /devices/{id}/select first."
+        )
     return _display_dispatcher
 
 
@@ -125,7 +128,7 @@ async def load_mask(image: UploadFile) -> dict:
         raise HTTPException(status_code=413, detail="Mask image exceeds 10 MB limit")
 
     # Write to temp file for dispatcher (expects path)
-    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
         tmp.write(data)
         tmp_path = tmp.name
 
@@ -145,7 +148,7 @@ async def render_overlay(dc_path: str, send: bool = True) -> dict:
 
     # Validate path is within the data directory — prevent traversal
 
-    if '\0' in dc_path:
+    if "\0" in dc_path:
         raise HTTPException(status_code=400, detail="Invalid overlay path")
     allowed_dir = os.path.realpath(str(settings.user_data_dir))
     # Resolve to canonical path — handles both absolute and relative input
@@ -267,10 +270,22 @@ def test_display() -> dict:
 
 # ── Upload endpoint ───────────────────────────────────────────────────
 
-_ALLOWED_UPLOAD_SUFFIXES = frozenset({
-    '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp',
-    '.mp4', '.zt', '.webm', '.avi', '.mkv', '.mov',
-})
+_ALLOWED_UPLOAD_SUFFIXES = frozenset(
+    {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".bmp",
+        ".webp",
+        ".mp4",
+        ".zt",
+        ".webm",
+        ".avi",
+        ".mkv",
+        ".mov",
+    }
+)
 
 
 @router.post("/upload")
@@ -302,7 +317,7 @@ async def upload_file(file: UploadFile) -> dict:
 
 # ── Create-theme endpoint ─────────────────────────────────────────────
 
-_VIDEO_SUFFIXES = frozenset({'.mp4', '.zt', '.webm', '.avi', '.mkv'})
+_VIDEO_SUFFIXES = frozenset({".mp4", ".zt", ".webm", ".avi", ".mkv"})
 
 
 def _is_animated(path: Path) -> bool:
@@ -310,8 +325,9 @@ def _is_animated(path: Path) -> bool:
     suffix = path.suffix.lower()
     if suffix in _VIDEO_SUFFIXES:
         return True
-    if suffix == '.gif':
+    if suffix == ".gif":
         from trcc.adapters.infra.media_player import is_animated_gif
+
         try:
             return is_animated_gif(path)
         except Exception as e:
@@ -416,8 +432,11 @@ async def create_theme(
         from trcc.adapters.infra.dc_parser import load_config_json
         from trcc.services.image import ImageService
         from trcc.services.overlay import OverlayService
+
         overlay_svc = OverlayService(
-            w, h, renderer=ImageService._r(),
+            w,
+            h,
+            renderer=ImageService._r(),
             load_config_json_fn=load_config_json,
             dc_config_cls=DcConfig,
         )
@@ -426,6 +445,7 @@ async def create_theme(
         overlay_svc.enabled = True
         api._overlay_svc = overlay_svc
         from trcc.services.system import get_all_metrics
+
         frame = overlay_svc.render(get_all_metrics())
         lcd.frame.send_frame(frame)
         api.set_current_image(frame)
@@ -457,7 +477,7 @@ def _fetch_ipc_frame():
     return None
 
 
-def _encode_frame(frame: object, fmt: str = 'JPEG', quality: int = 85) -> bytes | None:
+def _encode_frame(frame: object, fmt: str = "JPEG", quality: int = 85) -> bytes | None:
     """Encode a frame (QImage or raw bytes) to image bytes."""
     from PySide6.QtGui import QImage
 
@@ -465,6 +485,7 @@ def _encode_frame(frame: object, fmt: str = 'JPEG', quality: int = 85) -> bytes 
         return frame  # Already encoded (IPC path)
     if isinstance(frame, QImage):
         from PySide6.QtCore import QBuffer, QByteArray, QIODevice
+
         buf = QByteArray()
         qbuf = QBuffer(buf)
         qbuf.open(QIODevice.OpenModeFlag.ReadWrite)  # PNG needs seek
@@ -498,7 +519,7 @@ def display_preview() -> Response:
         raise HTTPException(status_code=503, detail="No image available")
 
     try:
-        data = _encode_frame(frame, fmt='PNG')
+        data = _encode_frame(frame, fmt="PNG")
     except Exception:
         log.warning("Preview encode failed (frame type: %s)", type(frame).__name__, exc_info=True)
         raise HTTPException(status_code=503, detail="Frame encode failed")
@@ -540,7 +561,8 @@ async def preview_stream(websocket: WebSocket):
             # ── Check for client control messages (non-blocking) ──────
             try:
                 raw = await asyncio.wait_for(
-                    websocket.receive_text(), timeout=1.0 / fps,
+                    websocket.receive_text(),
+                    timeout=1.0 / fps,
                 )
                 try:
                     msg = json.loads(raw)
@@ -562,7 +584,8 @@ async def preview_stream(websocket: WebSocket):
             # ── Read current frame directly from source ───────────────
             if use_ipc:
                 frame = await asyncio.get_running_loop().run_in_executor(
-                    None, _fetch_ipc_frame,
+                    None,
+                    _fetch_ipc_frame,
                 )
             else:
                 from trcc.api import _current_image  # noqa: F811
@@ -573,7 +596,7 @@ async def preview_stream(websocket: WebSocket):
                 continue
 
             # ── Encode and send ───────────────────────────────────────
-            data = _encode_frame(frame, fmt='JPEG', quality=quality)
+            data = _encode_frame(frame, fmt="JPEG", quality=quality)
             if data:
                 await websocket.send_bytes(data)
 

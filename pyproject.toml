@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "trcc-linux"
-version = "9.2.4"
+version = "0.1.0"
 description = "Linux implementation of Thermalright LCD Control Center"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -71,10 +71,10 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Lexonight1/thermalright-trcc-linux"
-Documentation = "https://github.com/Lexonight1/thermalright-trcc-linux#readme"
-Repository = "https://github.com/Lexonight1/thermalright-trcc-linux"
-Issues = "https://github.com/Lexonight1/thermalright-trcc-linux/issues"
+Homepage = "https://github.com/jemte/thermalright-trcc-linux"
+Documentation = "https://github.com/jemte/thermalright-trcc-linux#readme"
+Repository = "https://github.com/jemte/thermalright-trcc-linux"
+Issues = "https://github.com/jemte/thermalright-trcc-linux/issues"
 
 [project.scripts]
 trcc = "trcc.cli:main"

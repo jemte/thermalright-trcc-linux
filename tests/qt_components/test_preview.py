@@ -15,7 +15,7 @@ from __future__ import annotations
 import os
 
 # Must set before ANY Qt import
-os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
 from unittest.mock import patch
 
@@ -33,6 +33,7 @@ from trcc.qt_components.uc_preview import UCPreview
 # Helpers
 # ============================================================================
 
+
 def _null_pixmap() -> QPixmap:
     """Return a null (empty) QPixmap."""
     return QPixmap()
@@ -49,36 +50,37 @@ def _valid_pixmap(w: int = 50, h: int = 50) -> QPixmap:
 # Patches applied to every test — avoid real asset I/O and device detection
 # ============================================================================
 
+
 @pytest.fixture(autouse=True)
 def _patch_assets():
     """Patch Assets methods so no filesystem access is needed."""
     with (
-        patch('trcc.qt_components.uc_device.Assets') as mock_assets_dev,
-        patch('trcc.qt_components.uc_preview.Assets') as mock_assets_prev,
+        patch("trcc.qt_components.uc_device.Assets") as mock_assets_dev,
+        patch("trcc.qt_components.uc_preview.Assets") as mock_assets_prev,
     ):
         # Default: exists -> False, load_pixmap -> null pixmap
         for mock_assets in (mock_assets_dev, mock_assets_prev):
             mock_assets.exists.return_value = False
             mock_assets.load_pixmap.return_value = _null_pixmap()
             mock_assets.get.return_value = None
-            mock_assets.get_localized.return_value = 'P0CZTV.png'
+            mock_assets.get_localized.return_value = "P0CZTV.png"
             # Propagate class-level constants needed by UCDevice/UCPreview _setup_ui
-            mock_assets.SIDEBAR_BG = 'A0sidebar.png'
-            mock_assets.SENSOR_BTN = 'A1sensor.png'
-            mock_assets.SENSOR_BTN_ACTIVE = 'A1sensora.png'
-            mock_assets.ABOUT_BTN = 'A1about.png'
-            mock_assets.ABOUT_BTN_ACTIVE = 'A1abouta.png'
-            mock_assets.VIDEO_CONTROLS_BG = 'ucVideo.png'
-            mock_assets.ICON_PLAY = 'Pplay.png'
-            mock_assets.ICON_PAUSE = 'Ppause.png'
+            mock_assets.SIDEBAR_BG = "A0sidebar.png"
+            mock_assets.SENSOR_BTN = "A1sensor.png"
+            mock_assets.SENSOR_BTN_ACTIVE = "A1sensora.png"
+            mock_assets.ABOUT_BTN = "A1about.png"
+            mock_assets.ABOUT_BTN_ACTIVE = "A1abouta.png"
+            mock_assets.VIDEO_CONTROLS_BG = "ucVideo.png"
+            mock_assets.ICON_PLAY = "Pplay.png"
+            mock_assets.ICON_PAUSE = "Ppause.png"
         yield mock_assets_dev
 
 
 @pytest.fixture(autouse=True)
 def _patch_set_background_pixmap():
     """Patch set_background_pixmap to avoid real file I/O."""
-    with patch('trcc.qt_components.uc_device.set_background_pixmap'):
-        with patch('trcc.qt_components.uc_preview.set_background_pixmap'):
+    with patch("trcc.qt_components.uc_device.set_background_pixmap"):
+        with patch("trcc.qt_components.uc_preview.set_background_pixmap"):
             yield
 
 
@@ -86,126 +88,132 @@ def _patch_set_background_pixmap():
 # _get_device_images() tests
 # ============================================================================
 
+
 class TestGetDeviceImages:
     """Test _get_device_images() fallback chain."""
 
     def test_hid_generic_returns_none(self, qapp: object) -> None:
         """HID protocol with generic A1TARAN ARMS button_image returns (None, None)."""
-        info = {'protocol': 'hid', 'button_image': 'A1TARAN ARMS'}
+        info = {"protocol": "hid", "button_image": "A1TARAN ARMS"}
         assert _get_device_images(info) == (None, None)
 
     def test_button_image_found_directly(self, qapp: object) -> None:
         """button_image exists in Assets -> returns (name, name+'a')."""
-        with patch('trcc.qt_components.uc_device.Assets') as m:
-            m.exists.side_effect = lambda n: n == 'A1FROZEN WARFRAME'
-            info = {'button_image': 'A1FROZEN WARFRAME', 'protocol': 'scsi'}
-            assert _get_device_images(info) == ('A1FROZEN WARFRAME', 'A1FROZEN WARFRAMEa')
+        with patch("trcc.qt_components.uc_device.Assets") as m:
+            m.exists.side_effect = lambda n: n == "A1FROZEN WARFRAME"
+            info = {"button_image": "A1FROZEN WARFRAME", "protocol": "scsi"}
+            assert _get_device_images(info) == ("A1FROZEN WARFRAME", "A1FROZEN WARFRAMEa")
 
     def test_button_image_underscores_to_spaces(self, qapp: object) -> None:
         """button_image with underscores replaced by spaces matches."""
-        with patch('trcc.qt_components.uc_device.Assets') as m:
+        with patch("trcc.qt_components.uc_device.Assets") as m:
             # Direct name not found, spaced version found
-            m.exists.side_effect = lambda n: n == 'A1FROZEN WARFRAME'
-            info = {'button_image': 'A1FROZEN_WARFRAME', 'protocol': 'scsi'}
-            assert _get_device_images(info) == ('A1FROZEN WARFRAME', 'A1FROZEN WARFRAMEa')
+            m.exists.side_effect = lambda n: n == "A1FROZEN WARFRAME"
+            info = {"button_image": "A1FROZEN_WARFRAME", "protocol": "scsi"}
+            assert _get_device_images(info) == ("A1FROZEN WARFRAME", "A1FROZEN WARFRAMEa")
 
     def test_button_image_spaces_to_underscores(self, qapp: object) -> None:
         """button_image with spaces replaced by underscores matches."""
-        with patch('trcc.qt_components.uc_device.Assets') as m:
+        with patch("trcc.qt_components.uc_device.Assets") as m:
             # Neither direct nor spaced found, underscored found
-            m.exists.side_effect = lambda n: n == 'A1FROZEN_WARFRAME'
-            info = {'button_image': 'A1FROZEN WARFRAME', 'protocol': 'scsi'}
+            m.exists.side_effect = lambda n: n == "A1FROZEN_WARFRAME"
+            info = {"button_image": "A1FROZEN WARFRAME", "protocol": "scsi"}
             result = _get_device_images(info)
-            assert result == ('A1FROZEN_WARFRAME', 'A1FROZEN_WARFRAMEa')
+            assert result == ("A1FROZEN_WARFRAME", "A1FROZEN_WARFRAMEa")
 
     def test_model_field_lookup(self, qapp: object) -> None:
         """model field found in DEVICE_IMAGE_MAP -> returns mapped image."""
-        with patch('trcc.qt_components.uc_device.Assets') as m:
-            m.exists.side_effect = lambda n: n == 'A1CZ1'
-            info = {'button_image': '', 'model': 'CZ1', 'protocol': 'scsi'}
-            assert _get_device_images(info) == ('A1CZ1', 'A1CZ1a')
+        with patch("trcc.qt_components.uc_device.Assets") as m:
+            m.exists.side_effect = lambda n: n == "A1CZ1"
+            info = {"button_image": "", "model": "CZ1", "protocol": "scsi"}
+            assert _get_device_images(info) == ("A1CZ1", "A1CZ1a")
 
     def test_name_substring_match(self, qapp: object) -> None:
         """name field substring matches a DEVICE_IMAGE_MAP key."""
-        with patch('trcc.qt_components.uc_device.Assets') as m:
-            m.exists.side_effect = lambda n: n == 'A1LC1'
-            info = {'button_image': '', 'model': '', 'name': 'My LC1 Device', 'protocol': 'scsi'}
-            assert _get_device_images(info) == ('A1LC1', 'A1LC1a')
+        with patch("trcc.qt_components.uc_device.Assets") as m:
+            m.exists.side_effect = lambda n: n == "A1LC1"
+            info = {"button_image": "", "model": "", "name": "My LC1 Device", "protocol": "scsi"}
+            assert _get_device_images(info) == ("A1LC1", "A1LC1a")
 
     def test_name_substring_case_insensitive(self, qapp: object) -> None:
         """Name substring match is case insensitive."""
-        with patch('trcc.qt_components.uc_device.Assets') as m:
-            m.exists.side_effect = lambda n: n == 'A1TARAN ARMS'
-            info = {'button_image': '', 'model': '', 'name': 'cztv cooler', 'protocol': 'scsi'}
-            assert _get_device_images(info) == ('A1TARAN ARMS', 'A1TARAN ARMSa')
+        with patch("trcc.qt_components.uc_device.Assets") as m:
+            m.exists.side_effect = lambda n: n == "A1TARAN ARMS"
+            info = {"button_image": "", "model": "", "name": "cztv cooler", "protocol": "scsi"}
+            assert _get_device_images(info) == ("A1TARAN ARMS", "A1TARAN ARMSa")
 
     def test_non_hid_default_fallback(self, qapp: object) -> None:
         """Non-HID device with no match falls back to A1TARAN ARMS if asset exists."""
-        with patch('trcc.qt_components.uc_device.Assets') as m:
+        with patch("trcc.qt_components.uc_device.Assets") as m:
             # Only A1TARAN ARMS exists
-            m.exists.side_effect = lambda n: n == 'A1TARAN ARMS'
-            info = {'button_image': '', 'model': '', 'name': 'Unknown XYZ', 'protocol': 'scsi'}
-            assert _get_device_images(info) == ('A1TARAN ARMS', 'A1TARAN ARMSa')
+            m.exists.side_effect = lambda n: n == "A1TARAN ARMS"
+            info = {"button_image": "", "model": "", "name": "Unknown XYZ", "protocol": "scsi"}
+            assert _get_device_images(info) == ("A1TARAN ARMS", "A1TARAN ARMSa")
 
     def test_hid_no_match_returns_none(self, qapp: object) -> None:
         """HID device with no match returns (None, None) -- no default fallback."""
-        with patch('trcc.qt_components.uc_device.Assets') as m:
+        with patch("trcc.qt_components.uc_device.Assets") as m:
             m.exists.return_value = False
-            info = {'button_image': 'Unknown', 'model': '', 'name': 'Unknown', 'protocol': 'hid'}
+            info = {"button_image": "Unknown", "model": "", "name": "Unknown", "protocol": "hid"}
             assert _get_device_images(info) == (None, None)
 
     def test_no_match_at_all_returns_none(self, qapp: object) -> None:
         """When nothing matches and A1TARAN ARMS asset missing, returns (None, None)."""
-        with patch('trcc.qt_components.uc_device.Assets') as m:
+        with patch("trcc.qt_components.uc_device.Assets") as m:
             m.exists.return_value = False
-            info = {'button_image': '', 'model': '', 'name': 'Unknown', 'protocol': 'scsi'}
+            info = {"button_image": "", "model": "", "name": "Unknown", "protocol": "scsi"}
             assert _get_device_images(info) == (None, None)
 
     def test_empty_device_info(self, qapp: object) -> None:
         """Empty dict returns (None, None) when no assets exist."""
-        with patch('trcc.qt_components.uc_device.Assets') as m:
+        with patch("trcc.qt_components.uc_device.Assets") as m:
             m.exists.return_value = False
             assert _get_device_images({}) == (None, None)
 
     def test_button_image_empty_string_skips_to_model(self, qapp: object) -> None:
         """Empty button_image skips directly to model lookup."""
-        with patch('trcc.qt_components.uc_device.Assets') as m:
-            m.exists.side_effect = lambda n: n == 'A1LF12'
-            info = {'button_image': '', 'model': 'LF12', 'protocol': 'scsi'}
-            assert _get_device_images(info) == ('A1LF12', 'A1LF12a')
+        with patch("trcc.qt_components.uc_device.Assets") as m:
+            m.exists.side_effect = lambda n: n == "A1LF12"
+            info = {"button_image": "", "model": "LF12", "protocol": "scsi"}
+            assert _get_device_images(info) == ("A1LF12", "A1LF12a")
 
     def test_hid_non_generic_button_image(self, qapp: object) -> None:
         """HID device with non-generic button_image uses it."""
-        with patch('trcc.qt_components.uc_device.Assets') as m:
-            m.exists.side_effect = lambda n: n == 'A1FROZEN WARFRAME PRO'
-            info = {'button_image': 'A1FROZEN WARFRAME PRO', 'protocol': 'hid'}
-            assert _get_device_images(info) == ('A1FROZEN WARFRAME PRO', 'A1FROZEN WARFRAME PROa')
+        with patch("trcc.qt_components.uc_device.Assets") as m:
+            m.exists.side_effect = lambda n: n == "A1FROZEN WARFRAME PRO"
+            info = {"button_image": "A1FROZEN WARFRAME PRO", "protocol": "hid"}
+            assert _get_device_images(info) == ("A1FROZEN WARFRAME PRO", "A1FROZEN WARFRAME PROa")
 
     def test_model_key_not_in_map(self, qapp: object) -> None:
         """Model field that is not in DEVICE_IMAGE_MAP falls through to name."""
-        with patch('trcc.qt_components.uc_device.Assets') as m:
-            m.exists.side_effect = lambda n: n == 'A1LC2'
+        with patch("trcc.qt_components.uc_device.Assets") as m:
+            m.exists.side_effect = lambda n: n == "A1LC2"
             info = {
-                'button_image': '', 'model': 'UNKNOWN_MODEL',
-                'name': 'LC2 device', 'protocol': 'scsi',
+                "button_image": "",
+                "model": "UNKNOWN_MODEL",
+                "name": "LC2 device",
+                "protocol": "scsi",
             }
-            assert _get_device_images(info) == ('A1LC2', 'A1LC2a')
+            assert _get_device_images(info) == ("A1LC2", "A1LC2a")
 
     def test_model_asset_not_found_falls_to_name(self, qapp: object) -> None:
         """Model maps to an image that doesn't exist -> falls through to name."""
-        with patch('trcc.qt_components.uc_device.Assets') as m:
+        with patch("trcc.qt_components.uc_device.Assets") as m:
             # Model maps to A1CZ1 which doesn't exist, but name matches CZTV
-            m.exists.side_effect = lambda n: n == 'A1TARAN ARMS'
+            m.exists.side_effect = lambda n: n == "A1TARAN ARMS"
             info = {
-                'button_image': '', 'model': 'CZ1',
-                'name': 'CZTV cooler', 'protocol': 'scsi',
+                "button_image": "",
+                "model": "CZ1",
+                "name": "CZTV cooler",
+                "protocol": "scsi",
             }
-            assert _get_device_images(info) == ('A1TARAN ARMS', 'A1TARAN ARMSa')
+            assert _get_device_images(info) == ("A1TARAN ARMS", "A1TARAN ARMSa")
 
 
 # ============================================================================
 # DEVICE_IMAGE_MAP validation
 # ============================================================================
+
 
 class TestDeviceImageMap:
     """Validate the DEVICE_IMAGE_MAP constant."""
@@ -217,30 +225,39 @@ class TestDeviceImageMap:
 
     def test_all_values_start_with_a1(self, qapp: object) -> None:
         for key, val in DEVICE_IMAGE_MAP.items():
-            assert val.startswith('A1'), f"Value for {key!r} doesn't start with 'A1': {val!r}"
+            assert val.startswith("A1"), f"Value for {key!r} doesn't start with 'A1': {val!r}"
 
     def test_map_is_nonempty(self, qapp: object) -> None:
         assert len(DEVICE_IMAGE_MAP) > 30, "Expected 30+ entries in DEVICE_IMAGE_MAP"
 
     def test_known_entries_present(self, qapp: object) -> None:
-        assert 'CZTV' in DEVICE_IMAGE_MAP
-        assert 'CZ1' in DEVICE_IMAGE_MAP
-        assert 'LC1' in DEVICE_IMAGE_MAP
-        assert 'LF8' in DEVICE_IMAGE_MAP
+        assert "CZTV" in DEVICE_IMAGE_MAP
+        assert "CZ1" in DEVICE_IMAGE_MAP
+        assert "LC1" in DEVICE_IMAGE_MAP
+        assert "LF8" in DEVICE_IMAGE_MAP
 
 
 # ============================================================================
 # UCDevice tests
 # ============================================================================
 
-def _make_device(path: str = '/dev/sg0', name: str = 'LCD',
-                 protocol: str = 'scsi', model: str = '',
-                 button_image: str = '') -> dict:
+
+def _make_device(
+    path: str = "/dev/sg0",
+    name: str = "LCD",
+    protocol: str = "scsi",
+    model: str = "",
+    button_image: str = "",
+) -> dict:
     """Create a device info dict for testing."""
     return {
-        'path': path, 'name': name, 'protocol': protocol,
-        'model': model, 'button_image': button_image,
-        'vid': 0x87CD, 'pid': 0x70DB,
+        "path": path,
+        "name": name,
+        "protocol": protocol,
+        "model": model,
+        "button_image": button_image,
+        "vid": 0x87CD,
+        "pid": 0x70DB,
     }
 
 
@@ -261,7 +278,7 @@ class TestUCDeviceConstruction:
         assert panel.selected_device is dev
 
     def test_construction_with_multiple_devices(self, qapp: object) -> None:
-        devices = [_make_device(f'/dev/sg{i}', f'LCD {i}') for i in range(3)]
+        devices = [_make_device(f"/dev/sg{i}", f"LCD {i}") for i in range(3)]
         panel = UCDevice(detect_fn=lambda: devices)
         assert len(panel.device_buttons) == 3
         # First device auto-selected
@@ -284,11 +301,11 @@ class TestUCDeviceBuildButtons:
 
     def test_button_text_fallback(self, qapp: object) -> None:
         """When no image is found, button shows fallback text."""
-        dev = _make_device(name='My Custom LCD Device')
+        dev = _make_device(name="My Custom LCD Device")
         panel = UCDevice(detect_fn=lambda: [dev])
         btn = panel.device_buttons[0]
         # Fallback text is truncated to 18 chars
-        assert btn.text() == 'My Custom LCD Devi'
+        assert btn.text() == "My Custom LCD Devi"
 
     def test_buttons_are_checkable(self, qapp: object) -> None:
         panel = UCDevice(detect_fn=lambda: [_make_device()])
@@ -316,15 +333,15 @@ class TestUCDeviceSelection:
         assert not panel.about_btn.isChecked()
 
     def test_select_device_checks_correct_button(self, qapp: object) -> None:
-        dev_a = _make_device('/dev/sg0', 'A')
-        dev_b = _make_device('/dev/sg1', 'B')
+        dev_a = _make_device("/dev/sg0", "A")
+        dev_b = _make_device("/dev/sg1", "B")
         panel = UCDevice(detect_fn=lambda: [dev_a, dev_b])
         panel._select_device(dev_b)
         assert not panel.device_buttons[0].isChecked()
         assert panel.device_buttons[1].isChecked()
 
     def test_deselect_all_devices(self, qapp: object) -> None:
-        panel = UCDevice(detect_fn=lambda: [_make_device('/dev/sg0'), _make_device('/dev/sg1')])
+        panel = UCDevice(detect_fn=lambda: [_make_device("/dev/sg0"), _make_device("/dev/sg1")])
         panel._deselect_all_devices()
         for btn in panel.device_buttons:
             assert not btn.isChecked()
@@ -377,7 +394,7 @@ class TestUCDeviceUpdateDevices:
 
     def test_same_paths_no_rebuild(self, qapp: object) -> None:
         panel = UCDevice()
-        dev = _make_device('/dev/sg0')
+        dev = _make_device("/dev/sg0")
         panel.devices = [dev]
         panel._build_device_buttons([dev])
         old_buttons = list(panel.device_buttons)
@@ -387,10 +404,10 @@ class TestUCDeviceUpdateDevices:
 
     def test_changed_paths_rebuilds(self, qapp: object) -> None:
         panel = UCDevice()
-        dev_a = _make_device('/dev/sg0')
+        dev_a = _make_device("/dev/sg0")
         panel.devices = [dev_a]
         panel._build_device_buttons([dev_a])
-        dev_b = _make_device('/dev/sg1')
+        dev_b = _make_device("/dev/sg1")
         received: list[dict] = []
         panel.device_selected.connect(lambda d: received.append(d))
         panel.update_devices([dev_b])
@@ -401,13 +418,13 @@ class TestUCDeviceUpdateDevices:
 
     def test_update_devices_restores_selection(self, qapp: object) -> None:
         panel = UCDevice()
-        dev_a = _make_device('/dev/sg0')
-        dev_b = _make_device('/dev/sg1')
+        dev_a = _make_device("/dev/sg0")
+        dev_b = _make_device("/dev/sg1")
         panel.devices = [dev_a, dev_b]
         panel._build_device_buttons([dev_a, dev_b])
         panel.selected_device = dev_b
         # Add a third device but keep the first two
-        dev_c = _make_device('/dev/sg2')
+        dev_c = _make_device("/dev/sg2")
         panel.update_devices([dev_a, dev_b, dev_c])
         assert panel.selected_device is dev_b
 
@@ -424,8 +441,8 @@ class TestUCDeviceUpdateDevices:
     def test_update_devices_prev_gone_selects_first(self, qapp: object) -> None:
         """When previously selected device is gone, selects first new device."""
         panel = UCDevice()
-        dev_a = _make_device('/dev/sg0')
-        dev_b = _make_device('/dev/sg1')
+        dev_a = _make_device("/dev/sg0")
+        dev_b = _make_device("/dev/sg1")
         panel.devices = [dev_a]
         panel._build_device_buttons([dev_a])
         panel.selected_device = dev_a
@@ -437,8 +454,8 @@ class TestUCDeviceRestoreSelection:
     """Test restore_device_selection()."""
 
     def test_restore_device_selection(self, qapp: object) -> None:
-        dev_a = _make_device('/dev/sg0', 'A')
-        dev_b = _make_device('/dev/sg1', 'B')
+        dev_a = _make_device("/dev/sg0", "A")
+        dev_b = _make_device("/dev/sg1", "B")
         panel = UCDevice(detect_fn=lambda: [dev_a, dev_b])
         panel._select_device(dev_b)
         # Simulate going to About
@@ -464,33 +481,33 @@ class TestUCDeviceButtonUpdate:
 
     def test_update_device_button_with_image(self, qapp: object) -> None:
         """After handshake, button icon is updated if image is found."""
-        dev = _make_device(name='Generic')
+        dev = _make_device(name="Generic")
         panel = UCDevice(detect_fn=lambda: [dev])
         # Simulate handshake resolving the product
-        dev['button_image'] = 'A1FROZEN WARFRAME'
-        with patch('trcc.qt_components.uc_device._get_device_images') as mock_img:
-            mock_img.return_value = ('A1FROZEN WARFRAME', 'A1FROZEN WARFRAMEa')
-            with patch('trcc.qt_components.uc_device.Assets') as mock_a:
+        dev["button_image"] = "A1FROZEN WARFRAME"
+        with patch("trcc.qt_components.uc_device._get_device_images") as mock_img:
+            mock_img.return_value = ("A1FROZEN WARFRAME", "A1FROZEN WARFRAMEa")
+            with patch("trcc.qt_components.uc_device.Assets") as mock_a:
                 pix = _valid_pixmap(140, 50)
                 mock_a.load_pixmap.return_value = pix
                 panel.update_device_button(dev)
         btn = panel.device_buttons[0]
-        assert btn.text() == ''  # Text cleared when icon set
+        assert btn.text() == ""  # Text cleared when icon set
 
     def test_update_device_button_no_match(self, qapp: object) -> None:
         """If _get_device_images returns (None, None), button is not changed."""
-        dev = _make_device(name='Unknown')
+        dev = _make_device(name="Unknown")
         panel = UCDevice(detect_fn=lambda: [dev])
         original_text = panel.device_buttons[0].text()
-        with patch('trcc.qt_components.uc_device._get_device_images', return_value=(None, None)):
+        with patch("trcc.qt_components.uc_device._get_device_images", return_value=(None, None)):
             panel.update_device_button(dev)
         assert panel.device_buttons[0].text() == original_text
 
     def test_update_device_button_wrong_device(self, qapp: object) -> None:
         """Updating a device_info not in buttons list is a safe no-op."""
-        dev = _make_device(name='Known')
+        dev = _make_device(name="Known")
         panel = UCDevice(detect_fn=lambda: [dev])
-        other_dev = _make_device('/dev/sg9', 'Other')
+        other_dev = _make_device("/dev/sg9", "Other")
         panel.update_device_button(other_dev)  # Should not raise
 
 
@@ -507,7 +524,7 @@ class TestUCDeviceGetters:
         assert panel.get_selected_device() is None
 
     def test_get_devices(self, qapp: object) -> None:
-        devices = [_make_device(f'/dev/sg{i}') for i in range(3)]
+        devices = [_make_device(f"/dev/sg{i}") for i in range(3)]
         panel = UCDevice(detect_fn=lambda: devices)
         assert panel.get_devices() == devices
 
@@ -549,6 +566,7 @@ class TestUCDeviceDelegateSignals:
 # UCPreview.RESOLUTION_OFFSETS validation
 # ============================================================================
 
+
 class TestResolutionOffsets:
     """Validate RESOLUTION_OFFSETS structure and values."""
 
@@ -575,21 +593,29 @@ class TestResolutionOffsets:
     def test_all_frame_images_are_strings(self, qapp: object) -> None:
         for key, (_, _, _, _, frame) in UCPreview.RESOLUTION_OFFSETS.items():
             assert isinstance(frame, str), f"Frame for {key} is not a string"
-            assert frame.endswith('.png'), f"Frame for {key} doesn't end with .png"
+            assert frame.endswith(".png"), f"Frame for {key} doesn't end with .png"
 
     def test_common_resolutions_present(self, qapp: object) -> None:
-        expected = [(320, 320), (240, 240), (480, 480), (360, 360),
-                    (320, 240), (1280, 480), (1920, 462)]
+        expected = [
+            (320, 320),
+            (240, 240),
+            (480, 480),
+            (360, 360),
+            (320, 240),
+            (1280, 480),
+            (1920, 462),
+        ]
         for res in expected:
             assert res in UCPreview.RESOLUTION_OFFSETS, f"{res} not in RESOLUTION_OFFSETS"
 
     def test_default_offset_is_320x320(self, qapp: object) -> None:
-        assert UCPreview.DEFAULT_OFFSET == (90, 90, 320, 320, 'P预览320X320.png')
+        assert UCPreview.DEFAULT_OFFSET == (90, 90, 320, 320, "P预览320X320.png")
 
 
 # ============================================================================
 # UCPreview construction
 # ============================================================================
+
 
 class TestUCPreviewConstruction:
     """Test UCPreview construction with various resolutions."""
@@ -620,7 +646,7 @@ class TestUCPreviewConstruction:
 
     def test_status_label_defaults_to_ready(self, qapp: object) -> None:
         panel = UCPreview()
-        assert panel.status_label.text() == 'Ready'
+        assert panel.status_label.text() == "Ready"
 
     def test_progress_container_hidden_by_default(self, qapp: object) -> None:
         panel = UCPreview()
@@ -630,6 +656,7 @@ class TestUCPreviewConstruction:
 # ============================================================================
 # UCPreview._widget_to_lcd() coordinate scaling
 # ============================================================================
+
 
 class TestWidgetToLcd:
     """Test _widget_to_lcd() coordinate translation."""
@@ -703,7 +730,7 @@ class TestWidgetToLcd:
         """If preview widget size is 0 (safety), returns (0, 0)."""
         panel = UCPreview(width=320, height=320)
         # Force zero preview size
-        panel._offset_info = (0, 0, 0, 0, 'test.png')
+        panel._offset_info = (0, 0, 0, 0, "test.png")
         assert panel._widget_to_lcd(50, 50) == (0, 0)
 
     def test_1920x462_extreme_widescreen(self, qapp: object) -> None:
@@ -717,6 +744,7 @@ class TestWidgetToLcd:
 # ============================================================================
 # UCPreview._on_nudge() keyboard nudge
 # ============================================================================
+
 
 class TestOnNudge:
     """Test _on_nudge() LCD-scaled keyboard nudges."""
@@ -773,7 +801,7 @@ class TestOnNudge:
     def test_nudge_zero_preview_size_noop(self, qapp: object) -> None:
         """Zero preview size -> no emit (guard return)."""
         panel = UCPreview(width=320, height=320)
-        panel._offset_info = (0, 0, 0, 0, 'test.png')
+        panel._offset_info = (0, 0, 0, 0, "test.png")
         received: list[tuple[int, int]] = []
         panel.element_nudge.connect(lambda dx, dy: received.append((dx, dy)))
         panel._on_nudge(5, 5)
@@ -783,6 +811,7 @@ class TestOnNudge:
 # ============================================================================
 # UCPreview.set_resolution()
 # ============================================================================
+
 
 class TestSetResolution:
     """Test set_resolution() changes internal state."""
@@ -821,6 +850,7 @@ class TestSetResolution:
 # ============================================================================
 # UCPreview.set_status() / show_video_controls() / set_progress()
 # ============================================================================
+
 
 class TestUCPreviewStatus:
     """Test status and progress methods."""
@@ -867,6 +897,7 @@ class TestUCPreviewStatus:
 # UCPreview.set_playing()
 # ============================================================================
 
+
 class TestSetPlaying:
     """Test set_playing() icon/text toggling."""
 
@@ -874,15 +905,15 @@ class TestSetPlaying:
         """When _img_refs not present, falls back to text."""
         panel = UCPreview()
         # Remove _img_refs if set
-        if hasattr(panel.play_btn, '_img_refs'):
-            delattr(panel.play_btn, '_img_refs')
+        if hasattr(panel.play_btn, "_img_refs"):
+            delattr(panel.play_btn, "_img_refs")
         panel.set_playing(True)
         assert panel.play_btn.text() == "\u23f8"  # pause symbol
 
     def test_set_playing_false_no_refs(self, qapp: object) -> None:
         panel = UCPreview()
-        if hasattr(panel.play_btn, '_img_refs'):
-            delattr(panel.play_btn, '_img_refs')
+        if hasattr(panel.play_btn, "_img_refs"):
+            delattr(panel.play_btn, "_img_refs")
         panel.set_playing(False)
         assert panel.play_btn.text() == "\u25b6"  # play symbol
 
@@ -916,6 +947,7 @@ class TestSetPlaying:
 # UCPreview.get_lcd_size()
 # ============================================================================
 
+
 class TestGetLcdSize:
     """Test get_lcd_size() returns correct dimensions."""
 
@@ -936,6 +968,7 @@ class TestGetLcdSize:
 # ============================================================================
 # UCPreview drag signal emissions
 # ============================================================================
+
 
 class TestUCPreviewDragSignals:
     """Test that drag events are forwarded as LCD-scaled coordinates."""
@@ -967,6 +1000,7 @@ class TestUCPreviewDragSignals:
 # ============================================================================
 # UCPreview command delegates
 # ============================================================================
+
 
 class TestUCPreviewDelegates:
     """Test that video control actions fire delegate signals."""

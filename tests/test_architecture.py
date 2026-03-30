@@ -7,6 +7,7 @@ Validates that the hexagonal architecture patterns are correctly implemented:
 - Service isolation (no Qt dependencies)
 - Builder pattern
 """
+
 from __future__ import annotations
 
 import ast
@@ -29,7 +30,7 @@ from trcc.services.media import MediaService
 from trcc.services.overlay import OverlayService
 from trcc.services.theme import ThemeService
 
-SERVICES_DIR = Path(__file__).resolve().parent.parent / 'src' / 'trcc' / 'services'
+SERVICES_DIR = Path(__file__).resolve().parent.parent / "src" / "trcc" / "services"
 
 
 # =============================================================================
@@ -50,7 +51,7 @@ class TestDependencyInjection(unittest.TestCase):
         self.assertIs(svc.overlay, ovl)
         self.assertIs(svc.media, med)
 
-    @patch('trcc.adapters.infra.data_repository.DataManager.ensure_all')
+    @patch("trcc.adapters.infra.data_repository.DataManager.ensure_all")
     def test_builder_wires_services_into_lcd_device(self, _):
         """ControllerBuilder creates LCDDevice with properly wired services."""
         from unittest.mock import MagicMock
@@ -72,17 +73,17 @@ class TestStrategyPattern(unittest.TestCase):
 
     def test_byte_order_strategy_scsi_320(self):
         """SCSI 320x320 uses big-endian (Windows ImageTo565 compat)."""
-        self.assertEqual(ImageService.byte_order_for('scsi', (320, 320)), '>')
+        self.assertEqual(ImageService.byte_order_for("scsi", (320, 320)), ">")
 
     def test_byte_order_strategy_scsi_480(self):
         """SCSI non-320 uses little-endian."""
-        self.assertEqual(ImageService.byte_order_for('scsi', (480, 480)), '<')
+        self.assertEqual(ImageService.byte_order_for("scsi", (480, 480)), "<")
 
     def test_byte_order_strategy_hid(self):
         """HID uses big-endian for 320x320, little-endian for others."""
-        self.assertEqual(ImageService.byte_order_for('hid', (320, 320)), '>')
-        self.assertEqual(ImageService.byte_order_for('hid', (480, 480)), '<')
-        self.assertEqual(ImageService.byte_order_for('hid', (320, 240)), '<')
+        self.assertEqual(ImageService.byte_order_for("hid", (320, 320)), ">")
+        self.assertEqual(ImageService.byte_order_for("hid", (480, 480)), "<")
+        self.assertEqual(ImageService.byte_order_for("hid", (320, 240)), "<")
 
     def test_rotation_strategy_0(self):
         img = make_test_surface(4, 8)
@@ -117,18 +118,18 @@ class TestStrategyPattern(unittest.TestCase):
 
     def test_theme_filter_strategy_all(self):
         """'all' filter passes everything."""
-        theme = ThemeInfo(name='anything')
-        self.assertTrue(ThemeService._passes_filter(theme, 'all'))
+        theme = ThemeInfo(name="anything")
+        self.assertTrue(ThemeService._passes_filter(theme, "all"))
 
     def test_theme_filter_strategy_user(self):
         """'user' filter passes Custom_ prefix."""
-        theme = ThemeInfo(name='Custom_foo')
-        self.assertTrue(ThemeService._passes_filter(theme, 'user'))
+        theme = ThemeInfo(name="Custom_foo")
+        self.assertTrue(ThemeService._passes_filter(theme, "user"))
 
     def test_theme_filter_strategy_default_excludes_custom(self):
         """'default' filter excludes Custom_ prefix."""
-        theme = ThemeInfo(name='Custom_foo')
-        self.assertFalse(ThemeService._passes_filter(theme, 'default'))
+        theme = ThemeInfo(name="Custom_foo")
+        self.assertFalse(ThemeService._passes_filter(theme, "default"))
 
 
 # =============================================================================
@@ -142,8 +143,14 @@ class TestDTOs(unittest.TestCase):
     def test_theme_data_is_dataclass(self):
         """ThemeData is a dataclass with known fields."""
         field_names = {f.name for f in fields(ThemeData)}
-        expected = {'background', 'animation_path', 'is_animated',
-                    'mask', 'mask_position', 'mask_source_dir'}
+        expected = {
+            "background",
+            "animation_path",
+            "is_animated",
+            "mask",
+            "mask_position",
+            "mask_source_dir",
+        }
         self.assertEqual(field_names, expected)
 
     def test_theme_data_defaults(self):
@@ -158,29 +165,31 @@ class TestDTOs(unittest.TestCase):
 
     def test_theme_info_is_dataclass(self):
         field_names = {f.name for f in fields(ThemeInfo)}
-        self.assertIn('name', field_names)
-        self.assertIn('path', field_names)
+        self.assertIn("name", field_names)
+        self.assertIn("path", field_names)
 
     def test_device_info_is_dataclass(self):
         field_names = {f.name for f in fields(DeviceInfo)}
-        self.assertIn('name', field_names)
-        self.assertIn('path', field_names)
-        self.assertIn('protocol', field_names)
+        self.assertIn("name", field_names)
+        self.assertIn("path", field_names)
+        self.assertIn("protocol", field_names)
 
     def test_video_state_is_dataclass(self):
         field_names = {f.name for f in fields(VideoState)}
-        self.assertIn('current_frame', field_names)
-        self.assertIn('total_frames', field_names)
-        self.assertIn('fps', field_names)
+        self.assertIn("current_frame", field_names)
+        self.assertIn("total_frames", field_names)
+        self.assertIn("fps", field_names)
 
     def test_theme_data_lives_in_models(self):
         """ThemeData is in core.models, not in services."""
         from trcc.core import models
-        self.assertTrue(hasattr(models, 'ThemeData'))
+
+        self.assertTrue(hasattr(models, "ThemeData"))
 
     def test_device_info_lives_in_models(self):
         from trcc.core import models
-        self.assertTrue(hasattr(models, 'DeviceInfo'))
+
+        self.assertTrue(hasattr(models, "DeviceInfo"))
 
 
 # =============================================================================
@@ -199,40 +208,42 @@ class TestServiceIsolation(unittest.TestCase):
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:
-                    imports.add(alias.name.split('.')[0])
+                    imports.add(alias.name.split(".")[0])
             elif isinstance(node, ast.ImportFrom):
                 if node.module:
-                    imports.add(node.module.split('.')[0])
+                    imports.add(node.module.split(".")[0])
         return imports
 
     def test_no_qt_in_services(self):
         """No service file imports PySide6 or PyQt6."""
-        qt_modules = {'PySide6', 'PyQt6', 'PyQt5'}
-        for py_file in SERVICES_DIR.glob('*.py'):
+        qt_modules = {"PySide6", "PyQt6", "PyQt5"}
+        for py_file in SERVICES_DIR.glob("*.py"):
             imports = self._get_imports(py_file)
             offenders = imports & qt_modules
-            self.assertEqual(
-                offenders, set(),
-                f"{py_file.name} imports Qt: {offenders}")
+            self.assertEqual(offenders, set(), f"{py_file.name} imports Qt: {offenders}")
 
     def test_no_qt_in_models(self):
         """Models are pure dataclasses — no Qt."""
-        models_path = SERVICES_DIR.parent / 'core' / 'models.py'
-        qt_modules = {'PySide6', 'PyQt6', 'PyQt5'}
+        models_path = SERVICES_DIR.parent / "core" / "models.py"
+        qt_modules = {"PySide6", "PyQt6", "PyQt5"}
         imports = self._get_imports(models_path)
         offenders = imports & qt_modules
-        self.assertEqual(offenders, set(),
-                         f"models.py imports Qt: {offenders}")
+        self.assertEqual(offenders, set(), f"models.py imports Qt: {offenders}")
 
     def test_services_init_exports(self):
         """services/__init__.py exports all 6 services."""
         from trcc import services
-        expected = {'DeviceService', 'DisplayService', 'ImageService',
-                    'MediaService', 'OverlayService', 'ThemeService'}
+
+        expected = {
+            "DeviceService",
+            "DisplayService",
+            "ImageService",
+            "MediaService",
+            "OverlayService",
+            "ThemeService",
+        }
         for name in expected:
-            self.assertTrue(
-                hasattr(services, name),
-                f"services missing export: {name}")
+            self.assertTrue(hasattr(services, name), f"services missing export: {name}")
 
 
 # =============================================================================
@@ -246,10 +257,11 @@ class TestServiceStatelessness(unittest.TestCase):
     def test_image_service_all_static(self):
         """Every public method on ImageService is @staticmethod."""
         for name, method in inspect.getmembers(ImageService, predicate=inspect.isfunction):
-            if not name.startswith('_'):
+            if not name.startswith("_"):
                 self.assertTrue(
                     isinstance(inspect.getattr_static(ImageService, name), staticmethod),
-                    f"ImageService.{name} should be @staticmethod")
+                    f"ImageService.{name} should be @staticmethod",
+                )
 
     def test_image_service_no_init_state(self):
         """ImageService has no __init__ — fully stateless."""
@@ -263,7 +275,7 @@ class TestServiceStatelessness(unittest.TestCase):
 # =============================================================================
 
 
-CORE_DIR = Path(__file__).resolve().parent.parent / 'src' / 'trcc' / 'core'
+CORE_DIR = Path(__file__).resolve().parent.parent / "src" / "trcc" / "core"
 
 
 class TestHexagonalBoundary(unittest.TestCase):
@@ -276,7 +288,7 @@ class TestHexagonalBoundary(unittest.TestCase):
 
     # builder.py is the composition root — it's the ONLY core/ file
     # that imports from adapters (to inject concrete implementations).
-    _COMPOSITION_ROOTS = {'builder.py'}
+    _COMPOSITION_ROOTS = {"builder.py"}
 
     def _get_module_level_imports(self, filepath: Path) -> list[tuple[str, int]]:
         """Return (module_name, lineno) for top-level imports only.
@@ -296,9 +308,9 @@ class TestHexagonalBoundary(unittest.TestCase):
             elif isinstance(node, ast.If):
                 # Skip TYPE_CHECKING blocks
                 test = node.test
-                if isinstance(test, ast.Name) and test.id == 'TYPE_CHECKING':
+                if isinstance(test, ast.Name) and test.id == "TYPE_CHECKING":
                     continue
-                if isinstance(test, ast.Attribute) and test.attr == 'TYPE_CHECKING':
+                if isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING":
                     continue
                 # Check imports inside non-TYPE_CHECKING if blocks
                 for child in ast.walk(node):
@@ -312,22 +324,22 @@ class TestHexagonalBoundary(unittest.TestCase):
     def test_core_no_module_level_service_imports(self):
         """core/ files never import from services/ at module level."""
         violations = []
-        for py_file in CORE_DIR.glob('*.py'):
+        for py_file in CORE_DIR.glob("*.py"):
             if py_file.name in self._COMPOSITION_ROOTS:
                 continue
             for module, lineno in self._get_module_level_imports(py_file):
-                if '.services' in module or module.startswith('trcc.services'):
+                if ".services" in module or module.startswith("trcc.services"):
                     violations.append(f"{py_file.name}:{lineno} imports {module}")
         self.assertEqual(violations, [], f"core/ → services/ violations: {violations}")
 
     def test_core_no_module_level_adapter_imports(self):
         """core/ files never import from adapters/ at module level."""
         violations = []
-        for py_file in CORE_DIR.glob('*.py'):
+        for py_file in CORE_DIR.glob("*.py"):
             if py_file.name in self._COMPOSITION_ROOTS:
                 continue
             for module, lineno in self._get_module_level_imports(py_file):
-                if '.adapters' in module or module.startswith('trcc.adapters'):
+                if ".adapters" in module or module.startswith("trcc.adapters"):
                     violations.append(f"{py_file.name}:{lineno} imports {module}")
         self.assertEqual(violations, [], f"core/ → adapters/ violations: {violations}")
 
@@ -338,21 +350,25 @@ class TestPlatformSetupABC(unittest.TestCase):
     def test_linux_implements_abc(self):
         from trcc.adapters.system.linux.setup import LinuxSetup
         from trcc.core.ports import PlatformSetup
+
         self.assertTrue(issubclass(LinuxSetup, PlatformSetup))
 
     def test_windows_implements_abc(self):
         from trcc.adapters.system.windows.setup import WindowsSetup
         from trcc.core.ports import PlatformSetup
+
         self.assertTrue(issubclass(WindowsSetup, PlatformSetup))
 
     def test_macos_implements_abc(self):
         from trcc.adapters.system.macos.setup import MacOSSetup
         from trcc.core.ports import PlatformSetup
+
         self.assertTrue(issubclass(MacOSSetup, PlatformSetup))
 
     def test_bsd_implements_abc(self):
         from trcc.adapters.system.bsd.setup import BSDSetup
         from trcc.core.ports import PlatformSetup
+
         self.assertTrue(issubclass(BSDSetup, PlatformSetup))
 
 
@@ -362,23 +378,27 @@ class TestSensorEnumeratorABC(unittest.TestCase):
     def test_linux_implements_abc(self):
         from trcc.adapters.system.linux.sensors import SensorEnumerator
         from trcc.core.ports import SensorEnumerator as ABC
+
         self.assertTrue(issubclass(SensorEnumerator, ABC))
 
     def test_windows_implements_abc(self):
         from trcc.adapters.system.windows.sensors import WindowsSensorEnumerator
         from trcc.core.ports import SensorEnumerator as ABC
+
         self.assertTrue(issubclass(WindowsSensorEnumerator, ABC))
 
     def test_macos_implements_abc(self):
         from trcc.adapters.system.macos.sensors import MacOSSensorEnumerator
         from trcc.core.ports import SensorEnumerator as ABC
+
         self.assertTrue(issubclass(MacOSSensorEnumerator, ABC))
 
     def test_bsd_implements_abc(self):
         from trcc.adapters.system.bsd.sensors import BSDSensorEnumerator
         from trcc.core.ports import SensorEnumerator as ABC
+
         self.assertTrue(issubclass(BSDSensorEnumerator, ABC))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

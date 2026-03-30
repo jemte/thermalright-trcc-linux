@@ -56,8 +56,11 @@ def _detach_kernel_drivers(dev: Any, count: int = 4) -> bool:
             # Verify detach actually worked (SELinux silently blocks it)
             if dev.is_kernel_driver_active(i):  # type: ignore[union-attr]
                 selinux_blocked = True
-                log.warning("Kernel driver still active on interface %d after "
-                            "detach — SELinux may be blocking USB ioctls", i)
+                log.warning(
+                    "Kernel driver still active on interface %d after "
+                    "detach — SELinux may be blocking USB ioctls",
+                    i,
+                )
             else:
                 log.debug("Detached kernel driver from interface %d", i)
         except usb.core.USBError as e:
@@ -65,8 +68,11 @@ def _detach_kernel_drivers(dev: Any, count: int = 4) -> bool:
             try:
                 if dev.is_kernel_driver_active(i):  # type: ignore[union-attr]
                     selinux_blocked = True
-                    log.warning("Kernel driver still active on interface %d "
-                                "after detach error — SELinux may be blocking", i)
+                    log.warning(
+                        "Kernel driver still active on interface %d "
+                        "after detach error — SELinux may be blocking",
+                        i,
+                    )
             except (usb.core.USBError, NotImplementedError):
                 pass
         except NotImplementedError:
@@ -90,6 +96,7 @@ def _reset_and_refind(dev: Any, vid: int, pid: int) -> Any:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def open_usb_device(vid: int, pid: int) -> tuple[Any, Any]:
     """Find, configure, and claim a vendor-class USB device.
@@ -151,6 +158,7 @@ def open_usb_device(vid: int, pid: int) -> tuple[Any, Any]:
 # BulkFrameDevice — shared base for BulkDevice + LyDevice
 # ---------------------------------------------------------------------------
 
+
 class BulkFrameDevice:
     """Shared base for USB bulk-transport LCD devices (Bulk + LY).
 
@@ -199,15 +207,20 @@ class BulkFrameDevice:
 
         self._intf = intf.bInterfaceNumber  # type: ignore[union-attr]
         self._dev = dev
-        log.info("Opened %s %04x:%04x (EP OUT=0x%02x, EP IN=0x%02x)",
-                 type(self).__name__, self.vid, self.pid,
-                 self._ep_out.bEndpointAddress,  # type: ignore[union-attr]
-                 self._ep_in.bEndpointAddress)  # type: ignore[union-attr]
+        log.info(
+            "Opened %s %04x:%04x (EP OUT=0x%02x, EP IN=0x%02x)",
+            type(self).__name__,
+            self.vid,
+            self.pid,
+            self._ep_out.bEndpointAddress,  # type: ignore[union-attr]
+            self._ep_in.bEndpointAddress,
+        )  # type: ignore[union-attr]
 
     def close(self) -> None:
         """Release USB device."""
         if self._dev is not None:
             import usb.util
+
             try:
                 usb.util.release_interface(self._dev, self._intf)
             except Exception:

@@ -11,10 +11,10 @@ from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 # Default sensors: (metric_key, label, color)
 DEFAULT_SENSORS = [
-    ('cpu_temp', 'CPU Temp', '#FF6B6B'),
-    ('gpu_temp', 'GPU Temp', '#4ECDC4'),
-    ('cpu_percent', 'CPU %', '#45B7D1'),
-    ('gpu_usage', 'GPU %', '#96CEB4'),
+    ("cpu_temp", "CPU Temp", "#FF6B6B"),
+    ("gpu_temp", "GPU Temp", "#4ECDC4"),
+    ("cpu_percent", "CPU %", "#45B7D1"),
+    ("gpu_usage", "GPU %", "#96CEB4"),
 ]
 
 
@@ -24,7 +24,7 @@ class SensorBox(QFrame):
     def __init__(self, label, color, parent=None):
         super().__init__(parent)
         self.color = color
-        self.metric_key = ''
+        self.metric_key = ""
 
         self.setStyleSheet(
             "SensorBox { background-color: #2B2B2B; border: 1px solid #444; border-radius: 3px; }"
@@ -59,12 +59,12 @@ class UCInfoModule(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._temp_unit = '\u00b0C'
+        self._temp_unit = "\u00b0C"
         self._sensor_boxes: dict = {}
 
         # Dark background via palette
         palette = self.palette()
-        palette.setColor(QPalette.ColorRole.Window, QColor('#1E1E1E'))
+        palette.setColor(QPalette.ColorRole.Window, QColor("#1E1E1E"))
         self.setPalette(palette)
         self.setAutoFillBackground(True)
 
@@ -97,9 +97,9 @@ class UCInfoModule(QWidget):
         for key, box in self._sensor_boxes.items():
             value = getattr(metrics, key, None)
             if value is not None and isinstance(value, (int, float)):
-                if 'temp' in key:
+                if "temp" in key:
                     box.value_label.setText(f"{int(value)}{self._temp_unit}")
-                elif 'usage' in key or 'percent' in key:
+                elif "usage" in key or "percent" in key:
                     box.value_label.setText(f"{int(value)}%")
                 else:
                     box.value_label.setText(str(int(value)))

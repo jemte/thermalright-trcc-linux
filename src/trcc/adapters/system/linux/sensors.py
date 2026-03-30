@@ -33,12 +33,15 @@ log = logging.getLogger(__name__)
 
 try:
     import pynvml  # pyright: ignore[reportMissingImports]
+
     pynvml.nvmlInit()
     NVML_AVAILABLE = True
 except ImportError:
     pynvml = None  # type: ignore[assignment]
     NVML_AVAILABLE = False
-    log.debug("pynvml not installed — NVIDIA GPU sensors unavailable. Install nvidia-ml-py to enable.")
+    log.debug(
+        "pynvml not installed — NVIDIA GPU sensors unavailable. Install nvidia-ml-py to enable."
+    )
 except Exception as e:
     pynvml = None  # type: ignore[assignment]
     NVML_AVAILABLE = False
@@ -47,26 +50,26 @@ except Exception as e:
 
 # Maps hwmon input prefix to (category, unit)
 _HWMON_TYPES = {
-    'temp': ('temperature', '°C'),
-    'fan': ('fan', 'RPM'),
-    'in': ('voltage', 'V'),
-    'power': ('power', 'W'),
-    'freq': ('clock', 'MHz'),
+    "temp": ("temperature", "°C"),
+    "fan": ("fan", "RPM"),
+    "in": ("voltage", "V"),
+    "power": ("power", "W"),
+    "freq": ("clock", "MHz"),
 }
 
 # Maps hwmon input prefix to value divisor (sysfs uses millidegrees, microvolts, etc.)
 _HWMON_DIVISORS = {
-    'temp': 1000.0,    # millidegrees → degrees
-    'fan': 1.0,        # already RPM
-    'in': 1000.0,      # millivolts → volts
-    'power': 1000000.0,  # microwatts → watts
-    'freq': 1000000.0,  # Hz → MHz
+    "temp": 1000.0,  # millidegrees → degrees
+    "fan": 1.0,  # already RPM
+    "in": 1000.0,  # millivolts → volts
+    "power": 1000000.0,  # microwatts → watts
+    "freq": 1000000.0,  # Hz → MHz
 }
 
 # GPU vendor IDs (PCI sysfs)
-_GPU_VENDOR_NVIDIA = '10de'
-_GPU_VENDOR_AMD = '1002'
-_GPU_VENDOR_INTEL = '8086'
+_GPU_VENDOR_NVIDIA = "10de"
+_GPU_VENDOR_AMD = "1002"
+_GPU_VENDOR_INTEL = "8086"
 
 
 def _detect_gpu_vendors() -> list[str]:
@@ -75,21 +78,21 @@ def _detect_gpu_vendors() -> list[str]:
     Scans /sys/bus/pci/devices/*/class for VGA (0x0300) and 3D (0x0302)
     controllers, returns vendor ID strings ordered: NVIDIA > AMD > Intel.
     """
-    pci_base = Path('/sys/bus/pci/devices')
+    pci_base = Path("/sys/bus/pci/devices")
     if not pci_base.exists():
         return []
 
     vendors: list[str] = []
     for dev_dir in pci_base.iterdir():
-        class_path = dev_dir / 'class'
-        vendor_path = dev_dir / 'vendor'
+        class_path = dev_dir / "class"
+        vendor_path = dev_dir / "vendor"
         if not class_path.exists() or not vendor_path.exists():
             continue
         try:
             pci_class = class_path.read_text().strip()
-            if not (pci_class.startswith('0x0300') or pci_class.startswith('0x0302')):
+            if not (pci_class.startswith("0x0300") or pci_class.startswith("0x0302")):
                 continue
-            vendor = vendor_path.read_text().strip().removeprefix('0x')
+            vendor = vendor_path.read_text().strip().removeprefix("0x")
             if vendor not in vendors:
                 vendors.append(vendor)
         except OSError:
@@ -106,13 +109,13 @@ class SensorEnumerator(SensorEnumeratorABC):
 
     def __init__(self):
         self._sensors: list[SensorInfo] = []
-        self._hwmon_paths: dict[str, str] = {}   # sensor_id -> sysfs path
+        self._hwmon_paths: dict[str, str] = {}  # sensor_id -> sysfs path
         self._nvidia_handles: dict[int, object] = {}  # gpu_index -> handle
-        self._drm_paths: dict[str, str] = {}     # sensor_id -> drm sysfs path
-        self._rapl_paths: dict[str, str] = {}     # sensor_id -> energy_uj path
+        self._drm_paths: dict[str, str] = {}  # sensor_id -> drm sysfs path
+        self._rapl_paths: dict[str, str] = {}  # sensor_id -> energy_uj path
         self._rapl_prev: dict[str, tuple[float, float]] = {}  # id -> (energy, time)
-        self._net_prev: Optional[tuple] = None     # (counters, time)
-        self._disk_prev: Optional[tuple] = None    # (counters, time)
+        self._net_prev: Optional[tuple] = None  # (counters, time)
+        self._disk_prev: Optional[tuple] = None  # (counters, time)
         # Background polling thread — avoids blocking Qt main thread
         self._cached_readings: dict[str, float] = {}
         self._cache_lock = threading.Lock()
@@ -167,7 +170,8 @@ class SensorEnumerator(SensorEnumeratorABC):
             return
         self._poll_stop.clear()
         self._poll_thread = threading.Thread(
-            target=self._poll_loop, daemon=True, name="sensor-poll")
+            target=self._poll_loop, daemon=True, name="sensor-poll"
+        )
         self._poll_thread.start()
         log.debug("Sensor polling thread started (interval=%.1fs)", self._poll_interval)
 
@@ -201,7 +205,7 @@ class SensorEnumerator(SensorEnumeratorABC):
                 try:
                     raw = float(val)
                     # Determine divisor from sensor type prefix
-                    prefix = sid.split(':')[-1]  # e.g., "temp1"
+                    prefix = sid.split(":")[-1]  # e.g., "temp1"
                     for pfx, div in _HWMON_DIVISORS.items():
                         if prefix.startswith(pfx):
                             readings[sid] = raw / div
@@ -235,7 +239,7 @@ class SensorEnumerator(SensorEnumeratorABC):
             if val is not None:
                 try:
                     raw = float(val)
-                    prefix = sensor_id.split(':')[-1]
+                    prefix = sensor_id.split(":")[-1]
                     for pfx, div in _HWMON_DIVISORS.items():
                         if prefix.startswith(pfx):
                             return raw / div
@@ -261,7 +265,7 @@ class SensorEnumerator(SensorEnumeratorABC):
 
     def _discover_hwmon(self):
         """Discover sensors from /sys/class/hwmon/."""
-        hwmon_base = Path('/sys/class/hwmon')
+        hwmon_base = Path("/sys/class/hwmon")
         if not hwmon_base.exists():
             return
 
@@ -269,7 +273,7 @@ class SensorEnumerator(SensorEnumeratorABC):
         driver_counts: dict[str, int] = {}
 
         for hwmon_dir in sorted(hwmon_base.iterdir()):
-            driver_name = SysUtils.read_sysfs(str(hwmon_dir / 'name')) or hwmon_dir.name
+            driver_name = SysUtils.read_sysfs(str(hwmon_dir / "name")) or hwmon_dir.name
 
             # Disambiguate duplicate driver names with index suffix
             driver_counts[driver_name] = driver_counts.get(driver_name, 0) + 1
@@ -278,9 +282,9 @@ class SensorEnumerator(SensorEnumeratorABC):
             else:
                 driver_key = driver_name
 
-            for input_file in sorted(hwmon_dir.glob('*_input')):
+            for input_file in sorted(hwmon_dir.glob("*_input")):
                 fname = input_file.name  # e.g., "temp1_input"
-                input_name = fname.replace('_input', '')  # e.g., "temp1"
+                input_name = fname.replace("_input", "")  # e.g., "temp1"
 
                 # Determine type
                 prefix = None
@@ -302,10 +306,11 @@ class SensorEnumerator(SensorEnumeratorABC):
                 else:
                     name = f"{driver_key} / {input_name}"
 
-                self._sensors.append(SensorInfo(
-                    id=sensor_id, name=name,
-                    category=category, unit=unit, source='hwmon'
-                ))
+                self._sensors.append(
+                    SensorInfo(
+                        id=sensor_id, name=name, category=category, unit=unit, source="hwmon"
+                    )
+                )
                 self._hwmon_paths[sensor_id] = str(input_file)
 
     def _discover_nvidia(self):
@@ -334,37 +339,38 @@ class SensorEnumerator(SensorEnumeratorABC):
             label = gpu_name if count == 1 else f"GPU {i} ({gpu_name})"
 
             sensors = [
-                ('temp', f'{label} / Temperature', 'temperature', '°C'),
-                ('gpu_util', f'{label} / GPU Utilization', 'usage', '%'),
-                ('mem_util', f'{label} / Memory Utilization', 'usage', '%'),
-                ('clock', f'{label} / Graphics Clock', 'clock', 'MHz'),
-                ('mem_clock', f'{label} / Memory Clock', 'clock', 'MHz'),
-                ('power', f'{label} / Power Draw', 'power', 'W'),
-                ('vram_used', f'{label} / VRAM Used', 'other', 'MB'),
-                ('vram_total', f'{label} / VRAM Total', 'other', 'MB'),
-                ('fan', f'{label} / Fan Speed', 'fan', '%'),
+                ("temp", f"{label} / Temperature", "temperature", "°C"),
+                ("gpu_util", f"{label} / GPU Utilization", "usage", "%"),
+                ("mem_util", f"{label} / Memory Utilization", "usage", "%"),
+                ("clock", f"{label} / Graphics Clock", "clock", "MHz"),
+                ("mem_clock", f"{label} / Memory Clock", "clock", "MHz"),
+                ("power", f"{label} / Power Draw", "power", "W"),
+                ("vram_used", f"{label} / VRAM Used", "other", "MB"),
+                ("vram_total", f"{label} / VRAM Total", "other", "MB"),
+                ("fan", f"{label} / Fan Speed", "fan", "%"),
             ]
             for metric, name, cat, unit in sensors:
-                self._sensors.append(SensorInfo(
-                    id=f"{prefix}:{metric}", name=name,
-                    category=cat, unit=unit, source='nvidia'
-                ))
+                self._sensors.append(
+                    SensorInfo(
+                        id=f"{prefix}:{metric}", name=name, category=cat, unit=unit, source="nvidia"
+                    )
+                )
 
     def _discover_drm(self):
         """Discover GPU sensors from /sys/class/drm/ (AMD utilization, Intel freq)."""
-        drm_base = Path('/sys/class/drm')
+        drm_base = Path("/sys/class/drm")
         if not drm_base.exists():
             return
 
-        for card_dir in sorted(drm_base.glob('card[0-9]*')):
-            if '-' in card_dir.name:  # skip card0-DP-1 etc.
+        for card_dir in sorted(drm_base.glob("card[0-9]*")):
+            if "-" in card_dir.name:  # skip card0-DP-1 etc.
                 continue
 
-            vendor_path = card_dir / 'device' / 'vendor'
+            vendor_path = card_dir / "device" / "vendor"
             if not vendor_path.exists():
                 continue
             try:
-                vendor = vendor_path.read_text().strip().removeprefix('0x')
+                vendor = vendor_path.read_text().strip().removeprefix("0x")
             except OSError:
                 continue
 
@@ -372,82 +378,96 @@ class SensorEnumerator(SensorEnumeratorABC):
 
             # AMD: gpu_busy_percent (utilization %)
             if vendor == _GPU_VENDOR_AMD:
-                busy_path = card_dir / 'device' / 'gpu_busy_percent'
+                busy_path = card_dir / "device" / "gpu_busy_percent"
                 if busy_path.exists():
                     sid = f"drm:{card}:gpu_busy"
-                    self._sensors.append(SensorInfo(
-                        id=sid, name=f"GPU / Utilization ({card})",
-                        category='usage', unit='%', source='drm',
-                    ))
+                    self._sensors.append(
+                        SensorInfo(
+                            id=sid,
+                            name=f"GPU / Utilization ({card})",
+                            category="usage",
+                            unit="%",
+                            source="drm",
+                        )
+                    )
                     self._drm_paths[sid] = str(busy_path)
 
             # Intel: gt_cur_freq_mhz (graphics clock)
             if vendor == _GPU_VENDOR_INTEL:
-                freq_path = card_dir / 'gt_cur_freq_mhz'
+                freq_path = card_dir / "gt_cur_freq_mhz"
                 if freq_path.exists():
                     sid = f"drm:{card}:freq"
-                    self._sensors.append(SensorInfo(
-                        id=sid, name=f"GPU / Frequency ({card})",
-                        category='clock', unit='MHz', source='drm',
-                    ))
+                    self._sensors.append(
+                        SensorInfo(
+                            id=sid,
+                            name=f"GPU / Frequency ({card})",
+                            category="clock",
+                            unit="MHz",
+                            source="drm",
+                        )
+                    )
                     self._drm_paths[sid] = str(freq_path)
 
     def _discover_psutil(self):
         """Discover psutil-based sensors."""
 
         psutil_sensors = [
-            ('psutil:cpu_percent', 'CPU / Total Usage', 'usage', '%'),
-            ('psutil:cpu_freq', 'CPU / Frequency', 'clock', 'MHz'),
-            ('psutil:mem_percent', 'Memory / Usage', 'usage', '%'),
-            ('psutil:mem_available', 'Memory / Available', 'other', 'MB'),
+            ("psutil:cpu_percent", "CPU / Total Usage", "usage", "%"),
+            ("psutil:cpu_freq", "CPU / Frequency", "clock", "MHz"),
+            ("psutil:mem_percent", "Memory / Usage", "usage", "%"),
+            ("psutil:mem_available", "Memory / Available", "other", "MB"),
         ]
         for sid, name, cat, unit in psutil_sensors:
-            self._sensors.append(SensorInfo(
-                id=sid, name=name, category=cat, unit=unit, source='psutil'
-            ))
+            self._sensors.append(
+                SensorInfo(id=sid, name=name, category=cat, unit=unit, source="psutil")
+            )
 
     def _discover_rapl(self):
         """Discover Intel RAPL power sensors."""
-        rapl_base = Path('/sys/class/powercap')
+        rapl_base = Path("/sys/class/powercap")
         if not rapl_base.exists():
             return
 
-        for rapl_dir in sorted(rapl_base.glob('intel-rapl:*')):
+        for rapl_dir in sorted(rapl_base.glob("intel-rapl:*")):
             # Only top-level domains (not sub-zones like intel-rapl:0:0)
-            if ':' in rapl_dir.name.split('intel-rapl:')[1]:
+            if ":" in rapl_dir.name.split("intel-rapl:")[1]:
                 continue
 
-            energy_path = rapl_dir / 'energy_uj'
-            name_path = rapl_dir / 'name'
+            energy_path = rapl_dir / "energy_uj"
+            name_path = rapl_dir / "name"
             if not energy_path.exists():
                 continue
 
             domain_name = SysUtils.read_sysfs(str(name_path)) or rapl_dir.name
             sensor_id = f"rapl:{domain_name}"
 
-            self._sensors.append(SensorInfo(
-                id=sensor_id,
-                name=f"RAPL / {domain_name.title()} Power",
-                category='power', unit='W', source='rapl'
-            ))
+            self._sensors.append(
+                SensorInfo(
+                    id=sensor_id,
+                    name=f"RAPL / {domain_name.title()} Power",
+                    category="power",
+                    unit="W",
+                    source="rapl",
+                )
+            )
             self._rapl_paths[sensor_id] = str(energy_path)
 
     def _discover_computed(self):
         """Register computed I/O rate sensors (disk, network)."""
 
         computed = [
-            ('computed:disk_read', 'Disk / Read Rate', 'other', 'MB/s'),
-            ('computed:disk_write', 'Disk / Write Rate', 'other', 'MB/s'),
-            ('computed:disk_activity', 'Disk / Activity', 'usage', '%'),
-            ('computed:net_up', 'Network / Upload Rate', 'other', 'KB/s'),
-            ('computed:net_down', 'Network / Download Rate', 'other', 'KB/s'),
-            ('computed:net_total_up', 'Network / Total Uploaded', 'other', 'MB'),
-            ('computed:net_total_down', 'Network / Total Downloaded', 'other', 'MB'),
+            ("computed:disk_read", "Disk / Read Rate", "other", "MB/s"),
+            ("computed:disk_write", "Disk / Write Rate", "other", "MB/s"),
+            ("computed:disk_activity", "Disk / Activity", "usage", "%"),
+            ("computed:net_up", "Network / Upload Rate", "other", "KB/s"),
+            ("computed:net_down", "Network / Download Rate", "other", "KB/s"),
+            ("computed:net_total_up", "Network / Total Uploaded", "other", "MB"),
+            ("computed:net_total_down", "Network / Total Downloaded", "other", "MB"),
         ]
         for sid, name, cat, unit in computed:
-            self._sensors.append(SensorInfo(
-                id=sid, name=name, category=cat, unit=unit, source='computed'
-            ))
+            self._sensors.append(
+                SensorInfo(id=sid, name=name, category=cat, unit=unit, source="computed")
+            )
 
     # =========================================================================
     # Reading methods
@@ -462,7 +482,8 @@ class SensorEnumerator(SensorEnumeratorABC):
             prefix = f"nvidia:{i}"
             try:
                 readings[f"{prefix}:temp"] = float(
-                    pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU))
+                    pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU)
+                )
             except Exception as e:
                 log.debug("nvidia:%d temp read failed: %s", i, e)
             try:
@@ -473,12 +494,14 @@ class SensorEnumerator(SensorEnumeratorABC):
                 log.debug("nvidia:%d util read failed: %s", i, e)
             try:
                 readings[f"{prefix}:clock"] = float(
-                    pynvml.nvmlDeviceGetClockInfo(handle, pynvml.NVML_CLOCK_GRAPHICS))
+                    pynvml.nvmlDeviceGetClockInfo(handle, pynvml.NVML_CLOCK_GRAPHICS)
+                )
             except Exception as e:
                 log.debug("nvidia:%d clock read failed: %s", i, e)
             try:
                 readings[f"{prefix}:mem_clock"] = float(
-                    pynvml.nvmlDeviceGetClockInfo(handle, pynvml.NVML_CLOCK_MEM))
+                    pynvml.nvmlDeviceGetClockInfo(handle, pynvml.NVML_CLOCK_MEM)
+                )
             except Exception as e:
                 log.debug("nvidia:%d mem_clock read failed: %s", i, e)
             try:
@@ -514,7 +537,7 @@ class SensorEnumerator(SensorEnumeratorABC):
         """Read psutil-based sensors."""
 
         try:
-            readings['psutil:cpu_percent'] = psutil.cpu_percent(interval=None)
+            readings["psutil:cpu_percent"] = psutil.cpu_percent(interval=None)
         except Exception:
             pass
         try:
@@ -527,13 +550,13 @@ class SensorEnumerator(SensorEnumeratorABC):
                     self._cpu_freq_cache = 0.0
                 self._cpu_freq_time = now
             if self._cpu_freq_cache > 0:
-                readings['psutil:cpu_freq'] = self._cpu_freq_cache
+                readings["psutil:cpu_freq"] = self._cpu_freq_cache
         except Exception:
             pass
         try:
             mem = psutil.virtual_memory()
-            readings['psutil:mem_percent'] = mem.percent
-            readings['psutil:mem_available'] = mem.available / (1024 * 1024)
+            readings["psutil:mem_percent"] = mem.percent
+            readings["psutil:mem_available"] = mem.available / (1024 * 1024)
         except Exception:
             pass
 
@@ -575,12 +598,12 @@ class SensorEnumerator(SensorEnumeratorABC):
                 if dt > 0:
                     read_bytes = disk.read_bytes - prev_disk.read_bytes
                     write_bytes = disk.write_bytes - prev_disk.write_bytes
-                    readings['computed:disk_read'] = read_bytes / (dt * 1024 * 1024)
-                    readings['computed:disk_write'] = write_bytes / (dt * 1024 * 1024)
+                    readings["computed:disk_read"] = read_bytes / (dt * 1024 * 1024)
+                    readings["computed:disk_write"] = write_bytes / (dt * 1024 * 1024)
                     # Activity: approximate from busy_time if available
-                    if hasattr(disk, 'busy_time') and hasattr(prev_disk, 'busy_time'):
+                    if hasattr(disk, "busy_time") and hasattr(prev_disk, "busy_time"):
                         busy_ms = disk.busy_time - prev_disk.busy_time
-                        readings['computed:disk_activity'] = min(100.0, busy_ms / (dt * 10))
+                        readings["computed:disk_activity"] = min(100.0, busy_ms / (dt * 10))
             if disk:
                 self._disk_prev = (disk, now)
         except Exception:
@@ -590,16 +613,18 @@ class SensorEnumerator(SensorEnumeratorABC):
         try:
             net = psutil.net_io_counters()
             if net:
-                readings['computed:net_total_up'] = net.bytes_sent / (1024 * 1024)
-                readings['computed:net_total_down'] = net.bytes_recv / (1024 * 1024)
+                readings["computed:net_total_up"] = net.bytes_sent / (1024 * 1024)
+                readings["computed:net_total_down"] = net.bytes_recv / (1024 * 1024)
                 if self._net_prev:
                     prev_net, prev_time = self._net_prev
                     dt = now - prev_time
                     if dt > 0:
-                        readings['computed:net_up'] = (
-                            (net.bytes_sent - prev_net.bytes_sent) / (dt * 1024))
-                        readings['computed:net_down'] = (
-                            (net.bytes_recv - prev_net.bytes_recv) / (dt * 1024))
+                        readings["computed:net_up"] = (net.bytes_sent - prev_net.bytes_sent) / (
+                            dt * 1024
+                        )
+                        readings["computed:net_down"] = (net.bytes_recv - prev_net.bytes_recv) / (
+                            dt * 1024
+                        )
                 self._net_prev = (net, now)
         except Exception:
             pass
@@ -623,8 +648,9 @@ class SensorEnumerator(SensorEnumeratorABC):
         sensors = self.get_sensors()
         mapping: dict[str, str] = {}
 
-        def _find_first(source: str = '', name_contains: str = '',
-                        category: str = '') -> Optional[str]:
+        def _find_first(
+            source: str = "", name_contains: str = "", category: str = ""
+        ) -> Optional[str]:
             for s in sensors:
                 if source and s.source != source:
                     continue
@@ -636,71 +662,86 @@ class SensorEnumerator(SensorEnumeratorABC):
             return None
 
         # CPU
-        mapping['cpu_temp'] = (
-            _find_first(source='hwmon', name_contains='Package') or
-            _find_first(source='hwmon', name_contains='Tctl') or
-            _find_first(source='hwmon', name_contains='coretemp') or
-            _find_first(source='hwmon', name_contains='k10temp') or
-            ''
+        mapping["cpu_temp"] = (
+            _find_first(source="hwmon", name_contains="Package")
+            or _find_first(source="hwmon", name_contains="Tctl")
+            or _find_first(source="hwmon", name_contains="coretemp")
+            or _find_first(source="hwmon", name_contains="k10temp")
+            or ""
         )
-        mapping['cpu_percent'] = 'psutil:cpu_percent'
-        mapping['cpu_freq'] = 'psutil:cpu_freq'
-        mapping['cpu_power'] = _find_first(source='rapl') or ''
+        mapping["cpu_percent"] = "psutil:cpu_percent"
+        mapping["cpu_freq"] = "psutil:cpu_freq"
+        mapping["cpu_power"] = _find_first(source="rapl") or ""
 
         # GPU — prefer NVIDIA (pynvml) > AMD (amdgpu hwmon + drm) > Intel (i915 hwmon + drm)
-        nvidia_temp = _find_first(source='nvidia', name_contains='Temperature')
+        nvidia_temp = _find_first(source="nvidia", name_contains="Temperature")
         if nvidia_temp:
-            mapping['gpu_temp'] = nvidia_temp
-            mapping['gpu_usage'] = _find_first(source='nvidia', name_contains='GPU Utilization') or ''
-            mapping['gpu_clock'] = _find_first(source='nvidia', name_contains='Graphics Clock') or ''
-            mapping['gpu_power'] = _find_first(source='nvidia', name_contains='Power Draw') or ''
+            mapping["gpu_temp"] = nvidia_temp
+            mapping["gpu_usage"] = (
+                _find_first(source="nvidia", name_contains="GPU Utilization") or ""
+            )
+            mapping["gpu_clock"] = (
+                _find_first(source="nvidia", name_contains="Graphics Clock") or ""
+            )
+            mapping["gpu_power"] = _find_first(source="nvidia", name_contains="Power Draw") or ""
         else:
             gpu_vendors = _detect_gpu_vendors()
             if _GPU_VENDOR_AMD in gpu_vendors:
-                mapping['gpu_temp'] = _find_first(source='hwmon', name_contains='amdgpu', category='temperature') or ''
-                mapping['gpu_usage'] = _find_first(source='drm', category='usage') or ''
-                mapping['gpu_clock'] = _find_first(source='hwmon', name_contains='amdgpu', category='clock') or ''
-                mapping['gpu_power'] = _find_first(source='hwmon', name_contains='amdgpu', category='power') or ''
+                mapping["gpu_temp"] = (
+                    _find_first(source="hwmon", name_contains="amdgpu", category="temperature")
+                    or ""
+                )
+                mapping["gpu_usage"] = _find_first(source="drm", category="usage") or ""
+                mapping["gpu_clock"] = (
+                    _find_first(source="hwmon", name_contains="amdgpu", category="clock") or ""
+                )
+                mapping["gpu_power"] = (
+                    _find_first(source="hwmon", name_contains="amdgpu", category="power") or ""
+                )
             elif _GPU_VENDOR_INTEL in gpu_vendors:
-                mapping['gpu_temp'] = _find_first(source='hwmon', name_contains='i915', category='temperature') or ''
-                mapping['gpu_usage'] = ''  # Intel iGPU doesn't expose utilization via sysfs
-                mapping['gpu_clock'] = _find_first(source='drm', category='clock') or ''
-                mapping['gpu_power'] = _find_first(source='hwmon', name_contains='i915', category='power') or ''
+                mapping["gpu_temp"] = (
+                    _find_first(source="hwmon", name_contains="i915", category="temperature") or ""
+                )
+                mapping["gpu_usage"] = ""  # Intel iGPU doesn't expose utilization via sysfs
+                mapping["gpu_clock"] = _find_first(source="drm", category="clock") or ""
+                mapping["gpu_power"] = (
+                    _find_first(source="hwmon", name_contains="i915", category="power") or ""
+                )
             else:
-                mapping['gpu_temp'] = ''
-                mapping['gpu_usage'] = ''
-                mapping['gpu_clock'] = ''
-                mapping['gpu_power'] = ''
+                mapping["gpu_temp"] = ""
+                mapping["gpu_usage"] = ""
+                mapping["gpu_clock"] = ""
+                mapping["gpu_power"] = ""
 
         # Memory
-        mapping['mem_temp'] = _find_first(source='hwmon', name_contains='spd') or ''
-        mapping['mem_percent'] = 'psutil:mem_percent'
-        mapping['mem_available'] = 'psutil:mem_available'
-        mapping['mem_clock'] = ''  # No reliable Linux source
+        mapping["mem_temp"] = _find_first(source="hwmon", name_contains="spd") or ""
+        mapping["mem_percent"] = "psutil:mem_percent"
+        mapping["mem_available"] = "psutil:mem_available"
+        mapping["mem_clock"] = ""  # No reliable Linux source
 
         # Disk
-        mapping['disk_temp'] = (
-            _find_first(source='hwmon', name_contains='nvme') or
-            _find_first(source='hwmon', name_contains='drivetemp') or
-            ''
+        mapping["disk_temp"] = (
+            _find_first(source="hwmon", name_contains="nvme")
+            or _find_first(source="hwmon", name_contains="drivetemp")
+            or ""
         )
-        mapping['disk_read'] = 'computed:disk_read'
-        mapping['disk_write'] = 'computed:disk_write'
-        mapping['disk_activity'] = 'computed:disk_activity'
+        mapping["disk_read"] = "computed:disk_read"
+        mapping["disk_write"] = "computed:disk_write"
+        mapping["disk_activity"] = "computed:disk_activity"
 
         # Network
-        mapping['net_up'] = 'computed:net_up'
-        mapping['net_down'] = 'computed:net_down'
-        mapping['net_total_up'] = 'computed:net_total_up'
-        mapping['net_total_down'] = 'computed:net_total_down'
+        mapping["net_up"] = "computed:net_up"
+        mapping["net_down"] = "computed:net_down"
+        mapping["net_total_up"] = "computed:net_total_up"
+        mapping["net_total_down"] = "computed:net_total_down"
 
         # Fans — match by hwmon label keywords, fall back to positional
-        fan_sensors = [s for s in sensors if s.category == 'fan' and s.source == 'hwmon']
+        fan_sensors = [s for s in sensors if s.category == "fan" and s.source == "hwmon"]
         _fan_slots = [
-            ('fan_cpu', ('cpu',)),
-            ('fan_gpu', ('gpu',)),
-            ('fan_ssd', ('ssd', 'nvme', 'm.2')),
-            ('fan_sys2', ('sys', 'chassis', 'case', 'pump')),
+            ("fan_cpu", ("cpu",)),
+            ("fan_gpu", ("gpu",)),
+            ("fan_ssd", ("ssd", "nvme", "m.2")),
+            ("fan_sys2", ("sys", "chassis", "case", "pump")),
         ]
         fan_mapped: dict[str, str] = {}
         unmatched_fans: list[SensorInfo] = []

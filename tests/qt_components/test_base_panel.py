@@ -25,6 +25,7 @@ class TestEnforcement:
 
     def test_incomplete_subclass_rejected(self, qapp):
         with pytest.raises(TypeError, match="must implement _setup_ui"):
+
             class BadPanel(BasePanel):
                 pass
 
@@ -171,16 +172,20 @@ class TestRealSubclasses:
 
     def test_uc_device_is_base_panel(self, qapp):
         from trcc.qt_components.uc_device import UCDevice
+
         assert issubclass(UCDevice, BasePanel)
 
     def test_uc_about_is_base_panel(self, qapp):
         from trcc.qt_components.uc_about import UCAbout
+
         assert issubclass(UCAbout, BasePanel)
 
     def test_uc_preview_is_base_panel(self, qapp):
         from trcc.qt_components.uc_preview import UCPreview
+
         assert issubclass(UCPreview, BasePanel)
 
     def test_base_theme_browser_is_base_panel(self, qapp):
         from trcc.qt_components.base import BaseThemeBrowser
+
         assert issubclass(BaseThemeBrowser, BasePanel)

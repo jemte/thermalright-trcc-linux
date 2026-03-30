@@ -13,6 +13,7 @@ Protocol (IPC):
   Request:  {"cmd": "display.send_color", "args": [255, 0, 0], "kwargs": {}}\n
   Response: {"success": true, "message": "..."}\n
 """
+
 from __future__ import annotations
 
 import json
@@ -40,24 +41,34 @@ _NON_SERIALIZABLE = frozenset({"image", "colors"})
 # SOLID routing: display methods route through LCDDevice composed capabilities.
 # Format: "method_name" → ("capability", "method") or None for flat on device.
 _DISPLAY_ROUTES: dict[str, tuple[str, str]] = {
-    "send_image":           ("frame", "send_image"),
-    "send_color":           ("frame", "send_color"),
-    "reset":                ("frame", "reset"),
-    "set_brightness":       ("settings", "set_brightness"),
-    "set_rotation":         ("settings", "set_rotation"),
-    "set_split_mode":       ("settings", "set_split_mode"),
-    "load_theme_by_name":   ("theme", "load_theme_by_name"),
-    "load_mask_standalone":  ("overlay", "load_mask_standalone"),
+    "send_image": ("frame", "send_image"),
+    "send_color": ("frame", "send_color"),
+    "reset": ("frame", "reset"),
+    "set_brightness": ("settings", "set_brightness"),
+    "set_rotation": ("settings", "set_rotation"),
+    "set_split_mode": ("settings", "set_split_mode"),
+    "load_theme_by_name": ("theme", "load_theme_by_name"),
+    "load_mask_standalone": ("overlay", "load_mask_standalone"),
 }
 
 # LED methods are flat on LEDDevice — whitelist only.
-_LED_METHODS = frozenset({
-    "set_color", "set_mode", "set_brightness", "off",
-    "set_sensor_source",
-    "set_zone_color", "set_zone_mode", "set_zone_brightness",
-    "toggle_zone", "set_zone_sync",
-    "toggle_segment", "set_clock_format", "set_temp_unit",
-})
+_LED_METHODS = frozenset(
+    {
+        "set_color",
+        "set_mode",
+        "set_brightness",
+        "off",
+        "set_sensor_source",
+        "set_zone_color",
+        "set_zone_mode",
+        "set_zone_brightness",
+        "toggle_zone",
+        "set_zone_sync",
+        "toggle_segment",
+        "set_clock_format",
+        "set_temp_unit",
+    }
+)
 
 
 def _sanitize(result: dict) -> dict:
@@ -68,6 +79,7 @@ def _sanitize(result: dict) -> dict:
 # =========================================================================
 # Server (runs in the GUI process, Qt event loop)
 # =========================================================================
+
 
 class IPCServer:
     """Unix socket IPC server — listens for CLI requests, routes to dispatchers.
@@ -107,7 +119,7 @@ class IPCServer:
 
     def start(self) -> None:
         """Bind and listen on Unix domain socket (Unix only)."""
-        if not hasattr(socket, 'AF_UNIX'):
+        if not hasattr(socket, "AF_UNIX"):
             log.debug("IPC server skipped — AF_UNIX not available (Windows)")
             return
 
@@ -122,8 +134,8 @@ class IPCServer:
         os.chmod(str(path), 0o600)
 
         from PySide6.QtCore import QSocketNotifier
-        self._notifier = QSocketNotifier(
-            self._sock.fileno(), QSocketNotifier.Type.Read)
+
+        self._notifier = QSocketNotifier(self._sock.fileno(), QSocketNotifier.Type.Read)
         self._notifier.activated.connect(self._on_connection)
         log.info("IPC server listening on %s", path)
 
@@ -237,7 +249,7 @@ class IPCServer:
         buf = QByteArray()
         qbuf = QBuffer(buf)
         qbuf.open(QIODevice.OpenModeFlag.WriteOnly)
-        frame.save(qbuf, 'jpeg', 85)  # type: ignore[call-overload]
+        frame.save(qbuf, "jpeg", 85)  # type: ignore[call-overload]
         qbuf.close()
         jpeg_data = bytes(buf.data())
 
@@ -273,13 +285,14 @@ def _send_error(client: socket.socket, msg: str) -> None:
 # Client (used by CLI to send commands to the GUI daemon)
 # =========================================================================
 
+
 class IPCClient:
     """Unix socket IPC client — detects daemon and routes commands."""
 
     @staticmethod
     def available() -> bool:
         """Check if the IPC daemon is running and accepting connections."""
-        if not hasattr(socket, 'AF_UNIX'):
+        if not hasattr(socket, "AF_UNIX"):
             return False
         path = _socket_path()
         if not path.exists():
@@ -294,10 +307,9 @@ class IPCClient:
             return False
 
     @staticmethod
-    def send(cmd: str, args: list | None = None,
-             kwargs: dict | None = None) -> dict:
+    def send(cmd: str, args: list | None = None, kwargs: dict | None = None) -> dict:
         """Send command to daemon, return result dict."""
-        if not hasattr(socket, 'AF_UNIX'):
+        if not hasattr(socket, "AF_UNIX"):
             return {"error": "IPC not available on Windows"}
         request = {"cmd": cmd, "args": args or [], "kwargs": kwargs or {}}
         try:
@@ -332,6 +344,7 @@ class IPCClient:
 # IPC Proxy — returned by CLI _connect_or_fail when daemon is alive
 # =========================================================================
 
+
 class IPCDisplayProxy:
     """Proxy that routes LCDDevice method calls through IPC."""
 
@@ -354,6 +367,7 @@ class IPCDisplayProxy:
 
         def _proxy(*args: Any, **kwargs: Any) -> dict:
             return IPCClient.send(f"display.{name}", list(args), kwargs)
+
         return _proxy
 
 
@@ -375,6 +389,7 @@ class IPCLEDProxy:
 
         def _proxy(*args: Any, **kwargs: Any) -> dict:
             return IPCClient.send(f"led.{name}", list(args), kwargs)
+
         return _proxy
 
 
@@ -382,21 +397,21 @@ class IPCLEDProxy:
 # API Proxy — returned when ``trcc serve`` is the active instance
 # =========================================================================
 
+
 class _APIClient:
     """Minimal HTTP client for routing through a running API server."""
 
     def __init__(self, port: int | None = None) -> None:
         from .core.instance import DEFAULT_API_PORT
+
         self._port = port or DEFAULT_API_PORT
 
-    def _request(self, method: str, path: str,
-                 body: dict | None = None) -> dict:
+    def _request(self, method: str, path: str, body: dict | None = None) -> dict:
         """Send HTTP request, return parsed JSON response."""
         import http.client
 
         try:
-            conn = http.client.HTTPConnection("127.0.0.1", self._port,
-                                              timeout=10)
+            conn = http.client.HTTPConnection("127.0.0.1", self._port, timeout=10)
             headers = {"Content-Type": "application/json"}
             payload = json.dumps(body).encode() if body else None
             conn.request(method, path, body=payload, headers=headers)
@@ -415,43 +430,37 @@ class _APIClient:
 # Method → (HTTP method, URL path, body builder)
 # Body builder receives (*args, **kwargs) and returns a JSON dict or None.
 _LCD_ROUTES: dict[str, tuple[str, str, Any]] = {
-    "send_color":           ("POST", "/display/color",
-                             lambda r, g, b: {"hex": f"{r:02x}{g:02x}{b:02x}"}),
-    "set_brightness":       ("POST", "/display/brightness",
-                             lambda level: {"level": level}),
-    "set_rotation":         ("POST", "/display/rotation",
-                             lambda angle: {"angle": angle}),
-    "set_split_mode":       ("POST", "/display/split",
-                             lambda mode: {"mode": mode}),
-    "reset":                ("POST", "/display/reset", lambda: None),
-    "load_theme_by_name":   ("POST", "/themes/load",
-                             lambda name, w=0, h=0: {
-                                 "name": name,
-                                 **({"resolution": f"{w}x{h}"} if w and h else {}),
-                             }),
-    "load_mask_standalone":  ("POST", "/display/mask",
-                              lambda path: {"path": path}),
+    "send_color": ("POST", "/display/color", lambda r, g, b: {"hex": f"{r:02x}{g:02x}{b:02x}"}),
+    "set_brightness": ("POST", "/display/brightness", lambda level: {"level": level}),
+    "set_rotation": ("POST", "/display/rotation", lambda angle: {"angle": angle}),
+    "set_split_mode": ("POST", "/display/split", lambda mode: {"mode": mode}),
+    "reset": ("POST", "/display/reset", lambda: None),
+    "load_theme_by_name": (
+        "POST",
+        "/themes/load",
+        lambda name, w=0, h=0: {
+            "name": name,
+            **({"resolution": f"{w}x{h}"} if w and h else {}),
+        },
+    ),
+    "load_mask_standalone": ("POST", "/display/mask", lambda path: {"path": path}),
 }
 
 _LED_ROUTES: dict[str, tuple[str, str, Any]] = {
-    "set_color":        ("POST", "/led/color",
-                         lambda r, g, b: {"hex": f"{r:02x}{g:02x}{b:02x}"}),
-    "set_mode":         ("POST", "/led/mode", lambda mode: {"mode": mode}),
-    "set_brightness":   ("POST", "/led/brightness",
-                         lambda level: {"level": level}),
-    "off":              ("POST", "/led/off", lambda: None),
-    "set_sensor_source": ("POST", "/led/sensor",
-                          lambda source: {"source": source}),
-    "set_clock_format":  ("POST", "/led/clock",
-                          lambda is_24h: {"is_24h": is_24h}),
-    "set_temp_unit":     ("POST", "/led/temp-unit",
-                          lambda unit: {"unit": unit}),
+    "set_color": ("POST", "/led/color", lambda r, g, b: {"hex": f"{r:02x}{g:02x}{b:02x}"}),
+    "set_mode": ("POST", "/led/mode", lambda mode: {"mode": mode}),
+    "set_brightness": ("POST", "/led/brightness", lambda level: {"level": level}),
+    "off": ("POST", "/led/off", lambda: None),
+    "set_sensor_source": ("POST", "/led/sensor", lambda source: {"source": source}),
+    "set_clock_format": ("POST", "/led/clock", lambda is_24h: {"is_24h": is_24h}),
+    "set_temp_unit": ("POST", "/led/temp-unit", lambda unit: {"unit": unit}),
 }
 
 
 # =========================================================================
 # Proxy factories — injected into core devices via DI
 # =========================================================================
+
 
 def create_lcd_proxy(kind: Any) -> IPCDisplayProxy | APIDisplayProxy:
     """Create an LCD proxy for the given InstanceKind.
@@ -509,12 +518,13 @@ class APIDisplayProxy:
             def _proxy(*args: Any, **kwargs: Any) -> dict:
                 body = body_fn(*args, **kwargs) if body_fn else None
                 return self._client._request(method, path, body)
+
             return _proxy
 
         # Fallback: unknown method
         def _noop(*args: Any, **kwargs: Any) -> dict:
-            return {"success": False,
-                    "error": f"Method '{name}' not available via API proxy"}
+            return {"success": False, "error": f"Method '{name}' not available via API proxy"}
+
         return _noop
 
 
@@ -544,9 +554,10 @@ class APILEDProxy:
             def _proxy(*args: Any, **kwargs: Any) -> dict:
                 body = body_fn(*args, **kwargs) if body_fn else None
                 return self._client._request(method, path, body)
+
             return _proxy
 
         def _noop(*args: Any, **kwargs: Any) -> dict:
-            return {"success": False,
-                    "error": f"Method '{name}' not available via API proxy"}
+            return {"success": False, "error": f"Method '{name}' not available via API proxy"}
+
         return _noop

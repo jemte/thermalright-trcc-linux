@@ -10,13 +10,13 @@ from .uc_theme_setting import UCThemeSetting
 from .uc_theme_web import UCThemeWeb
 
 __all__ = [
-    'TRCCApp',
-    'BasePanel',
-    'ImageLabel',
-    'UCDevice',
-    'UCPreview',
-    'UCThemeLocal',
-    'UCThemeWeb',
-    'UCThemeMask',
-    'UCThemeSetting',
+    "TRCCApp",
+    "BasePanel",
+    "ImageLabel",
+    "UCDevice",
+    "UCPreview",
+    "UCThemeLocal",
+    "UCThemeWeb",
+    "UCThemeMask",
+    "UCThemeSetting",
 ]

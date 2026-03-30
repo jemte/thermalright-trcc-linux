@@ -38,13 +38,26 @@ from trcc.core.models import HardwareMetrics
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _make_metrics(**kw: float) -> HardwareMetrics:
     """Build a HardwareMetrics with sensible defaults, overridden by kw."""
     defaults: dict[str, float] = dict(
-        cpu_temp=65.0, cpu_percent=42.0, cpu_freq=3600.0, cpu_power=95.0,
-        gpu_temp=70.0, gpu_usage=55.0, gpu_clock=1800.0, gpu_power=200.0,
-        mem_temp=45.0, mem_percent=60.0, mem_clock=3200.0, mem_available=16384.0,
-        disk_temp=38.0, disk_activity=30.0, disk_read=150.0, disk_write=200.0,
+        cpu_temp=65.0,
+        cpu_percent=42.0,
+        cpu_freq=3600.0,
+        cpu_power=95.0,
+        gpu_temp=70.0,
+        gpu_usage=55.0,
+        gpu_clock=1800.0,
+        gpu_power=200.0,
+        mem_temp=45.0,
+        mem_percent=60.0,
+        mem_clock=3200.0,
+        mem_available=16384.0,
+        disk_temp=38.0,
+        disk_activity=30.0,
+        disk_read=150.0,
+        disk_write=200.0,
     )
     defaults.update({k: float(v) for k, v in kw.items()})
     return HardwareMetrics(**defaults)
@@ -66,12 +79,19 @@ def _segments_on_13(mask: list[bool], leds: tuple[int, ...]) -> set[str]:
 # Concrete subclass for testing base helpers in isolation
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class _TestDisplay(SegmentDisplay):
     """Minimal concrete subclass so we can instantiate SegmentDisplay helpers."""
+
     mask_size = 200
 
-    def compute_mask(self, metrics: HardwareMetrics, phase: int = 0,  # type: ignore[override]
-                     temp_unit: str = "C", **kw: object) -> list[bool]:
+    def compute_mask(
+        self,
+        metrics: HardwareMetrics,
+        phase: int = 0,  # type: ignore[override]
+        temp_unit: str = "C",
+        **kw: object,
+    ) -> list[bool]:
         return [False] * self.mask_size
 
 
@@ -79,50 +99,50 @@ class _TestDisplay(SegmentDisplay):
 # Base class — encoding tables
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestSegmentDisplayEncoding:
 
+class TestSegmentDisplayEncoding:
     def setup_method(self) -> None:
         self.d = _TestDisplay()
 
     # ── 7-Segment table ───────────────────────────────────────────────────
 
     def test_char_7seg_has_all_digits(self) -> None:
-        for ch in '0123456789':
+        for ch in "0123456789":
             assert ch in SegmentDisplay.CHAR_7SEG
 
     def test_char_7seg_has_unit_symbols(self) -> None:
-        for ch in (' ', 'C', 'F', 'H', 'G'):
+        for ch in (" ", "C", "F", "H", "G"):
             assert ch in SegmentDisplay.CHAR_7SEG
 
     def test_wire_7seg_is_abcdefg(self) -> None:
-        assert SegmentDisplay.WIRE_7SEG == ('a', 'b', 'c', 'd', 'e', 'f', 'g')
+        assert SegmentDisplay.WIRE_7SEG == ("a", "b", "c", "d", "e", "f", "g")
 
     def test_digit_0_segments(self) -> None:
-        assert SegmentDisplay.CHAR_7SEG['0'] == {'a', 'b', 'c', 'd', 'e', 'f'}
+        assert SegmentDisplay.CHAR_7SEG["0"] == {"a", "b", "c", "d", "e", "f"}
 
     def test_digit_1_segments(self) -> None:
-        assert SegmentDisplay.CHAR_7SEG['1'] == {'b', 'c'}
+        assert SegmentDisplay.CHAR_7SEG["1"] == {"b", "c"}
 
     def test_digit_7_segments(self) -> None:
-        assert SegmentDisplay.CHAR_7SEG['7'] == {'a', 'b', 'c'}
+        assert SegmentDisplay.CHAR_7SEG["7"] == {"a", "b", "c"}
 
     def test_digit_8_all_segments(self) -> None:
-        assert SegmentDisplay.CHAR_7SEG['8'] == {'a', 'b', 'c', 'd', 'e', 'f', 'g'}
+        assert SegmentDisplay.CHAR_7SEG["8"] == {"a", "b", "c", "d", "e", "f", "g"}
 
     def test_space_is_empty_set(self) -> None:
-        assert SegmentDisplay.CHAR_7SEG[' '] == set()
+        assert SegmentDisplay.CHAR_7SEG[" "] == set()
 
     def test_char_C_segments(self) -> None:
-        assert SegmentDisplay.CHAR_7SEG['C'] == {'a', 'd', 'e', 'f'}
+        assert SegmentDisplay.CHAR_7SEG["C"] == {"a", "d", "e", "f"}
 
     def test_char_F_segments(self) -> None:
-        assert SegmentDisplay.CHAR_7SEG['F'] == {'a', 'e', 'f', 'g'}
+        assert SegmentDisplay.CHAR_7SEG["F"] == {"a", "e", "f", "g"}
 
     def test_char_H_segments(self) -> None:
-        assert SegmentDisplay.CHAR_7SEG['H'] == {'b', 'c', 'e', 'f', 'g'}
+        assert SegmentDisplay.CHAR_7SEG["H"] == {"b", "c", "e", "f", "g"}
 
     def test_char_G_segments(self) -> None:
-        assert SegmentDisplay.CHAR_7SEG['G'] == {'a', 'b', 'c', 'd', 'f', 'g'}
+        assert SegmentDisplay.CHAR_7SEG["G"] == {"a", "b", "c", "d", "f", "g"}
 
     def test_all_7seg_segments_within_abcdefg(self) -> None:
         valid = set(SegmentDisplay.WIRE_7SEG)
@@ -132,25 +152,37 @@ class TestSegmentDisplayEncoding:
     # ── 13-Segment table ──────────────────────────────────────────────────
 
     def test_char_13seg_has_all_digits(self) -> None:
-        for ch in '0123456789':
+        for ch in "0123456789":
             assert ch in SegmentDisplay.CHAR_13SEG
 
     def test_char_13seg_has_space(self) -> None:
-        assert ' ' in SegmentDisplay.CHAR_13SEG
+        assert " " in SegmentDisplay.CHAR_13SEG
 
     def test_wire_13seg_has_13_entries(self) -> None:
         assert len(SegmentDisplay.WIRE_13SEG) == 13
 
     def test_wire_13seg_is_a_through_m(self) -> None:
         assert SegmentDisplay.WIRE_13SEG == (
-            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm'
+            "a",
+            "b",
+            "c",
+            "d",
+            "e",
+            "f",
+            "g",
+            "h",
+            "i",
+            "j",
+            "k",
+            "l",
+            "m",
         )
 
     def test_13seg_8_has_all_segments(self) -> None:
-        assert SegmentDisplay.CHAR_13SEG['8'] == set(SegmentDisplay.WIRE_13SEG)
+        assert SegmentDisplay.CHAR_13SEG["8"] == set(SegmentDisplay.WIRE_13SEG)
 
     def test_13seg_space_is_empty(self) -> None:
-        assert SegmentDisplay.CHAR_13SEG[' '] == set()
+        assert SegmentDisplay.CHAR_13SEG[" "] == set()
 
     def test_all_13seg_segments_within_wire(self) -> None:
         valid = set(SegmentDisplay.WIRE_13SEG)
@@ -159,23 +191,26 @@ class TestSegmentDisplayEncoding:
 
     # ── _encode_7seg ──────────────────────────────────────────────────────
 
-    @pytest.mark.parametrize("digit,expected_segs", [
-        ('0', {'a', 'b', 'c', 'd', 'e', 'f'}),
-        ('1', {'b', 'c'}),
-        ('2', {'a', 'b', 'd', 'e', 'g'}),
-        ('3', {'a', 'b', 'c', 'd', 'g'}),
-        ('4', {'b', 'c', 'f', 'g'}),
-        ('5', {'a', 'c', 'd', 'f', 'g'}),
-        ('6', {'a', 'c', 'd', 'e', 'f', 'g'}),
-        ('7', {'a', 'b', 'c'}),
-        ('8', {'a', 'b', 'c', 'd', 'e', 'f', 'g'}),
-        ('9', {'a', 'b', 'c', 'd', 'f', 'g'}),
-        (' ', set()),
-        ('C', {'a', 'd', 'e', 'f'}),
-        ('F', {'a', 'e', 'f', 'g'}),
-        ('H', {'b', 'c', 'e', 'f', 'g'}),
-        ('G', {'a', 'b', 'c', 'd', 'f', 'g'}),
-    ])
+    @pytest.mark.parametrize(
+        "digit,expected_segs",
+        [
+            ("0", {"a", "b", "c", "d", "e", "f"}),
+            ("1", {"b", "c"}),
+            ("2", {"a", "b", "d", "e", "g"}),
+            ("3", {"a", "b", "c", "d", "g"}),
+            ("4", {"b", "c", "f", "g"}),
+            ("5", {"a", "c", "d", "f", "g"}),
+            ("6", {"a", "c", "d", "e", "f", "g"}),
+            ("7", {"a", "b", "c"}),
+            ("8", {"a", "b", "c", "d", "e", "f", "g"}),
+            ("9", {"a", "b", "c", "d", "f", "g"}),
+            (" ", set()),
+            ("C", {"a", "d", "e", "f"}),
+            ("F", {"a", "e", "f", "g"}),
+            ("H", {"b", "c", "e", "f", "g"}),
+            ("G", {"a", "b", "c", "d", "f", "g"}),
+        ],
+    )
     def test_encode_7seg_char(self, digit: str, expected_segs: set[str]) -> None:
         leds: tuple[int, ...] = tuple(range(7))
         mask = [False] * 10
@@ -186,7 +221,7 @@ class TestSegmentDisplayEncoding:
         """An unknown character should produce no lit segments (falls back to empty set)."""
         leds: tuple[int, ...] = tuple(range(7))
         mask = [False] * 10
-        self.d._encode_7seg('Z', leds, mask)
+        self.d._encode_7seg("Z", leds, mask)
         assert not any(mask[:7])
 
     def test_encode_7seg_writes_to_correct_positions(self) -> None:
@@ -194,10 +229,10 @@ class TestSegmentDisplayEncoding:
         # Use non-zero base indices to confirm indexing
         leds: tuple[int, ...] = (10, 11, 12, 13, 14, 15, 16)
         mask = [False] * 20
-        self.d._encode_7seg('1', leds, mask)
+        self.d._encode_7seg("1", leds, mask)
         # '1' = b,c → WIRE_7SEG[1]=b, WIRE_7SEG[2]=c → leds[1]=11, leds[2]=12
-        assert mask[11] is True   # b
-        assert mask[12] is True   # c
+        assert mask[11] is True  # b
+        assert mask[12] is True  # c
         assert mask[10] is False  # a
         assert mask[13] is False  # d
         assert mask[14] is False  # e
@@ -208,7 +243,7 @@ class TestSegmentDisplayEncoding:
         """_encode_7seg only sets True — it never clears bits already set."""
         leds: tuple[int, ...] = tuple(range(7))
         mask = [True] * 10
-        self.d._encode_7seg(' ', leds, mask)
+        self.d._encode_7seg(" ", leds, mask)
         # Space = no segments, but pre-set bits must remain
         assert all(mask)
 
@@ -222,7 +257,7 @@ class TestSegmentDisplayEncoding:
         # Hundreds and tens should be blank
         assert not any(mask[i] for i in range(14))
         # Ones should show '0'
-        assert _segments_on(mask, digit_leds[2]) == SegmentDisplay.CHAR_7SEG['0']
+        assert _segments_on(mask, digit_leds[2]) == SegmentDisplay.CHAR_7SEG["0"]
 
     def test_encode_digits_value_5_leading_zeros_suppressed(self) -> None:
         """Value 5 → hundreds and tens blank, ones = '5'."""
@@ -230,7 +265,7 @@ class TestSegmentDisplayEncoding:
         mask = [False] * 30
         self.d._encode_digits(5, 999, 3, digit_leds, mask)
         assert not any(mask[i] for i in range(14))
-        assert _segments_on(mask, digit_leds[2]) == SegmentDisplay.CHAR_7SEG['5']
+        assert _segments_on(mask, digit_leds[2]) == SegmentDisplay.CHAR_7SEG["5"]
 
     def test_encode_digits_value_42(self) -> None:
         """Value 42 → hundreds blank, tens = '4', ones = '2'."""
@@ -238,17 +273,17 @@ class TestSegmentDisplayEncoding:
         mask = [False] * 30
         self.d._encode_digits(42, 999, 3, digit_leds, mask)
         assert not any(mask[i] for i in range(7))
-        assert _segments_on(mask, digit_leds[1]) == SegmentDisplay.CHAR_7SEG['4']
-        assert _segments_on(mask, digit_leds[2]) == SegmentDisplay.CHAR_7SEG['2']
+        assert _segments_on(mask, digit_leds[1]) == SegmentDisplay.CHAR_7SEG["4"]
+        assert _segments_on(mask, digit_leds[2]) == SegmentDisplay.CHAR_7SEG["2"]
 
     def test_encode_digits_value_123(self) -> None:
         """Value 123 → all three digits lit."""
         digit_leds = (tuple(range(0, 7)), tuple(range(7, 14)), tuple(range(14, 21)))
         mask = [False] * 30
         self.d._encode_digits(123, 999, 3, digit_leds, mask)
-        assert _segments_on(mask, digit_leds[0]) == SegmentDisplay.CHAR_7SEG['1']
-        assert _segments_on(mask, digit_leds[1]) == SegmentDisplay.CHAR_7SEG['2']
-        assert _segments_on(mask, digit_leds[2]) == SegmentDisplay.CHAR_7SEG['3']
+        assert _segments_on(mask, digit_leds[0]) == SegmentDisplay.CHAR_7SEG["1"]
+        assert _segments_on(mask, digit_leds[1]) == SegmentDisplay.CHAR_7SEG["2"]
+        assert _segments_on(mask, digit_leds[2]) == SegmentDisplay.CHAR_7SEG["3"]
 
     def test_encode_digits_clamped_to_max_val(self) -> None:
         """Value exceeding max_val is clamped."""
@@ -278,8 +313,10 @@ class TestSegmentDisplayEncoding:
 
     def test_encode_4digit_max_is_9999(self) -> None:
         digit_leds = (
-            tuple(range(0, 7)), tuple(range(7, 14)),
-            tuple(range(14, 21)), tuple(range(21, 28)),
+            tuple(range(0, 7)),
+            tuple(range(7, 14)),
+            tuple(range(14, 21)),
+            tuple(range(21, 28)),
         )
         mask_over = [False] * 30
         mask_max = [False] * 30
@@ -321,7 +358,7 @@ class TestSegmentDisplayEncoding:
         assert mask[20] is True
         assert mask[21] is True
         # Remainder = 0 → ones shows '0', tens blank
-        assert _segments_on(mask, digit_leds[1]) == SegmentDisplay.CHAR_7SEG['0']
+        assert _segments_on(mask, digit_leds[1]) == SegmentDisplay.CHAR_7SEG["0"]
 
     def test_encode_2digit_partial_150_bc_set_shows_50(self) -> None:
         digit_leds = (tuple(range(0, 7)), tuple(range(7, 14)))
@@ -330,8 +367,8 @@ class TestSegmentDisplayEncoding:
         self.d._encode_2digit_partial(150, digit_leds, partial_bc, mask)
         assert mask[20] is True
         assert mask[21] is True
-        assert _segments_on(mask, digit_leds[0]) == SegmentDisplay.CHAR_7SEG['5']
-        assert _segments_on(mask, digit_leds[1]) == SegmentDisplay.CHAR_7SEG['0']
+        assert _segments_on(mask, digit_leds[0]) == SegmentDisplay.CHAR_7SEG["5"]
+        assert _segments_on(mask, digit_leds[1]) == SegmentDisplay.CHAR_7SEG["0"]
 
     def test_encode_2digit_partial_199_bc_set_shows_99(self) -> None:
         digit_leds = (tuple(range(0, 7)), tuple(range(7, 14)))
@@ -340,8 +377,8 @@ class TestSegmentDisplayEncoding:
         self.d._encode_2digit_partial(199, digit_leds, partial_bc, mask)
         assert mask[20] is True
         assert mask[21] is True
-        assert _segments_on(mask, digit_leds[0]) == SegmentDisplay.CHAR_7SEG['9']
-        assert _segments_on(mask, digit_leds[1]) == SegmentDisplay.CHAR_7SEG['9']
+        assert _segments_on(mask, digit_leds[0]) == SegmentDisplay.CHAR_7SEG["9"]
+        assert _segments_on(mask, digit_leds[1]) == SegmentDisplay.CHAR_7SEG["9"]
 
     def test_encode_2digit_partial_clamped_at_199(self) -> None:
         digit_leds = (tuple(range(0, 7)), tuple(range(7, 14)))
@@ -374,25 +411,25 @@ class TestSegmentDisplayEncoding:
         leds: tuple[int, ...] = tuple(range(7))
         mask = [False] * 10
         self.d._encode_unit(0, leds, mask)
-        assert _segments_on(mask, leds) == SegmentDisplay.CHAR_7SEG['C']
+        assert _segments_on(mask, leds) == SegmentDisplay.CHAR_7SEG["C"]
 
     def test_encode_unit_fahrenheit(self) -> None:
         leds: tuple[int, ...] = tuple(range(7))
         mask = [False] * 10
         self.d._encode_unit(-1, leds, mask)
-        assert _segments_on(mask, leds) == SegmentDisplay.CHAR_7SEG['F']
+        assert _segments_on(mask, leds) == SegmentDisplay.CHAR_7SEG["F"]
 
     def test_encode_unit_mhz(self) -> None:
         leds: tuple[int, ...] = tuple(range(7))
         mask = [False] * 10
         self.d._encode_unit(1, leds, mask)
-        assert _segments_on(mask, leds) == SegmentDisplay.CHAR_7SEG['H']
+        assert _segments_on(mask, leds) == SegmentDisplay.CHAR_7SEG["H"]
 
     def test_encode_unit_gb(self) -> None:
         leds: tuple[int, ...] = tuple(range(7))
         mask = [False] * 10
         self.d._encode_unit(2, leds, mask)
-        assert _segments_on(mask, leds) == SegmentDisplay.CHAR_7SEG['G']
+        assert _segments_on(mask, leds) == SegmentDisplay.CHAR_7SEG["G"]
 
     def test_encode_unit_unknown_is_blank(self) -> None:
         leds: tuple[int, ...] = tuple(range(7))
@@ -406,13 +443,13 @@ class TestSegmentDisplayEncoding:
         leds: tuple[int, ...] = tuple(range(7))
         mask = [False] * 10
         self.d._encode_clock_digit(5, leds, mask)
-        assert _segments_on(mask, leds) == SegmentDisplay.CHAR_7SEG['5']
+        assert _segments_on(mask, leds) == SegmentDisplay.CHAR_7SEG["5"]
 
     def test_encode_clock_digit_zero_no_suppress(self) -> None:
         leds: tuple[int, ...] = tuple(range(7))
         mask = [False] * 10
         self.d._encode_clock_digit(0, leds, mask, suppress_zero=False)
-        assert _segments_on(mask, leds) == SegmentDisplay.CHAR_7SEG['0']
+        assert _segments_on(mask, leds) == SegmentDisplay.CHAR_7SEG["0"]
 
     def test_encode_clock_digit_zero_with_suppress(self) -> None:
         """Zero with suppress_zero=True → nothing written."""
@@ -426,7 +463,7 @@ class TestSegmentDisplayEncoding:
         leds: tuple[int, ...] = tuple(range(7))
         mask = [False] * 10
         self.d._encode_clock_digit(3, leds, mask, suppress_zero=True)
-        assert _segments_on(mask, leds) == SegmentDisplay.CHAR_7SEG['3']
+        assert _segments_on(mask, leds) == SegmentDisplay.CHAR_7SEG["3"]
 
     # ── _encode_3digit_13seg ──────────────────────────────────────────────
 
@@ -440,7 +477,7 @@ class TestSegmentDisplayEncoding:
         # Tens blank (hundreds == 0 → suppress tens too)
         assert not any(mask[i] for i in range(13, 26))
         # Ones shows '0'
-        assert _segments_on_13(mask, digits_13[2]) == SegmentDisplay.CHAR_13SEG['0']
+        assert _segments_on_13(mask, digits_13[2]) == SegmentDisplay.CHAR_13SEG["0"]
 
     def test_encode_3digit_13seg_value_5(self) -> None:
         """Value 5 → only ones digit lit."""
@@ -448,15 +485,15 @@ class TestSegmentDisplayEncoding:
         mask = [False] * 40
         self.d._encode_3digit_13seg(5, digits_13, mask)
         assert not any(mask[i] for i in range(26))
-        assert _segments_on_13(mask, digits_13[2]) == SegmentDisplay.CHAR_13SEG['5']
+        assert _segments_on_13(mask, digits_13[2]) == SegmentDisplay.CHAR_13SEG["5"]
 
     def test_encode_3digit_13seg_value_123(self) -> None:
         digits_13 = (tuple(range(0, 13)), tuple(range(13, 26)), tuple(range(26, 39)))
         mask = [False] * 40
         self.d._encode_3digit_13seg(123, digits_13, mask)
-        assert _segments_on_13(mask, digits_13[0]) == SegmentDisplay.CHAR_13SEG['1']
-        assert _segments_on_13(mask, digits_13[1]) == SegmentDisplay.CHAR_13SEG['2']
-        assert _segments_on_13(mask, digits_13[2]) == SegmentDisplay.CHAR_13SEG['3']
+        assert _segments_on_13(mask, digits_13[0]) == SegmentDisplay.CHAR_13SEG["1"]
+        assert _segments_on_13(mask, digits_13[1]) == SegmentDisplay.CHAR_13SEG["2"]
+        assert _segments_on_13(mask, digits_13[2]) == SegmentDisplay.CHAR_13SEG["3"]
 
     def test_encode_3digit_13seg_tens_shown_when_nonzero(self) -> None:
         """Value 55 → hundreds suppressed, tens lit."""
@@ -464,8 +501,8 @@ class TestSegmentDisplayEncoding:
         mask = [False] * 40
         self.d._encode_3digit_13seg(55, digits_13, mask)
         assert not any(mask[i] for i in range(13))
-        assert _segments_on_13(mask, digits_13[1]) == SegmentDisplay.CHAR_13SEG['5']
-        assert _segments_on_13(mask, digits_13[2]) == SegmentDisplay.CHAR_13SEG['5']
+        assert _segments_on_13(mask, digits_13[1]) == SegmentDisplay.CHAR_13SEG["5"]
+        assert _segments_on_13(mask, digits_13[2]) == SegmentDisplay.CHAR_13SEG["5"]
 
     def test_encode_3digit_13seg_clamped_to_999(self) -> None:
         digits_13 = (tuple(range(0, 13)), tuple(range(13, 26)), tuple(range(26, 39)))
@@ -496,8 +533,8 @@ class TestSegmentDisplayEncoding:
 # Style 1 — AX120_DIGITAL (30 LEDs, 4-phase)
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestAX120Display:
 
+class TestAX120Display:
     def setup_method(self) -> None:
         self.d = AX120Display()
 
@@ -522,39 +559,39 @@ class TestAX120Display:
 
     def test_cpu_temp_phase_indicators(self) -> None:
         mask = self.d.compute_mask(_make_metrics(cpu_temp=55.0), 0, "C")
-        assert mask[2] is True   # CPU1
-        assert mask[3] is True   # CPU2
+        assert mask[2] is True  # CPU1
+        assert mask[3] is True  # CPU2
         assert mask[4] is False  # GPU1
         assert mask[5] is False  # GPU2
-        assert mask[6] is True   # °C
+        assert mask[6] is True  # °C
         assert mask[7] is False  # °F
         assert mask[8] is False  # %
 
     def test_cpu_usage_phase_indicators(self) -> None:
         mask = self.d.compute_mask(_make_metrics(cpu_percent=80.0), 1, "C")
-        assert mask[2] is True   # CPU1
-        assert mask[3] is True   # CPU2
-        assert mask[8] is True   # %
+        assert mask[2] is True  # CPU1
+        assert mask[3] is True  # CPU2
+        assert mask[8] is True  # %
         assert mask[6] is False  # °C
         assert mask[7] is False  # °F
 
     def test_gpu_temp_phase_indicators(self) -> None:
         mask = self.d.compute_mask(_make_metrics(gpu_temp=70.0), 2, "C")
-        assert mask[4] is True   # GPU1
-        assert mask[5] is True   # GPU2
+        assert mask[4] is True  # GPU1
+        assert mask[5] is True  # GPU2
         assert mask[2] is False  # CPU1
-        assert mask[6] is True   # °C
+        assert mask[6] is True  # °C
 
     def test_gpu_usage_phase_indicators(self) -> None:
         mask = self.d.compute_mask(_make_metrics(gpu_usage=50.0), 3, "C")
-        assert mask[4] is True   # GPU1
-        assert mask[5] is True   # GPU2
-        assert mask[8] is True   # %
+        assert mask[4] is True  # GPU1
+        assert mask[5] is True  # GPU2
+        assert mask[8] is True  # %
         assert mask[6] is False
 
     def test_fahrenheit_shows_f_not_c(self) -> None:
         mask = self.d.compute_mask(_make_metrics(cpu_temp=72.0), 0, "F")
-        assert mask[7] is True   # °F
+        assert mask[7] is True  # °F
         assert mask[6] is False  # °C
 
     def test_phase_wraps_modulo_4(self) -> None:
@@ -565,12 +602,15 @@ class TestAX120Display:
 
     # ── Value encoding ────────────────────────────────────────────────────
 
-    @pytest.mark.parametrize("value,expected_ones_segs", [
-        (0, {'a', 'b', 'c', 'd', 'e', 'f'}),
-        (1, {'b', 'c'}),
-        (5, {'a', 'c', 'd', 'f', 'g'}),
-        (8, {'a', 'b', 'c', 'd', 'e', 'f', 'g'}),
-    ])
+    @pytest.mark.parametrize(
+        "value,expected_ones_segs",
+        [
+            (0, {"a", "b", "c", "d", "e", "f"}),
+            (1, {"b", "c"}),
+            (5, {"a", "c", "d", "f", "g"}),
+            (8, {"a", "b", "c", "d", "e", "f", "g"}),
+        ],
+    )
     def test_ones_digit_encoding(self, value: int, expected_ones_segs: set[str]) -> None:
         mask = self.d.compute_mask(_make_metrics(cpu_temp=float(value)), 0, "C")
         assert _segments_on(mask, self.d.DIGITS[2]) == expected_ones_segs
@@ -616,8 +656,8 @@ class TestAX120Display:
 # Style 2 — PA120_DIGITAL (84 LEDs, simultaneous 4-value)
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestPA120Display:
 
+class TestPA120Display:
     def setup_method(self) -> None:
         self.d = PA120Display()
 
@@ -633,28 +673,26 @@ class TestPA120Display:
 
     def test_always_on_indicators(self) -> None:
         mask = self.d.compute_mask(_make_metrics(), 0, "C")
-        for idx in (self.d.CPU1, self.d.CPU2, self.d.GPU1, self.d.GPU2,
-                    self.d.BFB, self.d.BFB1):
+        for idx in (self.d.CPU1, self.d.CPU2, self.d.GPU1, self.d.GPU2, self.d.BFB, self.d.BFB1):
             assert mask[idx] is True
 
     def test_celsius_temp_indicators(self) -> None:
         mask = self.d.compute_mask(_make_metrics(), 0, "C")
-        assert mask[self.d.SSD] is True   # CPU °C
+        assert mask[self.d.SSD] is True  # CPU °C
         assert mask[self.d.SSD1] is True  # GPU °C
         assert mask[self.d.HSD] is False  # CPU °F
-        assert mask[self.d.HSD1] is False # GPU °F
+        assert mask[self.d.HSD1] is False  # GPU °F
 
     def test_fahrenheit_temp_indicators(self) -> None:
         mask = self.d.compute_mask(_make_metrics(), 0, "F")
-        assert mask[self.d.HSD] is True   # CPU °F
+        assert mask[self.d.HSD] is True  # CPU °F
         assert mask[self.d.HSD1] is True  # GPU °F
         assert mask[self.d.SSD] is False
         assert mask[self.d.SSD1] is False
 
     def test_simultaneous_all_four_values(self) -> None:
         """All four digit regions should have some LEDs lit for non-zero metrics."""
-        metrics = _make_metrics(cpu_temp=65.0, cpu_percent=80.0,
-                                gpu_temp=70.0, gpu_usage=50.0)
+        metrics = _make_metrics(cpu_temp=65.0, cpu_percent=80.0, gpu_temp=70.0, gpu_usage=50.0)
         mask = self.d.compute_mask(metrics, 0, "C")
         for digit_group in self.d.CPU_TEMP_DIGITS:
             assert any(mask[led] for led in digit_group) or True  # may be leading-zero
@@ -722,8 +760,8 @@ class TestPA120Display:
 # Style 3 — AK120_DIGITAL (64 LEDs, 2-phase CPU/GPU)
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestAK120Display:
 
+class TestAK120Display:
     def setup_method(self) -> None:
         self.d = AK120Display()
 
@@ -787,7 +825,9 @@ class TestAK120Display:
         assert m0 == m2
 
     def test_gpu_metrics_used_in_gpu_phase(self) -> None:
-        mask = self.d.compute_mask(_make_metrics(gpu_power=200.0, gpu_temp=60.0, gpu_usage=90.0), 1, "C")
+        mask = self.d.compute_mask(
+            _make_metrics(gpu_power=200.0, gpu_temp=60.0, gpu_usage=90.0), 1, "C"
+        )
         assert any(mask[led] for digit in self.d.WATT_DIGITS for led in digit)
         assert any(mask[led] for digit in self.d.TEMP_DIGITS for led in digit)
 
@@ -796,8 +836,8 @@ class TestAK120Display:
 # Style 4 — LC1 (31 LEDs, mode-based 3-phase)
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestLC1Display:
 
+class TestLC1Display:
     def setup_method(self) -> None:
         self.d = LC1Display()
 
@@ -833,11 +873,11 @@ class TestLC1Display:
 
     def test_unit_digit_celsius_in_temp_phase(self) -> None:
         mask = self.d.compute_mask(_make_metrics(mem_temp=45.0), 0, "C", sub_style=0)
-        assert _segments_on(mask, self.d.UNIT_DIGIT) == SegmentDisplay.CHAR_7SEG['C']
+        assert _segments_on(mask, self.d.UNIT_DIGIT) == SegmentDisplay.CHAR_7SEG["C"]
 
     def test_unit_digit_fahrenheit_in_temp_phase(self) -> None:
         mask = self.d.compute_mask(_make_metrics(mem_temp=45.0), 0, "F", sub_style=0)
-        assert _segments_on(mask, self.d.UNIT_DIGIT) == SegmentDisplay.CHAR_7SEG['F']
+        assert _segments_on(mask, self.d.UNIT_DIGIT) == SegmentDisplay.CHAR_7SEG["F"]
 
     def test_fahrenheit_converts_value(self) -> None:
         """°F temp phase should convert the Celsius value."""
@@ -847,10 +887,12 @@ class TestLC1Display:
 
     def test_memory_clock_applies_ratio(self) -> None:
         """mem_clock is multiplied by memory_ratio in phase 1."""
-        m_r1 = self.d.compute_mask(_make_metrics(mem_clock=100.0), 1, "C",
-                                   sub_style=0, memory_ratio=1)
-        m_r2 = self.d.compute_mask(_make_metrics(mem_clock=100.0), 1, "C",
-                                   sub_style=0, memory_ratio=2)
+        m_r1 = self.d.compute_mask(
+            _make_metrics(mem_clock=100.0), 1, "C", sub_style=0, memory_ratio=1
+        )
+        m_r2 = self.d.compute_mask(
+            _make_metrics(mem_clock=100.0), 1, "C", sub_style=0, memory_ratio=2
+        )
         # ratio=2 → value 200; ratio=1 → value 100 → different digit encoding
         assert m_r1 != m_r2
 
@@ -870,10 +912,12 @@ class TestLC1Display:
 
     def test_disk_read_no_ratio_applied(self) -> None:
         """Disk sub_style does NOT apply memory_ratio."""
-        m_r1 = self.d.compute_mask(_make_metrics(disk_read=100.0), 1, "C",
-                                   sub_style=1, memory_ratio=1)
-        m_r2 = self.d.compute_mask(_make_metrics(disk_read=100.0), 1, "C",
-                                   sub_style=1, memory_ratio=2)
+        m_r1 = self.d.compute_mask(
+            _make_metrics(disk_read=100.0), 1, "C", sub_style=1, memory_ratio=1
+        )
+        m_r2 = self.d.compute_mask(
+            _make_metrics(disk_read=100.0), 1, "C", sub_style=1, memory_ratio=2
+        )
         # No ratio applied for disk → same mask regardless of memory_ratio
         assert m_r1 == m_r2
 
@@ -887,8 +931,8 @@ class TestLC1Display:
 # Style 5/11 — LF8 / LF15 (93 LEDs, 4-metric 2-phase)
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestLF8Display:
 
+class TestLF8Display:
     def setup_method(self) -> None:
         self.d = LF8Display()
 
@@ -930,8 +974,7 @@ class TestLF8Display:
         assert mask[self.d.SSD] is False
 
     def test_all_4_digit_regions_have_some_leds_lit(self) -> None:
-        metrics = _make_metrics(cpu_temp=55.0, cpu_power=120.0,
-                                cpu_freq=3500.0, cpu_percent=75.0)
+        metrics = _make_metrics(cpu_temp=55.0, cpu_power=120.0, cpu_freq=3500.0, cpu_percent=75.0)
         mask = self.d.compute_mask(metrics, 0, "C")
         for region in (self.d.TEMP_DIGITS, self.d.WATT_DIGITS, self.d.MHZ_DIGITS):
             assert any(mask[led] for digit in region for led in digit)
@@ -970,8 +1013,8 @@ class TestLF8Display:
 # Style 6 — LF12 (124 LEDs = LF8 + 31 decoration)
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestLF12Display:
 
+class TestLF12Display:
     def setup_method(self) -> None:
         self.d = LF12Display()
 
@@ -995,16 +1038,14 @@ class TestLF12Display:
 
     def test_digit_region_matches_lf8(self) -> None:
         """First 93 LEDs should be identical to LF8 encoding."""
-        metrics = _make_metrics(cpu_temp=65.0, cpu_power=100.0,
-                                cpu_freq=2000.0, cpu_percent=50.0)
+        metrics = _make_metrics(cpu_temp=65.0, cpu_power=100.0, cpu_freq=2000.0, cpu_percent=50.0)
         lf8 = LF8Display()
         mask_lf8 = lf8.compute_mask(metrics, 0, "C")
         mask_lf12 = self.d.compute_mask(metrics, 0, "C")
         assert mask_lf12[:93] == mask_lf8[:93]
 
     def test_digit_region_gpu_phase_matches_lf8(self) -> None:
-        metrics = _make_metrics(gpu_temp=70.0, gpu_power=200.0,
-                                gpu_clock=1800.0, gpu_usage=55.0)
+        metrics = _make_metrics(gpu_temp=70.0, gpu_power=200.0, gpu_clock=1800.0, gpu_usage=55.0)
         lf8 = LF8Display()
         mask_lf8 = lf8.compute_mask(metrics, 1, "C")
         mask_lf12 = self.d.compute_mask(metrics, 1, "C")
@@ -1018,8 +1059,8 @@ class TestLF12Display:
 # Style 7 — LF10 (116 LEDs, 13-segment + decoration)
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestLF10Display:
 
+class TestLF10Display:
     def setup_method(self) -> None:
         self.d = LF10Display()
 
@@ -1040,8 +1081,8 @@ class TestLF10Display:
 
     def test_celsius_indicators_both_sides(self) -> None:
         mask = self.d.compute_mask(_make_metrics(), 0, "C")
-        assert mask[self.d.SSD] is True    # CPU °C
-        assert mask[self.d.SSD1] is True   # GPU °C
+        assert mask[self.d.SSD] is True  # CPU °C
+        assert mask[self.d.SSD1] is True  # GPU °C
         assert mask[self.d.HSD] is False
         assert mask[self.d.HSD1] is False
 
@@ -1115,8 +1156,8 @@ class TestLF10Display:
 # Style 8 — CZ1 (18 LEDs, 2 digits, 4-phase)
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestCZ1Display:
 
+class TestCZ1Display:
     def setup_method(self) -> None:
         self.d = CZ1Display()
 
@@ -1185,8 +1226,8 @@ class TestCZ1Display:
 # Style 9 — LC2 (61 LEDs, clock display)
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestLC2Display:
 
+class TestLC2Display:
     def setup_method(self) -> None:
         self.d = LC2Display()
 
@@ -1197,40 +1238,40 @@ class TestLC2Display:
         assert self.d.phase_count == 1
 
     def test_returns_61_bools(self) -> None:
-        with patch('trcc.core.led_segment.datetime') as mock_dt:
+        with patch("trcc.core.led_segment.datetime") as mock_dt:
             mock_dt.now.return_value = datetime(2024, 6, 15, 14, 30)
             mask = self.d.compute_mask(_make_metrics(), 0, "C")
         assert len(mask) == 61
 
-    @patch('trcc.core.led_segment.datetime')
+    @patch("trcc.core.led_segment.datetime")
     def test_colon_and_separator_always_on(self, mock_dt: MagicMock) -> None:
         mock_dt.now.return_value = datetime(2024, 6, 15, 10, 0)
         mask = self.d.compute_mask(_make_metrics(), 0, "C")
         for idx in self.d.COLON_AND_SEP:
             assert mask[idx] is True
 
-    @patch('trcc.core.led_segment.datetime')
+    @patch("trcc.core.led_segment.datetime")
     def test_24h_hour_15_tens_lit(self, mock_dt: MagicMock) -> None:
         mock_dt.now.return_value = datetime(2024, 6, 15, 15, 30)
         mask = self.d.compute_mask(_make_metrics(), 0, "C", is_24h=True)
         # Hour=15 → tens='1' → DIGITS[0] should have lit segments
         assert any(mask[led] for led in self.d.DIGITS[0])
 
-    @patch('trcc.core.led_segment.datetime')
+    @patch("trcc.core.led_segment.datetime")
     def test_12h_hour_3pm_tens_suppressed(self, mock_dt: MagicMock) -> None:
         mock_dt.now.return_value = datetime(2024, 6, 15, 15, 30)
         mask = self.d.compute_mask(_make_metrics(), 0, "C", is_24h=False)
         # 15h → 3 in 12h → hour tens = 0 → suppress_zero → blank
         assert not any(mask[led] for led in self.d.DIGITS[0])
 
-    @patch('trcc.core.led_segment.datetime')
+    @patch("trcc.core.led_segment.datetime")
     def test_12h_midnight_shows_12(self, mock_dt: MagicMock) -> None:
         mock_dt.now.return_value = datetime(2024, 6, 15, 0, 0)
         mask = self.d.compute_mask(_make_metrics(), 0, "C", is_24h=False)
         # 0h → 12 in 12h → hour tens = 1 → segments lit
         assert any(mask[led] for led in self.d.DIGITS[0])
 
-    @patch('trcc.core.led_segment.datetime')
+    @patch("trcc.core.led_segment.datetime")
     def test_month_tens_bc_set_for_october_plus(self, mock_dt: MagicMock) -> None:
         """Month 10-12: month tens = 1 → MONTH_TENS_BC both set."""
         mock_dt.now.return_value = datetime(2024, 10, 5, 10, 0)
@@ -1238,24 +1279,24 @@ class TestLC2Display:
         assert mask[self.d.MONTH_TENS_BC[0]] is True
         assert mask[self.d.MONTH_TENS_BC[1]] is True
 
-    @patch('trcc.core.led_segment.datetime')
+    @patch("trcc.core.led_segment.datetime")
     def test_month_tens_bc_clear_for_single_digit_month(self, mock_dt: MagicMock) -> None:
         mock_dt.now.return_value = datetime(2024, 3, 15, 10, 0)
         mask = self.d.compute_mask(_make_metrics(), 0, "C")
         assert mask[self.d.MONTH_TENS_BC[0]] is False
         assert mask[self.d.MONTH_TENS_BC[1]] is False
 
-    @patch('trcc.core.led_segment.datetime')
+    @patch("trcc.core.led_segment.datetime")
     def test_weekday_monday_one_bar(self, mock_dt: MagicMock) -> None:
         """Monday (weekday()=0 Mon-start) → w=0 → only bar[0] on."""
         mock_dt.now.return_value = datetime(2024, 2, 5, 12, 0)  # Monday
         mask = self.d.compute_mask(_make_metrics(), 0, "C")
         deco = list(range(54, 61))
-        assert mask[deco[0]] is True   # always on
+        assert mask[deco[0]] is True  # always on
         assert mask[deco[1]] is False  # w=0 not > 0
         assert mask[deco[2]] is False
 
-    @patch('trcc.core.led_segment.datetime')
+    @patch("trcc.core.led_segment.datetime")
     def test_weekday_wednesday_three_bars(self, mock_dt: MagicMock) -> None:
         """Wednesday (weekday()=2) → w=2 → bars 0,1,2 on."""
         mock_dt.now.return_value = datetime(2024, 2, 14, 12, 0)  # Wednesday
@@ -1266,7 +1307,7 @@ class TestLC2Display:
         assert mask[deco[2]] is True
         assert mask[deco[3]] is False
 
-    @patch('trcc.core.led_segment.datetime')
+    @patch("trcc.core.led_segment.datetime")
     def test_weekday_sunday_all_bars(self, mock_dt: MagicMock) -> None:
         """Sunday (weekday()=6 Mon-start) → w=6 → all 7 bars on."""
         mock_dt.now.return_value = datetime(2024, 2, 18, 12, 0)  # Sunday
@@ -1274,24 +1315,24 @@ class TestLC2Display:
         for idx in range(54, 61):
             assert mask[idx] is True
 
-    @patch('trcc.core.led_segment.datetime')
+    @patch("trcc.core.led_segment.datetime")
     def test_week_sunday_mode_sunday_is_day_0(self, mock_dt: MagicMock) -> None:
         """week_sunday=True: Sunday=0, Monday=1, so Sunday→w=0→only bar[0]."""
         mock_dt.now.return_value = datetime(2024, 2, 18, 12, 0)  # Sunday (weekday()=6)
         mask = self.d.compute_mask(_make_metrics(), 0, "C", week_sunday=True)
         deco = list(range(54, 61))
-        assert mask[deco[0]] is True   # bar[0] always on
+        assert mask[deco[0]] is True  # bar[0] always on
         # w = (6+1)%7 = 0 → bar[1] is False (w=0 not > 0)
         assert mask[deco[1]] is False
 
-    @patch('trcc.core.led_segment.datetime')
+    @patch("trcc.core.led_segment.datetime")
     def test_day_tens_suppressed_for_single_digit_day(self, mock_dt: MagicMock) -> None:
         """Day < 10 → day tens digit is blank (suppress_zero=True)."""
         mock_dt.now.return_value = datetime(2024, 6, 5, 12, 0)  # day=5
         mask = self.d.compute_mask(_make_metrics(), 0, "C")
         assert not any(mask[led] for led in self.d.DIGITS[5])
 
-    @patch('trcc.core.led_segment.datetime')
+    @patch("trcc.core.led_segment.datetime")
     def test_day_tens_lit_for_double_digit_day(self, mock_dt: MagicMock) -> None:
         mock_dt.now.return_value = datetime(2024, 6, 14, 12, 0)  # day=14
         mask = self.d.compute_mask(_make_metrics(), 0, "C")
@@ -1302,8 +1343,8 @@ class TestLC2Display:
 # Style 10 — LF11 (38 LEDs, 4-phase disk sensor)
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestLF11Display:
 
+class TestLF11Display:
     def setup_method(self) -> None:
         self.d = LF11Display()
 
@@ -1348,11 +1389,11 @@ class TestLF11Display:
 
     def test_temp_phase_unit_digit_celsius(self) -> None:
         mask = self.d.compute_mask(_make_metrics(disk_temp=45.0), 0, "C")
-        assert _segments_on(mask, self.d.DIGITS[3]) == SegmentDisplay.CHAR_7SEG['C']
+        assert _segments_on(mask, self.d.DIGITS[3]) == SegmentDisplay.CHAR_7SEG["C"]
 
     def test_temp_phase_unit_digit_fahrenheit(self) -> None:
         mask = self.d.compute_mask(_make_metrics(disk_temp=45.0), 0, "F")
-        assert _segments_on(mask, self.d.DIGITS[3]) == SegmentDisplay.CHAR_7SEG['F']
+        assert _segments_on(mask, self.d.DIGITS[3]) == SegmentDisplay.CHAR_7SEG["F"]
 
     def test_activity_phase_uses_5_digit_region(self) -> None:
         mask = self.d.compute_mask(_make_metrics(disk_activity=12345.0), 1, "C")
@@ -1382,8 +1423,8 @@ class TestLF11Display:
 # Module-level functions
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestModuleFunctions:
 
+class TestModuleFunctions:
     # ── DISPLAYS registry ──────────────────────────────────────────────────
 
     def test_displays_has_styles_1_through_11(self) -> None:
@@ -1396,11 +1437,21 @@ class TestModuleFunctions:
     def test_displays_does_not_have_style_0(self) -> None:
         assert 0 not in DISPLAYS
 
-    @pytest.mark.parametrize("style_id,expected_type", [
-        (1, AX120Display), (2, PA120Display), (3, AK120Display),
-        (4, LC1Display), (5, LF8Display), (6, LF12Display),
-        (7, LF10Display), (8, CZ1Display), (9, LC2Display), (10, LF11Display),
-    ])
+    @pytest.mark.parametrize(
+        "style_id,expected_type",
+        [
+            (1, AX120Display),
+            (2, PA120Display),
+            (3, AK120Display),
+            (4, LC1Display),
+            (5, LF8Display),
+            (6, LF12Display),
+            (7, LF10Display),
+            (8, CZ1Display),
+            (9, LC2Display),
+            (10, LF11Display),
+        ],
+    )
     def test_displays_correct_types(self, style_id: int, expected_type: type) -> None:
         assert isinstance(DISPLAYS[style_id], expected_type)
 
@@ -1416,8 +1467,17 @@ class TestModuleFunctions:
 
     def test_compute_mask_correct_length_per_style(self) -> None:
         expected = {
-            1: 30, 2: 84, 3: 64, 4: 31, 5: 93,
-            6: 124, 7: 116, 8: 18, 9: 61, 10: 38, 11: 93,
+            1: 30,
+            2: 84,
+            3: 64,
+            4: 31,
+            5: 93,
+            6: 124,
+            7: 116,
+            8: 18,
+            9: 61,
+            10: 38,
+            11: 93,
         }
         for style_id, size in expected.items():
             mask = compute_mask(style_id, HardwareMetrics())
@@ -1440,14 +1500,14 @@ class TestModuleFunctions:
         m_f = compute_mask(1, _make_metrics(cpu_temp=100.0), temp_unit="F")
         assert m_c != m_f
 
-    @patch('trcc.core.led_segment.datetime')
+    @patch("trcc.core.led_segment.datetime")
     def test_compute_mask_passes_is_24h_to_lc2(self, mock_dt: MagicMock) -> None:
         mock_dt.now.return_value = datetime(2024, 6, 15, 15, 0)
         m_24 = compute_mask(9, _make_metrics(), is_24h=True)
         m_12 = compute_mask(9, _make_metrics(), is_24h=False)
         assert m_24 != m_12
 
-    @patch('trcc.core.led_segment.datetime')
+    @patch("trcc.core.led_segment.datetime")
     def test_compute_mask_passes_week_sunday_to_lc2(self, mock_dt: MagicMock) -> None:
         mock_dt.now.return_value = datetime(2024, 2, 18, 12, 0)  # Sunday
         m_mon = compute_mask(9, _make_metrics(), week_sunday=False)
@@ -1497,8 +1557,8 @@ class TestModuleFunctions:
 # Cross-style consistency
 # ═════════════════════════════════════════════════════════════════════════════
 
-class TestCrossStyleConsistency:
 
+class TestCrossStyleConsistency:
     def test_all_mask_sizes_match_class_attribute(self) -> None:
         """compute_mask() returns exactly mask_size elements for every style."""
         for style_id, display in DISPLAYS.items():
@@ -1532,9 +1592,7 @@ class TestCrossStyleConsistency:
             seen: set[int] = set()
             for zone in zmap:
                 zone_set = set(zone)
-                assert not (seen & zone_set), (
-                    f"Style {style_id} zone overlap: {seen & zone_set}"
-                )
+                assert not (seen & zone_set), f"Style {style_id} zone overlap: {seen & zone_set}"
                 seen |= zone_set
 
     def test_lf12_is_lf8_subclass(self) -> None:
@@ -1543,6 +1601,7 @@ class TestCrossStyleConsistency:
     def test_subclass_contract_enforced(self) -> None:
         """SegmentDisplay.__init_subclass__ raises if mask_size is missing."""
         with pytest.raises(TypeError, match="mask_size"):
+
             class BadDisplay(SegmentDisplay):
                 mask_size = 0
 

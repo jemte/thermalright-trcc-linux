@@ -3,6 +3,7 @@
 Provides properly DI-wired service instances with mock adapter dependencies.
 Tests request these fixtures instead of constructing services bare.
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -16,10 +17,10 @@ from trcc.services.image import ImageService
 def make_device_service(**overrides) -> DeviceService:
     """Create a DeviceService with mock adapter deps (no RuntimeError)."""
     defaults = {
-        'detect_fn': MagicMock(return_value=[]),
-        'probe_led_fn': MagicMock(return_value=None),
-        'get_protocol': MagicMock(return_value=MagicMock()),
-        'get_protocol_info': MagicMock(return_value=None),
+        "detect_fn": MagicMock(return_value=[]),
+        "probe_led_fn": MagicMock(return_value=None),
+        "get_protocol": MagicMock(return_value=MagicMock()),
+        "get_protocol_info": MagicMock(return_value=None),
     }
     defaults.update(overrides)
     return DeviceService(**defaults)

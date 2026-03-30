@@ -13,6 +13,7 @@ Classes:
 
 Config persistence lives in conf.py; device protocols in their respective modules.
 """
+
 from __future__ import annotations
 
 import logging
@@ -39,6 +40,7 @@ PROJECT_ROOT = os.path.dirname(SRC_DIR)
 # SysUtils — cross-distro system utilities
 # =========================================================================
 
+
 class SysUtils:
     """Cross-distro system utility functions (sysfs, SCSI, dependency checks)."""
 
@@ -58,7 +60,7 @@ class SysUtils:
     def read_sysfs(path: str) -> Optional[str]:
         """Safely read a sysfs/proc file, return stripped content or None."""
         try:
-            with open(path, 'r') as f:
+            with open(path, "r") as f:
                 return f.read().strip()
         except Exception:
             return None
@@ -66,10 +68,10 @@ class SysUtils:
     @staticmethod
     def find_scsi_devices() -> List[str]:
         """List available /dev/sg* devices by scanning sysfs dynamically."""
-        sysfs = '/sys/class/scsi_generic'
+        sysfs = "/sys/class/scsi_generic"
         if not os.path.isdir(sysfs):
             return []
-        return [e for e in sorted(os.listdir(sysfs)) if e.startswith('sg')]
+        return [e for e in sorted(os.listdir(sysfs)) if e.startswith("sg")]
 
     @staticmethod
     def find_scsi_block_devices() -> List[str]:
@@ -79,10 +81,10 @@ class SysUtils:
         the SCSI subsystem still creates ``/sys/block/sdX`` and SG_IO ioctl
         works on block devices too.  Callers filter by VID/PID.
         """
-        sysfs = '/sys/block'
+        sysfs = "/sys/block"
         if not os.path.isdir(sysfs):
             return []
-        return [e for e in sorted(os.listdir(sysfs)) if e.startswith('sd')]
+        return [e for e in sorted(os.listdir(sysfs)) if e.startswith("sd")]
 
     _sg_raw_path: str | None = None
     _sg_raw_checked: bool = False
@@ -91,7 +93,7 @@ class SysUtils:
     def require_sg_raw() -> None:
         """Verify sg_raw is available; raise FileNotFoundError with install help if not."""
         if not SysUtils._sg_raw_checked:
-            SysUtils._sg_raw_path = shutil.which('sg_raw')
+            SysUtils._sg_raw_path = shutil.which("sg_raw")
             SysUtils._sg_raw_checked = True
         if not SysUtils._sg_raw_path:
             raise FileNotFoundError(SysUtils._SG_RAW_INSTALL_HELP)
@@ -99,23 +101,23 @@ class SysUtils:
     @staticmethod
     def has_7z_support() -> bool:
         """Check if 7z CLI is available."""
-        return shutil.which('7z') is not None
+        return shutil.which("7z") is not None
 
 
 # =========================================================================
 # Data directory resolution (runs at import time)
 # =========================================================================
 
+
 def _find_pkg_data_dir() -> str:
     """Find the package data directory (for bundled .7z archives in dev mode).
 
     Only used for locating .7z archives before downloading from GitHub.
     """
-    for candidate in [os.path.join(_THIS_DIR, 'data'),
-                      os.path.join(PROJECT_ROOT, 'data')]:
+    for candidate in [os.path.join(_THIS_DIR, "data"), os.path.join(PROJECT_ROOT, "data")]:
         if os.path.isdir(candidate):
             return candidate
-    return os.path.join(_THIS_DIR, 'data')
+    return os.path.join(_THIS_DIR, "data")
 
 
 # All runtime data goes to ~/.trcc/data/ — always writable, works on
@@ -129,17 +131,18 @@ RESOURCE_SEARCH_PATHS = [RESOURCES_DIR]
 # DataManager — archive extraction, downloading, resolution management
 # =========================================================================
 
+
 class DataManager:
     """Archive extraction, on-demand downloading, and resolution tracking."""
 
     GITHUB_BASE_URL = (
-        "https://raw.githubusercontent.com/Lexonight1/"
-        "thermalright-trcc-linux/main/src/trcc/data/"
+        "https://raw.githubusercontent.com/jemte/thermalright-trcc-linux/main/src/trcc/data/"
     )
 
     @staticmethod
     def _7z_install_help() -> str:
         from trcc.core.builder import ControllerBuilder
+
         return ControllerBuilder.for_current_os().build_setup().archive_tool_install_help()
 
     # ------------------------------------------------------------------
@@ -150,6 +153,7 @@ class DataManager:
     def is_safe_archive_member(name: str) -> bool:
         """Check that an archive member path doesn't escape the destination (zip slip)."""
         from trcc.core.paths import is_safe_archive_member
+
         return is_safe_archive_member(name)
 
     # ------------------------------------------------------------------
@@ -163,14 +167,16 @@ class DataManager:
         try:
             # Validate archive members before extraction (zip-slip prevention)
             listing = subprocess.run(
-                ['7z', 'l', '-slt', archive],
-                capture_output=True, text=True, timeout=30,
+                ["7z", "l", "-slt", archive],
+                capture_output=True,
+                text=True,
+                timeout=30,
                 creationflags=_NO_WINDOW,
             )
             if listing.returncode == 0:
                 archive_norm = os.path.normpath(archive)
                 for line in listing.stdout.splitlines():
-                    if line.startswith('Path = '):
+                    if line.startswith("Path = "):
                         member = line[7:]
                         # Skip the archive path itself (7z lists it first)
                         if os.path.normpath(member) == archive_norm:
@@ -180,8 +186,9 @@ class DataManager:
                             return False
 
             result = subprocess.run(
-                ['7z', 'x', archive, f'-o{target_dir}', '-y'],
-                capture_output=True, timeout=120,
+                ["7z", "x", archive, f"-o{target_dir}", "-y"],
+                capture_output=True,
+                timeout=120,
                 creationflags=_NO_WINDOW,
             )
             if result.returncode == 0:
@@ -191,7 +198,8 @@ class DataManager:
         except FileNotFoundError:
             log.warning(
                 "7z not found — cannot extract %s\n%s",
-                archive, DataManager._7z_install_help(),
+                archive,
+                DataManager._7z_install_help(),
             )
         except Exception as e:
             log.warning("7z extraction failed: %s", e)
@@ -209,24 +217,24 @@ class DataManager:
         import urllib.request
 
         os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-        tmp_path = dest_path + '.tmp'
+        tmp_path = dest_path + ".tmp"
 
         # PyInstaller sets SSL_CERT_FILE to a bundled cacert.pem that may
         # not exist at runtime, causing certificate verification failures.
         # Temporarily clear it so ssl.create_default_context() loads certs
         # from the OS store (Windows) or system CA bundle instead.
-        stashed = os.environ.pop('SSL_CERT_FILE', None)
+        stashed = os.environ.pop("SSL_CERT_FILE", None)
         try:
             ctx = ssl.create_default_context()
         finally:
             if stashed is not None:
-                os.environ['SSL_CERT_FILE'] = stashed
+                os.environ["SSL_CERT_FILE"] = stashed
 
         try:
             log.info("Downloading %s ...", os.path.basename(dest_path))
-            req = urllib.request.Request(url, headers={'User-Agent': 'trcc-linux'})
+            req = urllib.request.Request(url, headers={"User-Agent": "trcc-linux"})
             with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
-                with open(tmp_path, 'wb') as f:
+                with open(tmp_path, "wb") as f:
                     while True:
                         chunk = resp.read(65536)
                         if not chunk:
@@ -308,7 +316,8 @@ class DataManager:
         if archive is None:
             log.warning(
                 "%s: could not obtain %s (no local copy, download failed)",
-                label, archive_name,
+                label,
+                archive_name,
             )
             return False
 
@@ -326,7 +335,7 @@ class DataManager:
         return ok
 
     @staticmethod
-    def _fetch_archive(archive_name: str, subdir: str = '') -> Optional[str]:
+    def _fetch_archive(archive_name: str, subdir: str = "") -> Optional[str]:
         """Locate or download a .7z archive.
 
         Args:
@@ -334,11 +343,19 @@ class DataManager:
             subdir: Optional subdirectory (e.g. 'web') under data dirs.
         """
         for base in (_PKG_DATA_DIR, DataManager._data_dir()):
-            path = os.path.join(base, subdir, archive_name) if subdir else os.path.join(base, archive_name)
+            path = (
+                os.path.join(base, subdir, archive_name)
+                if subdir
+                else os.path.join(base, archive_name)
+            )
             if os.path.isfile(path):
                 return path
-        user = os.path.join(DataManager._data_dir(), subdir, archive_name) if subdir else os.path.join(DataManager._data_dir(), archive_name)
-        url_path = f'{subdir}/{archive_name}' if subdir else archive_name
+        user = (
+            os.path.join(DataManager._data_dir(), subdir, archive_name)
+            if subdir
+            else os.path.join(DataManager._data_dir(), archive_name)
+        )
+        url_path = f"{subdir}/{archive_name}" if subdir else archive_name
         if DataManager.download_archive(DataManager.GITHUB_BASE_URL + url_path, user):
             return user
         return None
@@ -351,6 +368,7 @@ class DataManager:
     def _data_dir() -> str:
         """Get user data directory from platform adapter via settings."""
         from trcc.conf import settings
+
         return str(settings.user_data_dir)
 
     @staticmethod
@@ -361,12 +379,12 @@ class DataManager:
     @staticmethod
     def ensure_themes(width: int, height: int) -> bool:
         """Extract default themes from .7z archive if not already present."""
-        name = f'theme{width}{height}'
+        name = f"theme{width}{height}"
         return DataManager._fetch_and_extract(
             label=f"Themes {width}x{height}",
             pkg_dir=os.path.join(DataManager._data_dir(), name),
             user_dir=os.path.join(DataManager._data_dir(), name),
-            archive_name=f'{name}.7z',
+            archive_name=f"{name}.7z",
             check_fn=ThemeDir.has_themes,
             fetch_fn=lambda a: DataManager._fetch_archive(a),
         )
@@ -374,27 +392,27 @@ class DataManager:
     @staticmethod
     def ensure_web(width: int, height: int) -> bool:
         """Extract cloud theme previews from .7z archive if not already present."""
-        res_key = f'{width}{height}'
+        res_key = f"{width}{height}"
         return DataManager._fetch_and_extract(
             label=f"Web previews {width}x{height}",
-            pkg_dir=os.path.join(DataManager._data_dir(), 'web', res_key),
-            user_dir=os.path.join(DataManager._data_dir(), 'web', res_key),
-            archive_name=f'{res_key}.7z',
+            pkg_dir=os.path.join(DataManager._data_dir(), "web", res_key),
+            user_dir=os.path.join(DataManager._data_dir(), "web", res_key),
+            archive_name=f"{res_key}.7z",
             check_fn=DataManager._has_any_content,
-            fetch_fn=lambda a: DataManager._fetch_archive(a, 'web'),
+            fetch_fn=lambda a: DataManager._fetch_archive(a, "web"),
         )
 
     @staticmethod
     def ensure_web_masks(width: int, height: int) -> bool:
         """Extract cloud mask themes from .7z archive if not already present."""
-        res_key = f'zt{width}{height}'
+        res_key = f"zt{width}{height}"
         return DataManager._fetch_and_extract(
             label=f"Mask themes {width}x{height}",
-            pkg_dir=os.path.join(DataManager._data_dir(), 'web', res_key),
-            user_dir=os.path.join(DataManager._data_dir(), 'web', res_key),
-            archive_name=f'{res_key}.7z',
+            pkg_dir=os.path.join(DataManager._data_dir(), "web", res_key),
+            user_dir=os.path.join(DataManager._data_dir(), "web", res_key),
+            archive_name=f"{res_key}.7z",
             check_fn=ThemeDir.has_themes,
-            fetch_fn=lambda a: DataManager._fetch_archive(a, 'web'),
+            fetch_fn=lambda a: DataManager._fetch_archive(a, "web"),
         )
 
     @staticmethod
@@ -459,7 +477,9 @@ class DataManager:
             return True
         log.warning(
             "Resolution %s: config says installed but no data at %s or %s",
-            key, pkg, user,
+            key,
+            pkg,
+            user,
         )
         return False
 
@@ -484,18 +504,21 @@ class DataManager:
     def get_web_dir(width: int, height: int) -> str:
         """Get cloud theme Web directory for a resolution."""
         from trcc.conf import settings
+
         return settings._path_resolver.web_dir(width, height)
 
     @staticmethod
     def get_web_masks_dir(width: int, height: int) -> str:
         """Get cloud masks directory for a resolution."""
         from trcc.conf import settings
+
         return settings._path_resolver.web_masks_dir(width, height)
 
 
 # =========================================================================
 # Resources — GUI resource file finding
 # =========================================================================
+
 
 class Resources:
     """GUI resource file finding and search path management."""
@@ -525,29 +548,27 @@ class Resources:
 # Font search directories across distros
 # =========================================================================
 
-_HOME = os.path.expanduser('~')
-FONTS_DIR = os.path.join(ASSETS_DIR, 'fonts')
+_HOME = os.path.expanduser("~")
+FONTS_DIR = os.path.join(ASSETS_DIR, "fonts")
 
 FONT_SEARCH_DIRS: List[str] = [
-    FONTS_DIR,                                          # bundled
-    os.path.join(_HOME, '.local/share/fonts'),          # XDG user fonts
-    os.path.join(_HOME, '.fonts'),                      # legacy user fonts
-    '/usr/local/share/fonts',                           # manually installed
-    '/usr/share/fonts/truetype',                        # Debian, Ubuntu, Mint
-    '/usr/share/fonts/truetype/dejavu',                 # Debian DejaVu
-    '/usr/share/fonts/truetype/noto',                   # Debian Noto
-    '/usr/share/fonts/opentype/noto',                   # Debian Noto OpenType
-    '/usr/share/fonts/google-noto-sans-cjk-vf-fonts',  # Fedora Noto CJK
-    '/usr/share/fonts/google-noto-vf',                  # Fedora Noto VF
-    '/usr/share/fonts/google-noto',                     # Fedora Noto
-    '/usr/share/fonts/dejavu-sans-fonts',               # Fedora DejaVu
-    '/usr/share/fonts/TTF',                             # Arch, Void, Garuda
-    '/usr/share/fonts/noto',                            # Alpine, Gentoo
-    '/usr/share/fonts/noto-cjk',                        # openSUSE
-    '/usr/share/fonts/dejavu',                          # Alpine, openSUSE
-    '/run/current-system/sw/share/fonts/truetype',      # NixOS
-    '/run/current-system/sw/share/fonts/opentype',      # NixOS
-    '/gnu/store/fonts',                                 # Guix (approx)
+    FONTS_DIR,  # bundled
+    os.path.join(_HOME, ".local/share/fonts"),  # XDG user fonts
+    os.path.join(_HOME, ".fonts"),  # legacy user fonts
+    "/usr/local/share/fonts",  # manually installed
+    "/usr/share/fonts/truetype",  # Debian, Ubuntu, Mint
+    "/usr/share/fonts/truetype/dejavu",  # Debian DejaVu
+    "/usr/share/fonts/truetype/noto",  # Debian Noto
+    "/usr/share/fonts/opentype/noto",  # Debian Noto OpenType
+    "/usr/share/fonts/google-noto-sans-cjk-vf-fonts",  # Fedora Noto CJK
+    "/usr/share/fonts/google-noto-vf",  # Fedora Noto VF
+    "/usr/share/fonts/google-noto",  # Fedora Noto
+    "/usr/share/fonts/dejavu-sans-fonts",  # Fedora DejaVu
+    "/usr/share/fonts/TTF",  # Arch, Void, Garuda
+    "/usr/share/fonts/noto",  # Alpine, Gentoo
+    "/usr/share/fonts/noto-cjk",  # openSUSE
+    "/usr/share/fonts/dejavu",  # Alpine, openSUSE
+    "/run/current-system/sw/share/fonts/truetype",  # NixOS
+    "/run/current-system/sw/share/fonts/opentype",  # NixOS
+    "/gnu/store/fonts",  # Guix (approx)
 ]
-
-

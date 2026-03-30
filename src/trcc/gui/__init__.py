@@ -6,6 +6,7 @@ Single entry point for the graphical interface. Owns all DI wiring:
 TRCCApp knows nothing about TrccApp. It implements AppObserver and receives
 devices via on_app_event. All adapter deps are injected here.
 """
+
 from __future__ import annotations
 
 import logging
@@ -16,17 +17,17 @@ import sys
 log = logging.getLogger(__name__)
 
 
-def launch(verbosity: int = 0, decorated: bool = False,
-           start_hidden: bool = False) -> int:
+def launch(verbosity: int = 0, decorated: bool = False, start_hidden: bool = False) -> int:
     """Bootstrap and run the GUI application.
 
     Returns the Qt exit code.
     """
     from trcc.core.app import AppEvent, TrccApp
+
     app = TrccApp.init()
 
     # ── Platform deps (before Qt — configure_dpi must precede QApplication) ──
-    setup     = app.build_setup()
+    setup = app.build_setup()
     autostart = app.build_autostart()
     mem_fn, disk_fn = app.build_hardware_fns()
 
@@ -38,6 +39,7 @@ def launch(verbosity: int = 0, decorated: bool = False,
 
     # ── Qt bootstrap ──────────────────────────────────────────────────────
     from trcc.qt_components.assets import _PKG_ASSETS_DIR, set_assets_dir
+
     set_assets_dir(setup.resolve_assets_dir(_PKG_ASSETS_DIR))
 
     os.environ.setdefault("QT_LOGGING_RULES", "qt.qpa.services=false")
@@ -50,6 +52,7 @@ def launch(verbosity: int = 0, decorated: bool = False,
 
     from PySide6.QtGui import QFont
     from PySide6.QtWidgets import QApplication
+
     qapp = cast(QApplication, QApplication.instance() or QApplication(sys.argv))
     qapp.setQuitOnLastWindowClosed(False)
     qapp.setDesktopFileName("trcc-linux")
@@ -63,6 +66,7 @@ def launch(verbosity: int = 0, decorated: bool = False,
     # ── Bootstrap — platform init + device scan, with splash progress ────
     from trcc.adapters.render.qt import QtRenderer
     from trcc.qt_components.splash import run_bootstrap_with_splash
+
     if not run_bootstrap_with_splash(app, QtRenderer):
         return 1
 
@@ -71,10 +75,12 @@ def launch(verbosity: int = 0, decorated: bool = False,
     app.set_system(system_svc)
 
     from trcc.services.system import set_instance
+
     set_instance(system_svc)
 
     # ── GUI adapter — receives everything injected, knows nothing of TrccApp ─
     from trcc.qt_components.trcc_app import TRCCApp
+
     window = TRCCApp(
         system_svc=system_svc,
         setup=setup,
@@ -87,7 +93,8 @@ def launch(verbosity: int = 0, decorated: bool = False,
     # ── IPC server ────────────────────────────────────────────────────────
     from trcc.core.lcd_device import LCDDevice
     from trcc.ipc import IPCServer
-    ipc_display = LCDDevice(device_svc=None)   # device wired later via on_app_event
+
+    ipc_display = LCDDevice(device_svc=None)  # device wired later via on_app_event
     ipc_led = app.build_led()
     ipc_server = IPCServer(ipc_display, ipc_led)
     ipc_server.start()

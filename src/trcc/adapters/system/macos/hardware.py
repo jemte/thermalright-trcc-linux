@@ -3,6 +3,7 @@
 Replaces Linux dmidecode/lsblk with macOS system_profiler JSON queries.
 Same return types as Linux hardware.py — list[dict[str, str]].
 """
+
 from __future__ import annotations
 
 import json
@@ -16,8 +17,10 @@ def _run_profiler(data_type: str) -> dict:
     """Run system_profiler and return parsed JSON."""
     try:
         result = subprocess.run(
-            ['system_profiler', data_type, '-json'],
-            capture_output=True, text=True, timeout=10,
+            ["system_profiler", data_type, "-json"],
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if result.returncode == 0:
             return json.loads(result.stdout)
@@ -35,38 +38,41 @@ def get_memory_info() -> list[dict[str, str]]:
     Note: Apple Silicon unified memory reports as a single entry.
     """
     slots: list[dict[str, str]] = []
-    data = _run_profiler('SPMemoryDataType')
-    items = data.get('SPMemoryDataType', [])
+    data = _run_profiler("SPMemoryDataType")
+    items = data.get("SPMemoryDataType", [])
 
     for item in items:
         # Apple Silicon: top-level has 'dimm_type', 'SPMemoryDataType' items
         # Intel: top-level items contain nested DIMMs
-        dimms = item.get('_items', [item])
+        dimms = item.get("_items", [item])
         for dimm in dimms:
             slot: dict[str, str] = {}
-            slot['manufacturer'] = dimm.get('dimm_manufacturer', 'Apple')
-            slot['part_number'] = dimm.get('dimm_part_number', '')
-            slot['type'] = dimm.get('dimm_type', '')
-            slot['speed'] = dimm.get('dimm_speed', '')
-            slot['size'] = dimm.get('dimm_size', '')
-            slot['form_factor'] = dimm.get('dimm_form_factor', '')
-            slot['locator'] = dimm.get('_name', '')
-            if slot['size']:
+            slot["manufacturer"] = dimm.get("dimm_manufacturer", "Apple")
+            slot["part_number"] = dimm.get("dimm_part_number", "")
+            slot["type"] = dimm.get("dimm_type", "")
+            slot["speed"] = dimm.get("dimm_speed", "")
+            slot["size"] = dimm.get("dimm_size", "")
+            slot["form_factor"] = dimm.get("dimm_form_factor", "")
+            slot["locator"] = dimm.get("_name", "")
+            if slot["size"]:
                 slots.append(slot)
 
     # Fallback: psutil total
     if not slots:
         import psutil
+
         mem = psutil.virtual_memory()
-        slots.append({
-            'manufacturer': 'Apple',
-            'part_number': 'Unknown',
-            'type': 'Unified' if _is_apple_silicon() else 'Unknown',
-            'speed': 'Unknown',
-            'size': f'{mem.total // (1024 ** 3)} GB',
-            'form_factor': 'Unified' if _is_apple_silicon() else 'Unknown',
-            'locator': 'Total',
-        })
+        slots.append(
+            {
+                "manufacturer": "Apple",
+                "part_number": "Unknown",
+                "type": "Unified" if _is_apple_silicon() else "Unknown",
+                "speed": "Unknown",
+                "size": f"{mem.total // (1024**3)} GB",
+                "form_factor": "Unified" if _is_apple_silicon() else "Unknown",
+                "locator": "Total",
+            }
+        )
 
     return slots
 
@@ -78,32 +84,32 @@ def get_disk_info() -> list[dict[str, str]]:
         name, model, size, type (SSD/HDD), health.
     """
     disks: list[dict[str, str]] = []
-    data = _run_profiler('SPStorageDataType')
-    items = data.get('SPStorageDataType', [])
+    data = _run_profiler("SPStorageDataType")
+    items = data.get("SPStorageDataType", [])
 
     for item in items:
         info: dict[str, str] = {}
-        info['name'] = item.get('bsd_name', '')
-        info['model'] = item.get('physical_drive', {}).get('device_name', '')
-        info['size'] = item.get('size_in_bytes', '')
-        if info['size']:
+        info["name"] = item.get("bsd_name", "")
+        info["model"] = item.get("physical_drive", {}).get("device_name", "")
+        info["size"] = item.get("size_in_bytes", "")
+        if info["size"]:
             try:
-                b = int(info['size'])
-                if b >= 1024 ** 4:
-                    info['size'] = f'{b / (1024 ** 4):.1f} TB'
-                elif b >= 1024 ** 3:
-                    info['size'] = f'{b / (1024 ** 3):.0f} GB'
+                b = int(info["size"])
+                if b >= 1024**4:
+                    info["size"] = f"{b / (1024**4):.1f} TB"
+                elif b >= 1024**3:
+                    info["size"] = f"{b / (1024**3):.0f} GB"
             except (ValueError, TypeError):
                 pass
-        media_type = item.get('physical_drive', {}).get('medium_type', '')
-        if 'solid' in media_type.lower() or 'ssd' in media_type.lower():
-            info['type'] = 'SSD'
-        elif 'rotational' in media_type.lower():
-            info['type'] = 'HDD'
+        media_type = item.get("physical_drive", {}).get("medium_type", "")
+        if "solid" in media_type.lower() or "ssd" in media_type.lower():
+            info["type"] = "SSD"
+        elif "rotational" in media_type.lower():
+            info["type"] = "HDD"
         else:
-            info['type'] = 'SSD'  # Modern Macs are all SSD
-        info['health'] = item.get('smart_status', 'Unknown')
-        if info['name'] or info['model']:
+            info["type"] = "SSD"  # Modern Macs are all SSD
+        info["health"] = item.get("smart_status", "Unknown")
+        if info["name"] or info["model"]:
             disks.append(info)
 
     return disks
@@ -112,4 +118,5 @@ def get_disk_info() -> list[dict[str, str]]:
 def _is_apple_silicon() -> bool:
     """Check if running on Apple Silicon."""
     import platform
-    return platform.machine() == 'arm64'
+
+    return platform.machine() == "arm64"

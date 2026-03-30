@@ -3,6 +3,7 @@
 Pure computation: reads LEDState + HardwareMetrics, advances animation
 timers, returns per-segment color lists. No I/O, no protocol, no config.
 """
+
 from __future__ import annotations
 
 from typing import List, Tuple
@@ -33,8 +34,9 @@ class LEDEffectEngine:
 
     # ── Main dispatch ────────────────────────────────────────────────
 
-    def _tick_single_mode(self, mode: LEDMode, color: Tuple[int, int, int],
-                          seg_count: int) -> List[Tuple[int, int, int]]:
+    def _tick_single_mode(
+        self, mode: LEDMode, color: Tuple[int, int, int], seg_count: int
+    ) -> List[Tuple[int, int, int]]:
         """Compute colors for a single mode across seg_count segments.
 
         If the device has a decoration ring (state.ring_count > 0), ring
@@ -80,7 +82,8 @@ class LEDEffectEngine:
         return [color] * st.led_count
 
     def _tick_multi_zone(
-        self, zone_map: tuple[tuple[int, ...], ...],
+        self,
+        zone_map: tuple[tuple[int, ...], ...],
     ) -> List[Tuple[int, int, int]]:
         """Compute per-zone colors using physical LED index mapping.
 
@@ -101,8 +104,7 @@ class LEDEffectEngine:
             zc = self._tick_single_mode(z.mode, z.color, n)
             if z.brightness < 100:
                 scale = z.brightness / 100.0
-                zc = [(int(r * scale), int(g * scale), int(b * scale))
-                      for r, g, b in zc]
+                zc = [(int(r * scale), int(g * scale), int(b * scale)) for r, g, b in zc]
             for i, idx in enumerate(led_indices):
                 if idx < total:
                     colors[idx] = zc[i]
@@ -120,8 +122,9 @@ class LEDEffectEngine:
 
     # ── Effect algorithms (ported from FormLED.cs) ──────────────────
 
-    def _tick_breathing_for(self, color: Tuple[int, int, int],
-                            seg_count: int) -> List[Tuple[int, int, int]]:
+    def _tick_breathing_for(
+        self, color: Tuple[int, int, int], seg_count: int
+    ) -> List[Tuple[int, int, int]]:
         """DSHX_Timer: pulse brightness, period=66 ticks."""
         timer = self._state.rgb_timer
         period = 66
@@ -177,6 +180,7 @@ class LEDEffectEngine:
     def _tick_rainbow_for(self, seg_count: int) -> List[Tuple[int, int, int]]:
         """CHMS_Timer: 768-entry RGB table with per-segment offset."""
         from ..core.color import ColorEngine
+
         table = ColorEngine.get_table()
         timer = self._state.rgb_timer
         table_len = len(table)
@@ -198,6 +202,7 @@ class LEDEffectEngine:
         Uses the same rgb_timer as the segment rainbow (already advanced).
         """
         from ..core.color import ColorEngine
+
         table = ColorEngine.get_table()
         table_len = len(table)
         # rgb_timer was already advanced by _tick_rainbow_for, so subtract

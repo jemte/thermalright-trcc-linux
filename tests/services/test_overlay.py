@@ -118,11 +118,12 @@ class TestSetConfig(unittest.TestCase):
         """Test setting config with elements."""
         renderer = OverlayRenderer(renderer=_R())
         config = {
-            'cpu_temp': {
-                'x': 100, 'y': 50,
-                'color': '#FF6B35',
-                'metric': 'cpu_temp',
-                'enabled': True
+            "cpu_temp": {
+                "x": 100,
+                "y": 50,
+                "color": "#FF6B35",
+                "metric": "cpu_temp",
+                "enabled": True,
             }
         }
         renderer.set_config(config)
@@ -131,10 +132,10 @@ class TestSetConfig(unittest.TestCase):
     def test_config_is_replaced(self):
         """Test that config is replaced, not merged."""
         renderer = OverlayRenderer(renderer=_R())
-        renderer.set_config({'a': 1})
-        renderer.set_config({'b': 2})
-        self.assertNotIn('a', renderer.config)
-        self.assertIn('b', renderer.config)
+        renderer.set_config({"a": 1})
+        renderer.set_config({"b": 2})
+        self.assertNotIn("a", renderer.config)
+        self.assertIn("b", renderer.config)
 
 
 class TestSetBackground(unittest.TestCase):
@@ -169,6 +170,7 @@ class TestSetBackground(unittest.TestCase):
         renderer.set_background(img)
         # Modify original
         from PySide6.QtGui import QColor
+
         img.setPixelColor(0, 0, QColor(0, 0, 255))
         # Renderer's copy should be unchanged
         self.assertIsNotNone(renderer.background)
@@ -248,30 +250,36 @@ class TestRender(unittest.TestCase):
     def test_render_static_text(self):
         """Test rendering static text element."""
         renderer = OverlayRenderer(renderer=_R())
-        renderer.set_config({
-            'label': {
-                'x': 160, 'y': 160,
-                'text': 'Hello',
-                'color': '#FFFFFF',
-                'font': {'size': 24},
-                'enabled': True
+        renderer.set_config(
+            {
+                "label": {
+                    "x": 160,
+                    "y": 160,
+                    "text": "Hello",
+                    "color": "#FFFFFF",
+                    "font": {"size": 24},
+                    "enabled": True,
+                }
             }
-        })
+        )
         img = renderer.render()
         self.assertEqual(surface_size(img), (320, 320))
 
     def test_render_metric_element(self):
         """Test rendering metric element."""
         renderer = OverlayRenderer(renderer=_R())
-        renderer.set_config({
-            'cpu_temp': {
-                'x': 100, 'y': 100,
-                'metric': 'cpu_temp',
-                'color': '#FF6B35',
-                'font': {'size': 24},
-                'enabled': True
+        renderer.set_config(
+            {
+                "cpu_temp": {
+                    "x": 100,
+                    "y": 100,
+                    "metric": "cpu_temp",
+                    "color": "#FF6B35",
+                    "font": {"size": 24},
+                    "enabled": True,
+                }
             }
-        })
+        )
         metrics = HardwareMetrics(cpu_temp=45)
         img = renderer.render(metrics=metrics)
         self.assertEqual(surface_size(img), (320, 320))
@@ -279,14 +287,17 @@ class TestRender(unittest.TestCase):
     def test_render_disabled_element_skipped(self):
         """Test that disabled elements are skipped."""
         renderer = OverlayRenderer(renderer=_R())
-        renderer.set_config({
-            'hidden': {
-                'x': 100, 'y': 100,
-                'text': 'Should not render',
-                'color': '#FF0000',
-                'enabled': False
+        renderer.set_config(
+            {
+                "hidden": {
+                    "x": 100,
+                    "y": 100,
+                    "text": "Should not render",
+                    "color": "#FF0000",
+                    "enabled": False,
+                }
             }
-        })
+        )
         img = renderer.render()
         # Should render without error
         self.assertEqual(surface_size(img), (320, 320))
@@ -294,14 +305,17 @@ class TestRender(unittest.TestCase):
     def test_render_missing_metric_shows_na(self):
         """Test that missing metric shows N/A."""
         renderer = OverlayRenderer(renderer=_R())
-        renderer.set_config({
-            'missing': {
-                'x': 100, 'y': 100,
-                'metric': 'nonexistent_metric',
-                'color': '#FFFFFF',
-                'enabled': True
+        renderer.set_config(
+            {
+                "missing": {
+                    "x": 100,
+                    "y": 100,
+                    "metric": "nonexistent_metric",
+                    "color": "#FFFFFF",
+                    "enabled": True,
+                }
             }
-        })
+        )
         # Render with empty metrics
         img = renderer.render(metrics=HardwareMetrics())
         self.assertEqual(surface_size(img), (320, 320))
@@ -312,14 +326,9 @@ class TestRender(unittest.TestCase):
         renderer.time_format = 1
         renderer.date_format = 2
         renderer.temp_unit = 1
-        renderer.set_config({
-            'time': {
-                'x': 160, 'y': 160,
-                'metric': 'time',
-                'color': '#FFFFFF',
-                'enabled': True
-            }
-        })
+        renderer.set_config(
+            {"time": {"x": 160, "y": 160, "metric": "time", "color": "#FFFFFF", "enabled": True}}
+        )
         metrics = HardwareMetrics()
         img = renderer.render(metrics=metrics)
         self.assertEqual(surface_size(img), (320, 320))
@@ -328,15 +337,18 @@ class TestRender(unittest.TestCase):
         """Test per-element temp_unit override."""
         renderer = OverlayRenderer(renderer=_R())
         renderer.set_temp_unit(0)  # Global: Celsius
-        renderer.set_config({
-            'temp1': {
-                'x': 100, 'y': 100,
-                'metric': 'cpu_temp',
-                'color': '#FF6B35',
-                'enabled': True,
-                'temp_unit': 1,  # Override: Fahrenheit
+        renderer.set_config(
+            {
+                "temp1": {
+                    "x": 100,
+                    "y": 100,
+                    "metric": "cpu_temp",
+                    "color": "#FF6B35",
+                    "enabled": True,
+                    "temp_unit": 1,  # Override: Fahrenheit
+                }
             }
-        })
+        )
         metrics = HardwareMetrics(cpu_temp=45)
         img = renderer.render(metrics=metrics)
         self.assertEqual(surface_size(img), (320, 320))
@@ -362,7 +374,7 @@ class TestClear(unittest.TestCase):
     def test_clear_resets_all(self):
         """Test that clear resets all settings."""
         renderer = OverlayRenderer(renderer=_R())
-        renderer.set_config({'key': 'value'})
+        renderer.set_config({"key": "value"})
         renderer.set_background(make_test_surface(320, 320))
         renderer.set_theme_mask(make_test_surface(320, 100, (0, 0, 0, 255)))
 
@@ -409,29 +421,34 @@ class TestRenderIntegration(unittest.TestCase):
         renderer.set_theme_mask(mask)
 
         # Set config
-        renderer.set_config({
-            'time': {
-                'x': 160, 'y': 40,
-                'metric': 'time',
-                'color': '#FFFFFF',
-                'font': {'size': 32, 'style': 'bold'},
-                'enabled': True
-            },
-            'cpu_temp': {
-                'x': 80, 'y': 280,
-                'metric': 'cpu_temp',
-                'color': '#FF6B35',
-                'font': {'size': 20},
-                'enabled': True
-            },
-            'label': {
-                'x': 240, 'y': 280,
-                'text': 'CPU',
-                'color': '#AAAAAA',
-                'font': {'size': 16},
-                'enabled': True
+        renderer.set_config(
+            {
+                "time": {
+                    "x": 160,
+                    "y": 40,
+                    "metric": "time",
+                    "color": "#FFFFFF",
+                    "font": {"size": 32, "style": "bold"},
+                    "enabled": True,
+                },
+                "cpu_temp": {
+                    "x": 80,
+                    "y": 280,
+                    "metric": "cpu_temp",
+                    "color": "#FF6B35",
+                    "font": {"size": 20},
+                    "enabled": True,
+                },
+                "label": {
+                    "x": 240,
+                    "y": 280,
+                    "text": "CPU",
+                    "color": "#AAAAAA",
+                    "font": {"size": 16},
+                    "enabled": True,
+                },
             }
-        })
+        )
 
         # Format options default to 0, no need to set
 
@@ -446,13 +463,9 @@ class TestRenderIntegration(unittest.TestCase):
     def test_render_without_metrics(self):
         """Test rendering when no metrics provided."""
         renderer = OverlayRenderer(renderer=_R())
-        renderer.set_config({
-            'cpu_temp': {
-                'x': 100, 'y': 100,
-                'metric': 'cpu_temp',
-                'enabled': True
-            }
-        })
+        renderer.set_config(
+            {"cpu_temp": {"x": 100, "y": 100, "metric": "cpu_temp", "enabled": True}}
+        )
         # Render without providing metrics
         img = renderer.render()
         self.assertEqual(surface_size(img), (320, 320))
@@ -461,14 +474,9 @@ class TestRenderIntegration(unittest.TestCase):
         """Test rendering with no background starts from black (RGBA→RGB conversion)."""
         renderer = OverlayRenderer(renderer=_R())
         # Don't set background - creates transparent RGBA then converts to RGB
-        renderer.set_config({
-            'label': {
-                'x': 160, 'y': 160,
-                'text': 'Test',
-                'color': '#FFFFFF',
-                'enabled': True
-            }
-        })
+        renderer.set_config(
+            {"label": {"x": 160, "y": 160, "text": "Test", "color": "#FFFFFF", "enabled": True}}
+        )
         img = renderer.render()
         self.assertIsNotNone(img)
         # Transparent RGBA becomes black when converted to RGB
@@ -482,64 +490,71 @@ class TestConfigElements(unittest.TestCase):
     def test_element_without_font_config(self):
         """Test element with no font config uses defaults."""
         renderer = OverlayRenderer(renderer=_R())
-        renderer.set_config({
-            'simple': {
-                'x': 100, 'y': 100,
-                'text': 'Test',
-                'color': '#FFFFFF',
-                'enabled': True
-                # No 'font' key
+        renderer.set_config(
+            {
+                "simple": {
+                    "x": 100,
+                    "y": 100,
+                    "text": "Test",
+                    "color": "#FFFFFF",
+                    "enabled": True,
+                    # No 'font' key
+                }
             }
-        })
+        )
         img = renderer.render()
         self.assertEqual(surface_size(img), (320, 320))
 
     def test_element_with_non_dict_font(self):
         """Test element with non-dict font config uses default size."""
         renderer = OverlayRenderer(renderer=_R())
-        renderer.set_config({
-            'simple': {
-                'x': 100, 'y': 100,
-                'text': 'Test',
-                'color': '#FFFFFF',
-                'font': 'invalid',  # Should be dict
-                'enabled': True
+        renderer.set_config(
+            {
+                "simple": {
+                    "x": 100,
+                    "y": 100,
+                    "text": "Test",
+                    "color": "#FFFFFF",
+                    "font": "invalid",  # Should be dict
+                    "enabled": True,
+                }
             }
-        })
+        )
         img = renderer.render()
         self.assertEqual(surface_size(img), (320, 320))
 
     def test_element_without_x_y_uses_defaults(self):
         """Test element without x/y uses default position."""
         renderer = OverlayRenderer(renderer=_R())
-        renderer.set_config({
-            'no_position': {
-                'text': 'Test',
-                'color': '#FFFFFF',
-                'enabled': True
-                # No 'x' or 'y' keys
+        renderer.set_config(
+            {
+                "no_position": {
+                    "text": "Test",
+                    "color": "#FFFFFF",
+                    "enabled": True,
+                    # No 'x' or 'y' keys
+                }
             }
-        })
+        )
         img = renderer.render()
         self.assertEqual(surface_size(img), (320, 320))
 
     def test_non_dict_element_skipped(self):
         """Test that non-dict elements are skipped."""
         renderer = OverlayRenderer(renderer=_R())
-        renderer.set_config({
-            'valid': {
-                'x': 100, 'y': 100,
-                'text': 'Valid',
-                'enabled': True
-            },
-            'invalid': 'not a dict'
-        })
+        renderer.set_config(
+            {
+                "valid": {"x": 100, "y": 100, "text": "Valid", "enabled": True},
+                "invalid": "not a dict",
+            }
+        )
         # Should not crash
         img = renderer.render()
         self.assertEqual(surface_size(img), (320, 320))
 
 
 # ── Scaling / config resolution ──────────────────────────────────────────────
+
 
 class TestConfigResolution(unittest.TestCase):
     """Test set_config_resolution, set_scale_enabled, _get_scale_factor."""
@@ -575,8 +590,8 @@ class TestConfigResolution(unittest.TestCase):
 
 # ── render with mask scaling ─────────────────────────────────────────────────
 
-class TestRenderMaskScaling(unittest.TestCase):
 
+class TestRenderMaskScaling(unittest.TestCase):
     def test_mask_scales_with_factor(self):
         """Lines 332-338: mask is scaled when scale_factor != 1."""
         renderer = OverlayRenderer(width=480, height=480, renderer=_R())
@@ -592,62 +607,71 @@ class TestRenderMaskScaling(unittest.TestCase):
 
 # ── render with flash_skip_index ─────────────────────────────────────────────
 
-class TestRenderFlashSkip(unittest.TestCase):
 
+class TestRenderFlashSkip(unittest.TestCase):
     def test_flash_skip_skips_element(self):
         """Lines 363: flash_skip_index skips the element."""
         renderer = OverlayRenderer(renderer=_R())
         renderer.flash_skip_index = 0
-        renderer.set_config({
-            'label': {
-                'x': 100, 'y': 100,
-                'text': 'Flash',
-                'color': '#FF0000',
-                'enabled': True,
+        renderer.set_config(
+            {
+                "label": {
+                    "x": 100,
+                    "y": 100,
+                    "text": "Flash",
+                    "color": "#FF0000",
+                    "enabled": True,
+                }
             }
-        })
+        )
         img = renderer.render()
         self.assertEqual(surface_size(img), (320, 320))
 
 
 # ── render metric with per-element temp_unit uses global ─────────────────────
 
-class TestRenderMetricPaths(unittest.TestCase):
 
+class TestRenderMetricPaths(unittest.TestCase):
     def test_render_with_no_text_no_metric_skips(self):
         """Lines 391: element with neither text nor metric → continue."""
         renderer = OverlayRenderer(renderer=_R())
-        renderer.set_config({
-            'empty': {
-                'x': 100, 'y': 100,
-                'color': '#FFFFFF',
-                'enabled': True,
-                # No 'text' or 'metric' key
+        renderer.set_config(
+            {
+                "empty": {
+                    "x": 100,
+                    "y": 100,
+                    "color": "#FFFFFF",
+                    "enabled": True,
+                    # No 'text' or 'metric' key
+                }
             }
-        })
+        )
         img = renderer.render()
         self.assertEqual(surface_size(img), (320, 320))
 
     def test_render_with_font_name(self):
         """Render element with custom font_name."""
         renderer = OverlayRenderer(renderer=_R())
-        renderer.set_config({
-            'label': {
-                'x': 100, 'y': 100,
-                'text': 'Hello',
-                'color': '#FFFFFF',
-                'font': {'size': 20, 'style': 'bold', 'name': 'DejaVu Sans'},
-                'enabled': True,
+        renderer.set_config(
+            {
+                "label": {
+                    "x": 100,
+                    "y": 100,
+                    "text": "Hello",
+                    "color": "#FFFFFF",
+                    "font": {"size": 20, "style": "bold", "name": "DejaVu Sans"},
+                    "enabled": True,
+                }
             }
-        })
+        )
         img = renderer.render()
         self.assertEqual(surface_size(img), (320, 320))
 
 
 # ── set_mask_visible ─────────────────────────────────────────────────────────
 
-class TestSetMaskVisible(unittest.TestCase):
 
+class TestSetMaskVisible(unittest.TestCase):
     def test_toggle_mask_visibility(self):
         renderer = OverlayRenderer(renderer=_R())
         renderer.set_mask_visible(False)
@@ -661,29 +685,31 @@ class TestSetMaskVisible(unittest.TestCase):
         renderer.set_background(make_test_surface(320, 320, (0, 0, 255)))
         renderer.set_theme_mask(make_test_surface(320, 100, (255, 0, 0, 200)))
         renderer.set_mask_visible(False)
-        renderer.set_config({'x': {'x': 0, 'y': 0, 'text': 'hi', 'enabled': True}})
+        renderer.set_config({"x": {"x": 0, "y": 0, "text": "hi", "enabled": True}})
         img = renderer.render()
         self.assertEqual(surface_size(img), (320, 320))
 
 
 # ── fallback format_metric (import failure) ──────────────────────────────────
 
-class TestFallbackFormatMetric(unittest.TestCase):
 
+class TestFallbackFormatMetric(unittest.TestCase):
     def test_fallback_temp_celsius(self):
         """Lines 15-22: fallback format_metric with temp."""
+
         # We can't easily trigger the ImportError in the already-loaded module,
         # but we can test the fallback function directly if we construct it.
         def fallback_format(metric, value, time_format=0, date_format=0, temp_unit=0):
-            if 'temp' in metric:
+            if "temp" in metric:
                 if temp_unit == 1:
-                    return f"{value * 9/5 + 32:.0f}°F"
+                    return f"{value * 9 / 5 + 32:.0f}°F"
                 return f"{value:.0f}°C"
             return str(value)
-        self.assertEqual(fallback_format('cpu_temp', 50), '50°C')
-        self.assertEqual(fallback_format('gpu_temp', 50, temp_unit=1), '122°F')
-        self.assertEqual(fallback_format('cpu_percent', 42), '42')
+
+        self.assertEqual(fallback_format("cpu_temp", 50), "50°C")
+        self.assertEqual(fallback_format("gpu_temp", 50, temp_unit=1), "122°F")
+        self.assertEqual(fallback_format("cpu_percent", 42), "42")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

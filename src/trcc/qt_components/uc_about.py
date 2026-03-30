@@ -43,34 +43,32 @@ def ensure_autostart(manager: AutostartManager) -> bool:
     return manager.ensure()
 
 
-_GITHUB_LATEST = (
-    'https://api.github.com/repos/Lexonight1/thermalright-trcc-linux'
-    '/releases/latest'
-)
+_GITHUB_LATEST = "https://api.github.com/repos/jemte/thermalright-trcc-linux/releases/latest"
 
 
 def _check_latest_release() -> tuple[str, dict[str, str]] | None:
     """Fetch latest GitHub release. Returns (version, {ext: download_url}) or None."""
     from urllib.request import Request
+
     try:
-        req = Request(_GITHUB_LATEST, headers={'Accept': 'application/vnd.github+json'})
+        req = Request(_GITHUB_LATEST, headers={"Accept": "application/vnd.github+json"})
         with urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read())
-            tag = data.get('tag_name', '')
-            ver = tag.lstrip('v') if tag else None
+            tag = data.get("tag_name", "")
+            ver = tag.lstrip("v") if tag else None
             if not ver:
                 return None
             # Map file extensions to download URLs
             assets: dict[str, str] = {}
-            for asset in data.get('assets', []):
-                name = asset.get('name', '')
-                url = asset.get('browser_download_url', '')
-                if name.endswith('.pkg.tar.zst'):
-                    assets['pacman'] = url
-                elif name.endswith('.rpm'):
-                    assets['dnf'] = url
-                elif name.endswith('.deb'):
-                    assets['apt'] = url
+            for asset in data.get("assets", []):
+                name = asset.get("name", "")
+                url = asset.get("browser_download_url", "")
+                if name.endswith(".pkg.tar.zst"):
+                    assets["pacman"] = url
+                elif name.endswith(".rpm"):
+                    assets["dnf"] = url
+                elif name.endswith(".deb"):
+                    assets["apt"] = url
             return ver, assets
     except Exception:
         return None
@@ -78,19 +76,19 @@ def _check_latest_release() -> tuple[str, dict[str, str]] | None:
 
 def _parse_version(v: str) -> tuple[int, ...]:
     """Parse '3.0.9' into (3, 0, 9) for comparison."""
-    return tuple(int(x) for x in v.split('.'))
+    return tuple(int(x) for x in v.split("."))
 
 
 def _detect_distro() -> str:
     """Detect the Linux distro ID (e.g. 'fedora', 'arch', 'ubuntu')."""
     try:
-        with open('/etc/os-release') as f:
+        with open("/etc/os-release") as f:
             for line in f:
-                if line.startswith('ID='):
-                    return line.strip().split('=', 1)[1].strip('"')
+                if line.startswith("ID="):
+                    return line.strip().split("=", 1)[1].strip('"')
     except OSError:
         pass
-    return 'unknown'
+    return "unknown"
 
 
 def _detect_install_method() -> str:
@@ -99,29 +97,31 @@ def _detect_install_method() -> str:
     Returns 'pipx', 'pip', 'pacman', 'dnf', or 'apt'.
     """
     # pipx installs into its own venv
-    if 'pipx' in sys.prefix:
-        return 'pipx'
+    if "pipx" in sys.prefix:
+        return "pipx"
     try:
         from importlib.metadata import distribution
-        dist = distribution('trcc-linux')
-        installer = (dist.read_text('INSTALLER') or '').strip()
-        if installer == 'pip':
-            return 'pip'
+
+        dist = distribution("trcc-linux")
+        installer = (dist.read_text("INSTALLER") or "").strip()
+        if installer == "pip":
+            return "pip"
     except Exception:
         pass
     # Detect which package manager installed it
-    for mgr in ('pacman', 'dnf', 'apt'):
+    for mgr in ("pacman", "dnf", "apt"):
         if shutil.which(mgr):
             return mgr
-    return 'pip'  # fallback
+    return "pip"  # fallback
 
 
 def _get_install_info() -> tuple[str, str]:
     """Get install method and distro. Detects and saves on first call."""
     from ..conf import Settings
+
     info = Settings.get_install_info()
     if info:
-        return info['method'], info['distro']
+        return info["method"], info["distro"]
     method = _detect_install_method()
     distro = _detect_distro()
     Settings.save_install_info(method, distro)
@@ -143,23 +143,24 @@ class UCAbout(BasePanel):
     CMD_LANGUAGE = 32
     CMD_CLOSE = 255
 
-    language_changed = Signal(str)       # lang suffix
+    language_changed = Signal(str)  # lang suffix
     close_requested = Signal()
-    temp_unit_changed = Signal(str)      # 'C' or 'F'
-    startup_changed = Signal(bool)       # auto-start enabled
-    hdd_toggle_changed = Signal(bool)    # HDD info enabled
-    refresh_changed = Signal(int)        # refresh interval (seconds)
-    _update_available = Signal(str, dict) # (version, {mgr: download_url})
-    _upgrade_finished = Signal(bool)     # True=success, False=failure
+    temp_unit_changed = Signal(str)  # 'C' or 'F'
+    startup_changed = Signal(bool)  # auto-start enabled
+    hdd_toggle_changed = Signal(bool)  # HDD info enabled
+    refresh_changed = Signal(int)  # refresh interval (seconds)
+    _update_available = Signal(str, dict)  # (version, {mgr: download_url})
+    _upgrade_finished = Signal(bool)  # True=success, False=failure
 
     def __init__(self, parent=None, autostart_manager: AutostartManager | None = None):
         super().__init__(parent, width=Sizes.FORM_W, height=Sizes.FORM_H)
 
         self._autostart_manager = autostart_manager
         self._lang_buttons: dict[str, QPushButton] = {}  # Legacy — populated by combo in trcc_app
-        self._temp_mode = 'C'
+        self._temp_mode = "C"
         self._autostart = autostart_manager.is_enabled() if autostart_manager else False
         from ..conf import settings
+
         self._read_hdd = settings.hdd_enabled
         self._refresh_interval = settings.refresh_interval
 
@@ -179,22 +180,23 @@ class UCAbout(BasePanel):
         """Build UI with invisible click targets over background image text."""
         # Close / logout button (top-right)
         self.close_btn = create_image_button(
-            self, *Layout.ABOUT_CLOSE_BTN,
-            Assets.ABOUT_LOGOUT, Assets.ABOUT_LOGOUT_HOVER,
-            fallback_text="X"
+            self,
+            *Layout.ABOUT_CLOSE_BTN,
+            Assets.ABOUT_LOGOUT,
+            Assets.ABOUT_LOGOUT_HOVER,
+            fallback_text="X",
         )
         self.close_btn.clicked.connect(self._on_close)
 
         # === Auto-start checkbox (button1) ===
-        self.startup_btn = self._make_checkbox(
-            *Layout.ABOUT_STARTUP, checked=self._autostart)
+        self.startup_btn = self._make_checkbox(*Layout.ABOUT_STARTUP, checked=self._autostart)
         self.startup_btn.clicked.connect(self._on_startup_clicked)
 
         # === Temperature unit radio buttons ===
         self.celsius_btn = self._make_checkbox(*Layout.ABOUT_CELSIUS, checked=True)
-        self.celsius_btn.clicked.connect(lambda: self._set_temp('C'))
+        self.celsius_btn.clicked.connect(lambda: self._set_temp("C"))
         self.fahrenheit_btn = self._make_checkbox(*Layout.ABOUT_FAHRENHEIT)
-        self.fahrenheit_btn.clicked.connect(lambda: self._set_temp('F'))
+        self.fahrenheit_btn.clicked.connect(lambda: self._set_temp("F"))
 
         # === HDD info checkbox (buttonYP) ===
         self.hdd_btn = self._make_checkbox(*Layout.ABOUT_HDD, checked=self._read_hdd)
@@ -215,11 +217,9 @@ class UCAbout(BasePanel):
 
         # === Running Mode radio buttons (v2.1.4: buttonSingle / buttonMulti) ===
         # Visual-only — always multi-threaded on Linux (Qt signals handle threading)
-        self.single_thread_btn = self._make_checkbox(
-            *Layout.ABOUT_SINGLE_THREAD, checked=False)
+        self.single_thread_btn = self._make_checkbox(*Layout.ABOUT_SINGLE_THREAD, checked=False)
         self.single_thread_btn.clicked.connect(lambda: self._set_thread_mode(False))
-        self.multi_thread_btn = self._make_checkbox(
-            *Layout.ABOUT_MULTI_THREAD, checked=True)
+        self.multi_thread_btn = self._make_checkbox(*Layout.ABOUT_MULTI_THREAD, checked=True)
         self.multi_thread_btn.clicked.connect(lambda: self._set_thread_mode(True))
 
         # Website button (invisible, over background text area)
@@ -229,25 +229,24 @@ class UCAbout(BasePanel):
         self.website_btn.setStyleSheet(Styles.FLAT_BUTTON)
         self.website_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.website_btn.setToolTip("Open thermalright.com")
-        self.website_btn.clicked.connect(
-            lambda: webbrowser.open('https://www.thermalright.com'))
+        self.website_btn.clicked.connect(lambda: webbrowser.open("https://www.thermalright.com"))
 
         # Version label
         from trcc.__version__ import __version__
+
         self.version_label = QLabel(__version__, self)
         self.version_label.setGeometry(*Layout.ABOUT_VERSION)
         self.version_label.setStyleSheet(
             "color: white; font-size: 16px; font-weight: bold; background: transparent;"
         )
-        self.version_label.setAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-        )
+        self.version_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
         # === Software update area (buttonBCZT — dark icon baked into background) ===
         # Light overlay shown on top when update is available
         self._update_tooltip = "Running latest"
         self._update_rect = self.rect().__class__(  # QRect
-            *Layout.ABOUT_UPDATE_BTN)
+            *Layout.ABOUT_UPDATE_BTN
+        )
 
         # Overlay label — shows light update icon when update available
         self._update_overlay = QLabel(self)
@@ -273,17 +272,17 @@ class UCAbout(BasePanel):
         # Check GitHub for updates in background, then every hour
         self._update_timer = QTimer(self)
         self._update_timer.timeout.connect(
-            lambda: Thread(target=self._check_for_update, daemon=True).start())
+            lambda: Thread(target=self._check_for_update, daemon=True).start()
+        )
         self._update_timer.start(60 * 60 * 1000)  # 1 hour
         Thread(target=self._check_for_update, daemon=True).start()
 
     def _show_update_tooltip(self):
         """Show tooltip to the right of the update button, vertically centered."""
         tip_pos = self.mapToGlobal(
-            QPoint(self._update_rect.right() + 4,
-                   self._update_rect.center().y() - 36))
-        QToolTip.showText(tip_pos, self._update_tooltip, self,
-                          self._update_rect)
+            QPoint(self._update_rect.right() + 4, self._update_rect.center().y() - 36)
+        )
+        QToolTip.showText(tip_pos, self._update_tooltip, self, self._update_rect)
 
     def event(self, e: QEvent) -> bool:
         """Show update tooltip to the right of the button area."""
@@ -335,8 +334,8 @@ class UCAbout(BasePanel):
     def _set_temp(self, mode: str):
         """Toggle temperature unit (radio behavior)."""
         self._temp_mode = mode
-        self.celsius_btn.setChecked(mode == 'C')
-        self.fahrenheit_btn.setChecked(mode == 'F')
+        self.celsius_btn.setChecked(mode == "C")
+        self.fahrenheit_btn.setChecked(mode == "F")
         self.temp_unit_changed.emit(mode)
 
     @property
@@ -349,8 +348,7 @@ class UCAbout(BasePanel):
         """Toggle hard disk information reading."""
         self._read_hdd = self.hdd_btn.isChecked()
         self.hdd_toggle_changed.emit(self._read_hdd)
-        self.invoke_delegate(self.CMD_HDD_REFRESH, self._read_hdd,
-                             self._refresh_interval)
+        self.invoke_delegate(self.CMD_HDD_REFRESH, self._read_hdd, self._refresh_interval)
 
     @property
     def read_hdd(self):
@@ -391,9 +389,9 @@ class UCAbout(BasePanel):
 
     # Install commands per package manager (pkexec provides the sudo prompt)
     _PKG_INSTALL: dict[str, list[str]] = {
-        'pacman': ['pkexec', 'pacman', '-U', '--noconfirm'],
-        'dnf':    ['pkexec', 'dnf', 'install', '-y'],
-        'apt':    ['pkexec', 'apt', 'install', '-y'],
+        "pacman": ["pkexec", "pacman", "-U", "--noconfirm"],
+        "dnf": ["pkexec", "dnf", "install", "-y"],
+        "apt": ["pkexec", "apt", "install", "-y"],
     }
 
     def _check_for_update(self):
@@ -406,6 +404,7 @@ class UCAbout(BasePanel):
     def _on_update_result(self, latest: str, assets: dict[str, str]):
         """Handle version check result (runs on main thread via signal)."""
         from trcc.__version__ import __version__
+
         if _parse_version(latest) > _parse_version(__version__):
             self._latest_version = latest
             self._pkg_assets = assets
@@ -420,8 +419,7 @@ class UCAbout(BasePanel):
 
         self._update_overlay.hide()
         self._update_tooltip = "Updating..."
-        log.info("Starting %s upgrade to %s",
-                 self._install_method, self._latest_version)
+        log.info("Starting %s upgrade to %s", self._install_method, self._latest_version)
         Thread(target=self._run_upgrade, daemon=True).start()
 
     def _run_upgrade(self):
@@ -430,31 +428,32 @@ class UCAbout(BasePanel):
         import tempfile
 
         from trcc.core.platform import SUBPROCESS_NO_WINDOW as _no_window
+
         method = self._install_method
         ver = self._latest_version or ""
 
-        if method == 'pipx':
-            cmd = ['pipx', 'upgrade', 'trcc-linux']
-        elif method == 'pip':
-            cmd = [sys.executable, '-m', 'pip', 'install',
-                   '--upgrade', 'trcc-linux']
+        if method == "pipx":
+            cmd = ["pipx", "upgrade", "trcc-linux"]
+        elif method == "pip":
+            cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "trcc-linux"]
         elif method in self._PKG_INSTALL:
             # Download package from GitHub release, install via pkexec
-            url = getattr(self, '_pkg_assets', {}).get(method)
+            url = getattr(self, "_pkg_assets", {}).get(method)
             if not url:
                 log.error("No %s package in release assets", method)
                 self._upgrade_finished.emit(False)
                 return
-            raw_name = url.rsplit('/', 1)[-1]
+            raw_name = url.rsplit("/", 1)[-1]
             # Sanitize: strip path separators, reject traversal attempts
             filename = Path(raw_name).name
-            if not filename or '..' in filename:
+            if not filename or ".." in filename:
                 log.error("Unsafe filename in release URL: %s", raw_name)
                 self._upgrade_finished.emit(False)
                 return
-            pkg_path = Path(tempfile.mkdtemp(prefix='trcc_pkg_')) / filename
+            pkg_path = Path(tempfile.mkdtemp(prefix="trcc_pkg_")) / filename
             try:
                 from urllib.request import urlretrieve
+
                 log.info("Downloading %s", url)
                 urlretrieve(url, pkg_path)
             except Exception:
@@ -468,8 +467,9 @@ class UCAbout(BasePanel):
             return
 
         try:
-            subprocess.run(cmd, check=True, capture_output=True, text=True,
-                           creationflags=_no_window)
+            subprocess.run(
+                cmd, check=True, capture_output=True, text=True, creationflags=_no_window
+            )
             log.info("Upgrade to %s successful — restart to apply", ver)
             self._upgrade_finished.emit(True)
         except subprocess.CalledProcessError as e:
@@ -481,8 +481,7 @@ class UCAbout(BasePanel):
         if success:
             self._update_tooltip = "Updated — restart to apply"
         else:
-            self._update_tooltip = (
-                f"Version {self._latest_version} available — click to retry")
+            self._update_tooltip = f"Version {self._latest_version} available — click to retry"
             self._update_overlay.show()
 
     # --- Close ---

@@ -2,6 +2,7 @@
 
 Zero project imports. Safe to import from any module without circular deps.
 """
+
 from __future__ import annotations
 
 import os
@@ -10,24 +11,25 @@ import os
 _TRCC_PKG = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Asset directories (inside trcc package)
-ASSETS_DIR = os.path.join(_TRCC_PKG, 'assets')
-RESOURCES_DIR = os.path.join(ASSETS_DIR, 'gui')
+ASSETS_DIR = os.path.join(_TRCC_PKG, "assets")
+RESOURCES_DIR = os.path.join(ASSETS_DIR, "gui")
 
 # User config directory (~/.trcc/)
-USER_CONFIG_DIR = os.path.expanduser('~/.trcc')
-USER_DATA_DIR = os.path.join(USER_CONFIG_DIR, 'data')
+USER_CONFIG_DIR = os.path.expanduser("~/.trcc")
+USER_DATA_DIR = os.path.join(USER_CONFIG_DIR, "data")
 
 # Runtime data directory — always writable (~/.trcc/data/)
 DATA_DIR = USER_DATA_DIR
 
 # User-created content (~/.trcc-user/) — survives uninstall and data re-download
-USER_CONTENT_DIR = os.path.expanduser('~/.trcc-user')
-USER_MASKS_WEB_DIR = os.path.join(USER_CONTENT_DIR, 'data', 'web')
+USER_CONTENT_DIR = os.path.expanduser("~/.trcc-user")
+USER_MASKS_WEB_DIR = os.path.join(USER_CONTENT_DIR, "data", "web")
 
 
 # =========================================================================
 # Directory resolution — pure path logic, no I/O beyond os.path/os.listdir
 # =========================================================================
+
 
 def _has_any_content(d: str) -> bool:
     """Check if a directory exists and has any files/subdirs."""
@@ -44,10 +46,8 @@ def _has_themes(theme_dir: str) -> bool:
         return False
     for item in os.listdir(theme_dir):
         item_path = os.path.join(theme_dir, item)
-        if (os.path.isdir(item_path)
-                and not item.startswith('.')
-                and not item.startswith('Custom_')):
-            if any(f.endswith('.png') for f in os.listdir(item_path)):
+        if os.path.isdir(item_path) and not item.startswith(".") and not item.startswith("Custom_"):
+            if any(f.endswith(".png") for f in os.listdir(item_path)):
                 return True
     return False
 
@@ -62,25 +62,25 @@ def _resolve_web_subdir(
     """
     if check_fn is None:
         check_fn = _has_any_content
-    pkg_dir = os.path.join(DATA_DIR, 'web', res_key)
+    pkg_dir = os.path.join(DATA_DIR, "web", res_key)
     if check_fn(pkg_dir):  # type: ignore[operator]
         return pkg_dir
-    return os.path.join(USER_DATA_DIR, 'web', res_key)
+    return os.path.join(USER_DATA_DIR, "web", res_key)
 
 
 def get_web_dir(width: int, height: int) -> str:
     """Get cloud theme Web directory for a resolution."""
-    return _resolve_web_subdir(f'{width}{height}')
+    return _resolve_web_subdir(f"{width}{height}")
 
 
 def get_web_masks_dir(width: int, height: int) -> str:
     """Get cloud masks directory for a resolution."""
-    return _resolve_web_subdir(f'zt{width}{height}', check_fn=_has_themes)
+    return _resolve_web_subdir(f"zt{width}{height}", check_fn=_has_themes)
 
 
 def is_safe_archive_member(name: str) -> bool:
     """Check that an archive member path doesn't escape the destination (zip slip)."""
-    return not (os.path.isabs(name) or '..' in name.split('/'))
+    return not (os.path.isabs(name) or ".." in name.split("/"))
 
 
 def get_user_masks_dir(width: int, height: int) -> str:
@@ -89,4 +89,4 @@ def get_user_masks_dir(width: int, height: int) -> str:
     Lives in ~/.trcc-user/data/web/zt{W}{H}/ — separate from cloud masks
     so user content survives uninstall and data re-download.
     """
-    return os.path.join(USER_MASKS_WEB_DIR, f'zt{width}{height}')
+    return os.path.join(USER_MASKS_WEB_DIR, f"zt{width}{height}")

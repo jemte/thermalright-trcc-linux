@@ -14,7 +14,7 @@
       in {
         packages.default = python.pkgs.buildPythonApplication {
           pname = "trcc-linux";
-          version = "9.2.4";
+          version = "0.1.0";
           pyproject = true;
 
           src = ./.;
@@ -59,13 +59,13 @@
               $out/share/applications/trcc-linux.desktop
 
             # polkit policy
-            install -Dm644 src/trcc/assets/com.github.lexonight1.trcc.policy \
-              $out/share/polkit-1/actions/com.github.lexonight1.trcc.policy
+            install -Dm644 src/trcc/assets/com.github.jemte.trcc.policy \
+              $out/share/polkit-1/actions/com.github.jemte.trcc.policy
           '';
 
           meta = with pkgs.lib; {
             description = "Thermalright LCD/LED Control Center for Linux";
-            homepage = "https://github.com/Lexonight1/thermalright-trcc-linux";
+            homepage = "https://github.com/jemte/thermalright-trcc-linux";
             license = licenses.gpl3Plus;
             platforms = platforms.linux;
             maintainers = [ ];

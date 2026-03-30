@@ -4,6 +4,7 @@ Pure Python, no Qt dependencies.
 Business logic: effects, protocol send, config persistence.
 LEDDevice (core/led_device.py) delegates to this service.
 """
+
 from __future__ import annotations
 
 import logging
@@ -36,14 +37,21 @@ class LEDService:
     SELECT_ALL_STYLES = frozenset({2, 7})
 
     # Methods delegated to LEDEffectEngine via __getattr__
-    _ENGINE_METHODS = frozenset({
-        '_tick_single_mode', '_tick_test_mode', '_tick_multi_zone',
-        '_tick_breathing_for', '_tick_colorful_for', '_tick_rainbow_for',
-        '_tick_temp_linked_for', '_tick_load_linked_for', '_next_sync_zone',
-    })
+    _ENGINE_METHODS = frozenset(
+        {
+            "_tick_single_mode",
+            "_tick_test_mode",
+            "_tick_multi_zone",
+            "_tick_breathing_for",
+            "_tick_colorful_for",
+            "_tick_rainbow_for",
+            "_tick_temp_linked_for",
+            "_tick_load_linked_for",
+            "_next_sync_zone",
+        }
+    )
 
-    def __init__(self, state: LEDState | None = None,
-                 get_protocol: Any = None) -> None:
+    def __init__(self, state: LEDState | None = None, get_protocol: Any = None) -> None:
         self.state = state or LEDState()
         self._metrics: HardwareMetrics = HardwareMetrics()
         self._engine = LEDEffectEngine(self.state, self._metrics)
@@ -53,10 +61,10 @@ class LEDService:
         # Segment display state (styles 1-11 — all digit-display LED devices)
         self._segment_mode = False
         self._segment_mask: Optional[List[bool]] = None
-        self._seg_phase = 0          # Current rotation phase
-        self._seg_tick_count = 0     # Ticks since last phase change
+        self._seg_phase = 0  # Current rotation phase
+        self._seg_tick_count = 0  # Ticks since last phase change
         self._seg_phase_ticks = self.state.carousel_interval
-        self._seg_temp_unit = "C"    # "C" or "F"
+        self._seg_temp_unit = "C"  # "C" or "F"
         self._seg_display: Any = None  # SegmentDisplay instance
 
         # Device identity (for config persistence)
@@ -72,6 +80,7 @@ class LEDService:
         Replaces the view-layer iteration over LED_STYLES.
         """
         from ..core.models import LED_STYLES
+
         for style_id, style in LED_STYLES.items():
             if style.model_name == model_name:
                 return style_id
@@ -81,6 +90,7 @@ class LEDService:
     def get_style_info(style_id: int) -> Any:
         """Get LedDeviceStyle for a style_id."""
         from ..core.models import LED_STYLES
+
         return LED_STYLES.get(style_id)
 
     # ── State mutators ──────────────────────────────────────────────
@@ -131,7 +141,7 @@ class LEDService:
         """
         self.state.selected_zone = zone
         for i in range(len(self.state.zone_sync_zones)):
-            self.state.zone_sync_zones[i] = (i == zone)
+            self.state.zone_sync_zones[i] = i == zone
 
     def set_zone_sync(self, enabled: bool) -> None:
         """Enable/disable zone sync (C# isLunBo).
@@ -248,15 +258,13 @@ class LEDService:
             # Decoration ring: sub-variant remap tables may be longer than
             # the base led_count — extra entries are ring LEDs.
             sub_table = LED_REMAP_SUB_TABLES.get((style_id, style_sub))
-            self.state.ring_count = (
-                len(sub_table) - style.led_count if sub_table else 0)
+            self.state.ring_count = len(sub_table) - style.led_count if sub_table else 0
             if style.zone_count > 1:
                 self.state.zones = [LEDZoneState() for _ in range(style.zone_count)]
                 # Must also size zone_sync_zones — __post_init__ ran with
                 # default zone_count=1 which leaves it empty.
                 if len(self.state.zone_sync_zones) != style.zone_count:
-                    self.state.zone_sync_zones = (
-                        [True] + [False] * (style.zone_count - 1))
+                    self.state.zone_sync_zones = [True] + [False] * (style.zone_count - 1)
             else:
                 self.state.zones = []
                 self.state.zone_sync_zones = []
@@ -292,7 +300,8 @@ class LEDService:
                 if self.state.zone_sync_ticks >= self.state.zone_sync_interval:
                     self.state.zone_sync_ticks = 0
                     self.state.zone_sync_current = self._next_sync_zone(
-                        self.state.zone_sync_current)
+                        self.state.zone_sync_current
+                    )
                 self._seg_phase = self.state.zone_sync_current
             else:
                 self._seg_phase = self.state.selected_zone
@@ -309,8 +318,7 @@ class LEDService:
             # Zones only drive segment display data rotation (CPU/GPU),
             # not LED color. Fall through to global tick below.
 
-        return self._tick_single_mode(self.state.mode, self.state.color,
-                                      self.state.segment_count)
+        return self._tick_single_mode(self.state.mode, self.state.color, self.state.segment_count)
 
     # ── Segment display (all styles 1-11) ────────────────────────
 
@@ -357,8 +365,7 @@ class LEDService:
 
     # ── Display-ready colors ────────────────────────────────────────
 
-    def apply_mask(self, colors: List[Tuple[int, int, int]]
-                   ) -> List[Tuple[int, int, int]]:
+    def apply_mask(self, colors: List[Tuple[int, int, int]]) -> List[Tuple[int, int, int]]:
         """Apply segment mask to produce per-LED color array.
 
         Returns the same masked array used for both hardware send and
@@ -368,15 +375,9 @@ class LEDService:
             n = len(self._segment_mask)
             if len(colors) == n:
                 # Per-LED colors (physical zone mapping)
-                return [
-                    colors[i] if self._segment_mask[i] else (0, 0, 0)
-                    for i in range(n)
-                ]
+                return [colors[i] if self._segment_mask[i] else (0, 0, 0) for i in range(n)]
             base = colors[0] if colors else (0, 0, 0)
-            return [
-                base if self._segment_mask[i] else (0, 0, 0)
-                for i in range(n)
-            ]
+            return [base if self._segment_mask[i] else (0, 0, 0) for i in range(n)]
         return colors
 
     # ── Protocol send ───────────────────────────────────────────────
@@ -412,11 +413,9 @@ class LEDService:
     def zones_to_ansi(colors: List[Tuple[int, int, int]]) -> str:
         """Render LED zone colors as ANSI true-color blocks for terminal preview."""
         if not colors:
-            return ''
-        parts = [
-            f'\033[48;2;{r};{g};{b}m  \033[0m' for r, g, b in colors
-        ]
-        return ''.join(parts)
+            return ""
+        parts = [f"\033[48;2;{r};{g};{b}m  \033[0m" for r, g, b in colors]
+        return "".join(parts)
 
     # ── Device initialization ───────────────────────────────────────
 
@@ -426,12 +425,12 @@ class LEDService:
 
         self._led_style = led_style
         self._device_key = Settings.device_config_key(
-            getattr(device_info, 'device_index', 0),
+            getattr(device_info, "device_index", 0),
             device_info.vid,
             device_info.pid,
         )
 
-        style_sub = getattr(device_info, 'led_style_sub', 0)
+        style_sub = getattr(device_info, "led_style_sub", 0)
         self.configure_for_style(led_style, style_sub)
 
         try:
@@ -447,6 +446,7 @@ class LEDService:
         self.load_config()
 
         from ..core.models import LED_STYLES
+
         style = LED_STYLES.get(led_style)
         name = style.model_name if style else f"Style {led_style}"
         led_count = style.led_count if style else 0
@@ -474,8 +474,8 @@ class LEDService:
     def __getattr__(self, name: str):
         if name in self._ENGINE_METHODS:
             try:
-                engine = object.__getattribute__(self, '_engine')
+                engine = object.__getattribute__(self, "_engine")
             except AttributeError:
                 raise AttributeError(name) from None
             return getattr(engine, name)
-        raise AttributeError(f'{type(self).__name__!r} has no attribute {name!r}')
+        raise AttributeError(f"{type(self).__name__!r} has no attribute {name!r}")

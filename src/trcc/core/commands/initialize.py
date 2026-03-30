@@ -4,6 +4,7 @@ These commands cross the OS boundary — the handler decides which platform
 adapter executes them. Callers (CLI, API, GUI) are completely blind to the
 underlying OS.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -26,9 +27,12 @@ class InitPlatformCommand(OSCommand):
     Progress during data download/extraction is reported via
     AppEvent.BOOTSTRAP_PROGRESS — register an AppObserver before bootstrap.
     """
+
     verbosity: int = 0
     renderer_factory: Callable[[], Any] | None = field(
-        default=None, hash=False, compare=False,
+        default=None,
+        hash=False,
+        compare=False,
     )
 
 
@@ -41,6 +45,7 @@ class DiscoverDevicesCommand(OSCommand):
 
     Optional path: restrict to a specific device path (e.g. '/dev/sg2').
     """
+
     path: str | None = None
 
 
@@ -51,6 +56,7 @@ class SetLanguageCommand(OSCommand):
     App-wide — all UI adapters (CLI, API, GUI) dispatch this to change language.
     Handler validates the code and persists via settings.
     """
+
     code: str = "en"
 
 
@@ -61,12 +67,14 @@ class SetupPlatformCommand(OSCommand):
     Delegates to the platform-specific PlatformSetup adapter.
     Works on all OSes — each adapter handles its own setup steps.
     """
+
     auto_yes: bool = False
 
 
 @dataclass(frozen=True, slots=True)
 class SetupUdevCommand(OSCommand):
     """Install udev rules for LCD device access (Linux only)."""
+
     dry_run: bool = False
 
 
@@ -97,5 +105,6 @@ class DownloadThemesCommand(OSCommand):
     pack: named pack (e.g. '320x320') or empty string to list available packs.
     force: re-download even if already cached.
     """
+
     pack: str = ""
     force: bool = False

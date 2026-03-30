@@ -2,6 +2,7 @@
 
 Pure domain logic, zero I/O. Matches FormLED.cs RGBTable and gradient behavior.
 """
+
 from __future__ import annotations
 
 from typing import List, Optional, Tuple
@@ -16,11 +17,11 @@ class ColorEngine:
 
     # Gradient stops: (value, (R, G, B)) — linearly interpolated between stops.
     TEMP_GRADIENT: List[Tuple[float, Tuple[int, int, int]]] = [
-        (30, (0, 255, 255)),    # Cyan
-        (50, (0, 255, 0)),      # Green
-        (70, (255, 255, 0)),    # Yellow
-        (90, (255, 110, 0)),    # Orange
-        (100, (255, 0, 0)),     # Red
+        (30, (0, 255, 255)),  # Cyan
+        (50, (0, 255, 0)),  # Green
+        (70, (255, 255, 0)),  # Yellow
+        (90, (255, 110, 0)),  # Orange
+        (100, (255, 0, 0)),  # Red
     ]
 
     LOAD_GRADIENT = TEMP_GRADIENT  # Same gradient (0-100%)
@@ -50,7 +51,7 @@ class ColorEngine:
             offset = i % phase_len
             t = int(255 * offset / (phase_len - 1)) if phase_len > 1 else 0
 
-            if phase == 0:    # Red → Yellow
+            if phase == 0:  # Red → Yellow
                 r, g, b = 255, t, 0
             elif phase == 1:  # Yellow → Green
                 r, g, b = 255 - t, 255, 0
@@ -60,7 +61,7 @@ class ColorEngine:
                 r, g, b = 0, 255 - t, 255
             elif phase == 4:  # Blue → Magenta
                 r, g, b = t, 0, 255
-            else:             # Magenta → Red
+            else:  # Magenta → Red
                 r, g, b = 255, 0, 255 - t
 
             table.append((r, g, b))
@@ -76,7 +77,9 @@ class ColorEngine:
 
     @staticmethod
     def _lerp(
-        c1: Tuple[int, int, int], c2: Tuple[int, int, int], t: float,
+        c1: Tuple[int, int, int],
+        c2: Tuple[int, int, int],
+        t: float,
     ) -> Tuple[int, int, int]:
         """Linearly interpolate between two RGB colors (t=0->c1, t=1->c2)."""
         t = max(0.0, min(1.0, t))

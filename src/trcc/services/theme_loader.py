@@ -3,6 +3,7 @@
 Extracted from DisplayService (SRP). Receives injected OverlayService +
 MediaService. Returns result dicts; DisplayService wires up state.
 """
+
 from __future__ import annotations
 
 import logging
@@ -26,14 +27,17 @@ class ThemeLoader:
     state stays in DisplayService.
     """
 
-    def __init__(self, overlay: OverlayService, media: MediaService,
-                 theme_svc: ThemeService | None = None) -> None:
+    def __init__(
+        self, overlay: OverlayService, media: MediaService, theme_svc: ThemeService | None = None
+    ) -> None:
         self._overlay = overlay
         self._theme_svc = theme_svc
         self._media = media
 
     def load_local_theme(
-        self, theme, lcd_size: tuple[int, int],
+        self,
+        theme,
+        lcd_size: tuple[int, int],
         working_dir: Path,
     ) -> dict:
         """Load a local theme with DC config, mask, and overlay.
@@ -65,58 +69,65 @@ class ThemeLoader:
         return self._load_copy_theme(theme, td, lcd_size, working_dir)
 
     def _load_reference_theme(
-        self, theme, td: ThemeDir,
-        lcd_size: tuple[int, int], working_dir: Path,
+        self,
+        theme,
+        td: ThemeDir,
+        lcd_size: tuple[int, int],
+        working_dir: Path,
     ) -> dict:
         """Load theme by path references (config.json)."""
         display_opts = self._overlay.load_from_dc(td.dc)
 
-        if display_opts.get('overlay_enabled'):
+        if display_opts.get("overlay_enabled"):
             self._overlay.enabled = True
 
         mask_source_dir: Path | None = None
 
         # Load mask by reference
-        mask_ref = display_opts.get('mask_path')
+        mask_ref = display_opts.get("mask_path")
         if mask_ref:
             mask_td = ThemeDir(mask_ref)
             if mask_td.mask.exists():
                 mask_source_dir = mask_td.path
                 self._load_mask(mask_td.mask, None, lcd_size)
-                mask_pos = display_opts.get('mask_position')
+                mask_pos = display_opts.get("mask_position")
                 if mask_pos:
                     mask_img, _ = self._overlay.get_mask()
                     self._overlay.set_mask(mask_img, mask_pos)
 
         # Load background by reference
         result: dict[str, Any] = {
-            'image': None, 'is_animated': False,
-            'status': f"Theme: {theme.name}",
-            'mask_source_dir': mask_source_dir,
-            'theme_path': theme.path,
+            "image": None,
+            "is_animated": False,
+            "status": f"Theme: {theme.name}",
+            "mask_source_dir": mask_source_dir,
+            "theme_path": theme.path,
         }
-        bg_ref = display_opts.get('background_path')
+        bg_ref = display_opts.get("background_path")
         if bg_ref:
             bg_path = Path(bg_ref)
             if not bg_path.exists() and td.bg.exists():
                 bg_path = td.bg
             if bg_path.exists():
-                if bg_path.suffix in ('.mp4', '.avi', '.mkv', '.webm', '.zt'):
+                if bg_path.suffix in (".mp4", ".avi", ".mkv", ".webm", ".zt"):
                     self._load_and_play_video(bg_path)
-                    result['is_animated'] = True
-                elif bg_path.suffix == '.gif' and self._is_animated_gif(bg_path):
+                    result["is_animated"] = True
+                elif bg_path.suffix == ".gif" and self._is_animated_gif(bg_path):
                     self._load_and_play_video(bg_path)
-                    result['is_animated'] = True
+                    result["is_animated"] = True
                 else:
-                    result['image'] = self._load_static_image(bg_path, lcd_size)
+                    result["image"] = self._load_static_image(bg_path, lcd_size)
         elif td.bg.exists():
-            result['image'] = self._load_static_image(td.bg, lcd_size)
+            result["image"] = self._load_static_image(td.bg, lcd_size)
 
         return result
 
     def _load_copy_theme(
-        self, theme, td: ThemeDir,
-        lcd_size: tuple[int, int], working_dir: Path,
+        self,
+        theme,
+        td: ThemeDir,
+        lcd_size: tuple[int, int],
+        working_dir: Path,
     ) -> dict:
         """Load theme by copying to working dir (original behavior)."""
         # Clear and copy
@@ -130,29 +141,31 @@ class ThemeLoader:
 
         mask_source_dir: Path | None = None
         result: dict[str, Any] = {
-            'image': None, 'is_animated': False,
-            'status': f"Theme: {theme.name}",
-            'mask_source_dir': None,
-            'theme_path': theme.path,
+            "image": None,
+            "is_animated": False,
+            "status": f"Theme: {theme.name}",
+            "mask_source_dir": None,
+            "theme_path": theme.path,
         }
 
         # Load background / animation
         anim_path, static_path, is_mask_only = ThemeService._resolve_content(
-            theme, display_opts, wd, working_dir)
+            theme, display_opts, wd, working_dir
+        )
         if anim_path:
             self._load_and_play_video(anim_path)
-            result['is_animated'] = True
+            result["is_animated"] = True
         elif static_path:
-            result['image'] = self._load_static_image(static_path, lcd_size)
+            result["image"] = self._load_static_image(static_path, lcd_size)
         elif is_mask_only:
-            result['image'] = ImageService.solid_color(0, 0, 0, *lcd_size)
+            result["image"] = ImageService.solid_color(0, 0, 0, *lcd_size)
 
         # Load mask from working dir
         if wd.mask.exists():
             mask_source_dir = theme.path
             self._load_mask(wd.mask, wd.dc if wd.dc.exists() else None, lcd_size)
 
-        result['mask_source_dir'] = mask_source_dir
+        result["mask_source_dir"] = mask_source_dir
         return result
 
     def load_cloud_theme(self, theme, working_dir: Path) -> dict:
@@ -168,15 +181,17 @@ class ThemeLoader:
             self._load_and_play_video(theme.animation_path)
 
         return {
-            'image': None,
-            'is_animated': True,
-            'status': f"Cloud Theme: {theme.name}",
-            'mask_source_dir': None,
-            'theme_path': None,
+            "image": None,
+            "is_animated": True,
+            "status": f"Cloud Theme: {theme.name}",
+            "mask_source_dir": None,
+            "theme_path": None,
         }
 
     def apply_mask(
-        self, mask_dir: Path, working_dir: Path,
+        self,
+        mask_dir: Path,
+        working_dir: Path,
         lcd_size: tuple[int, int],
     ) -> Path | None:
         """Apply a mask overlay on top of current content.
@@ -219,37 +234,48 @@ class ThemeLoader:
         import subprocess
 
         from ..core.platform import SUBPROCESS_NO_WINDOW as _NO_WINDOW
+
         try:
-            result = subprocess.run([
-                'ffprobe', '-v', 'error',
-                '-select_streams', 'v:0',
-                '-show_entries', 'stream=nb_frames',
-                '-of', 'default=noprint_wrappers=1:nokey=1',
-                str(path),
-            ], capture_output=True, timeout=5, text=True, creationflags=_NO_WINDOW)
+            result = subprocess.run(
+                [
+                    "ffprobe",
+                    "-v",
+                    "error",
+                    "-select_streams",
+                    "v:0",
+                    "-show_entries",
+                    "stream=nb_frames",
+                    "-of",
+                    "default=noprint_wrappers=1:nokey=1",
+                    str(path),
+                ],
+                capture_output=True,
+                timeout=5,
+                text=True,
+                creationflags=_NO_WINDOW,
+            )
             if result.returncode == 0 and result.stdout.strip().isdigit():
                 return int(result.stdout.strip()) > 1
         except Exception:
             pass
         return False
 
-    def _load_mask(self, mask_path: Path, dc_path: Path | None,
-                   lcd_size: tuple[int, int]) -> None:
+    def _load_mask(self, mask_path: Path, dc_path: Path | None, lcd_size: tuple[int, int]) -> None:
         """Load mask image with position from DC config."""
         try:
             from .image import ImageService
+
             r = ImageService._r()
             mask_img = r.open_image(mask_path)
             mask_w, mask_h = r.surface_size(mask_img)
-            position = self._parse_mask_position(
-                dc_path, mask_w, mask_h, lcd_size)
+            position = self._parse_mask_position(dc_path, mask_w, mask_h, lcd_size)
             self._overlay.set_mask(mask_img, position)
         except Exception as e:
             log.error("Failed to load mask: %s", e)
 
-    def _parse_mask_position(self, dc_path: Path | None,
-                             mask_w: int, mask_h: int,
-                             lcd_size: tuple[int, int]) -> tuple[int, int] | None:
+    def _parse_mask_position(
+        self, dc_path: Path | None, mask_w: int, mask_h: int, lcd_size: tuple[int, int]
+    ) -> tuple[int, int] | None:
         """Parse mask position from DC file, convert center to top-left coords."""
         if self._theme_svc is None:
             # Fallback: full-size masks at (0,0), no DC parsing
@@ -257,4 +283,5 @@ class ThemeLoader:
                 return (0, 0)
             return None
         return self._theme_svc._parse_mask_position(
-            dc_path, mask_w, mask_h, lcd_size[0], lcd_size[1])
+            dc_path, mask_w, mask_h, lcd_size[0], lcd_size[1]
+        )

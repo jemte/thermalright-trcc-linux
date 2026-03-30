@@ -1,4 +1,5 @@
 """macOS autostart — Launch Agent plist in ~/Library/LaunchAgents/."""
+
 from __future__ import annotations
 
 import logging
@@ -8,8 +9,8 @@ from trcc.core.ports import AutostartManager
 
 log = logging.getLogger(__name__)
 
-_LAUNCH_AGENTS_DIR = Path.home() / 'Library' / 'LaunchAgents'
-_LAUNCH_AGENT_FILE = _LAUNCH_AGENTS_DIR / 'com.thermalright.trcc.plist'
+_LAUNCH_AGENTS_DIR = Path.home() / "Library" / "LaunchAgents"
+_LAUNCH_AGENT_FILE = _LAUNCH_AGENTS_DIR / "com.thermalright.trcc.plist"
 
 
 class MacOSAutostartManager(AutostartManager):
@@ -43,19 +44,19 @@ class MacOSAutostartManager(AutostartManager):
             '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"\n'
             '  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
             '<plist version="1.0">\n'
-            '<dict>\n'
-            '    <key>Label</key>\n'
-            '    <string>com.thermalright.trcc</string>\n'
-            '    <key>ProgramArguments</key>\n'
-            '    <array>\n'
-            f'        <string>{exec_path}</string>\n'
-            '        <string>gui</string>\n'
-            '        <string>--resume</string>\n'
-            '    </array>\n'
-            '    <key>RunAtLoad</key>\n'
-            '    <true/>\n'
-            '    <key>KeepAlive</key>\n'
-            '    <false/>\n'
-            '</dict>\n'
-            '</plist>\n'
+            "<dict>\n"
+            "    <key>Label</key>\n"
+            "    <string>com.thermalright.trcc</string>\n"
+            "    <key>ProgramArguments</key>\n"
+            "    <array>\n"
+            f"        <string>{exec_path}</string>\n"
+            "        <string>gui</string>\n"
+            "        <string>--resume</string>\n"
+            "    </array>\n"
+            "    <key>RunAtLoad</key>\n"
+            "    <true/>\n"
+            "    <key>KeepAlive</key>\n"
+            "    <false/>\n"
+            "</dict>\n"
+            "</plist>\n"
         )

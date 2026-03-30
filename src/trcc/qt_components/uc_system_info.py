@@ -51,8 +51,8 @@ PANELS_PER_PAGE = COLUMNS * ROWS_PER_PAGE  # 12
 
 # Row positions within each panel (value label x, selector button)
 VALUE_POSITIONS = [
-    (240, 52),   # Row 0
-    (240, 86),   # Row 1
+    (240, 52),  # Row 0
+    (240, 86),  # Row 1
     (240, 121),  # Row 2
     (240, 156),  # Row 3
 ]
@@ -77,10 +77,10 @@ class SystemInfoPanel(QWidget):
     Selector buttons (↓) open the sensor picker per row.
     """
 
-    clicked = Signal(object)                     # self
+    clicked = Signal(object)  # self
     sensor_select_requested = Signal(object, int)  # (self, row_index)
-    delete_requested = Signal(object)              # self
-    name_changed = Signal(object, str)             # (self, new_name)
+    delete_requested = Signal(object)  # self
+    name_changed = Signal(object, str)  # (self, new_name)
 
     def __init__(self, config: PanelConfig, parent=None):
         super().__init__(parent)
@@ -89,26 +89,26 @@ class SystemInfoPanel(QWidget):
         self.config = config
         self._selected = False
         self._temp_unit = 0  # 0=Celsius, 1=Fahrenheit
-        self._color = CATEGORY_COLORS.get(config.category_id, '#888888')
+        self._color = CATEGORY_COLORS.get(config.category_id, "#888888")
         self._value_labels: list[QLabel] = []
         self._selector_btns: list[QPushButton] = []
 
         # Load background image (no tiling — matches Windows ImageLayout.None)
-        img_name = CATEGORY_IMAGES.get(config.category_id, 'A自定义.png')
+        img_name = CATEGORY_IMAGES.get(config.category_id, "A自定义.png")
         self._bg_pixmap = Assets.load_pixmap(img_name, PANEL_W, PANEL_H)
         if not self._bg_pixmap.isNull():
             set_background_pixmap(self, self._bg_pixmap)
 
         # Load selector button image
-        self._sel_pixmap = Assets.load_pixmap('A数据选择.png', 16, 30)
+        self._sel_pixmap = Assets.load_pixmap("A数据选择.png", 16, 30)
 
         # Value labels and selector buttons (row labels are baked into the PNG)
-        value_font = QFont('Arial', 10)
+        value_font = QFont("Arial", 10)
 
         for i in range(4):
             # Value label (right-aligned, shows live readings)
             vx, vy = VALUE_POSITIONS[i]
-            vlbl = QLabel('--', self)
+            vlbl = QLabel("--", self)
             vlbl.setFont(value_font)
             vlbl.setStyleSheet(f"color: {self._color}; background: transparent;")
             vlbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -136,7 +136,9 @@ class SystemInfoPanel(QWidget):
                     "QPushButton:hover { color: white; }"
                 )
             row_idx = i
-            sel.clicked.connect(lambda checked, r=row_idx: self.sensor_select_requested.emit(self, r))
+            sel.clicked.connect(
+                lambda checked, r=row_idx: self.sensor_select_requested.emit(self, r)
+            )
             self._selector_btns.append(sel)
 
         # Delete button for custom panels (category_id=0)
@@ -171,11 +173,11 @@ class SystemInfoPanel(QWidget):
             if i >= len(self._value_labels):
                 break
             if not binding.sensor_id:
-                self._value_labels[i].setText('--')
+                self._value_labels[i].setText("--")
                 continue
             value = sensor_readings.get(binding.sensor_id)
             if value is None:
-                self._value_labels[i].setText('--')
+                self._value_labels[i].setText("--")
             else:
                 self._value_labels[i].setText(self._format_value(value, binding.unit))
 
@@ -197,7 +199,7 @@ class SystemInfoPanel(QWidget):
         super().paintEvent(event)
         if self._selected:
             painter = QPainter(self)
-            painter.setPen(QColor('white'))
+            painter.setPen(QColor("white"))
             painter.drawRect(0, 0, self.width() - 1, self.height() - 1)
             painter.end()
 
@@ -206,18 +208,19 @@ class SystemInfoPanel(QWidget):
 
     def _format_value(self, value: float, unit: str) -> str:
         """Format a sensor value with its unit."""
-        if unit == '°C':
+        if unit == "°C":
             from ..core.models import celsius_to_fahrenheit
+
             if self._temp_unit == 1:
                 return f"{celsius_to_fahrenheit(value):.0f}°F"
             return f"{value:.0f}°C"
-        elif unit in ('%', 'RPM', 'W'):
+        elif unit in ("%", "RPM", "W"):
             return f"{value:.0f}{unit}"
-        elif unit == 'V':
+        elif unit == "V":
             return f"{value:.2f}V"
-        elif unit in ('MHz',):
+        elif unit in ("MHz",):
             return f"{value:.0f}MHz"
-        elif unit in ('MB', 'MB/s', 'KB/s'):
+        elif unit in ("MB", "MB/s", "KB/s"):
             return f"{value:.1f}{unit}"
         else:
             return f"{value:.1f}"
@@ -237,9 +240,7 @@ class UCSystemInfo(QWidget):
 
     panel_clicked = Signal(object)  # SystemInfoPanel
 
-    def __init__(self, enumerator: SensorEnumerator,
-                 sysinfo_config: SysInfoConfig,
-                 parent=None):
+    def __init__(self, enumerator: SensorEnumerator, sysinfo_config: SysInfoConfig, parent=None):
         super().__init__(parent)
         _, _, w, h = Layout.SYSINFO_PANEL
         self.setFixedSize(w, h)
@@ -328,7 +329,7 @@ class UCSystemInfo(QWidget):
             add_x = START_X + add_col * SPACING_X
             add_y = START_Y + add_row * SPACING_Y
 
-            add_pixmap = Assets.load_pixmap('A增加数组.png', PANEL_W, PANEL_H)
+            add_pixmap = Assets.load_pixmap("A增加数组.png", PANEL_W, PANEL_H)
             self._add_btn = QLabel(self)
             if not add_pixmap.isNull():
                 self._add_btn.setPixmap(add_pixmap)
@@ -385,7 +386,7 @@ class UCSystemInfo(QWidget):
             return
 
         # Previous page button
-        prev_px = Assets.load_pixmap('A上一页a.png', 64, 24)
+        prev_px = Assets.load_pixmap("A上一页a.png", 64, 24)
         self._page_prev = QPushButton(self)
         px, py, pw, ph = PAGE_PREV_POS
         self._page_prev.setGeometry(px, py, pw, ph)
@@ -407,7 +408,7 @@ class UCSystemInfo(QWidget):
         self._page_prev.show()
 
         # Next page button
-        next_px = Assets.load_pixmap('A下一页a.png', 64, 24)
+        next_px = Assets.load_pixmap("A下一页a.png", 64, 24)
         self._page_next = QPushButton(self)
         nx, ny, nw, nh = PAGE_NEXT_POS
         self._page_next.setGeometry(nx, ny, nw, nh)
@@ -454,7 +455,7 @@ class UCSystemInfo(QWidget):
 
         from .uc_sensor_picker import SensorPickerDialog
 
-        current_id = ''
+        current_id = ""
         if row < len(panel.config.sensors):
             current_id = panel.config.sensors[row].sensor_id
 
@@ -478,7 +479,8 @@ class UCSystemInfo(QWidget):
     def _on_add_clicked(self):
         """Add a new custom panel."""
         new_panel = PanelConfig(
-            category_id=0, name="Custom",
+            category_id=0,
+            name="Custom",
             sensors=[
                 SensorBinding("Sensor 1", "", ""),
                 SensorBinding("Sensor 2", "", ""),

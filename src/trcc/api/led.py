@@ -1,4 +1,5 @@
 """LED RGB control endpoints — color, mode, zones, segments."""
+
 from __future__ import annotations
 
 import logging
@@ -28,7 +29,9 @@ def _get_led():
     from trcc.api import _led_dispatcher
 
     if not _led_dispatcher or not _led_dispatcher.connected:
-        raise HTTPException(status_code=409, detail="No LED device selected. POST /devices/{id}/select first.")
+        raise HTTPException(
+            status_code=409, detail="No LED device selected. POST /devices/{id}/select first."
+        )
     return _led_dispatcher
 
 
@@ -38,6 +41,7 @@ def _led_route(method: str, *args, **kwargs) -> dict:
 
 
 # ── Global operations ──────────────────────────────────────────────────
+
 
 @router.post("/color")
 def set_color(body: HexColorRequest) -> dict:
@@ -93,11 +97,14 @@ def set_sensor(body: LEDSensorRequest) -> dict:
     from trcc.core.commands.led import SetLEDSensorSourceCommand
 
     led = _get_led()
-    result = TrccApp.get().build_led_bus(led).dispatch(SetLEDSensorSourceCommand(source=body.source))
+    result = (
+        TrccApp.get().build_led_bus(led).dispatch(SetLEDSensorSourceCommand(source=body.source))
+    )
     return dispatch_result(result.payload)
 
 
 # ── Zone operations ────────────────────────────────────────────────────
+
 
 @router.post("/zones/{zone}/color")
 def set_zone_color(zone: int, body: HexColorRequest) -> dict:
@@ -107,7 +114,9 @@ def set_zone_color(zone: int, body: HexColorRequest) -> dict:
 
     r, g, b = parse_hex_or_400(body.hex)
     led = _get_led()
-    result = TrccApp.get().build_led_bus(led).dispatch(SetZoneColorCommand(zone=zone, r=r, g=g, b=b))
+    result = (
+        TrccApp.get().build_led_bus(led).dispatch(SetZoneColorCommand(zone=zone, r=r, g=g, b=b))
+    )
     return dispatch_result(result.payload)
 
 
@@ -136,6 +145,7 @@ def set_sync(body: ZoneSyncRequest) -> dict:
 
 
 # ── Segment operations ─────────────────────────────────────────────────
+
 
 @router.post("/segments/{index}/toggle")
 def toggle_segment(index: int, body: ToggleRequest) -> dict:
@@ -172,10 +182,10 @@ def test_led(
     from trcc.services.led import LEDService
 
     modes = {
-        'static': LEDMode.STATIC,
-        'breathing': LEDMode.BREATHING,
-        'colorful': LEDMode.COLORFUL,
-        'rainbow': LEDMode.RAINBOW,
+        "static": LEDMode.STATIC,
+        "breathing": LEDMode.BREATHING,
+        "colorful": LEDMode.COLORFUL,
+        "rainbow": LEDMode.RAINBOW,
     }
 
     key = mode.lower()
@@ -204,14 +214,12 @@ def test_led(
         "success": True,
         "mode": key,
         "segments": segments,
-        "colors": [
-            {"r": c[0], "g": c[1], "b": c[2]}
-            for c in colors
-        ],
+        "colors": [{"r": c[0], "g": c[1], "b": c[2]} for c in colors],
     }
 
 
 # ── Status ─────────────────────────────────────────────────────────────
+
 
 @router.get("/status")
 def led_status() -> dict:

@@ -4,6 +4,7 @@ Fixtures build mock services and inject them into LCDDevice. Tests verify
 LCDDevice methods return correct result dicts, and CLI wrappers
 print/exit correctly.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -29,6 +30,7 @@ _SETTINGS_SAVE = "trcc.conf.Settings.save_device_setting"
 # =========================================================================
 # Fixtures
 # =========================================================================
+
 
 @pytest.fixture
 def mock_device_info():
@@ -97,6 +99,7 @@ def mock_connect(lcd):
     that bus dispatch reaches the right service methods.
     """
     from trcc.core.app import TrccApp
+
     mock_app = TrccApp._instance
     mock_app.lcd_device = lcd
     mock_app.lcd_bus = TrccApp.build_lcd_bus(mock_app, lcd)  # type: ignore[arg-type]
@@ -121,6 +124,7 @@ def _make_png(path: Path, w=10, h=10, color=(255, 0, 0)) -> Path:
 # TestLCDDeviceInit — construction, properties
 # =========================================================================
 
+
 class TestLCDDeviceInit:
     def test_default_no_services(self, lcd_empty):
         assert lcd_empty.frame is lcd_empty
@@ -143,8 +147,7 @@ class TestLCDDeviceInit:
     def test_connected_false_when_no_selected(self):
         svc = MagicMock()
         svc.selected = None
-        lcd = LCDDevice(device_svc=svc, display_svc=MagicMock(),
-                        theme_svc=MagicMock())
+        lcd = LCDDevice(device_svc=svc, display_svc=MagicMock(), theme_svc=MagicMock())
         assert lcd.connected is False
 
     def test_connected_true_when_selected(self, lcd):
@@ -173,16 +176,19 @@ class TestLCDDeviceInit:
 # TestLCDDeviceConnect
 # =========================================================================
 
+
 def _mock_build_services_fn():
     """Create a mock build_services_fn for testing."""
+
     def _build(device_svc, renderer=None):
         return {
-            'display_svc': MagicMock(),
-            'theme_svc': MagicMock(),
-            'renderer': renderer or MagicMock(),
-            'dc_config_cls': MagicMock(),
-            'load_config_json_fn': MagicMock(),
+            "display_svc": MagicMock(),
+            "theme_svc": MagicMock(),
+            "renderer": renderer or MagicMock(),
+            "dc_config_cls": MagicMock(),
+            "load_config_json_fn": MagicMock(),
         }
+
     return _build
 
 
@@ -240,6 +246,7 @@ class TestLCDDeviceConnect:
 # TestFrameOps
 # =========================================================================
 
+
 class TestFrameOps:
     def test_send_image_missing_file(self, lcd):
         result = lcd.frame.send_image("/nonexistent/file.png")
@@ -292,10 +299,10 @@ class TestFrameOps:
 # TestDisplaySettings
 # =========================================================================
 
+
 class TestDisplaySettings:
     def test_set_brightness_level_1(self, lcd, mock_display_svc):
-        with patch(_SETTINGS_KEY, return_value="0"), \
-             patch(_SETTINGS_SAVE):
+        with patch(_SETTINGS_KEY, return_value="0"), patch(_SETTINGS_SAVE):
             result = lcd.settings.set_brightness(1)
 
         assert result["success"] is True
@@ -303,8 +310,7 @@ class TestDisplaySettings:
         mock_display_svc.set_brightness.assert_called_once_with(25)
 
     def test_set_brightness_level_2(self, lcd, mock_display_svc):
-        with patch(_SETTINGS_KEY, return_value="0"), \
-             patch(_SETTINGS_SAVE):
+        with patch(_SETTINGS_KEY, return_value="0"), patch(_SETTINGS_SAVE):
             result = lcd.settings.set_brightness(2)
 
         assert result["success"] is True
@@ -312,16 +318,14 @@ class TestDisplaySettings:
         mock_display_svc.set_brightness.assert_called_once_with(50)
 
     def test_set_brightness_level_3(self, lcd, mock_display_svc):
-        with patch(_SETTINGS_KEY, return_value="0"), \
-             patch(_SETTINGS_SAVE):
+        with patch(_SETTINGS_KEY, return_value="0"), patch(_SETTINGS_SAVE):
             result = lcd.settings.set_brightness(3)
 
         assert result["success"] is True
         assert "100%" in result["message"]
 
     def test_set_brightness_percent_50(self, lcd, mock_display_svc):
-        with patch(_SETTINGS_KEY, return_value="0"), \
-             patch(_SETTINGS_SAVE):
+        with patch(_SETTINGS_KEY, return_value="0"), patch(_SETTINGS_SAVE):
             result = lcd.settings.set_brightness(50)
 
         assert result["success"] is True
@@ -336,16 +340,14 @@ class TestDisplaySettings:
         assert result["success"] is False
 
     def test_set_brightness_persists(self, lcd):
-        with patch(_SETTINGS_KEY, return_value="0") as mk, \
-             patch(_SETTINGS_SAVE) as ms:
+        with patch(_SETTINGS_KEY, return_value="0") as mk, patch(_SETTINGS_SAVE) as ms:
             lcd.settings.set_brightness(2)
 
         mk.assert_called_once_with(0, 0x0402, 0x3922)
         ms.assert_called_once_with("0", "brightness_level", 2)
 
     def test_set_rotation_0(self, lcd):
-        with patch(_SETTINGS_KEY, return_value="k"), \
-             patch(_SETTINGS_SAVE) as ms:
+        with patch(_SETTINGS_KEY, return_value="k"), patch(_SETTINGS_SAVE) as ms:
             result = lcd.settings.set_rotation(0)
 
         assert result["success"] is True
@@ -374,8 +376,7 @@ class TestDisplaySettings:
         assert "0, 90, 180, or 270" in result["error"]
 
     def test_set_split_mode_0_off(self, lcd):
-        with patch(_SETTINGS_KEY, return_value="k"), \
-             patch(_SETTINGS_SAVE) as ms:
+        with patch(_SETTINGS_KEY, return_value="k"), patch(_SETTINGS_SAVE) as ms:
             result = lcd.settings.set_split_mode(0)
 
         assert result["success"] is True
@@ -408,6 +409,7 @@ class TestDisplaySettings:
 # TestOverlayOps — standalone CLI overlay operations
 # =========================================================================
 
+
 class TestOverlayOps:
     def test_load_mask_standalone_missing_path(self, lcd):
         result = lcd.load_mask_standalone("/nonexistent/mask.png")
@@ -419,9 +421,11 @@ class TestOverlayOps:
         make_test_surface(10, 10, (255, 255, 255, 128)).save(str(mask_file), "PNG")
         result_img = make_test_surface(10, 10)
 
-        with patch(_OVL_SVC) as mock_cls, \
-             patch(f"{_IMG_SVC}.solid_color", return_value=result_img), \
-             patch(f"{_IMG_SVC}._r") as mock_r:
+        with (
+            patch(_OVL_SVC) as mock_cls,
+            patch(f"{_IMG_SVC}.solid_color", return_value=result_img),
+            patch(f"{_IMG_SVC}._r") as mock_r,
+        ):
             mock_overlay = MagicMock()
             mock_cls.return_value = mock_overlay
             mock_overlay.render.return_value = result_img
@@ -442,9 +446,11 @@ class TestOverlayOps:
         make_test_surface(10, 10, (0, 0, 0, 255)).save(str(mask_dir / "01.png"), "PNG")
         result_img = make_test_surface(10, 10)
 
-        with patch(_OVL_SVC) as mock_cls, \
-             patch(f"{_IMG_SVC}.solid_color", return_value=result_img), \
-             patch(f"{_IMG_SVC}._r") as mock_r:
+        with (
+            patch(_OVL_SVC) as mock_cls,
+            patch(f"{_IMG_SVC}.solid_color", return_value=result_img),
+            patch(f"{_IMG_SVC}._r") as mock_r,
+        ):
             mock_overlay = MagicMock()
             mock_cls.return_value = mock_overlay
             mock_overlay.render.return_value = result_img
@@ -465,9 +471,11 @@ class TestOverlayOps:
         make_test_surface(10, 10, (0, 0, 0, 255)).save(str(mask_dir / "other.png"), "PNG")
         result_img = make_test_surface(10, 10)
 
-        with patch(_OVL_SVC) as mock_cls, \
-             patch(f"{_IMG_SVC}.solid_color", return_value=result_img), \
-             patch(f"{_IMG_SVC}._r") as mock_r:
+        with (
+            patch(_OVL_SVC) as mock_cls,
+            patch(f"{_IMG_SVC}.solid_color", return_value=result_img),
+            patch(f"{_IMG_SVC}._r") as mock_r,
+        ):
             mock_overlay = MagicMock()
             mock_cls.return_value = mock_overlay
             mock_overlay.render.return_value = result_img
@@ -496,12 +504,14 @@ class TestOverlayOps:
 
     def test_render_overlay_success(self, lcd, tmp_path):
         dc_file = tmp_path / "config1.dc"
-        dc_file.write_bytes(b"\xDD" + b"\x00" * 50)
+        dc_file.write_bytes(b"\xdd" + b"\x00" * 50)
         result_img = make_test_surface(320, 320)
 
-        with patch(_OVL_SVC) as mock_cls, \
-             patch(f"{_IMG_SVC}.solid_color", return_value=result_img), \
-             patch(_METRICS, return_value={}):
+        with (
+            patch(_OVL_SVC) as mock_cls,
+            patch(f"{_IMG_SVC}.solid_color", return_value=result_img),
+            patch(_METRICS, return_value={}),
+        ):
             mock_overlay = MagicMock()
             mock_cls.return_value = mock_overlay
             mock_overlay.load_from_dc.return_value = {"key": "value"}
@@ -515,12 +525,14 @@ class TestOverlayOps:
 
     def test_render_overlay_with_send(self, lcd, mock_device_svc, tmp_path):
         dc_file = tmp_path / "config1.dc"
-        dc_file.write_bytes(b"\xDD" + b"\x00" * 50)
+        dc_file.write_bytes(b"\xdd" + b"\x00" * 50)
         result_img = make_test_surface(320, 320)
 
-        with patch(_OVL_SVC) as mock_cls, \
-             patch(f"{_IMG_SVC}.solid_color", return_value=result_img), \
-             patch(_METRICS, return_value={}):
+        with (
+            patch(_OVL_SVC) as mock_cls,
+            patch(f"{_IMG_SVC}.solid_color", return_value=result_img),
+            patch(_METRICS, return_value={}),
+        ):
             mock_overlay = MagicMock()
             mock_cls.return_value = mock_overlay
             mock_overlay.load_from_dc.return_value = {}
@@ -534,21 +546,22 @@ class TestOverlayOps:
 
     def test_render_overlay_with_output(self, lcd, tmp_path):
         dc_file = tmp_path / "config1.dc"
-        dc_file.write_bytes(b"\xDD" + b"\x00" * 50)
+        dc_file.write_bytes(b"\xdd" + b"\x00" * 50)
         output_file = str(tmp_path / "out.png")
         result_img = MagicMock()
 
-        with patch(_OVL_SVC) as mock_cls, \
-             patch(f"{_IMG_SVC}.solid_color", return_value=result_img), \
-             patch(_METRICS, return_value={}):
+        with (
+            patch(_OVL_SVC) as mock_cls,
+            patch(f"{_IMG_SVC}.solid_color", return_value=result_img),
+            patch(_METRICS, return_value={}),
+        ):
             mock_overlay = MagicMock()
             mock_cls.return_value = mock_overlay
             mock_overlay.load_from_dc.return_value = {}
             mock_overlay.config = []
             mock_overlay.render.return_value = result_img
 
-            result = lcd.render_overlay_from_dc(
-                str(dc_file), output=output_file)
+            result = lcd.render_overlay_from_dc(str(dc_file), output=output_file)
 
         assert result["success"] is True
         assert output_file in result["message"]
@@ -558,12 +571,14 @@ class TestOverlayOps:
         """Accepts directory, uses config1.dc inside it."""
         theme_dir = tmp_path / "theme"
         theme_dir.mkdir()
-        (theme_dir / "config1.dc").write_bytes(b"\xDD" + b"\x00" * 50)
+        (theme_dir / "config1.dc").write_bytes(b"\xdd" + b"\x00" * 50)
         result_img = make_test_surface(320, 320)
 
-        with patch(_OVL_SVC) as mock_cls, \
-             patch(f"{_IMG_SVC}.solid_color", return_value=result_img), \
-             patch(_METRICS, return_value={}):
+        with (
+            patch(_OVL_SVC) as mock_cls,
+            patch(f"{_IMG_SVC}.solid_color", return_value=result_img),
+            patch(_METRICS, return_value={}),
+        ):
             mock_overlay = MagicMock()
             mock_cls.return_value = mock_overlay
             mock_overlay.load_from_dc.return_value = {}
@@ -578,6 +593,7 @@ class TestOverlayOps:
 # =========================================================================
 # TestCLIHelpers — _connect_or_fail, _print_result, _display_command
 # =========================================================================
+
 
 class TestCLIHelpers:
     def test_connect_or_fail_success(self, capsys):
@@ -635,8 +651,7 @@ class TestCLIHelpers:
     def test_print_result_with_warning(self, capsys):
         from trcc.cli._display import _print_result
 
-        _print_result({"success": True, "message": "Done",
-                       "warning": "Watch out"})
+        _print_result({"success": True, "message": "Done", "warning": "Watch out"})
         out = capsys.readouterr().out
         assert "Warning: Watch out" in out
         assert "Done" in out
@@ -646,8 +661,7 @@ class TestCLIHelpers:
 
         fake_img = MagicMock()
         with patch(f"{_IMG_SVC}.to_ansi", return_value="ANSI_ART"):
-            _print_result({"success": True, "message": "OK",
-                          "image": fake_img}, preview=True)
+            _print_result({"success": True, "message": "OK", "image": fake_img}, preview=True)
         assert "ANSI_ART" in capsys.readouterr().out
 
     def test_print_result_no_preview_when_no_image(self, capsys):
@@ -662,12 +676,13 @@ class TestCLIHelpers:
         from trcc.core.app import TrccApp
 
         mock_lcd = MagicMock()
-        mock_lcd.frame.some_method.return_value = {
-            "success": True, "message": "OK"}
+        mock_lcd.frame.some_method.return_value = {"success": True, "message": "OK"}
         TrccApp.get().lcd_device = mock_lcd  # type: ignore[union-attr]
 
-        with patch(_CONNECT, return_value=0), \
-             patch("trcc.cli._display._print_result", return_value=0):
+        with (
+            patch(_CONNECT, return_value=0),
+            patch("trcc.cli._display._print_result", return_value=0),
+        ):
             rc = _display_command(_mock_builder, "some_method", "arg1", device=None)
 
         mock_lcd.frame.some_method.assert_called_once_with("arg1")
@@ -684,6 +699,7 @@ class TestCLIHelpers:
 # =========================================================================
 # TestCLIImageCommands
 # =========================================================================
+
 
 class TestCLIImageCommands:
     def test_send_image_cli_success(self, _mock_builder, mock_connect, tmp_path):
@@ -744,28 +760,26 @@ class TestCLIImageCommands:
 # TestCLISettingCommands
 # =========================================================================
 
+
 class TestCLISettingCommands:
     def test_set_brightness_cli_valid_1(self, _mock_builder, mock_connect):
         from trcc.cli._display import set_brightness
 
-        with patch(_SETTINGS_KEY, return_value="0"), \
-             patch(_SETTINGS_SAVE):
+        with patch(_SETTINGS_KEY, return_value="0"), patch(_SETTINGS_SAVE):
             rc = set_brightness(_mock_builder, 1)
         assert rc == 0
 
     def test_set_brightness_cli_valid_2(self, _mock_builder, mock_connect):
         from trcc.cli._display import set_brightness
 
-        with patch(_SETTINGS_KEY, return_value="0"), \
-             patch(_SETTINGS_SAVE):
+        with patch(_SETTINGS_KEY, return_value="0"), patch(_SETTINGS_SAVE):
             rc = set_brightness(_mock_builder, 2)
         assert rc == 0
 
     def test_set_brightness_cli_valid_3(self, _mock_builder, mock_connect):
         from trcc.cli._display import set_brightness
 
-        with patch(_SETTINGS_KEY, return_value="0"), \
-             patch(_SETTINGS_SAVE):
+        with patch(_SETTINGS_KEY, return_value="0"), patch(_SETTINGS_SAVE):
             rc = set_brightness(_mock_builder, 3)
         assert rc == 0
 
@@ -789,32 +803,28 @@ class TestCLISettingCommands:
     def test_set_rotation_cli_valid_0(self, _mock_builder, mock_connect):
         from trcc.cli._display import set_rotation
 
-        with patch(_SETTINGS_KEY, return_value="0"), \
-             patch(_SETTINGS_SAVE):
+        with patch(_SETTINGS_KEY, return_value="0"), patch(_SETTINGS_SAVE):
             rc = set_rotation(_mock_builder, 0)
         assert rc == 0
 
     def test_set_rotation_cli_valid_90(self, _mock_builder, mock_connect):
         from trcc.cli._display import set_rotation
 
-        with patch(_SETTINGS_KEY, return_value="0"), \
-             patch(_SETTINGS_SAVE):
+        with patch(_SETTINGS_KEY, return_value="0"), patch(_SETTINGS_SAVE):
             rc = set_rotation(_mock_builder, 90)
         assert rc == 0
 
     def test_set_rotation_cli_valid_180(self, _mock_builder, mock_connect):
         from trcc.cli._display import set_rotation
 
-        with patch(_SETTINGS_KEY, return_value="0"), \
-             patch(_SETTINGS_SAVE):
+        with patch(_SETTINGS_KEY, return_value="0"), patch(_SETTINGS_SAVE):
             rc = set_rotation(_mock_builder, 180)
         assert rc == 0
 
     def test_set_rotation_cli_valid_270(self, _mock_builder, mock_connect):
         from trcc.cli._display import set_rotation
 
-        with patch(_SETTINGS_KEY, return_value="0"), \
-             patch(_SETTINGS_SAVE):
+        with patch(_SETTINGS_KEY, return_value="0"), patch(_SETTINGS_SAVE):
             rc = set_rotation(_mock_builder, 270)
         assert rc == 0
 
@@ -829,8 +839,7 @@ class TestCLISettingCommands:
     def test_set_split_mode_cli_valid(self, _mock_builder, mock_connect):
         from trcc.cli._display import set_split_mode
 
-        with patch(_SETTINGS_KEY, return_value="0"), \
-             patch(_SETTINGS_SAVE):
+        with patch(_SETTINGS_KEY, return_value="0"), patch(_SETTINGS_SAVE):
             rc = set_split_mode(_mock_builder, 0)
         assert rc == 0
 
@@ -846,6 +855,7 @@ class TestCLISettingCommands:
 # TestCLIOverlayCommands
 # =========================================================================
 
+
 class TestCLIOverlayCommands:
     def test_load_mask_cli_success(self, _mock_builder, mock_connect, tmp_path):
         from trcc.cli._display import load_mask
@@ -854,9 +864,11 @@ class TestCLIOverlayCommands:
         make_test_surface(10, 10, (255, 255, 255, 128)).save(str(mask_file), "PNG")
         result_img = make_test_surface(10, 10)
 
-        with patch(_OVL_SVC) as mock_cls, \
-             patch(f"{_IMG_SVC}.solid_color", return_value=result_img), \
-             patch(f"{_IMG_SVC}._r") as mock_r:
+        with (
+            patch(_OVL_SVC) as mock_cls,
+            patch(f"{_IMG_SVC}.solid_color", return_value=result_img),
+            patch(f"{_IMG_SVC}._r") as mock_r,
+        ):
             mock_overlay = MagicMock()
             mock_cls.return_value = mock_overlay
             mock_overlay.render.return_value = result_img
@@ -879,12 +891,14 @@ class TestCLIOverlayCommands:
         from trcc.cli._display import render_overlay
 
         dc_file = tmp_path / "config1.dc"
-        dc_file.write_bytes(b"\xDD" + b"\x00" * 50)
+        dc_file.write_bytes(b"\xdd" + b"\x00" * 50)
         result_img = make_test_surface(320, 320)
 
-        with patch(_OVL_SVC) as mock_cls, \
-             patch(f"{_IMG_SVC}.solid_color", return_value=result_img), \
-             patch(_METRICS, return_value={}):
+        with (
+            patch(_OVL_SVC) as mock_cls,
+            patch(f"{_IMG_SVC}.solid_color", return_value=result_img),
+            patch(_METRICS, return_value={}),
+        ):
             mock_overlay = MagicMock()
             mock_cls.return_value = mock_overlay
             mock_overlay.load_from_dc.return_value = {"orientation": "landscape"}
@@ -904,18 +918,19 @@ class TestCLIOverlayCommands:
         assert rc == 1
         assert "Error" in capsys.readouterr().out
 
-    def test_render_overlay_cli_with_preview(self, _mock_builder, mock_connect, tmp_path,
-                                             capsys):
+    def test_render_overlay_cli_with_preview(self, _mock_builder, mock_connect, tmp_path, capsys):
         from trcc.cli._display import render_overlay
 
         dc_file = tmp_path / "config1.dc"
-        dc_file.write_bytes(b"\xDD" + b"\x00" * 50)
+        dc_file.write_bytes(b"\xdd" + b"\x00" * 50)
         result_img = make_test_surface(320, 320)
 
-        with patch(_OVL_SVC) as mock_cls, \
-             patch(f"{_IMG_SVC}.solid_color", return_value=result_img), \
-             patch(f"{_IMG_SVC}.to_ansi", return_value="ANSI_PREVIEW"), \
-             patch(_METRICS, return_value={}):
+        with (
+            patch(_OVL_SVC) as mock_cls,
+            patch(f"{_IMG_SVC}.solid_color", return_value=result_img),
+            patch(f"{_IMG_SVC}.to_ansi", return_value="ANSI_PREVIEW"),
+            patch(_METRICS, return_value={}),
+        ):
             mock_overlay = MagicMock()
             mock_cls.return_value = mock_overlay
             mock_overlay.load_from_dc.return_value = {}
@@ -931,6 +946,7 @@ class TestCLIOverlayCommands:
 # =========================================================================
 # TestCLIReset
 # =========================================================================
+
 
 class TestCLIReset:
     def test_reset_cli_success(self, _mock_builder, mock_connect, capsys):
@@ -965,6 +981,7 @@ class TestCLIReset:
 # =========================================================================
 # TestCLIVideoStatus
 # =========================================================================
+
 
 class TestCLIVideoStatus:
     def test_video_status_with_device(self, capsys):
@@ -1057,13 +1074,11 @@ class TestCLIResume:
         mock_svc = MagicMock()
         mock_svc.detect.return_value = [scsi_device]
         mock_lcd = MagicMock()
-        mock_lcd.load_last_theme.return_value = {
-            "success": False, "error": "No saved theme"}
+        mock_lcd.load_last_theme.return_value = {"success": False, "error": "No saved theme"}
         _mock_builder.build_device_svc.return_value = mock_svc
         _mock_builder.lcd_from_service.return_value = mock_lcd
 
-        with patch(_DISC_RES), \
-             patch(_TIME):
+        with patch(_DISC_RES), patch(_TIME):
             rc = resume(_mock_builder)
 
         assert rc == 1
@@ -1077,13 +1092,11 @@ class TestCLIResume:
         mock_svc.detect.return_value = [scsi_device]
         fake_img = MagicMock()
         mock_lcd = MagicMock()
-        mock_lcd.load_last_theme.return_value = {
-            "success": True, "image": fake_img}
+        mock_lcd.load_last_theme.return_value = {"success": True, "image": fake_img}
         _mock_builder.build_device_svc.return_value = mock_svc
         _mock_builder.lcd_from_service.return_value = mock_lcd
 
-        with patch(_DISC_RES), \
-             patch(_TIME):
+        with patch(_DISC_RES), patch(_TIME):
             rc = resume(_mock_builder)
 
         assert rc == 0
@@ -1101,8 +1114,7 @@ class TestCLIResume:
         _mock_builder.build_device_svc.return_value = mock_svc
         _mock_builder.lcd_from_service.return_value = mock_lcd
 
-        with patch(_DISC_RES), \
-             patch(_TIME):
+        with patch(_DISC_RES), patch(_TIME):
             rc = resume(_mock_builder)
 
         assert rc == 1
@@ -1121,13 +1133,11 @@ class TestCLIResume:
         mock_svc = MagicMock()
         mock_svc.detect.side_effect = _detect
         mock_lcd = MagicMock()
-        mock_lcd.load_last_theme.return_value = {
-            "success": False, "error": "No saved theme"}
+        mock_lcd.load_last_theme.return_value = {"success": False, "error": "No saved theme"}
         _mock_builder.build_device_svc.return_value = mock_svc
         _mock_builder.lcd_from_service.return_value = mock_lcd
 
-        with patch(_DISC_RES), \
-             patch(_TIME):
+        with patch(_DISC_RES), patch(_TIME):
             rc = resume(_mock_builder)
 
         out = capsys.readouterr().out

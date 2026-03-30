@@ -15,6 +15,7 @@ Tests cover:
 - ThemeThumbnail: construction, delete button, slideshow badge/mode
 - UCThemeLocal: filter modes, slideshow toggle/max, theme loading, deletion
 """
+
 from __future__ import annotations
 
 import os
@@ -55,25 +56,26 @@ from trcc.qt_components.uc_theme_setting import (  # noqa: E402
 # Fixtures
 # ============================================================================
 
+
 @pytest.fixture(autouse=True)
 def _patch_theme_assets(qapp):
     """Patch Assets.load_pixmap + set_background_pixmap across theme modules."""
+
     def _null_pixmap(*_args, **_kwargs):
         return QPixmap()
 
     with (
-        patch("trcc.qt_components.overlay_element.Assets.load_pixmap",
-              side_effect=_null_pixmap),
-        patch("trcc.qt_components.overlay_grid.Assets.load_pixmap",
-              side_effect=_null_pixmap),
-        patch("trcc.qt_components.color_and_add_panels.Assets.load_pixmap",
-              side_effect=_null_pixmap),
-        patch("trcc.qt_components.display_mode_panels.Assets.load_pixmap",
-              side_effect=_null_pixmap),
+        patch("trcc.qt_components.overlay_element.Assets.load_pixmap", side_effect=_null_pixmap),
+        patch("trcc.qt_components.overlay_grid.Assets.load_pixmap", side_effect=_null_pixmap),
+        patch(
+            "trcc.qt_components.color_and_add_panels.Assets.load_pixmap", side_effect=_null_pixmap
+        ),
+        patch(
+            "trcc.qt_components.display_mode_panels.Assets.load_pixmap", side_effect=_null_pixmap
+        ),
         patch("trcc.qt_components.display_mode_panels.set_background_pixmap"),
         patch("trcc.qt_components.color_and_add_panels.set_background_pixmap"),
-        patch("trcc.qt_components.uc_theme_local.Assets.load_pixmap",
-              side_effect=_null_pixmap),
+        patch("trcc.qt_components.uc_theme_local.Assets.load_pixmap", side_effect=_null_pixmap),
         patch("trcc.qt_components.base.set_background_pixmap"),
     ):
         yield
@@ -82,6 +84,7 @@ def _patch_theme_assets(qapp):
 @pytest.fixture
 def make_config():
     """Factory fixture for OverlayElementConfig."""
+
     def _factory(
         mode: OverlayMode = OverlayMode.HARDWARE,
         x: int = 50,
@@ -91,16 +94,21 @@ def make_config():
         color: str = "#32C5FF",
     ) -> OverlayElementConfig:
         return OverlayElementConfig(
-            mode=mode, x=x, y=y,
-            main_count=main_count, sub_count=sub_count,
+            mode=mode,
+            x=x,
+            y=y,
+            main_count=main_count,
+            sub_count=sub_count,
             color=color,
         )
+
     return _factory
 
 
 @pytest.fixture
 def make_local_item():
     """Factory fixture for LocalThemeItem."""
+
     def _factory(
         name: str = "TestTheme",
         path: str = "/tmp/themes/TestTheme",
@@ -114,12 +122,14 @@ def make_local_item():
             is_user=is_user,
             index=index,
         )
+
     return _factory
 
 
 # ============================================================================
 # Module constants
 # ============================================================================
+
 
 class TestModuleConstants:
     """Test module-level constants in uc_theme_setting."""
@@ -160,6 +170,7 @@ class TestModuleConstants:
 # ============================================================================
 # OverlayElementWidget
 # ============================================================================
+
 
 class TestOverlayElementWidget:
     """Test OverlayElementWidget construction and behavior."""
@@ -207,6 +218,7 @@ class TestOverlayElementWidget:
         widget.clicked.connect(received.append)
         # Simulate left click
         from PySide6.QtCore import QPointF
+
         event = QMouseEvent(
             QEvent.Type.MouseButtonPress,
             QPointF(30, 30),
@@ -223,6 +235,7 @@ class TestOverlayElementWidget:
         received = []
         widget.double_clicked.connect(received.append)
         from PySide6.QtCore import QPointF
+
         event = QMouseEvent(
             QEvent.Type.MouseButtonDblClick,
             QPointF(30, 30),
@@ -241,6 +254,7 @@ class TestOverlayElementWidget:
 
     def test_fixed_size(self, qapp):
         from trcc.qt_components.constants import Sizes
+
         widget = OverlayElementWidget(0)
         assert widget.width() == Sizes.OVERLAY_CELL
         assert widget.height() == Sizes.OVERLAY_CELL
@@ -249,6 +263,7 @@ class TestOverlayElementWidget:
 # ============================================================================
 # OverlayGridPanel
 # ============================================================================
+
 
 class TestOverlayGridPanel:
     """Test the 7x6 overlay element grid."""
@@ -259,6 +274,7 @@ class TestOverlayGridPanel:
 
     def test_grid_dimensions(self, qapp):
         from trcc.qt_components.constants import Sizes
+
         panel = OverlayGridPanel()
         assert panel.width() == Sizes.OVERLAY_GRID_W
         assert panel.height() == Sizes.OVERLAY_GRID_H
@@ -480,6 +496,7 @@ class TestOverlayGridPanel:
 # ColorPickerPanel
 # ============================================================================
 
+
 class TestColorPickerPanel:
     """Test color picker construction and signal emission."""
 
@@ -540,9 +557,7 @@ class TestColorPickerPanel:
     def test_font_size_changed_signal(self, qapp):
         panel = ColorPickerPanel()
         received = []
-        panel.font_changed.connect(
-            lambda name, size, style: received.append((name, size, style))
-        )
+        panel.font_changed.connect(lambda name, size, style: received.append((name, size, style)))
         panel.font_size_spin.setValue(48)
         assert len(received) >= 1
         assert received[-1][1] == 48
@@ -578,6 +593,7 @@ class TestColorPickerPanel:
 # ============================================================================
 # AddElementPanel
 # ============================================================================
+
 
 class TestAddElementPanel:
     """Test add element panel."""
@@ -634,8 +650,7 @@ class TestAddElementPanel:
         panel = AddElementPanel()
         hw_received = []
         panel.hardware_requested.connect(lambda: hw_received.append(True))
-        for mode in (OverlayMode.TIME, OverlayMode.DATE,
-                     OverlayMode.WEEKDAY, OverlayMode.CUSTOM):
+        for mode in (OverlayMode.TIME, OverlayMode.DATE, OverlayMode.WEEKDAY, OverlayMode.CUSTOM):
             panel._on_type_clicked(mode)
         assert len(hw_received) == 0
 
@@ -646,6 +661,7 @@ class TestAddElementPanel:
 # ============================================================================
 # DataTablePanel
 # ============================================================================
+
 
 class TestDataTablePanel:
     """Test data table panel mode switching and format cycling."""
@@ -742,6 +758,7 @@ class TestDataTablePanel:
 # DisplayModePanel
 # ============================================================================
 
+
 class TestDisplayModePanel:
     """Test display mode toggle panel."""
 
@@ -797,6 +814,7 @@ class TestDisplayModePanel:
         panel = DisplayModePanel("mask", ["Load"])
         # Mask panel uses TOGGLE_MASK geometry
         from trcc.qt_components.constants import Layout
+
         geo = panel.toggle_btn.geometry()
         assert geo.x() == Layout.TOGGLE_MASK[0]
         assert geo.y() == Layout.TOGGLE_MASK[1]
@@ -805,6 +823,7 @@ class TestDisplayModePanel:
 # ============================================================================
 # ScreenCastPanel
 # ============================================================================
+
 
 class TestScreenCastPanel:
     """Test screen cast panel with coordinate inputs."""
@@ -840,6 +859,7 @@ class TestScreenCastPanel:
 # UCThemeSetting (main container)
 # ============================================================================
 
+
 class TestUCThemeSetting:
     """Test the main settings container."""
 
@@ -856,6 +876,7 @@ class TestUCThemeSetting:
 
     def test_fixed_size(self, qapp):
         from trcc.qt_components.constants import Sizes
+
         settings = UCThemeSetting()
         assert settings.width() == Sizes.SETTING_W
         assert settings.height() == Sizes.SETTING_H
@@ -958,6 +979,7 @@ class TestUCThemeSetting:
 # ThemeThumbnail
 # ============================================================================
 
+
 class TestThemeThumbnail:
     """Test local theme thumbnail widget."""
 
@@ -1017,6 +1039,7 @@ class TestThemeThumbnail:
         received = []
         thumb.clicked.connect(received.append)
         from PySide6.QtCore import QPointF
+
         event = QMouseEvent(
             QEvent.Type.MouseButtonPress,
             QPointF(60, 100),  # lower half
@@ -1038,6 +1061,7 @@ class TestThemeThumbnail:
         thumb.slideshow_toggled.connect(slideshow_received.append)
         thumb.clicked.connect(click_received.append)
         from PySide6.QtCore import QPointF
+
         event = QMouseEvent(
             QEvent.Type.MouseButtonPress,
             QPointF(60, 100),  # y > 60 -> slideshow toggle
@@ -1058,6 +1082,7 @@ class TestThemeThumbnail:
         click_received = []
         thumb.clicked.connect(click_received.append)
         from PySide6.QtCore import QPointF
+
         event = QMouseEvent(
             QEvent.Type.MouseButtonPress,
             QPointF(60, 30),  # y <= 60 -> normal click
@@ -1083,6 +1108,7 @@ class TestThemeThumbnail:
 # ============================================================================
 # UCThemeLocal
 # ============================================================================
+
 
 class TestUCThemeLocal:
     """Test local theme browser panel."""
@@ -1122,6 +1148,7 @@ class TestUCThemeLocal:
 
     def test_load_themes_with_directory(self, qapp, tmp_path):
         from tests.conftest import make_test_surface
+
         # Create real theme directories with real PNG thumbnails
         theme_dir = tmp_path / "themes"
         theme_dir.mkdir()
@@ -1151,8 +1178,7 @@ class TestUCThemeLocal:
     def test_slideshow_add_remove(self, qapp, make_local_item):
         panel = UCThemeLocal()
         panel._all_themes = [
-            make_local_item(f"Theme{i}", f"/tmp/themes/Theme{i}", index=i)
-            for i in range(8)
+            make_local_item(f"Theme{i}", f"/tmp/themes/Theme{i}", index=i) for i in range(8)
         ]
         # Add themes to slideshow
         panel._on_slideshow_toggled(panel._all_themes[0])
@@ -1167,8 +1193,7 @@ class TestUCThemeLocal:
     def test_slideshow_max_six(self, qapp, make_local_item):
         panel = UCThemeLocal()
         panel._all_themes = [
-            make_local_item(f"Theme{i}", f"/tmp/themes/Theme{i}", index=i)
-            for i in range(8)
+            make_local_item(f"Theme{i}", f"/tmp/themes/Theme{i}", index=i) for i in range(8)
         ]
         for i in range(7):
             panel._on_slideshow_toggled(panel._all_themes[i])
@@ -1177,10 +1202,7 @@ class TestUCThemeLocal:
 
     def test_get_slideshow_themes(self, qapp, make_local_item):
         panel = UCThemeLocal()
-        items = [
-            make_local_item(f"Theme{i}", f"/tmp/themes/Theme{i}", index=i)
-            for i in range(3)
-        ]
+        items = [make_local_item(f"Theme{i}", f"/tmp/themes/Theme{i}", index=i) for i in range(3)]
         panel._all_themes = items
         panel._lunbo_array = ["Theme2", "Theme0"]
         result = panel.get_slideshow_themes()
@@ -1229,7 +1251,10 @@ class TestUCThemeLocal:
         assert "UserTheme" not in panel._lunbo_array
 
     def test_delete_theme_removes_from_slideshow(
-        self, qapp, tmp_path, make_local_item,
+        self,
+        qapp,
+        tmp_path,
+        make_local_item,
     ):
         panel = UCThemeLocal()
         panel.theme_directory = tmp_path / "themes"

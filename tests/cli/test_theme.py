@@ -1,4 +1,5 @@
 """Tests for trcc.cli._theme — theme discovery, loading, save, export, import."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -17,6 +18,7 @@ from trcc.cli._theme import (
 # ===========================================================================
 # Shared helpers
 # ===========================================================================
+
 
 def _make_local_theme(
     name: str = "MyTheme",
@@ -94,6 +96,7 @@ _PATCH_GET_SERVICE = "trcc.cli._device._get_service"
 # TestListThemes
 # ===========================================================================
 
+
 class TestListThemes:
     """list_themes() — local and cloud theme discovery."""
 
@@ -116,9 +119,11 @@ class TestListThemes:
             _make_local_theme("Alpha"),
             _make_local_theme("Beta"),
         ]
-        with patch(_PATCH_SETTINGS, settings_mock), \
-             patch(_PATCH_DATA_MANAGER, data_mgr), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with (
+            patch(_PATCH_SETTINGS, settings_mock),
+            patch(_PATCH_DATA_MANAGER, data_mgr),
+            patch(_PATCH_THEME_SVC, theme_svc),
+        ):
             rc = list_themes()
         assert rc == 0
         out = capsys.readouterr().out
@@ -131,9 +136,11 @@ class TestListThemes:
             _make_local_theme("Alpha"),
             _make_local_theme("Beta"),
         ]
-        with patch(_PATCH_SETTINGS, settings_mock), \
-             patch(_PATCH_DATA_MANAGER, data_mgr), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with (
+            patch(_PATCH_SETTINGS, settings_mock),
+            patch(_PATCH_DATA_MANAGER, data_mgr),
+            patch(_PATCH_THEME_SVC, theme_svc),
+        ):
             list_themes()
         out = capsys.readouterr().out
         assert "Alpha" in out
@@ -143,9 +150,11 @@ class TestListThemes:
         settings_mock, data_mgr, theme_svc = self._base_patches()
         animated = _make_local_theme("VideoTheme", is_animated=True)
         theme_svc.discover_local.return_value = [animated]
-        with patch(_PATCH_SETTINGS, settings_mock), \
-             patch(_PATCH_DATA_MANAGER, data_mgr), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with (
+            patch(_PATCH_SETTINGS, settings_mock),
+            patch(_PATCH_DATA_MANAGER, data_mgr),
+            patch(_PATCH_THEME_SVC, theme_svc),
+        ):
             list_themes()
         out = capsys.readouterr().out
         assert "video" in out
@@ -154,9 +163,11 @@ class TestListThemes:
         settings_mock, data_mgr, theme_svc = self._base_patches()
         static = _make_local_theme("StaticTheme", is_animated=False)
         theme_svc.discover_local.return_value = [static]
-        with patch(_PATCH_SETTINGS, settings_mock), \
-             patch(_PATCH_DATA_MANAGER, data_mgr), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with (
+            patch(_PATCH_SETTINGS, settings_mock),
+            patch(_PATCH_DATA_MANAGER, data_mgr),
+            patch(_PATCH_THEME_SVC, theme_svc),
+        ):
             list_themes()
         out = capsys.readouterr().out
         assert "static" in out
@@ -165,9 +176,11 @@ class TestListThemes:
         settings_mock, data_mgr, theme_svc = self._base_patches()
         user = _make_local_theme("MyTheme", is_user=True)
         theme_svc.discover_local.return_value = [user]
-        with patch(_PATCH_SETTINGS, settings_mock), \
-             patch(_PATCH_DATA_MANAGER, data_mgr), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with (
+            patch(_PATCH_SETTINGS, settings_mock),
+            patch(_PATCH_DATA_MANAGER, data_mgr),
+            patch(_PATCH_THEME_SVC, theme_svc),
+        ):
             list_themes()
         out = capsys.readouterr().out
         assert "[user]" in out
@@ -178,8 +191,7 @@ class TestListThemes:
         settings_mock.height = 320
         settings_mock.theme_dir = None
         data_mgr = MagicMock()
-        with patch(_PATCH_SETTINGS, settings_mock), \
-             patch(_PATCH_DATA_MANAGER, data_mgr):
+        with patch(_PATCH_SETTINGS, settings_mock), patch(_PATCH_DATA_MANAGER, data_mgr):
             rc = list_themes()
         assert rc == 0
         assert "No local themes" in capsys.readouterr().out
@@ -192,8 +204,7 @@ class TestListThemes:
         td.exists.return_value = False
         settings_mock.theme_dir = td
         data_mgr = MagicMock()
-        with patch(_PATCH_SETTINGS, settings_mock), \
-             patch(_PATCH_DATA_MANAGER, data_mgr):
+        with patch(_PATCH_SETTINGS, settings_mock), patch(_PATCH_DATA_MANAGER, data_mgr):
             rc = list_themes()
         assert rc == 0
         assert "No local themes" in capsys.readouterr().out
@@ -206,9 +217,11 @@ class TestListThemes:
         """
         settings_mock, data_mgr, theme_svc = self._base_patches(w=0, h=0)
         theme_svc.discover_local.return_value = []
-        with patch(_PATCH_SETTINGS, settings_mock), \
-             patch(_PATCH_DATA_MANAGER, data_mgr), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with (
+            patch(_PATCH_SETTINGS, settings_mock),
+            patch(_PATCH_DATA_MANAGER, data_mgr),
+            patch(_PATCH_THEME_SVC, theme_svc),
+        ):
             rc = list_themes()
         assert rc == 0
         assert "320x320" in capsys.readouterr().out
@@ -219,9 +232,11 @@ class TestListThemes:
             _make_cloud_theme("CloudA"),
             _make_cloud_theme("CloudB"),
         ]
-        with patch(_PATCH_SETTINGS, settings_mock), \
-             patch(_PATCH_DATA_MANAGER, data_mgr), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with (
+            patch(_PATCH_SETTINGS, settings_mock),
+            patch(_PATCH_DATA_MANAGER, data_mgr),
+            patch(_PATCH_THEME_SVC, theme_svc),
+        ):
             rc = list_themes(cloud=True)
         assert rc == 0
         out = capsys.readouterr().out
@@ -233,9 +248,11 @@ class TestListThemes:
         theme_svc.discover_cloud.return_value = [
             _make_cloud_theme("CloudA", category="b"),
         ]
-        with patch(_PATCH_SETTINGS, settings_mock), \
-             patch(_PATCH_DATA_MANAGER, data_mgr), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with (
+            patch(_PATCH_SETTINGS, settings_mock),
+            patch(_PATCH_DATA_MANAGER, data_mgr),
+            patch(_PATCH_THEME_SVC, theme_svc),
+        ):
             list_themes(cloud=True)
         out = capsys.readouterr().out
         assert "[b]" in out
@@ -245,9 +262,11 @@ class TestListThemes:
         t = _make_cloud_theme("CloudA")
         t.category = None
         theme_svc.discover_cloud.return_value = [t]
-        with patch(_PATCH_SETTINGS, settings_mock), \
-             patch(_PATCH_DATA_MANAGER, data_mgr), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with (
+            patch(_PATCH_SETTINGS, settings_mock),
+            patch(_PATCH_DATA_MANAGER, data_mgr),
+            patch(_PATCH_THEME_SVC, theme_svc),
+        ):
             list_themes(cloud=True)
         out = capsys.readouterr().out
         assert "[" not in out
@@ -258,8 +277,7 @@ class TestListThemes:
         settings_mock.height = 320
         settings_mock.web_dir = None
         data_mgr = MagicMock()
-        with patch(_PATCH_SETTINGS, settings_mock), \
-             patch(_PATCH_DATA_MANAGER, data_mgr):
+        with patch(_PATCH_SETTINGS, settings_mock), patch(_PATCH_DATA_MANAGER, data_mgr):
             rc = list_themes(cloud=True)
         assert rc == 0
         assert "No cloud themes" in capsys.readouterr().out
@@ -272,8 +290,7 @@ class TestListThemes:
         wd.exists.return_value = False
         settings_mock.web_dir = wd
         data_mgr = MagicMock()
-        with patch(_PATCH_SETTINGS, settings_mock), \
-             patch(_PATCH_DATA_MANAGER, data_mgr):
+        with patch(_PATCH_SETTINGS, settings_mock), patch(_PATCH_DATA_MANAGER, data_mgr):
             rc = list_themes(cloud=True)
         assert rc == 0
         assert "No cloud themes" in capsys.readouterr().out
@@ -281,9 +298,11 @@ class TestListThemes:
     def test_cloud_passes_category_to_service(self, capsys):
         settings_mock, data_mgr, theme_svc = self._base_patches()
         theme_svc.discover_cloud.return_value = []
-        with patch(_PATCH_SETTINGS, settings_mock), \
-             patch(_PATCH_DATA_MANAGER, data_mgr), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with (
+            patch(_PATCH_SETTINGS, settings_mock),
+            patch(_PATCH_DATA_MANAGER, data_mgr),
+            patch(_PATCH_THEME_SVC, theme_svc),
+        ):
             list_themes(cloud=True, category="c")
         theme_svc.discover_cloud.assert_called_once()
         args = theme_svc.discover_cloud.call_args
@@ -293,6 +312,7 @@ class TestListThemes:
 # ===========================================================================
 # TestLoadTheme
 # ===========================================================================
+
 
 class TestLoadTheme:
     """load_theme() — exact match, partial match, animated, no bg, no device."""
@@ -307,6 +327,7 @@ class TestLoadTheme:
         calls lcd.select(theme) — which the tests mock on each mock_lcd.
         """
         from trcc.core.app import TrccApp
+
         real_app = TrccApp(_mock_builder)
         TrccApp.get().build_lcd_bus = real_app.build_lcd_bus  # type: ignore[attr-defined]
 
@@ -348,13 +369,18 @@ class TestLoadTheme:
         mock_lcd.load_image.return_value = {"success": True, "image": img}
         # select() is called by SelectThemeCommand handler (via build_lcd_bus)
         mock_lcd.select.return_value = {
-            'success': True, 'image': img, 'is_animated': False,
-            'status': 'Theme loaded', 'theme_path': str(Path('/tmp/theme')),
+            "success": True,
+            "image": img,
+            "is_animated": False,
+            "status": "Theme loaded",
+            "theme_path": str(Path("/tmp/theme")),
         }
         # load_local_theme — legacy reference kept for backward compat with older tests
         mock_lcd._display_svc.load_local_theme.return_value = {
-            'image': img, 'is_animated': False,
-            'status': 'Theme loaded', 'theme_path': Path('/tmp/theme'),
+            "image": img,
+            "is_animated": False,
+            "status": "Theme loaded",
+            "theme_path": Path("/tmp/theme"),
         }
         mock_lcd._display_svc.media.has_frames = False
         mock_lcd._display_svc.overlay.enabled = False
@@ -368,12 +394,14 @@ class TestLoadTheme:
         theme_svc.return_value = theme_svc
         theme_svc.discover_local.return_value = themes
         _mock_builder.lcd_from_service.return_value = ml
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_SETTINGS, sm), \
-             patch(_PATCH_SETTINGS_CLS, sc), \
-             patch(_PATCH_DATA_MANAGER), \
-             patch(_PATCH_THEME_SVC, theme_svc), \
-             patch(_PATCH_IMAGE_SVC, img_svc):
+        with (
+            patch(_PATCH_GET_SERVICE, return_value=svc),
+            patch(_PATCH_SETTINGS, sm),
+            patch(_PATCH_SETTINGS_CLS, sc),
+            patch(_PATCH_DATA_MANAGER),
+            patch(_PATCH_THEME_SVC, theme_svc),
+            patch(_PATCH_IMAGE_SVC, img_svc),
+        ):
             rc = load_theme(_mock_builder, "ExactTheme")
         assert rc == 0
         out = capsys.readouterr().out
@@ -387,12 +415,14 @@ class TestLoadTheme:
         theme_svc.return_value = theme_svc
         theme_svc.discover_local.return_value = [t]
         _mock_builder.lcd_from_service.return_value = ml
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_SETTINGS, sm), \
-             patch(_PATCH_SETTINGS_CLS, sc), \
-             patch(_PATCH_DATA_MANAGER), \
-             patch(_PATCH_THEME_SVC, theme_svc), \
-             patch(_PATCH_IMAGE_SVC, img_svc):
+        with (
+            patch(_PATCH_GET_SERVICE, return_value=svc),
+            patch(_PATCH_SETTINGS, sm),
+            patch(_PATCH_SETTINGS_CLS, sc),
+            patch(_PATCH_DATA_MANAGER),
+            patch(_PATCH_THEME_SVC, theme_svc),
+            patch(_PATCH_IMAGE_SVC, img_svc),
+        ):
             rc = load_theme(_mock_builder, "super")  # partial, case-insensitive
         assert rc == 0
 
@@ -403,11 +433,13 @@ class TestLoadTheme:
         theme_svc = MagicMock()
         theme_svc.return_value = theme_svc
         theme_svc.discover_local.return_value = [_make_local_theme("Alpha")]
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_SETTINGS, sm), \
-             patch(_PATCH_SETTINGS_CLS), \
-             patch(_PATCH_DATA_MANAGER), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with (
+            patch(_PATCH_GET_SERVICE, return_value=svc),
+            patch(_PATCH_SETTINGS, sm),
+            patch(_PATCH_SETTINGS_CLS),
+            patch(_PATCH_DATA_MANAGER),
+            patch(_PATCH_THEME_SVC, theme_svc),
+        ):
             rc = load_theme(_mock_builder, "Nonexistent")
         assert rc == 1
         out = capsys.readouterr().out
@@ -415,8 +447,9 @@ class TestLoadTheme:
 
     def test_animated_theme_plays_video(self, _mock_builder, capsys):
         svc = _make_mock_service()
-        animated = _make_local_theme("AnimTheme", is_animated=True,
-                                     animation_path="/path/to/vid.gif")
+        animated = _make_local_theme(
+            "AnimTheme", is_animated=True, animation_path="/path/to/vid.gif"
+        )
         sm = MagicMock()
         sm.theme_dir = _make_theme_dir()
         theme_svc = MagicMock()
@@ -425,19 +458,24 @@ class TestLoadTheme:
         mock_lcd = MagicMock()
         # select() returns is_animated=True — called by SelectThemeCommand handler
         mock_lcd.select.return_value = {
-            'success': True, 'image': None, 'is_animated': True,
-            'status': 'Theme loaded', 'theme_path': str(Path('/tmp/theme')),
+            "success": True,
+            "image": None,
+            "is_animated": True,
+            "status": "Theme loaded",
+            "theme_path": str(Path("/tmp/theme")),
         }
         mock_lcd._display_svc.media.has_frames = True
         mock_lcd._display_svc.media.is_playing = False  # stop immediately
         mock_lcd._display_svc.media.frame_interval_ms = 33
         mock_lcd._display_svc.overlay.enabled = False
         _mock_builder.lcd_from_service.return_value = mock_lcd
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_SETTINGS, sm), \
-             patch(_PATCH_SETTINGS_CLS), \
-             patch(_PATCH_DATA_MANAGER), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with (
+            patch(_PATCH_GET_SERVICE, return_value=svc),
+            patch(_PATCH_SETTINGS, sm),
+            patch(_PATCH_SETTINGS_CLS),
+            patch(_PATCH_DATA_MANAGER),
+            patch(_PATCH_THEME_SVC, theme_svc),
+        ):
             rc = load_theme(_mock_builder, "AnimTheme")
         assert rc == 0
         out = capsys.readouterr().out
@@ -454,16 +492,21 @@ class TestLoadTheme:
         theme_svc.discover_local.return_value = [t]
         mock_lcd = MagicMock()
         mock_lcd.select.return_value = {
-            'success': True, 'image': None, 'is_animated': False,
-            'status': 'No bg', 'theme_path': str(Path('/tmp')),
+            "success": True,
+            "image": None,
+            "is_animated": False,
+            "status": "No bg",
+            "theme_path": str(Path("/tmp")),
         }
         mock_lcd._display_svc.media.has_frames = False
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_SETTINGS, sm), \
-             patch(_PATCH_SETTINGS_CLS), \
-             patch(_PATCH_DATA_MANAGER), \
-             patch(_PATCH_THEME_SVC, theme_svc), \
-             patch(_PATCH_LCD_FROM_SVC, return_value=mock_lcd):
+        with (
+            patch(_PATCH_GET_SERVICE, return_value=svc),
+            patch(_PATCH_SETTINGS, sm),
+            patch(_PATCH_SETTINGS_CLS),
+            patch(_PATCH_DATA_MANAGER),
+            patch(_PATCH_THEME_SVC, theme_svc),
+            patch(_PATCH_LCD_FROM_SVC, return_value=mock_lcd),
+        ):
             rc = load_theme("NoBg")
         assert rc == 1
 
@@ -477,16 +520,21 @@ class TestLoadTheme:
         theme_svc.discover_local.return_value = [t]
         mock_lcd = MagicMock()
         mock_lcd.select.return_value = {
-            'success': True, 'image': None, 'is_animated': False,
-            'status': 'No bg', 'theme_path': str(Path('/tmp')),
+            "success": True,
+            "image": None,
+            "is_animated": False,
+            "status": "No bg",
+            "theme_path": str(Path("/tmp")),
         }
         mock_lcd._display_svc.media.has_frames = False
         _mock_builder.lcd_from_service.return_value = mock_lcd
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_SETTINGS, sm), \
-             patch(_PATCH_SETTINGS_CLS), \
-             patch(_PATCH_DATA_MANAGER), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with (
+            patch(_PATCH_GET_SERVICE, return_value=svc),
+            patch(_PATCH_SETTINGS, sm),
+            patch(_PATCH_SETTINGS_CLS),
+            patch(_PATCH_DATA_MANAGER),
+            patch(_PATCH_THEME_SVC, theme_svc),
+        ):
             rc = load_theme(_mock_builder, "NoBg")
         assert rc == 1
         assert "no background" in capsys.readouterr().out.lower()
@@ -503,10 +551,12 @@ class TestLoadTheme:
         svc = _make_mock_service()
         sm = MagicMock()
         sm.theme_dir = None
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_SETTINGS, sm), \
-             patch(_PATCH_SETTINGS_CLS), \
-             patch(_PATCH_DATA_MANAGER):
+        with (
+            patch(_PATCH_GET_SERVICE, return_value=svc),
+            patch(_PATCH_SETTINGS, sm),
+            patch(_PATCH_SETTINGS_CLS),
+            patch(_PATCH_DATA_MANAGER),
+        ):
             rc = load_theme(_mock_builder, "AnyTheme")
         assert rc == 1
         assert "No themes" in capsys.readouterr().out
@@ -518,12 +568,14 @@ class TestLoadTheme:
         theme_svc.return_value = theme_svc
         theme_svc.discover_local.return_value = themes
         _mock_builder.lcd_from_service.return_value = ml
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_SETTINGS, sm), \
-             patch(_PATCH_SETTINGS_CLS, sc), \
-             patch(_PATCH_DATA_MANAGER), \
-             patch(_PATCH_THEME_SVC, theme_svc), \
-             patch(_PATCH_IMAGE_SVC, img_svc):
+        with (
+            patch(_PATCH_GET_SERVICE, return_value=svc),
+            patch(_PATCH_SETTINGS, sm),
+            patch(_PATCH_SETTINGS_CLS, sc),
+            patch(_PATCH_DATA_MANAGER),
+            patch(_PATCH_THEME_SVC, theme_svc),
+            patch(_PATCH_IMAGE_SVC, img_svc),
+        ):
             rc = load_theme(_mock_builder, "PreviewTheme", preview=True)
         assert rc == 0
         img_svc.to_ansi.assert_called_once()
@@ -535,13 +587,15 @@ class TestLoadTheme:
         theme_svc = MagicMock()
         theme_svc.return_value = theme_svc
         theme_svc.discover_local.return_value = themes
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_SETTINGS, sm), \
-             patch(_PATCH_SETTINGS_CLS, sc), \
-             patch(_PATCH_DATA_MANAGER), \
-             patch(_PATCH_THEME_SVC, theme_svc), \
-             patch(_PATCH_IMAGE_SVC, img_svc), \
-             patch(_PATCH_LCD_FROM_SVC, return_value=ml):
+        with (
+            patch(_PATCH_GET_SERVICE, return_value=svc),
+            patch(_PATCH_SETTINGS, sm),
+            patch(_PATCH_SETTINGS_CLS, sc),
+            patch(_PATCH_DATA_MANAGER),
+            patch(_PATCH_THEME_SVC, theme_svc),
+            patch(_PATCH_IMAGE_SVC, img_svc),
+            patch(_PATCH_LCD_FROM_SVC, return_value=ml),
+        ):
             load_theme("Theme", preview=False)
         img_svc.to_ansi.assert_not_called()
 
@@ -552,12 +606,14 @@ class TestLoadTheme:
         theme_svc.return_value = theme_svc
         theme_svc.discover_local.return_value = themes
         _mock_builder.lcd_from_service.return_value = ml
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_SETTINGS, sm), \
-             patch(_PATCH_SETTINGS_CLS, sc), \
-             patch(_PATCH_DATA_MANAGER), \
-             patch(_PATCH_THEME_SVC, theme_svc), \
-             patch(_PATCH_IMAGE_SVC, img_svc):
+        with (
+            patch(_PATCH_GET_SERVICE, return_value=svc),
+            patch(_PATCH_SETTINGS, sm),
+            patch(_PATCH_SETTINGS_CLS, sc),
+            patch(_PATCH_DATA_MANAGER),
+            patch(_PATCH_THEME_SVC, theme_svc),
+            patch(_PATCH_IMAGE_SVC, img_svc),
+        ):
             load_theme(_mock_builder, "T")
         ml.restore_device_settings.assert_called_once()
         ml.select.assert_called_once()
@@ -571,12 +627,14 @@ class TestLoadTheme:
         theme_svc.return_value = theme_svc
         theme_svc.discover_local.return_value = themes
         _mock_builder.lcd_from_service.return_value = ml
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_SETTINGS, sm), \
-             patch(_PATCH_SETTINGS_CLS, sc), \
-             patch(_PATCH_DATA_MANAGER), \
-             patch(_PATCH_THEME_SVC, theme_svc), \
-             patch(_PATCH_IMAGE_SVC, img_svc):
+        with (
+            patch(_PATCH_GET_SERVICE, return_value=svc),
+            patch(_PATCH_SETTINGS, sm),
+            patch(_PATCH_SETTINGS_CLS, sc),
+            patch(_PATCH_DATA_MANAGER),
+            patch(_PATCH_THEME_SVC, theme_svc),
+            patch(_PATCH_IMAGE_SVC, img_svc),
+        ):
             load_theme(_mock_builder, "T")
         sc.save_device_setting.assert_called_once()
         call_args = sc.save_device_setting.call_args[0]
@@ -587,6 +645,7 @@ class TestLoadTheme:
 # ===========================================================================
 # TestSaveTheme
 # ===========================================================================
+
 
 class TestSaveTheme:
     """save_theme() — success, no device, no current theme, video path."""
@@ -615,10 +674,12 @@ class TestSaveTheme:
         theme_svc.return_value = theme_svc
         theme_svc.save.return_value = (True, "Saved: MyTheme")
 
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_SETTINGS_CLS, sc), \
-             patch("trcc.core.models.ThemeDir", return_value=td), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with (
+            patch(_PATCH_GET_SERVICE, return_value=svc),
+            patch(_PATCH_SETTINGS_CLS, sc),
+            patch("trcc.core.models.ThemeDir", return_value=td),
+            patch(_PATCH_THEME_SVC, theme_svc),
+        ):
             rc = save_theme("MyTheme")
         assert rc == 0
         assert "Saved" in capsys.readouterr().out
@@ -637,8 +698,7 @@ class TestSaveTheme:
         sc.device_config_key.return_value = "key"
         sc.get_device_config.return_value = {}  # no theme_path
 
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_SETTINGS_CLS, sc):
+        with patch(_PATCH_GET_SERVICE, return_value=svc), patch(_PATCH_SETTINGS_CLS, sc):
             rc = save_theme("MyTheme")
         assert rc == 1
         assert "No background to save" in capsys.readouterr().out
@@ -647,9 +707,11 @@ class TestSaveTheme:
         svc, sc, td, img = self._base_setup()
         td.bg.exists.return_value = False
 
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_SETTINGS_CLS, sc), \
-             patch("trcc.core.models.ThemeDir", return_value=td):
+        with (
+            patch(_PATCH_GET_SERVICE, return_value=svc),
+            patch(_PATCH_SETTINGS_CLS, sc),
+            patch("trcc.core.models.ThemeDir", return_value=td),
+        ):
             rc = save_theme("MyTheme")
         assert rc == 1
         assert "No background to save" in capsys.readouterr().out
@@ -662,10 +724,12 @@ class TestSaveTheme:
         theme_svc.return_value = theme_svc
         theme_svc.save.return_value = (False, "Save failed: disk full")
 
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_SETTINGS_CLS, sc), \
-             patch("trcc.core.models.ThemeDir", return_value=td), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with (
+            patch(_PATCH_GET_SERVICE, return_value=svc),
+            patch(_PATCH_SETTINGS_CLS, sc),
+            patch("trcc.core.models.ThemeDir", return_value=td),
+            patch(_PATCH_THEME_SVC, theme_svc),
+        ):
             rc = save_theme("MyTheme")
         assert rc == 1
 
@@ -681,10 +745,12 @@ class TestSaveTheme:
         theme_svc.return_value = theme_svc
         theme_svc.save.return_value = (True, "Saved")
 
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_SETTINGS_CLS, sc), \
-             patch("trcc.core.models.ThemeDir", return_value=td), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with (
+            patch(_PATCH_GET_SERVICE, return_value=svc),
+            patch(_PATCH_SETTINGS_CLS, sc),
+            patch("trcc.core.models.ThemeDir", return_value=td),
+            patch(_PATCH_THEME_SVC, theme_svc),
+        ):
             save_theme("MyTheme", video=str(video_file))
 
         call_kwargs = theme_svc.save.call_args[1]
@@ -698,10 +764,12 @@ class TestSaveTheme:
         theme_svc.return_value = theme_svc
         theme_svc.save.return_value = (True, "Saved")
 
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_SETTINGS_CLS, sc), \
-             patch("trcc.core.models.ThemeDir", return_value=td), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with (
+            patch(_PATCH_GET_SERVICE, return_value=svc),
+            patch(_PATCH_SETTINGS_CLS, sc),
+            patch("trcc.core.models.ThemeDir", return_value=td),
+            patch(_PATCH_THEME_SVC, theme_svc),
+        ):
             save_theme("MyTheme")
 
         call_kwargs = theme_svc.save.call_args[1]
@@ -711,6 +779,7 @@ class TestSaveTheme:
 # ===========================================================================
 # TestExportTheme
 # ===========================================================================
+
 
 class TestExportTheme:
     """export_theme() — success, partial match, not found, no themes dir."""
@@ -733,9 +802,11 @@ class TestExportTheme:
         t = _make_local_theme("MyTheme", theme_path="/themes/MyTheme")
         sm, dm, ts = self._base_patches(themes=[t])
         ts.export_tr.return_value = (True, "Exported to /out/MyTheme.tr")
-        with patch(_PATCH_SETTINGS, sm), \
-             patch(_PATCH_DATA_MANAGER, dm), \
-             patch(_PATCH_THEME_SVC, ts):
+        with (
+            patch(_PATCH_SETTINGS, sm),
+            patch(_PATCH_DATA_MANAGER, dm),
+            patch(_PATCH_THEME_SVC, ts),
+        ):
             rc = export_theme("MyTheme", str(tmp_path / "MyTheme.tr"))
         assert rc == 0
         assert "Exported" in capsys.readouterr().out
@@ -744,17 +815,21 @@ class TestExportTheme:
         t = _make_local_theme("CoolThemeXL", theme_path="/themes/CoolThemeXL")
         sm, dm, ts = self._base_patches(themes=[t])
         ts.export_tr.return_value = (True, "Exported")
-        with patch(_PATCH_SETTINGS, sm), \
-             patch(_PATCH_DATA_MANAGER, dm), \
-             patch(_PATCH_THEME_SVC, ts):
+        with (
+            patch(_PATCH_SETTINGS, sm),
+            patch(_PATCH_DATA_MANAGER, dm),
+            patch(_PATCH_THEME_SVC, ts),
+        ):
             rc = export_theme("cool", str(tmp_path / "out.tr"))
         assert rc == 0
 
     def test_not_found_returns_1(self, capsys, tmp_path):
         sm, dm, ts = self._base_patches(themes=[_make_local_theme("OtherTheme")])
-        with patch(_PATCH_SETTINGS, sm), \
-             patch(_PATCH_DATA_MANAGER, dm), \
-             patch(_PATCH_THEME_SVC, ts):
+        with (
+            patch(_PATCH_SETTINGS, sm),
+            patch(_PATCH_DATA_MANAGER, dm),
+            patch(_PATCH_THEME_SVC, ts),
+        ):
             rc = export_theme("Nonexistent", str(tmp_path / "out.tr"))
         assert rc == 1
         assert "not found" in capsys.readouterr().out.lower()
@@ -763,9 +838,11 @@ class TestExportTheme:
         t = _make_local_theme("NullPath")
         t.path = None  # no path attribute
         sm, dm, ts = self._base_patches(themes=[t])
-        with patch(_PATCH_SETTINGS, sm), \
-             patch(_PATCH_DATA_MANAGER, dm), \
-             patch(_PATCH_THEME_SVC, ts):
+        with (
+            patch(_PATCH_SETTINGS, sm),
+            patch(_PATCH_DATA_MANAGER, dm),
+            patch(_PATCH_THEME_SVC, ts),
+        ):
             rc = export_theme("NullPath", str(tmp_path / "out.tr"))
         assert rc == 1
 
@@ -775,8 +852,7 @@ class TestExportTheme:
         sm.height = 320
         sm.theme_dir = None
         dm = MagicMock()
-        with patch(_PATCH_SETTINGS, sm), \
-             patch(_PATCH_DATA_MANAGER, dm):
+        with patch(_PATCH_SETTINGS, sm), patch(_PATCH_DATA_MANAGER, dm):
             rc = export_theme("AnyTheme", str(tmp_path / "out.tr"))
         assert rc == 1
         assert "No themes" in capsys.readouterr().out
@@ -789,8 +865,7 @@ class TestExportTheme:
         td.exists.return_value = False
         sm.theme_dir = td
         dm = MagicMock()
-        with patch(_PATCH_SETTINGS, sm), \
-             patch(_PATCH_DATA_MANAGER, dm):
+        with patch(_PATCH_SETTINGS, sm), patch(_PATCH_DATA_MANAGER, dm):
             rc = export_theme("AnyTheme", str(tmp_path / "out.tr"))
         assert rc == 1
 
@@ -798,9 +873,11 @@ class TestExportTheme:
         t = _make_local_theme("MyTheme")
         sm, dm, ts = self._base_patches(themes=[t])
         ts.export_tr.return_value = (False, "Export failed: permission denied")
-        with patch(_PATCH_SETTINGS, sm), \
-             patch(_PATCH_DATA_MANAGER, dm), \
-             patch(_PATCH_THEME_SVC, ts):
+        with (
+            patch(_PATCH_SETTINGS, sm),
+            patch(_PATCH_DATA_MANAGER, dm),
+            patch(_PATCH_THEME_SVC, ts),
+        ):
             rc = export_theme("MyTheme", str(tmp_path / "out.tr"))
         assert rc == 1
         assert "Export failed" in capsys.readouterr().out
@@ -818,9 +895,11 @@ class TestExportTheme:
         dm = MagicMock()
         ts = MagicMock()
         ts.discover_local.return_value = []
-        with patch(_PATCH_SETTINGS, sm), \
-             patch(_PATCH_DATA_MANAGER, dm), \
-             patch(_PATCH_THEME_SVC, ts):
+        with (
+            patch(_PATCH_SETTINGS, sm),
+            patch(_PATCH_DATA_MANAGER, dm),
+            patch(_PATCH_THEME_SVC, ts),
+        ):
             rc = export_theme("AnyTheme", "/out.tr")
         # Theme not found → rc == 1 (no themes in discover_local), but default resolution used
         assert rc == 1  # theme not found, but no crash on 0x0 resolution
@@ -829,6 +908,7 @@ class TestExportTheme:
 # ===========================================================================
 # TestImportTheme
 # ===========================================================================
+
 
 class TestImportTheme:
     """import_theme() — success (ThemeInfo result), success (str result), failure, no device."""
@@ -840,8 +920,7 @@ class TestImportTheme:
         theme_svc = MagicMock()
         theme_svc.return_value = theme_svc
         theme_svc.import_tr.return_value = (True, theme_info)
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with patch(_PATCH_GET_SERVICE, return_value=svc), patch(_PATCH_THEME_SVC, theme_svc):
             rc = import_theme(str(tmp_path / "theme.tr"))
         assert rc == 0
         assert "ImportedTheme" in capsys.readouterr().out
@@ -851,8 +930,7 @@ class TestImportTheme:
         theme_svc = MagicMock()
         theme_svc.return_value = theme_svc
         theme_svc.import_tr.return_value = (True, "Import successful")
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with patch(_PATCH_GET_SERVICE, return_value=svc), patch(_PATCH_THEME_SVC, theme_svc):
             rc = import_theme(str(tmp_path / "theme.tr"))
         assert rc == 0
         assert "Import successful" in capsys.readouterr().out
@@ -862,8 +940,7 @@ class TestImportTheme:
         theme_svc = MagicMock()
         theme_svc.return_value = theme_svc
         theme_svc.import_tr.return_value = (False, "Invalid .tr file")
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with patch(_PATCH_GET_SERVICE, return_value=svc), patch(_PATCH_THEME_SVC, theme_svc):
             rc = import_theme(str(tmp_path / "theme.tr"))
         assert rc == 1
         assert "Invalid" in capsys.readouterr().out
@@ -881,8 +958,7 @@ class TestImportTheme:
         theme_svc = MagicMock()
         theme_svc.return_value = theme_svc
         theme_svc.import_tr.return_value = (True, "ok")
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with patch(_PATCH_GET_SERVICE, return_value=svc), patch(_PATCH_THEME_SVC, theme_svc):
             import_theme(str(tmp_path / "theme.tr"))
         call_args = theme_svc.import_tr.call_args[0]
         assert (640, 480) in call_args
@@ -893,8 +969,7 @@ class TestImportTheme:
         theme_svc.return_value = theme_svc
         theme_svc.import_tr.return_value = (True, "ok")
         file_path = str(tmp_path / "my_theme.tr")
-        with patch(_PATCH_GET_SERVICE, return_value=svc), \
-             patch(_PATCH_THEME_SVC, theme_svc):
+        with patch(_PATCH_GET_SERVICE, return_value=svc), patch(_PATCH_THEME_SVC, theme_svc):
             import_theme(file_path)
         call_args = theme_svc.import_tr.call_args[0]
         assert Path(file_path) in call_args

@@ -3,6 +3,7 @@
 Implements DeviceProtocol for SCSI LCD devices on Windows using
 WindowsScsiTransport (DeviceIoControl) instead of Linux sg_raw/SG_IO.
 """
+
 from __future__ import annotations
 
 import logging
@@ -34,6 +35,7 @@ class WindowsScsiProtocol(DeviceProtocol):
         """Get or create persistent WindowsScsiTransport handle."""
         if self._transport is None or self._transport._handle is None:
             from .scsi import WindowsScsiTransport
+
             self._transport = WindowsScsiTransport(self._path)
             if not self._transport.open():
                 log.error("Failed to open Windows SCSI device %s", self._path)
@@ -63,13 +65,15 @@ class WindowsScsiProtocol(DeviceProtocol):
         try:
             # Step 1: Poll with boot state check
             poll_header = ScsiDevice._build_header(0xF5, 0xE100)
-            response = b''
+            response = b""
             for attempt in range(_BOOT_MAX_RETRIES):
                 response = transport.read_cdb(poll_header[:16], 0xE100)
                 if len(response) >= 8 and response[4:8] == _BOOT_SIGNATURE:
                     log.info(
                         "Windows SCSI %s still booting (attempt %d/%d)",
-                        self._path, attempt + 1, _BOOT_MAX_RETRIES,
+                        self._path,
+                        attempt + 1,
+                        _BOOT_MAX_RETRIES,
                     )
                     time.sleep(_BOOT_WAIT_SECONDS)
                 else:
@@ -79,21 +83,27 @@ class WindowsScsiProtocol(DeviceProtocol):
                 fbl = response[0]
                 log.info(
                     "Windows SCSI poll OK: FBL=%d (VID=%04X PID=%04X)",
-                    fbl, self._vid, self._pid,
+                    fbl,
+                    self._vid,
+                    self._pid,
                 )
             else:
                 from trcc.core.models import SCSI_DEVICES
+
                 entry = SCSI_DEVICES[(self._vid, self._pid)]
                 fbl = entry.fbl
                 log.warning(
                     "Windows SCSI poll returned empty on %s (VID=%04X PID=%04X)"
                     " — using registry FBL %d",
-                    self._path, self._vid, self._pid, fbl,
+                    self._path,
+                    self._vid,
+                    self._pid,
+                    fbl,
                 )
 
             # Step 2: Init write — wakes device for frame reception
             init_header = ScsiDevice._build_header(0x1F5, 0xE100)
-            transport.send_cdb(init_header[:16], b'\x00' * 0xE100)
+            transport.send_cdb(init_header[:16], b"\x00" * 0xE100)
             time.sleep(_POST_INIT_DELAY)
 
             width, height = fbl_to_resolution(fbl)
@@ -119,12 +129,12 @@ class WindowsScsiProtocol(DeviceProtocol):
             chunks = ScsiDevice._get_frame_chunks(width, height)
             total_size = sum(size for _, size in chunks)
             if len(image_data) < total_size:
-                image_data += b'\x00' * (total_size - len(image_data))
+                image_data += b"\x00" * (total_size - len(image_data))
 
             offset = 0
             for cmd, size in chunks:
                 header = ScsiDevice._build_header(cmd, size)
-                ok = transport.send_cdb(header[:16], image_data[offset:offset + size])
+                ok = transport.send_cdb(header[:16], image_data[offset : offset + size])
                 if not ok:
                     return False
                 offset += size

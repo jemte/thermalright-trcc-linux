@@ -3,6 +3,7 @@
 These tests attack our own API with adversarial inputs to verify the security
 boundaries documented in CLAUDE.md § Security hold up.
 """
+
 from __future__ import annotations
 
 import io
@@ -21,6 +22,7 @@ class _ApiSecurityBase(unittest.TestCase):
 
     def setUp(self):
         from trcc.core.models import HardwareMetrics
+
         configure_auth(None)
         self.client = TestClient(app)
         self._saved_system_svc = api_module._system_svc
@@ -35,6 +37,7 @@ class _ApiSecurityBase(unittest.TestCase):
 # ===========================================================================
 # Path Traversal — /display/overlay
 # ===========================================================================
+
 
 class TestOverlayPathTraversal(_ApiSecurityBase):
     """POST /display/overlay — dc_path must be within str(_conf.settings.user_data_dir)."""
@@ -54,7 +57,9 @@ class TestOverlayPathTraversal(_ApiSecurityBase):
         self.assertEqual(resp.status_code, 400)
 
     def test_null_byte_injection(self):
-        resp = self.client.post(f"/display/overlay?dc_path={str(_conf.settings.user_data_dir)}/theme%00.dc")
+        resp = self.client.post(
+            f"/display/overlay?dc_path={str(_conf.settings.user_data_dir)}/theme%00.dc"
+        )
         self.assertEqual(resp.status_code, 400)
 
     def test_valid_data_dir_path_passes_validation(self):
@@ -70,6 +75,7 @@ class TestOverlayPathTraversal(_ApiSecurityBase):
 # Path Traversal — /themes/web/{theme_id}/download
 # ===========================================================================
 
+
 class TestThemeIdTraversal(_ApiSecurityBase):
     """POST /themes/web/{theme_id}/download — theme_id must not escape cache."""
 
@@ -84,10 +90,15 @@ class TestThemeIdTraversal(_ApiSecurityBase):
 
     def test_normal_theme_id_accepted(self):
         """Valid theme IDs like 'a001' should not be rejected by security checks."""
-        with patch("trcc.adapters.infra.theme_cloud.CloudThemeDownloader.is_cached",
-                   return_value=False), \
-             patch("trcc.adapters.infra.theme_cloud.CloudThemeDownloader.download_theme",
-                   return_value=None):
+        with (
+            patch(
+                "trcc.adapters.infra.theme_cloud.CloudThemeDownloader.is_cached", return_value=False
+            ),
+            patch(
+                "trcc.adapters.infra.theme_cloud.CloudThemeDownloader.download_theme",
+                return_value=None,
+            ),
+        ):
             resp = self.client.post("/themes/web/a001/download?resolution=320x320")
         # 404 because theme doesn't exist on server — but not a security rejection
         self.assertEqual(resp.status_code, 404)
@@ -97,13 +108,18 @@ class TestThemeIdTraversal(_ApiSecurityBase):
 # Information Leakage — /themes/import
 # ===========================================================================
 
+
 class TestThemeImportInfoLeakage(_ApiSecurityBase):
     """POST /themes/import — must not leak internal paths or stack traces."""
 
     def test_service_error_no_internal_details(self):
-        with patch("trcc.api.themes.ThemeService.import_tr",
-                   return_value=(False, "corrupt archive at /home/user/.trcc/data/foo")), \
-             patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_td:
+        with (
+            patch(
+                "trcc.api.themes.ThemeService.import_tr",
+                return_value=(False, "corrupt archive at /home/user/.trcc/data/foo"),
+            ),
+            patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_td,
+        ):
             mock_td.return_value = MagicMock(path="/tmp", __str__=lambda s: "/tmp")
             resp = self.client.post(
                 "/themes/import",
@@ -115,9 +131,13 @@ class TestThemeImportInfoLeakage(_ApiSecurityBase):
         self.assertEqual(resp.json()["detail"], "Theme import failed")
 
     def test_exception_no_stack_trace(self):
-        with patch("trcc.api.themes.ThemeService.import_tr",
-                   side_effect=FileNotFoundError("/home/user/.trcc/data/secret/config.json")), \
-             patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_td:
+        with (
+            patch(
+                "trcc.api.themes.ThemeService.import_tr",
+                side_effect=FileNotFoundError("/home/user/.trcc/data/secret/config.json"),
+            ),
+            patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_td,
+        ):
             mock_td.return_value = MagicMock(path="/tmp", __str__=lambda s: "/tmp")
             resp = self.client.post(
                 "/themes/import",
@@ -131,14 +151,16 @@ class TestThemeImportInfoLeakage(_ApiSecurityBase):
 
     def test_uploaded_filename_not_echoed(self):
         """Uploaded filenames must not be reflected back to clients."""
-        with patch("trcc.api.themes.ThemeService.import_tr",
-                   return_value=(True, "ok")), \
-             patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_td:
+        with (
+            patch("trcc.api.themes.ThemeService.import_tr", return_value=(True, "ok")),
+            patch("trcc.adapters.infra.data_repository.ThemeDir.for_resolution") as mock_td,
+        ):
             mock_td.return_value = MagicMock(path="/tmp", __str__=lambda s: "/tmp")
             resp = self.client.post(
                 "/themes/import",
-                files={"file": ("../../etc/passwd.tr", io.BytesIO(b"data"),
-                        "application/octet-stream")},
+                files={
+                    "file": ("../../etc/passwd.tr", io.BytesIO(b"data"), "application/octet-stream")
+                },
             )
         if resp.status_code == 200:
             # Success message must not contain the malicious filename
@@ -148,6 +170,7 @@ class TestThemeImportInfoLeakage(_ApiSecurityBase):
 # ===========================================================================
 # Information Leakage — /system/metrics/{category}
 # ===========================================================================
+
 
 class TestMetricsCategoryValidation(_ApiSecurityBase):
     """GET /system/metrics/{category} — unknown categories rejected cleanly.
@@ -171,6 +194,7 @@ class TestMetricsCategoryValidation(_ApiSecurityBase):
 # File Upload Validation — /display/mask
 # ===========================================================================
 
+
 class TestMaskUploadSecurity(_ApiSecurityBase):
     """POST /display/mask — file upload boundary checks."""
 
@@ -190,6 +214,7 @@ class TestMaskUploadSecurity(_ApiSecurityBase):
 # ===========================================================================
 # Resolution Parameter — format validation
 # ===========================================================================
+
 
 class TestResolutionParamValidation(_ApiSecurityBase):
     """Resolution query params must be validated — no injection."""

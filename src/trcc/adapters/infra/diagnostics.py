@@ -41,7 +41,7 @@ log = logging.getLogger(__name__)
 # 1. Logging
 # ─────────────────────────────────────────────────────────────────────────────
 
-_DEFAULT_LOG_FILE = Path.home() / '.trcc' / 'trcc.log'
+_DEFAULT_LOG_FILE = Path.home() / ".trcc" / "trcc.log"
 
 
 class TrccLoggingConfigurator(ABC):
@@ -69,9 +69,9 @@ class StandardLoggingConfigurator(TrccLoggingConfigurator):
     updates log output.
     """
 
-    FORMAT = '%(asctime)s [%(levelname)s] %(name)s.%(funcName)s: %(message)s'
-    DATE_FMT = '%Y-%m-%d %H:%M:%S'
-    DATE_FMT_CONSOLE = '%H:%M:%S'
+    FORMAT = "%(asctime)s [%(levelname)s] %(name)s.%(funcName)s: %(message)s"
+    DATE_FMT = "%Y-%m-%d %H:%M:%S"
+    DATE_FMT_CONSOLE = "%H:%M:%S"
 
     def __init__(self, log_file: Path = _DEFAULT_LOG_FILE) -> None:
         self._log_file = log_file
@@ -88,16 +88,16 @@ class StandardLoggingConfigurator(TrccLoggingConfigurator):
 
         self._log_file.parent.mkdir(parents=True, exist_ok=True)
         fh = logging.handlers.RotatingFileHandler(
-            self._log_file, maxBytes=1_000_000, backupCount=3,
+            self._log_file,
+            maxBytes=1_000_000,
+            backupCount=3,
         )
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(logging.Formatter(self.FORMAT, datefmt=self.DATE_FMT))
         root.addHandler(fh)
 
         console_level = (
-            logging.DEBUG if verbosity >= 2
-            else logging.INFO if verbosity == 1
-            else logging.WARNING
+            logging.DEBUG if verbosity >= 2 else logging.INFO if verbosity == 1 else logging.WARNING
         )
         ch = logging.StreamHandler()
         ch.setLevel(console_level)
@@ -111,106 +111,164 @@ class StandardLoggingConfigurator(TrccLoggingConfigurator):
 
 _DISTRO_TO_PM: dict[str, str] = {
     # dnf
-    'fedora': 'dnf', 'rhel': 'dnf', 'centos': 'dnf',
-    'rocky': 'dnf', 'alma': 'dnf', 'nobara': 'dnf',
+    "fedora": "dnf",
+    "rhel": "dnf",
+    "centos": "dnf",
+    "rocky": "dnf",
+    "alma": "dnf",
+    "nobara": "dnf",
     # apt
-    'ubuntu': 'apt', 'debian': 'apt', 'linuxmint': 'apt',
-    'pop': 'apt', 'zorin': 'apt', 'elementary': 'apt',
-    'neon': 'apt', 'raspbian': 'apt', 'kali': 'apt',
+    "ubuntu": "apt",
+    "debian": "apt",
+    "linuxmint": "apt",
+    "pop": "apt",
+    "zorin": "apt",
+    "elementary": "apt",
+    "neon": "apt",
+    "raspbian": "apt",
+    "kali": "apt",
     # pacman
-    'arch': 'pacman', 'manjaro': 'pacman', 'endeavouros': 'pacman',
-    'cachyos': 'pacman', 'garuda': 'pacman', 'artix': 'pacman',
-    'arcolinux': 'pacman', 'steamos': 'pacman',
+    "arch": "pacman",
+    "manjaro": "pacman",
+    "endeavouros": "pacman",
+    "cachyos": "pacman",
+    "garuda": "pacman",
+    "artix": "pacman",
+    "arcolinux": "pacman",
+    "steamos": "pacman",
     # immutable
-    'bazzite': 'rpm-ostree',
+    "bazzite": "rpm-ostree",
     # zypper
-    'opensuse-tumbleweed': 'zypper', 'opensuse-leap': 'zypper', 'sles': 'zypper',
+    "opensuse-tumbleweed": "zypper",
+    "opensuse-leap": "zypper",
+    "sles": "zypper",
     # others
-    'void': 'xbps',
-    'alpine': 'apk', 'postmarketos': 'apk',
-    'gentoo': 'emerge', 'funtoo': 'emerge', 'calculate': 'emerge',
-    'solus': 'eopkg', 'clear-linux-os': 'swupd',
+    "void": "xbps",
+    "alpine": "apk",
+    "postmarketos": "apk",
+    "gentoo": "emerge",
+    "funtoo": "emerge",
+    "calculate": "emerge",
+    "solus": "eopkg",
+    "clear-linux-os": "swupd",
 }
 
 _FAMILY_TO_PM: dict[str, str] = {
-    'fedora': 'dnf', 'rhel': 'dnf',
-    'debian': 'apt', 'ubuntu': 'apt',
-    'arch': 'pacman',
-    'suse': 'zypper',
+    "fedora": "dnf",
+    "rhel": "dnf",
+    "debian": "apt",
+    "ubuntu": "apt",
+    "arch": "pacman",
+    "suse": "zypper",
 }
 
 _INSTALL_MAP: dict[str, dict[str, str]] = {
-    'sg_raw': {
-        'dnf': 'sg3_utils', 'apt': 'sg3-utils', 'pacman': 'sg3_utils',
-        'zypper': 'sg3_utils', 'xbps': 'sg3_utils', 'apk': 'sg3_utils',
-        'emerge': 'sg3_utils', 'eopkg': 'sg3_utils',
-        'rpm-ostree': 'sg3_utils', 'swupd': 'devpkg-sg3_utils',
+    "sg_raw": {
+        "dnf": "sg3_utils",
+        "apt": "sg3-utils",
+        "pacman": "sg3_utils",
+        "zypper": "sg3_utils",
+        "xbps": "sg3_utils",
+        "apk": "sg3_utils",
+        "emerge": "sg3_utils",
+        "eopkg": "sg3_utils",
+        "rpm-ostree": "sg3_utils",
+        "swupd": "devpkg-sg3_utils",
     },
-    '7z': {
-        'dnf': 'p7zip p7zip-plugins', 'apt': 'p7zip-full', 'pacman': 'p7zip',
-        'zypper': 'p7zip-full', 'xbps': 'p7zip', 'apk': '7zip',
-        'emerge': 'p7zip',
-        'winget': '7zip.7zip', 'brew': 'p7zip', 'pkg': 'p7zip',
+    "7z": {
+        "dnf": "p7zip p7zip-plugins",
+        "apt": "p7zip-full",
+        "pacman": "p7zip",
+        "zypper": "p7zip-full",
+        "xbps": "p7zip",
+        "apk": "7zip",
+        "emerge": "p7zip",
+        "winget": "7zip.7zip",
+        "brew": "p7zip",
+        "pkg": "p7zip",
     },
-    'ffmpeg': {
-        'dnf': 'ffmpeg', 'apt': 'ffmpeg', 'pacman': 'ffmpeg',
-        'zypper': 'ffmpeg', 'xbps': 'ffmpeg', 'apk': 'ffmpeg',
-        'emerge': 'ffmpeg', 'eopkg': 'ffmpeg',
-        'winget': 'Gyan.FFmpeg', 'brew': 'ffmpeg', 'pkg': 'ffmpeg',
+    "ffmpeg": {
+        "dnf": "ffmpeg",
+        "apt": "ffmpeg",
+        "pacman": "ffmpeg",
+        "zypper": "ffmpeg",
+        "xbps": "ffmpeg",
+        "apk": "ffmpeg",
+        "emerge": "ffmpeg",
+        "eopkg": "ffmpeg",
+        "winget": "Gyan.FFmpeg",
+        "brew": "ffmpeg",
+        "pkg": "ffmpeg",
     },
-    'libusb': {
-        'dnf': 'libusb1', 'apt': 'libusb-1.0-0', 'pacman': 'libusb',
-        'zypper': 'libusb-1_0-0', 'xbps': 'libusb', 'apk': 'libusb',
-        'emerge': 'dev-libs/libusb',
-        'brew': 'libusb', 'pkg': 'libusb',
+    "libusb": {
+        "dnf": "libusb1",
+        "apt": "libusb-1.0-0",
+        "pacman": "libusb",
+        "zypper": "libusb-1_0-0",
+        "xbps": "libusb",
+        "apk": "libusb",
+        "emerge": "dev-libs/libusb",
+        "brew": "libusb",
+        "pkg": "libusb",
     },
-    'libxcb-cursor': {
-        'apt': 'libxcb-cursor0',
+    "libxcb-cursor": {
+        "apt": "libxcb-cursor0",
     },
-    'checkmodule': {
-        'dnf': 'checkpolicy', 'apt': 'checkpolicy', 'pacman': 'checkpolicy',
-        'zypper': 'checkpolicy', 'rpm-ostree': 'checkpolicy',
+    "checkmodule": {
+        "dnf": "checkpolicy",
+        "apt": "checkpolicy",
+        "pacman": "checkpolicy",
+        "zypper": "checkpolicy",
+        "rpm-ostree": "checkpolicy",
     },
-    'semodule_package': {
-        'dnf': 'policycoreutils', 'apt': 'semodule-utils',
-        'pacman': 'semodule-utils', 'zypper': 'policycoreutils',
-        'rpm-ostree': 'policycoreutils',
+    "semodule_package": {
+        "dnf": "policycoreutils",
+        "apt": "semodule-utils",
+        "pacman": "semodule-utils",
+        "zypper": "policycoreutils",
+        "rpm-ostree": "policycoreutils",
     },
-    'hidapi': {
-        'apt': 'python3-hidapi',
-        'dnf': 'python3-hid',
-        'pacman': 'python-hid',
-        'zypper': 'python3-hidapi',
+    "hidapi": {
+        "apt": "python3-hidapi",
+        "dnf": "python3-hid",
+        "pacman": "python-hid",
+        "zypper": "python3-hidapi",
     },
 }
 
 _INSTALL_CMD: dict[str, str] = {
-    'dnf': 'sudo dnf install', 'apt': 'sudo apt install',
-    'pacman': 'sudo pacman -S', 'zypper': 'sudo zypper install',
-    'xbps': 'sudo xbps-install', 'apk': 'sudo apk add',
-    'emerge': 'sudo emerge', 'eopkg': 'sudo eopkg install',
-    'rpm-ostree': 'sudo rpm-ostree install', 'swupd': 'sudo swupd bundle-add',
-    'winget': 'winget install', 'brew': 'brew install',
-    'pkg': 'sudo pkg install',
+    "dnf": "sudo dnf install",
+    "apt": "sudo apt install",
+    "pacman": "sudo pacman -S",
+    "zypper": "sudo zypper install",
+    "xbps": "sudo xbps-install",
+    "apk": "sudo apk add",
+    "emerge": "sudo emerge",
+    "eopkg": "sudo eopkg install",
+    "rpm-ostree": "sudo rpm-ostree install",
+    "swupd": "sudo swupd bundle-add",
+    "winget": "winget install",
+    "brew": "brew install",
+    "pkg": "sudo pkg install",
 }
 
 
 def _read_os_release() -> dict[str, str]:
     """Read /etc/os-release into a dict."""
-    _os_release = getattr(platform, 'freedesktop_os_release', None)
+    _os_release = getattr(platform, "freedesktop_os_release", None)
     if _os_release is not None:
         try:
             return _os_release()
         except OSError:
             pass
     result: dict[str, str] = {}
-    for path in ('/etc/os-release', '/usr/lib/os-release'):
+    for path in ("/etc/os-release", "/usr/lib/os-release"):
         if os.path.isfile(path):
             with open(path) as f:
                 for line in f:
                     line = line.strip()
-                    if '=' in line:
-                        k, _, v = line.partition('=')
+                    if "=" in line:
+                        k, _, v = line.partition("=")
                         result[k] = v.strip('"')
             break
     return result
@@ -219,10 +277,10 @@ def _read_os_release() -> dict[str, str]:
 def _detect_pkg_manager() -> str | None:
     """Detect the Linux package manager from os-release."""
     info = _read_os_release()
-    distro_id = info.get('ID', '').lower()
+    distro_id = info.get("ID", "").lower()
     if pm := _DISTRO_TO_PM.get(distro_id):
         return pm
-    for like in info.get('ID_LIKE', '').lower().split():
+    for like in info.get("ID_LIKE", "").lower().split():
         if pm := _FAMILY_TO_PM.get(like):
             return pm
     return None
@@ -230,16 +288,16 @@ def _detect_pkg_manager() -> str | None:
 
 def _provides_search(dep: str, pm: str) -> str | None:
     """Use PM's native 'provides' to find which package owns a file."""
-    if pm == 'dnf':
-        cmd = ['dnf', 'provides', '--quiet', f'*/{dep}*']
-    elif pm == 'pacman':
-        cmd = ['pacman', '-Fq', dep]
-    elif pm == 'zypper':
-        cmd = ['zypper', '--non-interactive', 'search', '--provides', dep]
-    elif pm == 'apk':
-        cmd = ['apk', 'search', dep]
-    elif pm == 'xbps':
-        cmd = ['xbps-query', '-Rs', dep]
+    if pm == "dnf":
+        cmd = ["dnf", "provides", "--quiet", f"*/{dep}*"]
+    elif pm == "pacman":
+        cmd = ["pacman", "-Fq", dep]
+    elif pm == "zypper":
+        cmd = ["zypper", "--non-interactive", "search", "--provides", dep]
+    elif pm == "apk":
+        cmd = ["apk", "search", dep]
+    elif pm == "xbps":
+        cmd = ["xbps-query", "-Rs", dep]
     else:
         return None
 
@@ -247,23 +305,23 @@ def _provides_search(dep: str, pm: str) -> str | None:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
         if r.returncode != 0 or not r.stdout.strip():
             return None
-        first = r.stdout.strip().split('\n')[0]
-        if pm == 'dnf':
-            m = re.match(r'([\w][\w.+-]*)-\d', first)
+        first = r.stdout.strip().split("\n")[0]
+        if pm == "dnf":
+            m = re.match(r"([\w][\w.+-]*)-\d", first)
             return m.group(1) if m else None
-        if pm == 'pacman':
-            return first.split('/')[-1].strip() or None
-        if pm == 'zypper':
-            for line in r.stdout.strip().split('\n'):
-                parts = [p.strip() for p in line.split('|')]
-                if len(parts) >= 2 and parts[1] and parts[1] != 'Name':
+        if pm == "pacman":
+            return first.split("/")[-1].strip() or None
+        if pm == "zypper":
+            for line in r.stdout.strip().split("\n"):
+                parts = [p.strip() for p in line.split("|")]
+                if len(parts) >= 2 and parts[1] and parts[1] != "Name":
                     return parts[1]
             return None
-        if pm == 'apk':
-            m = re.match(r'([\w][\w.+-]*)-\d', first)
+        if pm == "apk":
+            m = re.match(r"([\w][\w.+-]*)-\d", first)
             return m.group(1) if m else None
-        if pm == 'xbps':
-            m = re.search(r'[\]\\s]+([\w][\w.+-]*)-\d', first)
+        if pm == "xbps":
+            m = re.search(r"[\]\\s]+([\w][\w.+-]*)-\d", first)
             return m.group(1) if m else None
         return None
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
@@ -273,16 +331,15 @@ def _provides_search(dep: str, pm: str) -> str | None:
 def _install_hint(dep: str, pm: str | None) -> str:
     """Build install command string, or generic fallback."""
     if pm and dep in _INSTALL_MAP and pm in _INSTALL_MAP[dep]:
-        cmd = _INSTALL_CMD.get(pm, f'sudo {pm} install')
+        cmd = _INSTALL_CMD.get(pm, f"sudo {pm} install")
         return f"{cmd} {_INSTALL_MAP[dep][pm]}"
     if pm:
         pkg = _provides_search(dep, pm)
         if pkg:
-            cmd = _INSTALL_CMD.get(pm, f'sudo {pm} install')
+            cmd = _INSTALL_CMD.get(pm, f"sudo {pm} install")
             return f"{cmd} {pkg}"
     if dep in _INSTALL_MAP:
-        lines = [f"  {_INSTALL_CMD.get(m, m)} {pkg}"
-                 for m, pkg in _INSTALL_MAP[dep].items()]
+        lines = [f"  {_INSTALL_CMD.get(m, m)} {pkg}" for m, pkg in _INSTALL_MAP[dep].items()]
         return "install one of:\n" + "\n".join(lines)
     return f"install {dep}"
 
@@ -291,6 +348,7 @@ def _enable_ansi_windows() -> None:
     """Enable ANSI escape codes on Windows (virtual terminal processing)."""
     try:
         import ctypes
+
         kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
         handle = kernel32.GetStdHandle(-11)
         mode = ctypes.c_ulong()
@@ -306,7 +364,10 @@ _OPT = "\033[33m[--]\033[0m"
 
 
 def _check_python_module(
-    label: str, import_name: str, required: bool, pm: str | None,
+    label: str,
+    import_name: str,
+    required: bool,
+    pm: str | None,
 ) -> bool:
     ver = get_module_version(import_name)
     if ver is not None:
@@ -321,7 +382,10 @@ def _check_python_module(
 
 
 def _check_binary(
-    name: str, required: bool, pm: str | None, note: str = '',
+    name: str,
+    required: bool,
+    pm: str | None,
+    note: str = "",
 ) -> bool:
     if shutil.which(name):
         print(f"  {_OK}  {name}")
@@ -336,8 +400,11 @@ def _check_binary(
 
 
 def _check_library(
-    label: str, so_name: str, required: bool, pm: str | None,
-    dep_key: str = '',
+    label: str,
+    so_name: str,
+    required: bool,
+    pm: str | None,
+    dep_key: str = "",
 ) -> bool:
     if ctypes.util.find_library(so_name):
         print(f"  {_OK}  {label}")
@@ -356,11 +423,10 @@ def _check_gpu_packages() -> None:
         print(f"  {_OPT}  No discrete GPU detected")
         return
     for g in results:
-        if g.vendor == 'nvidia' and not g.package_installed:
-            print(f"  {_OPT}  NVIDIA GPU detected — {g.install_cmd}"
-                  " (enables GPU temp/usage/clock)")
-        elif g.vendor == 'nvidia':
-            ver = get_module_version('pynvml')
+        if g.vendor == "nvidia" and not g.package_installed:
+            print(f"  {_OPT}  NVIDIA GPU detected — {g.install_cmd} (enables GPU temp/usage/clock)")
+        elif g.vendor == "nvidia":
+            ver = get_module_version("pynvml")
             print(f"  {_OK}  nvidia-ml-py{f' {ver}' if ver else ''} (NVIDIA GPU detected)")
         else:
             print(f"  {_OK}  {g.label}")
@@ -397,28 +463,31 @@ def _check_winusb_devices() -> None:
         return
 
     from trcc.core.models import BULK_DEVICES, HID_LCD_DEVICES, LED_DEVICES, LY_DEVICES
+
     winusb_registries = {**BULK_DEVICES, **HID_LCD_DEVICES, **LED_DEVICES, **LY_DEVICES}
 
     try:
         w = wmi_mod.WMI()
         for usb in w.Win32_PnPEntity():
-            dev_id = getattr(usb, 'DeviceID', '') or ''
-            if 'VID_' not in dev_id:
+            dev_id = getattr(usb, "DeviceID", "") or ""
+            if "VID_" not in dev_id:
                 continue
-            m = re.search(r'VID_([0-9A-Fa-f]{4})&PID_([0-9A-Fa-f]{4})', dev_id)
+            m = re.search(r"VID_([0-9A-Fa-f]{4})&PID_([0-9A-Fa-f]{4})", dev_id)
             if not m:
                 continue
             vid, pid = int(m.group(1), 16), int(m.group(2), 16)
             if (vid, pid) not in winusb_registries:
                 continue
             entry = winusb_registries[(vid, pid)]
-            status = getattr(usb, 'Status', 'Unknown')
-            service = getattr(usb, 'Service', '') or ''
-            if service.lower() == 'winusb':
+            status = getattr(usb, "Status", "Unknown")
+            service = getattr(usb, "Service", "") or ""
+            if service.lower() == "winusb":
                 print(f"  {_OK}  {entry.product} ({vid:04X}:{pid:04X}) — WinUSB")
             else:
-                print(f"  {_OPT}  {entry.product} ({vid:04X}:{pid:04X}) — "
-                      f"needs WinUSB (status: {status})")
+                print(
+                    f"  {_OPT}  {entry.product} ({vid:04X}:{pid:04X}) — "
+                    f"needs WinUSB (status: {status})"
+                )
                 print("         Install via Zadig: https://zadig.akeo.ie/")
                 print("         Or run: trcc setup-winusb")
     except Exception:
@@ -429,29 +498,33 @@ def _check_winusb_devices() -> None:
 # 3. Structured result types
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class DepResult:
     """Result of a single dependency check."""
+
     name: str
     ok: bool
     required: bool
-    version: str = ''
-    note: str = ''
-    install_cmd: str = ''
+    version: str = ""
+    note: str = ""
+    install_cmd: str = ""
 
 
 @dataclass
 class GpuResult:
     """Result of GPU vendor detection."""
+
     vendor: str
     label: str
     package_installed: bool
-    install_cmd: str = ''
+    install_cmd: str = ""
 
 
 @dataclass
 class UdevResult:
     """Result of udev rules check."""
+
     ok: bool
     message: str
     missing_vids: list[str] = field(default_factory=list)
@@ -460,6 +533,7 @@ class UdevResult:
 @dataclass
 class SetupInfo:
     """System info for setup wizard header."""
+
     distro: str
     pkg_manager: str | None
     python_version: str
@@ -468,6 +542,7 @@ class SetupInfo:
 @dataclass
 class SelinuxResult:
     """Result of SELinux policy check."""
+
     ok: bool
     message: str
     enforcing: bool = False
@@ -477,6 +552,7 @@ class SelinuxResult:
 @dataclass
 class RaplResult:
     """Result of RAPL power sensor check."""
+
     ok: bool
     message: str
     applicable: bool = True
@@ -486,6 +562,7 @@ class RaplResult:
 @dataclass
 class PolkitResult:
     """Result of polkit policy check."""
+
     ok: bool
     message: str
 
@@ -494,28 +571,31 @@ class PolkitResult:
 # 4. Doctor checks — public API
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def get_module_version(import_name: str) -> str | None:
     """Get version string for a Python module, or None if not installed."""
     try:
         mod = __import__(import_name)
-        ver = getattr(mod, '__version__', getattr(mod, 'version', ''))
+        ver = getattr(mod, "__version__", getattr(mod, "version", ""))
         if isinstance(ver, tuple):
-            ver = '.'.join(str(x) for x in ver)
-        if not ver and import_name == 'PySide6':
+            ver = ".".join(str(x) for x in ver)
+        if not ver and import_name == "PySide6":
             try:
                 import PySide6
+
                 ver = PySide6.__version__
             except ImportError:
                 pass
-        return str(ver) if ver else ''
+        return str(ver) if ver else ""
     except ImportError:
         return None
 
 
-def get_setup_info(doctor_config: 'DoctorPlatformConfig | None' = None) -> SetupInfo:
+def get_setup_info(doctor_config: "DoctorPlatformConfig | None" = None) -> SetupInfo:
     """Get system info for setup wizard."""
     if doctor_config is None:
         from trcc.core.builder import ControllerBuilder
+
         doctor_config = ControllerBuilder.for_current_os().build_setup().get_doctor_config()
     v = sys.version_info
     return SetupInfo(
@@ -527,11 +607,12 @@ def get_setup_info(doctor_config: 'DoctorPlatformConfig | None' = None) -> Setup
 
 def check_system_deps(
     pm: str | None = None,
-    doctor_config: 'DoctorPlatformConfig | None' = None,
+    doctor_config: "DoctorPlatformConfig | None" = None,
 ) -> list[DepResult]:
     """Check all dependencies and return structured results."""
     if doctor_config is None:
         from trcc.core.builder import ControllerBuilder
+
         doctor_config = ControllerBuilder.for_current_os().build_setup().get_doctor_config()
     if pm is None:
         pm = doctor_config.pkg_manager
@@ -539,56 +620,83 @@ def check_system_deps(
 
     v = sys.version_info
     ver = f"{v.major}.{v.minor}.{v.micro}"
-    results.append(DepResult(
-        name='Python', ok=v >= (3, 9), required=True, version=ver,
-        note='' if v >= (3, 9) else 'need >= 3.9',
-    ))
+    results.append(
+        DepResult(
+            name="Python",
+            ok=v >= (3, 9),
+            required=True,
+            version=ver,
+            note="" if v >= (3, 9) else "need >= 3.9",
+        )
+    )
 
     for label, imp in [
-        ('PySide6', 'PySide6'), ('numpy', 'numpy'),
-        ('psutil', 'psutil'), ('pyusb', 'usb.core'),
+        ("PySide6", "PySide6"),
+        ("numpy", "numpy"),
+        ("psutil", "psutil"),
+        ("pyusb", "usb.core"),
     ]:
         mod_ver = get_module_version(imp)
-        results.append(DepResult(
-            name=label, ok=mod_ver is not None, required=True,
-            version=mod_ver or '',
-            install_cmd=f'pip install {label.lower()}',
-        ))
+        results.append(
+            DepResult(
+                name=label,
+                ok=mod_ver is not None,
+                required=True,
+                version=mod_ver or "",
+                install_cmd=f"pip install {label.lower()}",
+            )
+        )
 
-    hid_ver = get_module_version('hid')
-    hid_hint = _install_hint('hidapi', pm)
-    results.append(DepResult(
-        name='hidapi', ok=hid_ver is not None, required=False,
-        version=hid_ver or '',
-        install_cmd=hid_hint if not hid_hint.startswith('install ') else 'pip install hidapi',
-    ))
+    hid_ver = get_module_version("hid")
+    hid_hint = _install_hint("hidapi", pm)
+    results.append(
+        DepResult(
+            name="hidapi",
+            ok=hid_ver is not None,
+            required=False,
+            version=hid_ver or "",
+            install_cmd=hid_hint if not hid_hint.startswith("install ") else "pip install hidapi",
+        )
+    )
 
     if doctor_config.check_libusb:
-        libusb_ok = ctypes.util.find_library('usb-1.0') is not None
-        results.append(DepResult(
-            name='libusb-1.0', ok=libusb_ok, required=True,
-            install_cmd=_install_hint('libusb', pm),
-        ))
+        libusb_ok = ctypes.util.find_library("usb-1.0") is not None
+        results.append(
+            DepResult(
+                name="libusb-1.0",
+                ok=libusb_ok,
+                required=True,
+                install_cmd=_install_hint("libusb", pm),
+            )
+        )
 
     _binaries: list[tuple[str, bool, str]] = [
         *doctor_config.extra_binaries,
-        ('7z', True, 'theme extraction'),
-        ('ffmpeg', False, 'video playback'),
+        ("7z", True, "theme extraction"),
+        ("ffmpeg", False, "video playback"),
     ]
     for name, required, note in _binaries:
-        results.append(DepResult(
-            name=name, ok=shutil.which(name) is not None,
-            required=required, note=note,
-            install_cmd=_install_hint(name, pm),
-        ))
+        results.append(
+            DepResult(
+                name=name,
+                ok=shutil.which(name) is not None,
+                required=required,
+                note=note,
+                install_cmd=_install_hint(name, pm),
+            )
+        )
 
-    if pm == 'apt':
-        xcb_ok = ctypes.util.find_library('xcb-cursor') is not None
-        results.append(DepResult(
-            name='libxcb-cursor', ok=xcb_ok, required=True,
-            note='PySide6 segfaults without it',
-            install_cmd=_install_hint('libxcb-cursor', pm),
-        ))
+    if pm == "apt":
+        xcb_ok = ctypes.util.find_library("xcb-cursor") is not None
+        results.append(
+            DepResult(
+                name="libxcb-cursor",
+                ok=xcb_ok,
+                required=True,
+                note="PySide6 segfaults without it",
+                install_cmd=_install_hint("libxcb-cursor", pm),
+            )
+        )
 
     return results
 
@@ -596,90 +704,109 @@ def check_system_deps(
 def check_gpu() -> list[GpuResult]:
     """Detect GPU vendors and check matching packages."""
     from pathlib import Path  # local so tests can patch pathlib.Path
-    pci_base = Path('/sys/bus/pci/devices')
+
+    pci_base = Path("/sys/bus/pci/devices")
     if not pci_base.exists():
         return []
 
     vendors: set[str] = set()
     for dev_dir in pci_base.iterdir():
-        class_path = dev_dir / 'class'
-        vendor_path = dev_dir / 'vendor'
+        class_path = dev_dir / "class"
+        vendor_path = dev_dir / "vendor"
         if not class_path.exists() or not vendor_path.exists():
             continue
         try:
             pci_class = class_path.read_text().strip()
-            if pci_class.startswith('0x0300') or pci_class.startswith('0x0302'):
-                vendors.add(vendor_path.read_text().strip().removeprefix('0x'))
+            if pci_class.startswith("0x0300") or pci_class.startswith("0x0302"):
+                vendors.add(vendor_path.read_text().strip().removeprefix("0x"))
         except OSError:
             continue
 
     results: list[GpuResult] = []
-    if '10de' in vendors:
-        ver = get_module_version('pynvml')
-        results.append(GpuResult(
-            vendor='nvidia', label='NVIDIA GPU',
-            package_installed=ver is not None,
-            install_cmd='pip install nvidia-ml-py',
-        ))
-    if '1002' in vendors:
-        results.append(GpuResult(
-            vendor='amd', label='AMD GPU (sensors via sysfs)',
-            package_installed=True,
-        ))
-    if '8086' in vendors:
-        results.append(GpuResult(
-            vendor='intel', label='Intel GPU (sensors via sysfs)',
-            package_installed=True,
-        ))
+    if "10de" in vendors:
+        ver = get_module_version("pynvml")
+        results.append(
+            GpuResult(
+                vendor="nvidia",
+                label="NVIDIA GPU",
+                package_installed=ver is not None,
+                install_cmd="pip install nvidia-ml-py",
+            )
+        )
+    if "1002" in vendors:
+        results.append(
+            GpuResult(
+                vendor="amd",
+                label="AMD GPU (sensors via sysfs)",
+                package_installed=True,
+            )
+        )
+    if "8086" in vendors:
+        results.append(
+            GpuResult(
+                vendor="intel",
+                label="Intel GPU (sensors via sysfs)",
+                package_installed=True,
+            )
+        )
     return results
 
 
 def check_udev() -> UdevResult:
     """Check udev rules status (structured return)."""
-    path = '/etc/udev/rules.d/99-trcc-lcd.rules'
+    path = "/etc/udev/rules.d/99-trcc-lcd.rules"
     if not os.path.isfile(path):
-        return UdevResult(ok=False, message='udev rules not installed')
+        return UdevResult(ok=False, message="udev rules not installed")
     try:
         with open(path) as f:
             content = f.read()
         from trcc.adapters.device.detector import DeviceDetector
+
         all_devices = DeviceDetector._get_all_registries()
         all_vids = {f"{vid:04x}" for vid, _ in all_devices}
         missing = [vid for vid in sorted(all_vids) if vid not in content]
         if missing:
             return UdevResult(
                 ok=False,
-                message=f'udev rules outdated — missing VID(s): {", ".join(missing)}',
+                message=f"udev rules outdated — missing VID(s): {', '.join(missing)}",
                 missing_vids=missing,
             )
-        return UdevResult(ok=True, message='udev rules installed')
+        return UdevResult(ok=True, message="udev rules installed")
     except Exception:
-        return UdevResult(ok=True, message='udev rules installed')
+        return UdevResult(ok=True, message="udev rules installed")
 
 
 def check_selinux() -> SelinuxResult:
     """Check if SELinux is enforcing and if USB device access is allowed."""
     try:
         r = subprocess.run(
-            ['getenforce'], capture_output=True, text=True, timeout=5,
+            ["getenforce"],
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         status = r.stdout.strip().lower()
     except FileNotFoundError:
-        return SelinuxResult(ok=True, message='SELinux not installed')
+        return SelinuxResult(ok=True, message="SELinux not installed")
     except Exception:
-        return SelinuxResult(ok=True, message='SELinux status unknown')
+        return SelinuxResult(ok=True, message="SELinux status unknown")
 
-    if status != 'enforcing':
-        return SelinuxResult(ok=True, message=f'SELinux {status} (no policy needed)')
+    if status != "enforcing":
+        return SelinuxResult(ok=True, message=f"SELinux {status} (no policy needed)")
 
     try:
         r = subprocess.run(
-            ['semodule', '-l'], capture_output=True, text=True, timeout=10,
+            ["semodule", "-l"],
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
-        if r.returncode == 0 and 'trcc_usb' in r.stdout:
+        if r.returncode == 0 and "trcc_usb" in r.stdout:
             return SelinuxResult(
-                ok=True, message='SELinux enforcing — trcc_usb module loaded',
-                enforcing=True, module_loaded=True,
+                ok=True,
+                message="SELinux enforcing — trcc_usb module loaded",
+                enforcing=True,
+                module_loaded=True,
             )
     except (FileNotFoundError, Exception):
         pass
@@ -687,13 +814,16 @@ def check_selinux() -> SelinuxResult:
     if _selinux_usb_access_allowed():
         return SelinuxResult(
             ok=True,
-            message='SELinux enforcing — USB access permitted by policy',
-            enforcing=True, module_loaded=True,
+            message="SELinux enforcing — USB access permitted by policy",
+            enforcing=True,
+            module_loaded=True,
         )
 
     return SelinuxResult(
-        ok=False, message='SELinux enforcing — USB policy not installed',
-        enforcing=True, module_loaded=False,
+        ok=False,
+        message="SELinux enforcing — USB policy not installed",
+        enforcing=True,
+        module_loaded=False,
     )
 
 
@@ -701,13 +831,14 @@ def _selinux_usb_access_allowed() -> bool:
     """Check if loaded SELinux policy allows USB device access via sesearch."""
     try:
         r = subprocess.run(
-            ['sesearch', '--allow', '-s', 'unconfined_t',
-             '-t', 'usb_device_t', '-c', 'chr_file'],
-            capture_output=True, text=True, timeout=10,
+            ["sesearch", "--allow", "-s", "unconfined_t", "-t", "usb_device_t", "-c", "chr_file"],
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if r.returncode != 0:
             return False
-        for perm in ('ioctl', 'open', 'read', 'write'):
+        for perm in ("ioctl", "open", "read", "write"):
             if perm not in r.stdout:
                 return False
         return True
@@ -718,45 +849,47 @@ def _selinux_usb_access_allowed() -> bool:
 def check_rapl() -> RaplResult:
     """Check if RAPL power sensors are readable by non-root users."""
     from pathlib import Path  # local so tests can patch pathlib.Path
-    rapl_base = Path('/sys/class/powercap')
-    if not rapl_base.exists():
-        return RaplResult(ok=True, message='No powercap subsystem', applicable=False)
 
-    energy_files = sorted(rapl_base.glob('intel-rapl:*/energy_uj'))
+    rapl_base = Path("/sys/class/powercap")
+    if not rapl_base.exists():
+        return RaplResult(ok=True, message="No powercap subsystem", applicable=False)
+
+    energy_files = sorted(rapl_base.glob("intel-rapl:*/energy_uj"))
     if not energy_files:
-        return RaplResult(ok=True, message='No RAPL domains found', applicable=False)
+        return RaplResult(ok=True, message="No RAPL domains found", applicable=False)
 
     unreadable = [f for f in energy_files if not os.access(str(f), os.R_OK)]
     if unreadable:
         return RaplResult(
             ok=False,
-            message=f'RAPL power sensors not readable ({len(unreadable)} domain(s))',
+            message=f"RAPL power sensors not readable ({len(unreadable)} domain(s))",
             domain_count=len(energy_files),
         )
     return RaplResult(
         ok=True,
-        message=f'RAPL power sensors readable ({len(energy_files)} domain(s))',
+        message=f"RAPL power sensors readable ({len(energy_files)} domain(s))",
         domain_count=len(energy_files),
     )
 
 
 def check_polkit() -> PolkitResult:
     """Check if TRCC polkit policy is installed."""
-    policy_path = '/usr/share/polkit-1/actions/com.github.lexonight1.trcc.policy'
+    policy_path = "/usr/share/polkit-1/actions/com.github.jemte.trcc.policy"
     if os.path.isfile(policy_path):
-        return PolkitResult(ok=True, message='polkit policy installed')
-    return PolkitResult(ok=False, message='polkit policy not installed (dmidecode needs sudo)')
+        return PolkitResult(ok=True, message="polkit policy installed")
+    return PolkitResult(ok=False, message="polkit policy not installed (dmidecode needs sudo)")
 
 
 def check_desktop_entry() -> bool:
     """Check if .desktop file is installed."""
-    return (Path.home() / '.local' / 'share' / 'applications' / 'trcc-linux.desktop').exists()
+    return (Path.home() / ".local" / "share" / "applications" / "trcc-linux.desktop").exists()
 
 
-def run_doctor(doctor_config: 'DoctorPlatformConfig | None' = None) -> int:
+def run_doctor(doctor_config: "DoctorPlatformConfig | None" = None) -> int:
     """Run dependency health check. Returns 0 if all required deps pass."""
     if doctor_config is None:
         from trcc.core.builder import ControllerBuilder
+
         doctor_config = ControllerBuilder.for_current_os().build_setup().get_doctor_config()
 
     if doctor_config.enable_ansi:
@@ -777,13 +910,15 @@ def run_doctor(doctor_config: 'DoctorPlatformConfig | None' = None) -> int:
 
     print()
     for label, imp in [
-        ('PySide6', 'PySide6'), ('numpy', 'numpy'),
-        ('psutil', 'psutil'), ('pyusb', 'usb.core'),
+        ("PySide6", "PySide6"),
+        ("numpy", "numpy"),
+        ("psutil", "psutil"),
+        ("pyusb", "usb.core"),
     ]:
         if not _check_python_module(label, imp, required=True, pm=pm):
             all_ok = False
 
-    _check_python_module('hidapi', 'hid', required=False, pm=pm)
+    _check_python_module("hidapi", "hid", required=False, pm=pm)
 
     if doctor_config.run_gpu_check:
         print()
@@ -791,21 +926,21 @@ def run_doctor(doctor_config: 'DoctorPlatformConfig | None' = None) -> int:
 
     if doctor_config.check_libusb:
         print()
-        if not _check_library('libusb-1.0', 'usb-1.0', required=True, pm=pm,
-                              dep_key='libusb'):
+        if not _check_library("libusb-1.0", "usb-1.0", required=True, pm=pm, dep_key="libusb"):
             all_ok = False
-        if pm == 'apt':
-            if not _check_library('libxcb-cursor', 'xcb-cursor', required=True, pm=pm,
-                                  dep_key='libxcb-cursor'):
+        if pm == "apt":
+            if not _check_library(
+                "libxcb-cursor", "xcb-cursor", required=True, pm=pm, dep_key="libxcb-cursor"
+            ):
                 all_ok = False
 
     print()
     for name, required, note in doctor_config.extra_binaries:
         if not _check_binary(name, required=required, pm=pm, note=note):
             all_ok = False
-    if not _check_binary('7z', required=True, pm=pm, note='theme extraction'):
+    if not _check_binary("7z", required=True, pm=pm, note="theme extraction"):
         all_ok = False
-    _check_binary('ffmpeg', required=False, pm=pm, note='video playback')
+    _check_binary("ffmpeg", required=False, pm=pm, note="video playback")
 
     if doctor_config.run_udev_check:
         print()
@@ -866,11 +1001,8 @@ class _Section:
 def _hex_dump(data: bytes, max_bytes: int = 64) -> None:
     """Print a hex dump of data to stdout."""
     for row in range(0, min(len(data), max_bytes), 16):
-        hex_str = ' '.join(f'{b:02x}' for b in data[row:row + 16])
-        ascii_str = ''.join(
-            chr(b) if 32 <= b < 127 else '.'
-            for b in data[row:row + 16]
-        )
+        hex_str = " ".join(f"{b:02x}" for b in data[row : row + 16])
+        ascii_str = "".join(chr(b) if 32 <= b < 127 else "." for b in data[row : row + 16])
         print(f"  {row:04x}: {hex_str:<48s} {ascii_str}")
 
 
@@ -884,8 +1016,8 @@ def _ebusy_fallback(sec: _Section) -> None:
         pm = cached.get("model_id", "?")
         raw = cached.get("raw", "")
         sec.lines.append(
-            f"    PM={pm}, resolution=({res[0]}, {res[1]}), "
-            f"serial={cached.get('serial', '')}")
+            f"    PM={pm}, resolution=({res[0]}, {res[1]}), serial={cached.get('serial', '')}"
+        )
         if raw:
             sec.lines.append(f"    raw[0:64]={raw[:128]}")
         sec.lines.append("    (from cache — device in use by trcc gui)")
@@ -908,7 +1040,7 @@ def _send_test_frame(protocol: Any, resolution: tuple[int, int], fbl: int) -> No
             data = ImageService.to_jpeg(img)
             print(f"    Encoding: JPEG ({len(data):,} bytes)")
         else:
-            data = ImageService.to_rgb565(img, '<')
+            data = ImageService.to_rgb565(img, "<")
             print(f"    Encoding: RGB565 LE ({len(data):,} bytes)")
 
         packet = protocol._device.build_frame_packet(data, w, h)
@@ -957,8 +1089,11 @@ def _debug_hid_lcd_interactive(dev: Any, test_frame: bool = False) -> None:
 
     if info is None:
         error = protocol.last_error
-        print(f"  Handshake FAILED: {error}" if error
-              else "  Handshake returned None (no response from device)")
+        print(
+            f"  Handshake FAILED: {error}"
+            if error
+            else "  Handshake returned None (no response from device)"
+        )
         protocol.close()
         return
 
@@ -1005,8 +1140,11 @@ def _debug_hid_led_interactive(dev: Any) -> None:
 
     if info is None:
         error = protocol.last_error
-        print(f"  Handshake FAILED: {error}" if error
-              else "  Handshake returned None (no response from device)")
+        print(
+            f"  Handshake FAILED: {error}"
+            if error
+            else "  Handshake returned None (no response from device)"
+        )
         protocol.close()
         return
 
@@ -1046,8 +1184,11 @@ def _debug_bulk_interactive(dev: Any, test_frame: bool = False) -> None:
         result = protocol.handshake()
         if result is None:
             error = protocol.last_error
-            print(f"  Handshake FAILED: {error}" if error
-                  else "  Handshake returned None (no response from device)")
+            print(
+                f"  Handshake FAILED: {error}"
+                if error
+                else "  Handshake returned None (no response from device)"
+            )
             return
         print("  Handshake OK!")
         print(f"  PM byte    = {result.pm_byte} (0x{result.pm_byte:02x})")
@@ -1075,8 +1216,11 @@ def _debug_ly_interactive(dev: Any, test_frame: bool = False) -> None:
         result = protocol.handshake()
         if result is None:
             error = protocol.last_error
-            print(f"  Handshake FAILED: {error}" if error
-                  else "  Handshake returned None (no response from device)")
+            print(
+                f"  Handshake FAILED: {error}"
+                if error
+                else "  Handshake returned None (no response from device)"
+            )
             return
         print("  Handshake OK!")
         print(f"  PM byte    = {result.pm_byte} (0x{result.pm_byte:02x})")
@@ -1099,6 +1243,7 @@ def _debug_ly_interactive(dev: Any, test_frame: bool = False) -> None:
 # 6. Interactive debug commands (CLI entry points)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def device_debug(
     detect_fn: Optional[Callable[[], list[Any]]] = None,
     test_frame: bool = False,
@@ -1111,6 +1256,7 @@ def device_debug(
     try:
         if detect_fn is None:
             from trcc.core.builder import ControllerBuilder
+
             detect_fn = ControllerBuilder.for_current_os().build_detect_fn()
 
         print("Device Debug — Handshake Diagnostic")
@@ -1132,16 +1278,16 @@ def device_debug(
             print("\n  Attempting handshake...")
             try:
                 proto = dev.protocol
-                if proto == 'scsi':
+                if proto == "scsi":
                     _debug_scsi_interactive(dev)
-                elif proto == 'hid':
-                    if dev.implementation == 'hid_led':
+                elif proto == "hid":
+                    if dev.implementation == "hid_led":
                         _debug_hid_led_interactive(dev)
                     else:
                         _debug_hid_lcd_interactive(dev, test_frame=test_frame)
-                elif proto == 'bulk':
+                elif proto == "bulk":
                     _debug_bulk_interactive(dev, test_frame=test_frame)
-                elif proto == 'ly':
+                elif proto == "ly":
                     _debug_ly_interactive(dev, test_frame=test_frame)
                 else:
                     print(f"  Unknown protocol: {proto}")
@@ -1151,6 +1297,7 @@ def device_debug(
             except Exception as e:
                 print(f"  Handshake FAILED: {e}")
                 import traceback
+
                 traceback.print_exc()
 
         print(f"\n{'=' * _WIDTH}")
@@ -1160,6 +1307,7 @@ def device_debug(
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 
@@ -1209,13 +1357,16 @@ def led_debug_interactive(test_colors: bool = False) -> int:
         if test_colors:
             print("\n  Sending test colors...")
             led_count = style.led_count
-            for name, color in [("RED", (255, 0, 0)), ("GREEN", (0, 255, 0)),
-                                 ("BLUE", (0, 0, 255)), ("WHITE", (255, 255, 255))]:
+            for name, color in [
+                ("RED", (255, 0, 0)),
+                ("GREEN", (0, 255, 0)),
+                ("BLUE", (0, 0, 255)),
+                ("WHITE", (255, 255, 255)),
+            ]:
                 protocol.send_led_data([color] * led_count, brightness=100)
                 print(f"    {name}")
                 time.sleep(1.5)
-            protocol.send_led_data(
-                [(0, 0, 0)] * led_count, global_on=False, brightness=0)
+            protocol.send_led_data([(0, 0, 0)] * led_count, global_on=False, brightness=0)
             print("    OFF")
 
         protocol.close()
@@ -1225,6 +1376,7 @@ def led_debug_interactive(test_colors: bool = False) -> int:
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 
@@ -1232,6 +1384,7 @@ def led_debug_interactive(test_colors: bool = False) -> int:
 # ─────────────────────────────────────────────────────────────────────────────
 # 7. DebugReport — the base, collects all sections for trcc report
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class DebugReport:
     """Collects and formats system diagnostics for GitHub issues.
@@ -1243,7 +1396,7 @@ class DebugReport:
 
     def __init__(
         self,
-        report_config: 'ReportPlatformConfig | None' = None,
+        report_config: "ReportPlatformConfig | None" = None,
         detect_fn: Optional[Callable[[], list[Any]]] = None,
     ) -> None:
         self._sections: list[_Section] = []
@@ -1251,15 +1404,17 @@ class DebugReport:
         self._config = report_config
         self._detect_fn = detect_fn
 
-    def _get_config(self) -> 'ReportPlatformConfig':
+    def _get_config(self) -> "ReportPlatformConfig":
         if self._config is None:
             from trcc.core.builder import ControllerBuilder
+
             self._config = ControllerBuilder.for_current_os().build_setup().get_report_config()
         return self._config
 
     def _get_detect_fn(self) -> Callable[[], list[Any]]:
         if self._detect_fn is None:
             from trcc.core.builder import ControllerBuilder
+
             self._detect_fn = ControllerBuilder.for_current_os().build_detect_fn()
         return self._detect_fn
 
@@ -1327,13 +1482,15 @@ class DebugReport:
     def _install_method() -> str:
         try:
             from trcc.conf import Settings
+
             info = Settings.get_install_info()
-            if info and info.get('method'):
-                return info['method']
+            if info and info.get("method"):
+                return info["method"]
         except Exception:
             pass
         try:
             from trcc.core.platform import detect_install_method
+
             return detect_install_method()
         except Exception:
             return "unknown"
@@ -1342,10 +1499,14 @@ class DebugReport:
         sec = self._add("lsusb (filtered)")
         try:
             result = subprocess.run(
-                ["lsusb"], capture_output=True, text=True, timeout=5,
+                ["lsusb"],
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             matches = [
-                line for line in result.stdout.splitlines()
+                line
+                for line in result.stdout.splitlines()
                 if any(vid in line.lower() for vid in _KNOWN_VIDS)
             ]
             if matches:
@@ -1433,13 +1594,16 @@ class DebugReport:
         # User group membership
         try:
             import grp
+
             user = os.environ.get("USER") or os.environ.get("LOGNAME") or ""
             relevant_groups = ("plugdev", "dialout", "disk", "usb")
             for group_name in relevant_groups:
                 try:
                     grp_entry = grp.getgrnam(group_name)
                     member = user in grp_entry.gr_mem
-                    sec.lines.append(f"  group {group_name}: {'member' if member else 'NOT member'}")
+                    sec.lines.append(
+                        f"  group {group_name}: {'member' if member else 'NOT member'}"
+                    )
                 except KeyError:
                     sec.lines.append(f"  group {group_name}: (does not exist on this system)")
         except Exception as e:
@@ -1466,10 +1630,10 @@ class DebugReport:
         sec = self._add("Handshakes")
         try:
             scsi_devs = [d for d in self._detected_devices if d.protocol == "scsi"]
-            hid_devs  = [d for d in self._detected_devices if d.protocol == "hid"]
+            hid_devs = [d for d in self._detected_devices if d.protocol == "hid"]
             bulk_devs = [d for d in self._detected_devices if d.protocol == "bulk"]
-            ly_devs   = [d for d in self._detected_devices if d.protocol == "ly"]
-            led_devs  = [d for d in self._detected_devices if d.protocol == "led"]
+            ly_devs = [d for d in self._detected_devices if d.protocol == "ly"]
+            led_devs = [d for d in self._detected_devices if d.protocol == "led"]
 
             if not any([scsi_devs, hid_devs, bulk_devs, ly_devs, led_devs]):
                 sec.lines.append("  (no devices to handshake)")
@@ -1529,13 +1693,15 @@ class DebugReport:
             res = result.resolution or (0, 0)
             profile = FBL_PROFILES.get(fbl)
             if profile:
-                enc = "JPEG" if profile.jpeg else ("RGB565-BE" if profile.big_endian else "RGB565-LE")
+                enc = (
+                    "JPEG" if profile.jpeg else ("RGB565-BE" if profile.big_endian else "RGB565-LE")
+                )
                 rot = " rotated" if profile.rotate else ""
                 sec.lines.append(
-                    f"    FBL={fbl} ({known}), resolution={res[0]}x{res[1]}, encoding={enc}{rot}")
+                    f"    FBL={fbl} ({known}), resolution={res[0]}x{res[1]}, encoding={enc}{rot}"
+                )
             else:
-                sec.lines.append(
-                    f"    FBL={fbl} ({known}), resolution={res[0]}x{res[1]}")
+                sec.lines.append(f"    FBL={fbl} ({known}), resolution={res[0]}x{res[1]}")
             if result.raw_response:
                 sec.lines.append(f"    raw[0:64]={result.raw_response[:64].hex()}")
         finally:
@@ -1572,12 +1738,15 @@ class DebugReport:
             profile = FBL_PROFILES.get(fbl)
             enc_str = ""
             if profile:
-                enc = "JPEG" if profile.jpeg else ("RGB565-BE" if profile.big_endian else "RGB565-LE")
+                enc = (
+                    "JPEG" if profile.jpeg else ("RGB565-BE" if profile.big_endian else "RGB565-LE")
+                )
                 rot = " rotated" if profile.rotate else ""
                 enc_str = f", encoding={enc}{rot}"
             sec.lines.append(
                 f"    PM={pm} (0x{pm:02x}), SUB={sub} (0x{sub:02x}), "
-                f"FBL={fbl}, resolution={resolution[0]}x{resolution[1]}{enc_str}")
+                f"FBL={fbl}, resolution={resolution[0]}x{resolution[1]}{enc_str}"
+            )
             if info.serial:
                 sec.lines.append(f"    serial={info.serial}")
             if info.raw_response:
@@ -1611,11 +1780,11 @@ class DebugReport:
             known = "KNOWN" if info.pm in PmRegistry.PM_TO_STYLE else "UNKNOWN"
             style_info = ""
             if info.style:
-                style_info = (f", LEDs={info.style.led_count}, "
-                              f"segments={info.style.segment_count}")
+                style_info = f", LEDs={info.style.led_count}, segments={info.style.segment_count}"
             sec.lines.append(
                 f"    PM={info.pm} (0x{info.pm:02x}), SUB={info.sub_type}, "
-                f"model={info.model_name}, {known}{style_info}")
+                f"model={info.model_name}, {known}{style_info}"
+            )
             if info.raw_response:
                 sec.lines.append(f"    raw[0:64]={info.raw_response[:64].hex()}")
         finally:
@@ -1646,13 +1815,16 @@ class DebugReport:
             profile = FBL_PROFILES.get(fbl)
             enc_str = ""
             if profile:
-                enc = "JPEG" if profile.jpeg else ("RGB565-BE" if profile.big_endian else "RGB565-LE")
+                enc = (
+                    "JPEG" if profile.jpeg else ("RGB565-BE" if profile.big_endian else "RGB565-LE")
+                )
                 rot = " rotated" if profile.rotate else ""
                 enc_str = f", encoding={enc}{rot}"
             sec.lines.append(
                 f"    PM={result.pm_byte}, SUB={result.sub_byte}, "
                 f"FBL={fbl}, resolution={result.resolution}{enc_str}, "
-                f"serial={result.serial}")
+                f"serial={result.serial}"
+            )
             if result.raw_response:
                 sec.lines.append(f"    raw[0:64]={result.raw_response[:64].hex()}")
         finally:
@@ -1683,13 +1855,16 @@ class DebugReport:
             profile = FBL_PROFILES.get(fbl)
             enc_str = ""
             if profile:
-                enc = "JPEG" if profile.jpeg else ("RGB565-BE" if profile.big_endian else "RGB565-LE")
+                enc = (
+                    "JPEG" if profile.jpeg else ("RGB565-BE" if profile.big_endian else "RGB565-LE")
+                )
                 rot = " rotated" if profile.rotate else ""
                 enc_str = f", encoding={enc}{rot}"
             sec.lines.append(
                 f"    PM={result.pm_byte}, SUB={result.sub_byte}, "
                 f"FBL={fbl}, resolution={result.resolution}{enc_str}, "
-                f"serial={result.serial}")
+                f"serial={result.serial}"
+            )
             if result.raw_response:
                 sec.lines.append(f"    raw[0:64]={result.raw_response[:64].hex()}")
         finally:
@@ -1713,8 +1888,14 @@ class DebugReport:
                 return
             sec.lines.append(f"  path: {CONFIG_PATH}")
             # Top-level scalar settings
-            for key in ("resolution", "temp_unit", "lang", "selected_device",
-                        "show_info_module", "installed_resolutions"):
+            for key in (
+                "resolution",
+                "temp_unit",
+                "lang",
+                "selected_device",
+                "show_info_module",
+                "installed_resolutions",
+            ):
                 if key in app_config:
                     sec.lines.append(f"  {key}: {app_config[key]}")
             if "format_prefs" in app_config:
@@ -1722,7 +1903,9 @@ class DebugReport:
                 sec.lines.append(f"  format_prefs: {fp}")
             if "install_info" in app_config:
                 ii = app_config["install_info"]
-                sec.lines.append(f"  install_info: method={ii.get('method','?')}, distro={ii.get('distro','?')}")
+                sec.lines.append(
+                    f"  install_info: method={ii.get('method', '?')}, distro={ii.get('distro', '?')}"
+                )
             # Per-device settings
             devices = app_config.get("devices", {})
             if devices:
@@ -1730,7 +1913,13 @@ class DebugReport:
                 for dev_key, dev_cfg in devices.items():
                     vid_pid = dev_cfg.get("vid_pid", "?")
                     parts = [f"vid_pid={vid_pid}"]
-                    for field in ("brightness_level", "rotation", "split_mode", "theme_path", "fbl"):
+                    for field in (
+                        "brightness_level",
+                        "rotation",
+                        "split_mode",
+                        "theme_path",
+                        "fbl",
+                    ):
                         if field in dev_cfg:
                             parts.append(f"{field}={dev_cfg[field]}")
                     sec.lines.append(f"    [{dev_key}] {', '.join(parts)}")
@@ -1767,9 +1956,9 @@ class DebugReport:
                 if has_themes:
                     try:
                         theme_count = sum(
-                            1 for e in os.listdir(theme_dir)
-                            if os.path.isdir(os.path.join(theme_dir, e))
-                            and not e.startswith('.')
+                            1
+                            for e in os.listdir(theme_dir)
+                            if os.path.isdir(os.path.join(theme_dir, e)) and not e.startswith(".")
                         )
                     except OSError:
                         pass
@@ -1777,9 +1966,9 @@ class DebugReport:
                 if has_masks:
                     try:
                         mask_count = sum(
-                            1 for e in os.listdir(web_dir)
-                            if os.path.isdir(os.path.join(web_dir, e))
-                            and not e.startswith('.')
+                            1
+                            for e in os.listdir(web_dir)
+                            if os.path.isdir(os.path.join(web_dir, e)) and not e.startswith(".")
                         )
                     except OSError:
                         pass
@@ -1801,10 +1990,11 @@ class DebugReport:
             # psutil — CPU%, memory, disk
             try:
                 import psutil
+
                 cpu = psutil.cpu_percent(interval=0.05)
                 sec.lines.append(f"  psutil: OK (cpu={cpu:.1f}%)")
                 # Temperature sensors (Linux hwmon / macOS IOKit)
-                if hasattr(psutil, 'sensors_temperatures'):
+                if hasattr(psutil, "sensors_temperatures"):
                     try:
                         temps = psutil.sensors_temperatures()
                         if temps:
@@ -1822,6 +2012,7 @@ class DebugReport:
             # pynvml — NVIDIA GPU
             try:
                 import pynvml  # type: ignore[import]
+
                 pynvml.nvmlInit()
                 count = pynvml.nvmlDeviceGetCount()
                 sec.lines.append(f"  pynvml (NVIDIA): OK ({count} GPU(s))")

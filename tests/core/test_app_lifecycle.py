@@ -6,6 +6,7 @@ Coverage targets:
   - core/app.py: start_metrics_loop(), stop_metrics_loop()
   - core/app.py: unregister(), _notify() exception isolation
 """
+
 from __future__ import annotations
 
 import time
@@ -28,10 +29,12 @@ from trcc.core.commands.initialize import (
 
 # ── Shared fixture ────────────────────────────────────────────────────────────
 
+
 @pytest.fixture()
 def app():
     """Fresh TrccApp with a mocked builder and a real os_bus."""
     from trcc.core.handlers.os import build_os_bus
+
     TrccApp.reset()
     builder = MagicMock()
     builder.build_detect_fn.return_value = lambda: []
@@ -53,6 +56,7 @@ def app():
 
 # ── InitPlatformCommand handler ───────────────────────────────────────────────
 
+
 class TestInitPlatformHandler:
     def test_bootstrap_called(self, app):
         """Handler must call builder.bootstrap() with the verbosity."""
@@ -72,7 +76,7 @@ class TestInitPlatformHandler:
     def test_renderer_injected_into_builder(self, app):
         renderer = MagicMock()
         factory = MagicMock(return_value=renderer)
-        with patch('trcc.services.image.ImageService.set_renderer'):
+        with patch("trcc.services.image.ImageService.set_renderer"):
             app._os_bus.dispatch(InitPlatformCommand(renderer_factory=factory))
         app._builder.with_renderer.assert_called_once_with(renderer)
 
@@ -84,6 +88,7 @@ class TestInitPlatformHandler:
     def test_bootstrap_progress_event_emitted(self, app):
         """BOOTSTRAP_PROGRESS must be notified when ensure_fn fires a message."""
         from trcc.core.app import AppEvent, AppObserver
+
         received: list[str] = []
 
         class _Obs(AppObserver):
@@ -98,6 +103,7 @@ class TestInitPlatformHandler:
 
 # ── DiscoverDevicesCommand handler ────────────────────────────────────────────
 
+
 class TestDiscoverHandler:
     def test_dispatch_returns_ok_when_no_devices(self, app):
         result = app._os_bus.dispatch(DiscoverDevicesCommand())
@@ -105,7 +111,7 @@ class TestDiscoverHandler:
 
     def test_dispatch_scans_devices(self, app):
         """DiscoverDevicesCommand must call scan()."""
-        with patch.object(app, 'scan', return_value=[]) as mock_scan:
+        with patch.object(app, "scan", return_value=[]) as mock_scan:
             app._os_bus.dispatch(DiscoverDevicesCommand())
         mock_scan.assert_called_once()
 
@@ -115,32 +121,34 @@ class TestDiscoverHandler:
 
     def test_discover_calls_ensure_data_blocking(self, app):
         """DiscoverDevicesCommand must run _ensure_data_blocking after scan."""
-        with patch.object(app, '_ensure_data_blocking') as mock_ensure:
+        with patch.object(app, "_ensure_data_blocking") as mock_ensure:
             app._os_bus.dispatch(DiscoverDevicesCommand())
         mock_ensure.assert_called_once_with()
 
 
 # ── SetLanguageCommand handler ────────────────────────────────────────────────
 
+
 class TestSetLanguageHandler:
     def test_valid_code_updates_settings(self, app):
-        with patch('trcc.conf.settings') as mock_settings:
-            app._os_bus.dispatch(SetLanguageCommand(code='en'))
-        assert mock_settings.lang == 'en'
+        with patch("trcc.conf.settings") as mock_settings:
+            app._os_bus.dispatch(SetLanguageCommand(code="en"))
+        assert mock_settings.lang == "en"
 
     def test_unknown_code_returns_fail(self, app):
-        result = app._os_bus.dispatch(SetLanguageCommand(code='xx_unknown'))
+        result = app._os_bus.dispatch(SetLanguageCommand(code="xx_unknown"))
         assert not result.success
 
     def test_unknown_code_does_not_update_lang(self, app):
         """Handler must bail out before touching settings on an unknown code."""
-        with patch('trcc.conf.settings') as mock_settings:
-            mock_settings.lang = 'en'
-            app._os_bus.dispatch(SetLanguageCommand(code='xx_unknown'))
-            assert mock_settings.lang == 'en'
+        with patch("trcc.conf.settings") as mock_settings:
+            mock_settings.lang = "en"
+            app._os_bus.dispatch(SetLanguageCommand(code="xx_unknown"))
+            assert mock_settings.lang == "en"
 
 
 # ── Setup command handlers ────────────────────────────────────────────────────
+
 
 class TestSetupCommandHandlers:
     """Each setup command delegates to the matching PlatformSetup method."""
@@ -194,14 +202,19 @@ class TestSetupCommandHandlers:
 
     def test_setup_fail_rc_returns_fail_for_each(self, app):
         self._mock_setup(app, rc=1)
-        for cmd in (SetupUdevCommand(), SetupSelinuxCommand(),
-                    SetupPolkitCommand(), InstallDesktopCommand(),
-                    SetupWinUsbCommand()):
+        for cmd in (
+            SetupUdevCommand(),
+            SetupSelinuxCommand(),
+            SetupPolkitCommand(),
+            InstallDesktopCommand(),
+            SetupWinUsbCommand(),
+        ):
             result = app._os_bus.dispatch(cmd)
             assert not result.success, f"{cmd} should return fail on rc=1"
 
 
 # ── Metrics loop ──────────────────────────────────────────────────────────────
+
 
 class TestMetricsLoop:
     def test_start_without_system_raises(self, app):
@@ -228,7 +241,7 @@ class TestMetricsLoop:
         assert app._metrics_thread is None
 
     def test_loop_notifies_metrics_updated(self, app):
-        metrics = {'cpu': 10}
+        metrics = {"cpu": 10}
         system_svc = MagicMock()
         system_svc.all_metrics = metrics
         app.set_system(system_svc)
@@ -252,7 +265,7 @@ class TestMetricsLoop:
 
         device = MagicMock()
         device.tick.return_value = None
-        app._devices['2-1'] = device
+        app._devices["2-1"] = device
         app.set_system(system_svc)
 
         app.start_metrics_loop(interval=0.05)
@@ -269,12 +282,14 @@ class TestMetricsLoop:
         fake_image = object()
         device = MagicMock()
         device.tick.return_value = fake_image
-        app._devices['2-1'] = device
+        app._devices["2-1"] = device
         app.set_system(system_svc)
 
         frames: list = []
         observer = MagicMock(spec=AppObserver)
-        observer.on_app_event.side_effect = lambda ev, d: frames.append(ev) if ev == AppEvent.FRAME_RENDERED else None
+        observer.on_app_event.side_effect = lambda ev, d: (
+            frames.append(ev) if ev == AppEvent.FRAME_RENDERED else None
+        )
         app.register(observer)
 
         app.start_metrics_loop(interval=0.05)
@@ -290,13 +305,13 @@ class TestMetricsLoop:
 
         bad_device = MagicMock()
         bad_device.tick.side_effect = RuntimeError("bang")
-        app._devices['2-bad'] = bad_device
+        app._devices["2-bad"] = bad_device
         app.set_system(system_svc)
 
         tick_count: list[int] = []
         observer = MagicMock(spec=AppObserver)
-        observer.on_app_event.side_effect = (
-            lambda ev, d: tick_count.append(1) if ev == AppEvent.METRICS_UPDATED else None
+        observer.on_app_event.side_effect = lambda ev, d: (
+            tick_count.append(1) if ev == AppEvent.METRICS_UPDATED else None
         )
         app.register(observer)
 
@@ -325,6 +340,7 @@ class TestMetricsLoop:
 
 
 # ── Observer lifecycle ────────────────────────────────────────────────────────
+
 
 class TestObserverLifecycle:
     def test_unregister_removes_observer(self, app):

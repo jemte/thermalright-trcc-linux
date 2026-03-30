@@ -20,10 +20,10 @@ class TestColors(unittest.TestCase):
 
     def test_hex_format(self):
         """Hex color strings start with '#'."""
-        for attr in ('WINDOW_BG', 'ACCENT', 'BASE_BG', 'CLOSE_HOVER'):
+        for attr in ("WINDOW_BG", "ACCENT", "BASE_BG", "CLOSE_HOVER"):
             with self.subTest(attr=attr):
                 val = getattr(Colors, attr)
-                self.assertTrue(val.startswith('#'), f"{attr} = {val}")
+                self.assertTrue(val.startswith("#"), f"{attr} = {val}")
 
     def test_preset_colors_count(self):
         """11 preset color swatches (Windows buttonC1-C11)."""
@@ -78,8 +78,12 @@ class TestLayout(unittest.TestCase):
     def test_tuples_are_4_ints(self):
         """All standard layout rects are (x, y, w, h)."""
         rects = [
-            Layout.SIDEBAR, Layout.FORM_CONTAINER, Layout.PREVIEW,
-            Layout.PANEL_STACK, Layout.TAB_LOCAL, Layout.ROTATION_COMBO,
+            Layout.SIDEBAR,
+            Layout.FORM_CONTAINER,
+            Layout.PREVIEW,
+            Layout.PANEL_STACK,
+            Layout.TAB_LOCAL,
+            Layout.ROTATION_COMBO,
         ]
         for rect in rects:
             with self.subTest(rect=rect):
@@ -115,33 +119,33 @@ class TestStyles(unittest.TestCase):
     """Test Styles stylesheet strings and generators."""
 
     def test_flat_button_contains_transparent(self):
-        self.assertIn('transparent', Styles.FLAT_BUTTON)
+        self.assertIn("transparent", Styles.FLAT_BUTTON)
 
     def test_scroll_area_no_border(self):
-        self.assertIn('border: none', Styles.SCROLL_AREA)
+        self.assertIn("border: none", Styles.SCROLL_AREA)
 
     def test_thumb_selected_generator(self):
         """Dynamic stylesheet includes accent color and class name."""
-        css = Styles.thumb_selected('MyThumb')
-        self.assertIn('MyThumb', css)
+        css = Styles.thumb_selected("MyThumb")
+        self.assertIn("MyThumb", css)
         self.assertIn(Colors.ACCENT, css)
 
     def test_thumb_normal_generator(self):
-        css = Styles.thumb_normal('MyThumb')
-        self.assertIn('MyThumb', css)
-        self.assertIn('hover', css)
+        css = Styles.thumb_normal("MyThumb")
+        self.assertIn("MyThumb", css)
+        self.assertIn("hover", css)
 
     def test_thumb_non_local_generator(self):
-        css = Styles.thumb_non_local('MaskThumb')
-        self.assertIn('MaskThumb', css)
-        self.assertIn('dashed', css)
+        css = Styles.thumb_non_local("MaskThumb")
+        self.assertIn("MaskThumb", css)
+        self.assertIn("dashed", css)
 
     def test_slider_style(self):
-        self.assertIn('QSlider', Styles.SLIDER)
+        self.assertIn("QSlider", Styles.SLIDER)
 
     def test_add_element_btn(self):
-        self.assertIn('QPushButton', Styles.ADD_ELEMENT_BTN)
+        self.assertIn("QPushButton", Styles.ADD_ELEMENT_BTN)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

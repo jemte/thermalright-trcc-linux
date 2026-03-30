@@ -66,7 +66,7 @@ class UCColorWheel(QWidget):
         self._onoff = 1  # 1=ON, 0=OFF (C# default: ON)
 
         # Load C# color wheel asset
-        path = Assets.get('D3旋钮')
+        path = Assets.get("D3旋钮")
         self._ring_pixmap: Optional[QPixmap] = QPixmap(path) if path else None
 
         # Center on/off button (C# UCColorA.buttonDSHX — D3开关/D3开关a)
@@ -74,8 +74,8 @@ class UCColorWheel(QWidget):
         btn_size = 50
         self._onoff_btn.setFixedSize(btn_size, btn_size)
         self._onoff_btn.setFlat(True)
-        off_path = Assets.get('D3开关')
-        on_path = Assets.get('D3开关a')
+        off_path = Assets.get("D3开关")
+        on_path = Assets.get("D3开关a")
         if off_path and on_path:
             self._onoff_btn.setStyleSheet(
                 f"QPushButton {{ border: none; "
@@ -90,7 +90,7 @@ class UCColorWheel(QWidget):
                 "color: #0ff; font-size: 16px; border-radius: 25px; }"
                 "QPushButton:hover { background: rgba(80,80,80,200); }"
             )
-            self._onoff_btn.setText("\u23FB")  # Power symbol
+            self._onoff_btn.setText("\u23fb")  # Power symbol
         self._onoff_btn.setToolTip("Turn LEDs on / off")
         self._onoff_btn.clicked.connect(self._toggle_onoff)
 
@@ -151,8 +151,7 @@ class UCColorWheel(QWidget):
             gradient = QConicalGradient(cx, cy, 0)
             for i in range(13):
                 stop = i / 12.0
-                gradient.setColorAt(
-                    stop, QColor.fromHsv(int(stop * 360) % 360, 255, 255))
+                gradient.setColorAt(stop, QColor.fromHsv(int(stop * 360) % 360, 255, 255))
             ring = QPainterPath()
             ring.addEllipse(QPointF(cx, cy), outer, outer)
             hole = QPainterPath()
@@ -174,8 +173,7 @@ class UCColorWheel(QWidget):
 
         painter.setPen(QPen(QColor(255, 255, 255), 2))
         painter.setBrush(QBrush(QColor.fromHsv(self._hue, 255, 255)))
-        painter.drawEllipse(
-            QPointF(sx, sy), self.SELECTOR_RADIUS, self.SELECTOR_RADIUS)
+        painter.drawEllipse(QPointF(sx, sy), self.SELECTOR_RADIUS, self.SELECTOR_RADIUS)
 
         painter.end()
 

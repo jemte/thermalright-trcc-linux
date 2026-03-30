@@ -13,27 +13,26 @@ from pathlib import Path
 
 # Early logging — catches import failures, DI errors, platform issues.
 # Must run before any trcc imports. All 4 OS's get a log file.
-_log_dir = Path.home() / '.trcc'
+_log_dir = Path.home() / ".trcc"
 _log_dir.mkdir(parents=True, exist_ok=True)
-_log_path = _log_dir / 'trcc.log'
+_log_path = _log_dir / "trcc.log"
 
 logging.basicConfig(
     level=logging.DEBUG,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
     handlers=[
-        logging.handlers.RotatingFileHandler(
-            _log_path, maxBytes=1_000_000, backupCount=3),
+        logging.handlers.RotatingFileHandler(_log_path, maxBytes=1_000_000, backupCount=3),
     ],
 )
-log = logging.getLogger('trcc.main')
+log = logging.getLogger("trcc.main")
 log.info("Starting TRCC — platform=%s, executable=%s", sys.platform, sys.executable)
 
 # Windows: ensure libusb-1.0.dll is findable by pyusb (ctypes).
 # PyInstaller bundles the DLL next to the exe, but Python 3.8+ on Windows
 # doesn't search the exe's directory for ctypes DLLs unless explicitly told.
 # Without this, pyusb raises ``NoBackendError: No backend available``.
-if sys.platform == 'win32':
+if sys.platform == "win32":
     _app_dir = Path(sys.executable).parent
     try:
         os.add_dll_directory(str(_app_dir))
@@ -43,11 +42,13 @@ if sys.platform == 'win32':
 
 try:
     # Auto-launch GUI when invoked as trcc-gui.exe (windowed PyInstaller build)
-    if os.path.basename(sys.executable).lower().startswith('trcc-gui'):
+    if os.path.basename(sys.executable).lower().startswith("trcc-gui"):
         from trcc.cli import gui
+
         sys.exit(gui() or 0)
     else:
         from trcc.cli import main
+
         sys.exit(main())
 except Exception:
     log.critical("Fatal startup error", exc_info=True)

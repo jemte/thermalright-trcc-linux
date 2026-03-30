@@ -4,6 +4,7 @@ PlatformAdapter is injected via constructor. The factory classmethod
 for_current_os() is the single OS check — overrideable by subclasses
 for testing or platform extension.
 """
+
 from __future__ import annotations
 
 import logging
@@ -50,7 +51,7 @@ class ControllerBuilder:
     # ── Factory entry point (overrideable) ─────────────────────────
 
     @classmethod
-    def for_current_os(cls) -> 'ControllerBuilder':
+    def for_current_os(cls) -> "ControllerBuilder":
         """Create a builder with the OS-appropriate platform adapter.
 
         Single OS check for the entire application. Overrideable by
@@ -60,14 +61,18 @@ class ControllerBuilder:
 
         if WINDOWS:
             from ..adapters.system.windows.platform import WindowsPlatform
+
             return cls(WindowsPlatform())
         if MACOS:
             from ..adapters.system.macos.platform import MacOSPlatform
+
             return cls(MacOSPlatform())
         if BSD:
             from ..adapters.system.bsd.platform import BSDPlatform
+
             return cls(BSDPlatform())
         from ..adapters.system.linux.platform import LinuxPlatform
+
         return cls(LinuxPlatform())
 
     def bootstrap(self, verbosity: int = 0) -> None:
@@ -107,7 +112,8 @@ class ControllerBuilder:
         renderer = self._renderer
         if renderer is None:
             raise RuntimeError(
-                "ControllerBuilder.with_renderer() must be called before build_lcd().")
+                "ControllerBuilder.with_renderer() must be called before build_lcd()."
+            )
 
         self._platform.configure_scsi_protocol(DeviceProtocolFactory)
         ImageService.set_renderer(renderer)
@@ -124,11 +130,11 @@ class ControllerBuilder:
 
         lcd = LCDDevice(
             device_svc=device_svc,
-            display_svc=result['display_svc'],
-            theme_svc=result['theme_svc'],
+            display_svc=result["display_svc"],
+            theme_svc=result["theme_svc"],
             renderer=renderer,
-            dc_config_cls=result['dc_config_cls'],
-            load_config_json_fn=result['load_config_json_fn'],
+            dc_config_cls=result["dc_config_cls"],
+            load_config_json_fn=result["load_config_json_fn"],
             build_services_fn=build_services_fn,
         )
 
@@ -155,7 +161,7 @@ class ControllerBuilder:
             get_protocol=DeviceProtocolFactory.get_protocol,
         )
 
-    def build_device(self, detected: Any = None) -> 'Device':
+    def build_device(self, detected: Any = None) -> "Device":
         """Build and return the correct Device for the detected hardware.
 
         Reads PROTOCOL_TRAITS.is_led to decide LCDDevice vs LEDDevice.
@@ -176,11 +182,12 @@ class ControllerBuilder:
 
         is_led = (
             detected is not None
-            and PROTOCOL_TRAITS.get(detected.protocol, PROTOCOL_TRAITS['scsi']).is_led
+            and PROTOCOL_TRAITS.get(detected.protocol, PROTOCOL_TRAITS["scsi"]).is_led
         )
 
         if is_led:
             from .led_device import LEDDevice
+
             return LEDDevice(
                 device_svc=device_svc,
                 get_protocol=DeviceProtocolFactory.get_protocol,
@@ -188,12 +195,14 @@ class ControllerBuilder:
 
         from ..services.image import ImageService
         from .lcd_device import LCDDevice
+
         build_fn = self._make_build_services_fn()
         renderer = self._renderer
         if renderer is None:
             raise RuntimeError(
                 "ControllerBuilder: renderer not set. "
-                "Dispatch InitPlatformCommand with renderer_factory before building devices.")
+                "Dispatch InitPlatformCommand with renderer_factory before building devices."
+            )
         ImageService.set_renderer(renderer)
         return LCDDevice(
             device_svc=device_svc,
@@ -204,6 +213,7 @@ class ControllerBuilder:
     def build_system(self) -> SystemService:
         """Build and return a SystemService."""
         from ..services.system import SystemService
+
         return SystemService(enumerator=self._platform.create_sensor_enumerator())
 
     def build_setup(self) -> PlatformSetup:
@@ -216,6 +226,7 @@ class ControllerBuilder:
         Isolated here so core/app.py never imports infra adapters directly.
         """
         from ..adapters.infra.data_repository import DataManager
+
         return DataManager.ensure_all
 
     def build_autostart(self) -> AutostartManager:
@@ -231,6 +242,7 @@ class ControllerBuilder:
         from ..adapters.device.factory import DeviceProtocolFactory
         from ..adapters.device.led import probe_led_model
         from ..services import DeviceService
+
         self._platform.configure_scsi_protocol(DeviceProtocolFactory)
         return DeviceService(
             detect_fn=self._platform.create_detect_fn(),
@@ -246,6 +258,7 @@ class ControllerBuilder:
     def lcd_from_service(self, device_svc) -> LCDDevice:
         """Build an LCDDevice from an existing DeviceService."""
         from .lcd_device import LCDDevice
+
         build_fn = self._make_build_services_fn()
         return LCDDevice.from_service(
             device_svc,
@@ -283,23 +296,27 @@ class ControllerBuilder:
             )
             try:
                 import psutil as _psutil
+
                 _proc = _psutil.Process()
+
                 def _cpu_percent() -> float:
                     return _proc.cpu_percent(interval=0.5)
             except ImportError:
                 log.warning("psutil not available — CPU baseline logging disabled")
                 _cpu_percent = None  # type: ignore[assignment]
             display_svc = DisplayService(
-                device_svc, overlay_svc, media_svc,
+                device_svc,
+                overlay_svc,
+                media_svc,
                 theme_svc=theme_svc,
                 cpu_percent_fn=_cpu_percent,
             )
             return {
-                'display_svc': display_svc,
-                'theme_svc': theme_svc,
-                'renderer': r,
-                'dc_config_cls': DcConfig,
-                'load_config_json_fn': load_config_json,
+                "display_svc": display_svc,
+                "theme_svc": theme_svc,
+                "renderer": r,
+                "dc_config_cls": DcConfig,
+                "load_config_json_fn": load_config_json,
             }
 
         return _build

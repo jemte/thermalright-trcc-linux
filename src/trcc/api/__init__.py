@@ -16,6 +16,7 @@ Security:
     - Optional TLS via --tls flag (auto-generates self-signed cert)
     - 10 MB upload limit with image format validation
 """
+
 from __future__ import annotations
 
 import hmac
@@ -57,7 +58,7 @@ _system_svc: SystemService | None = None
 
 # Lazy-initialized devices (set when device is selected)
 _display_dispatcher = None  # LCDDevice | None
-_led_dispatcher = None      # LEDDevice | None
+_led_dispatcher = None  # LEDDevice | None
 
 # Last frame sent to LCD — updated by display/theme endpoints for preview
 _current_image = None  # QImage | None
@@ -101,7 +102,11 @@ _video_stop_event: threading.Event | None = None
 
 
 def start_video_playback(
-    video_path: str, width: int, height: int, *, loop: bool = True,
+    video_path: str,
+    width: int,
+    height: int,
+    *,
+    loop: bool = True,
 ) -> bool:
     """Start background video playback — pumps frames to LCD and _current_image.
 
@@ -113,6 +118,7 @@ def start_video_playback(
     stop_video_playback()  # Stop any existing playback
 
     from trcc.adapters.infra.media_player import ThemeZtDecoder, VideoDecoder
+
     media = MediaService(
         video_decoder_cls=VideoDecoder,
         zt_decoder_cls=ThemeZtDecoder,
@@ -173,7 +179,10 @@ _overlay_stop_event: threading.Event | None = None
 
 
 def start_overlay_loop(
-    background, dc_path: str, width: int, height: int,
+    background,
+    dc_path: str,
+    width: int,
+    height: int,
 ) -> bool:
     """Start background overlay rendering — polls metrics, re-renders, sends to LCD.
 
@@ -185,8 +194,11 @@ def start_overlay_loop(
     stop_overlay_loop()
 
     from trcc.services.image import ImageService
+
     overlay = OverlayService(
-        width, height, renderer=ImageService._r(),
+        width,
+        height,
+        renderer=ImageService._r(),
         load_config_json_fn=load_config_json,
         dc_config_cls=DcConfig,
     )
@@ -299,7 +311,7 @@ def mount_static_dirs(width: int, height: int) -> None:
 
     # Remove previous mounts
     for path in _mounted_routes:
-        app.routes[:] = [r for r in app.routes if getattr(r, 'path', '') != path]
+        app.routes[:] = [r for r in app.routes if getattr(r, "path", "") != path]
     _mounted_routes.clear()
 
     # Theme directory (local themes)
@@ -320,8 +332,14 @@ def mount_static_dirs(width: int, height: int) -> None:
         app.mount("/static/masks", StaticFiles(directory=masks_dir), name="masks")
         _mounted_routes.append("/static/masks")
 
-    log.info("Mounted static dirs for %dx%d: themes=%s web=%s masks=%s",
-             width, height, theme_dir, web_dir, masks_dir)
+    log.info(
+        "Mounted static dirs for %dx%d: themes=%s web=%s masks=%s",
+        width,
+        height,
+        theme_dir,
+        web_dir,
+        masks_dir,
+    )
 
 
 # ── Token auth + pairing ──────────────────────────────────────────────
@@ -350,11 +368,11 @@ _AUTH_EXEMPT = {"/health", "/pair"}
 async def log_requests(request: Request, call_next):
     """Log every HTTP request with method, path, status, and latency."""
     import time
+
     start = time.monotonic()
     response = await call_next(request)
     ms = (time.monotonic() - start) * 1000
-    log.info("API %s %s → %d (%.0fms)",
-             request.method, request.url.path, response.status_code, ms)
+    log.info("API %s %s → %d (%.0fms)", request.method, request.url.path, response.status_code, ms)
     return response
 
 
@@ -370,6 +388,7 @@ async def check_token(request: Request, call_next):
 
 # ── Health endpoint (always accessible) ────────────────────────────────
 
+
 @app.get("/health")
 def health() -> dict:
     """Health check (always accessible, no auth required)."""
@@ -377,6 +396,7 @@ def health() -> dict:
 
 
 # ── Pairing endpoint (no auth required) ───────────────────────────────
+
 
 @app.post("/pair")
 def pair_device(code: str):
@@ -395,12 +415,14 @@ def pair_device(code: str):
     if not hmac.compare_digest(code.upper(), _pairing_code.upper()):
         log.warning("Pairing attempt with wrong code")
         return JSONResponse(
-            status_code=403, content={"detail": "Invalid pairing code"},
+            status_code=403,
+            content={"detail": "Invalid pairing code"},
         )
 
     if not _api_token:
         return JSONResponse(
-            status_code=500, content={"detail": "No API token configured"},
+            status_code=500,
+            content={"detail": "No API token configured"},
         )
 
     log.info("Remote device paired successfully")

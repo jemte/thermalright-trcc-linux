@@ -18,7 +18,7 @@ import sys
 import unittest
 
 # Must set before ANY Qt import
-os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
 from PySide6.QtWidgets import QApplication
 
@@ -64,16 +64,16 @@ class TestBasePanel(unittest.TestCase):
         panel = BasePanel()
         received = []
         panel.delegate.connect(lambda c, i, d: received.append((c, i, d)))
-        panel.invoke_delegate(42, 'info', 'data')
-        self.assertEqual(received, [(42, 'info', 'data')])
+        panel.invoke_delegate(42, "info", "data")
+        self.assertEqual(received, [(42, "info", "data")])
 
     def test_load_pixmap_no_resource_dir(self):
         panel = BasePanel()
-        self.assertIsNone(panel.load_pixmap('test.png'))
+        self.assertIsNone(panel.load_pixmap("test.png"))
 
     def test_set_resource_dir(self):
         panel = BasePanel()
-        panel.set_resource_dir('/tmp')
+        panel.set_resource_dir("/tmp")
         self.assertIsNotNone(panel._resource_dir)
 
 
@@ -114,6 +114,7 @@ class TestImageLabel(unittest.TestCase):
         # Simulate click via mousePressEvent
         from PySide6.QtCore import QEvent, QPointF
         from PySide6.QtGui import QMouseEvent
+
         event = QMouseEvent(
             QEvent.Type.MouseButtonPress,
             QPointF(50, 50),
@@ -136,6 +137,7 @@ class TestClickableFrame(unittest.TestCase):
 
         from PySide6.QtCore import QEvent, QPointF
         from PySide6.QtGui import QMouseEvent
+
         event = QMouseEvent(
             QEvent.Type.MouseButtonPress,
             QPointF(10, 10),
@@ -152,36 +154,37 @@ class TestBaseThumbnail(unittest.TestCase):
     """Test BaseThumbnail widget."""
 
     def test_init(self):
-        thumb = BaseThumbnail(ThemeItem(name='TestTheme'))
+        thumb = BaseThumbnail(ThemeItem(name="TestTheme"))
         self.assertEqual(thumb.width(), Sizes.THUMB_W)
         self.assertEqual(thumb.height(), Sizes.THUMB_H)
         self.assertFalse(thumb.selected)
 
     def test_display_name(self):
-        thumb = BaseThumbnail(ThemeItem(name='MyTheme'))
-        self.assertEqual(thumb.name_label.text(), 'MyTheme')
+        thumb = BaseThumbnail(ThemeItem(name="MyTheme"))
+        self.assertEqual(thumb.name_label.text(), "MyTheme")
 
     def test_long_name_truncated(self):
         """Names > 15 chars are truncated to 12 + '...'."""
-        thumb = BaseThumbnail(ThemeItem(name='VeryLongThemeNameHere'))
-        self.assertTrue(thumb.name_label.text().endswith('...'))
+        thumb = BaseThumbnail(ThemeItem(name="VeryLongThemeNameHere"))
+        self.assertTrue(thumb.name_label.text().endswith("..."))
         self.assertLessEqual(len(thumb.name_label.text()), Sizes.THUMB_NAME_MAX)
 
     def test_set_selected(self):
-        thumb = BaseThumbnail(ThemeItem(name='T'))
+        thumb = BaseThumbnail(ThemeItem(name="T"))
         thumb.set_selected(True)
         self.assertTrue(thumb.selected)
         thumb.set_selected(False)
         self.assertFalse(thumb.selected)
 
     def test_clicked_signal(self):
-        info = ThemeItem(name='Clicked')
+        info = ThemeItem(name="Clicked")
         thumb = BaseThumbnail(info)
         received = []
         thumb.clicked.connect(lambda d: received.append(d))
 
         from PySide6.QtCore import QEvent, QPointF
         from PySide6.QtGui import QMouseEvent
+
         event = QMouseEvent(
             QEvent.Type.MouseButtonPress,
             QPointF(60, 60),
@@ -192,7 +195,7 @@ class TestBaseThumbnail(unittest.TestCase):
         )
         thumb.mousePressEvent(event)
         self.assertEqual(len(received), 1)
-        self.assertEqual(received[0].name, 'Clicked')
+        self.assertEqual(received[0].name, "Clicked")
 
 
 class TestCreateImageButton(unittest.TestCase):
@@ -201,22 +204,21 @@ class TestCreateImageButton(unittest.TestCase):
     def test_fallback_text(self):
         """When images don't exist, shows fallback text."""
         from PySide6.QtWidgets import QWidget
+
         parent = QWidget()
         btn = create_image_button(
-            parent, 10, 20, 80, 30,
-            'nonexistent.png', 'nonexistent_a.png',
-            fallback_text='Test'
+            parent, 10, 20, 80, 30, "nonexistent.png", "nonexistent_a.png", fallback_text="Test"
         )
-        self.assertEqual(btn.text(), 'Test')
+        self.assertEqual(btn.text(), "Test")
         self.assertEqual(btn.x(), 10)
         self.assertEqual(btn.y(), 20)
 
     def test_checkable(self):
         from PySide6.QtWidgets import QWidget
+
         parent = QWidget()
         btn = create_image_button(
-            parent, 0, 0, 50, 50,
-            None, None, checkable=True, fallback_text='Check'
+            parent, 0, 0, 50, 50, None, None, checkable=True, fallback_text="Check"
         )
         self.assertTrue(btn.isCheckable())
 
@@ -227,17 +229,18 @@ class TestSetBackgroundPixmap(unittest.TestCase):
     def test_fallback_style(self):
         """When asset doesn't exist, applies fallback stylesheet."""
         from PySide6.QtWidgets import QWidget
+
         widget = QWidget()
         widget.setFixedSize(100, 100)
         result = set_background_pixmap(
-            widget, 'nonexistent_bg.png',
-            fallback_style='background: red;'
+            widget, "nonexistent_bg.png", fallback_style="background: red;"
         )
         self.assertIsNone(result)
 
     def test_with_qpixmap_directly(self):
         """Passing QPixmap directly installs paint event filter."""
         from PySide6.QtWidgets import QWidget
+
         widget = QWidget()
         widget.setFixedSize(50, 50)
         pix = QPixmap(50, 50)
@@ -251,5 +254,5 @@ class TestSetBackgroundPixmap(unittest.TestCase):
 # Import Qt here for the mouse event helper
 from PySide6.QtCore import Qt  # noqa: E402
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

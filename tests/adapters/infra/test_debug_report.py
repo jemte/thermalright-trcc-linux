@@ -29,13 +29,14 @@ from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 from trcc.adapters.infra.diagnostics import _KNOWN_VIDS, DebugReport
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_usb_error(errno_val: int) -> Exception:
     """Build a USBError-like exception that carries an errno attribute."""
@@ -51,6 +52,7 @@ def _section(rpt: DebugReport, idx: int = 0) -> tuple[str, str]:
 # ---------------------------------------------------------------------------
 # lsusb — additional cases
 # ---------------------------------------------------------------------------
+
 
 class TestLsusbExtra:
     """Additional _lsusb coverage."""
@@ -72,9 +74,7 @@ class TestLsusbExtra:
     @patch("trcc.adapters.infra.diagnostics.subprocess.run")
     def test_vid_case_insensitive_match(self, mock_run):
         """Uppercase VID in lsusb output still matched."""
-        mock_run.return_value = MagicMock(
-            stdout="Bus 001 Device 003: ID 0416:8001 Winbond\n"
-        )
+        mock_run.return_value = MagicMock(stdout="Bus 001 Device 003: ID 0416:8001 Winbond\n")
         rpt = DebugReport()
         rpt._lsusb()
         _, body = _section(rpt)
@@ -84,6 +84,7 @@ class TestLsusbExtra:
     def test_subprocess_timeout(self, mock_run):
         """TimeoutExpired is caught and reported."""
         import subprocess
+
         mock_run.side_effect = subprocess.TimeoutExpired(cmd="lsusb", timeout=5)
         rpt = DebugReport()
         rpt._lsusb()
@@ -104,6 +105,7 @@ class TestLsusbExtra:
 # udev rules — additional cases
 # ---------------------------------------------------------------------------
 
+
 class TestUdevRulesExtra:
     """Additional _udev_rules coverage."""
 
@@ -123,10 +125,15 @@ class TestUdevRulesExtra:
         _, body = _section(rpt)
         assert "Error" in body
 
-    @patch("builtins.open", mock_open(read_data=(
-        'SUBSYSTEM=="usb", ATTR{idVendor}=="0416", MODE="0666"\n'
-        'SUBSYSTEM=="usb", ATTR{idVendor}=="87cd", MODE="0666"\n'
-    )))
+    @patch(
+        "builtins.open",
+        mock_open(
+            read_data=(
+                'SUBSYSTEM=="usb", ATTR{idVendor}=="0416", MODE="0666"\n'
+                'SUBSYSTEM=="usb", ATTR{idVendor}=="87cd", MODE="0666"\n'
+            )
+        ),
+    )
     def test_multiple_rules_all_shown(self):
         """Multiple non-comment lines are all included in output."""
         rpt = DebugReport()
@@ -140,13 +147,17 @@ class TestUdevRulesExtra:
 # SELinux — additional branches
 # ---------------------------------------------------------------------------
 
+
 class TestSelinuxExtra:
     """_selinux() section coverage — delegates to check_selinux()."""
 
     @patch("trcc.adapters.infra.diagnostics.check_selinux")
     def test_permissive_mode(self, mock_check):
         from trcc.adapters.infra.diagnostics import SelinuxResult
-        mock_check.return_value = SelinuxResult(ok=True, message='SELinux permissive (no policy needed)')
+
+        mock_check.return_value = SelinuxResult(
+            ok=True, message="SELinux permissive (no policy needed)"
+        )
         rpt = DebugReport()
         rpt._selinux()
         _, body = _section(rpt)
@@ -155,7 +166,10 @@ class TestSelinuxExtra:
     @patch("trcc.adapters.infra.diagnostics.check_selinux")
     def test_disabled_mode(self, mock_check):
         from trcc.adapters.infra.diagnostics import SelinuxResult
-        mock_check.return_value = SelinuxResult(ok=True, message='SELinux disabled (no policy needed)')
+
+        mock_check.return_value = SelinuxResult(
+            ok=True, message="SELinux disabled (no policy needed)"
+        )
         rpt = DebugReport()
         rpt._selinux()
         _, body = _section(rpt)
@@ -164,7 +178,8 @@ class TestSelinuxExtra:
     @patch("trcc.adapters.infra.diagnostics.check_selinux")
     def test_status_unknown(self, mock_check):
         from trcc.adapters.infra.diagnostics import SelinuxResult
-        mock_check.return_value = SelinuxResult(ok=True, message='SELinux status unknown')
+
+        mock_check.return_value = SelinuxResult(ok=True, message="SELinux status unknown")
         rpt = DebugReport()
         rpt._selinux()
         _, body = _section(rpt)
@@ -174,9 +189,12 @@ class TestSelinuxExtra:
     def test_enforcing_policy_loaded(self, mock_check):
         """Enforcing with trcc_usb loaded — no setup hint shown."""
         from trcc.adapters.infra.diagnostics import SelinuxResult
+
         mock_check.return_value = SelinuxResult(
-            ok=True, message='SELinux enforcing — trcc_usb module loaded',
-            enforcing=True, module_loaded=True,
+            ok=True,
+            message="SELinux enforcing — trcc_usb module loaded",
+            enforcing=True,
+            module_loaded=True,
         )
         rpt = DebugReport()
         rpt._selinux()
@@ -188,9 +206,12 @@ class TestSelinuxExtra:
     def test_enforcing_policy_missing(self, mock_check):
         """Enforcing without USB policy — setup hint must appear."""
         from trcc.adapters.infra.diagnostics import SelinuxResult
+
         mock_check.return_value = SelinuxResult(
-            ok=False, message='SELinux enforcing — USB policy not installed',
-            enforcing=True, module_loaded=False,
+            ok=False,
+            message="SELinux enforcing — USB policy not installed",
+            enforcing=True,
+            module_loaded=False,
         )
         rpt = DebugReport()
         rpt._selinux()
@@ -202,6 +223,7 @@ class TestSelinuxExtra:
 # ---------------------------------------------------------------------------
 # RAPL permissions
 # ---------------------------------------------------------------------------
+
 
 class TestRaplPermissionsExtra:
     """_rapl_permissions section coverage."""
@@ -271,6 +293,7 @@ class TestRaplPermissionsExtra:
 # Dependencies
 # ---------------------------------------------------------------------------
 
+
 class TestDependenciesExtra:
     """_dependencies section — version scenarios."""
 
@@ -301,6 +324,7 @@ class TestDependenciesExtra:
 # ---------------------------------------------------------------------------
 # Devices — additional cases
 # ---------------------------------------------------------------------------
+
 
 class TestDevicesExtra:
     """_devices extra coverage."""
@@ -346,6 +370,7 @@ class TestDevicesExtra:
 # Device permissions — additional cases
 # ---------------------------------------------------------------------------
 
+
 class TestDevicePermissionsExtra:
     """_device_permissions extra coverage."""
 
@@ -385,6 +410,7 @@ class TestDevicePermissionsExtra:
 # ---------------------------------------------------------------------------
 # Handshakes routing
 # ---------------------------------------------------------------------------
+
 
 class TestHandshakesRouting:
     """_handshakes routing to sub-handlers."""
@@ -494,6 +520,7 @@ class TestHandshakesRouting:
 # _handshake_scsi
 # ---------------------------------------------------------------------------
 
+
 class TestHandshakeScsi:
     """_handshake_scsi result paths."""
 
@@ -576,6 +603,7 @@ class TestHandshakeScsi:
 # _handshake_hid_lcd
 # ---------------------------------------------------------------------------
 
+
 class TestHandshakeHidLcd:
     """_handshake_hid_lcd result paths."""
 
@@ -586,9 +614,11 @@ class TestHandshakeHidLcd:
         dev.device_type = 2
         return dev
 
-    def _make_hid_info(self, fbl=50, pm=128, sub=0, serial="SN123",
-                       resolution=(320, 240), raw=bytes(64)):
+    def _make_hid_info(
+        self, fbl=50, pm=128, sub=0, serial="SN123", resolution=(320, 240), raw=bytes(64)
+    ):
         from trcc.adapters.device.hid import HidHandshakeInfo
+
         info = MagicMock(spec=HidHandshakeInfo)
         info.mode_byte_1 = pm
         info.mode_byte_2 = sub
@@ -644,8 +674,7 @@ class TestHandshakeHidLcd:
         rpt = DebugReport()
 
         # _has_usb_errno is imported locally inside the method; patch at factory
-        with patch("trcc.adapters.device.factory._has_usb_errno",
-                   side_effect=lambda e, n: n == 13):
+        with patch("trcc.adapters.device.factory._has_usb_errno", side_effect=lambda e, n: n == 13):
             rpt._handshake_hid_lcd(self._make_dev(), sec_obj)
 
         text = " ".join(sec_obj.lines)
@@ -662,8 +691,7 @@ class TestHandshakeHidLcd:
         sec_obj.lines = []
         rpt = DebugReport()
 
-        with patch("trcc.adapters.device.factory._has_usb_errno",
-                   side_effect=lambda e, n: n == 16):
+        with patch("trcc.adapters.device.factory._has_usb_errno", side_effect=lambda e, n: n == 16):
             with patch.object(rpt, "_ebusy_fallback") as mock_fallback:
                 rpt._handshake_hid_lcd(self._make_dev(), sec_obj)
                 mock_fallback.assert_called_once_with(sec_obj)
@@ -679,8 +707,7 @@ class TestHandshakeHidLcd:
         sec_obj.lines = []
         rpt = DebugReport()
 
-        with patch("trcc.adapters.device.factory._has_usb_errno",
-                   return_value=False):
+        with patch("trcc.adapters.device.factory._has_usb_errno", return_value=False):
             rpt._handshake_hid_lcd(self._make_dev(), sec_obj)
 
         text = " ".join(sec_obj.lines)
@@ -705,6 +732,7 @@ class TestHandshakeHidLcd:
 # _handshake_led
 # ---------------------------------------------------------------------------
 
+
 class TestHandshakeLed:
     """_handshake_led result paths."""
 
@@ -714,9 +742,9 @@ class TestHandshakeLed:
         dev.pid = 0x8001
         return dev
 
-    def _make_led_info(self, pm=1, sub=0, model_name="PA120",
-                       known=True, raw=bytes(64)):
+    def _make_led_info(self, pm=1, sub=0, model_name="PA120", known=True, raw=bytes(64)):
         from trcc.adapters.device.led import LedHandshakeInfo
+
         info = MagicMock(spec=LedHandshakeInfo)
         info.pm = pm
         info.sub_type = sub
@@ -774,8 +802,7 @@ class TestHandshakeLed:
         sec_obj.lines = []
         rpt = DebugReport()
 
-        with patch("trcc.adapters.device.factory._has_usb_errno",
-                   side_effect=lambda e, n: n == 16):
+        with patch("trcc.adapters.device.factory._has_usb_errno", side_effect=lambda e, n: n == 16):
             with patch.object(rpt, "_ebusy_fallback") as mock_fallback:
                 rpt._handshake_led(self._make_dev(), sec_obj)
                 mock_fallback.assert_called_once_with(sec_obj)
@@ -791,8 +818,7 @@ class TestHandshakeLed:
         sec_obj.lines = []
         rpt = DebugReport()
 
-        with patch("trcc.adapters.device.factory._has_usb_errno",
-                   side_effect=lambda e, n: n == 13):
+        with patch("trcc.adapters.device.factory._has_usb_errno", side_effect=lambda e, n: n == 13):
             rpt._handshake_led(self._make_dev(), sec_obj)
 
         text = " ".join(sec_obj.lines)
@@ -816,6 +842,7 @@ class TestHandshakeLed:
 # _handshake_bulk
 # ---------------------------------------------------------------------------
 
+
 class TestHandshakeBulk:
     """_handshake_bulk result paths."""
 
@@ -825,8 +852,9 @@ class TestHandshakeBulk:
         dev.pid = 0x70DB
         return dev
 
-    def _make_result(self, model_id=32, resolution=(480, 480),
-                     serial="", raw=bytes(64), pm_byte=7, sub_byte=1):
+    def _make_result(
+        self, model_id=32, resolution=(480, 480), serial="", raw=bytes(64), pm_byte=7, sub_byte=1
+    ):
         r = MagicMock()
         r.model_id = model_id
         r.resolution = resolution
@@ -864,8 +892,7 @@ class TestHandshakeBulk:
         sec_obj = MagicMock()
         sec_obj.lines = []
         rpt = DebugReport()
-        with patch("trcc.adapters.device.factory._has_usb_errno",
-                   side_effect=lambda e, n: n == 13):
+        with patch("trcc.adapters.device.factory._has_usb_errno", side_effect=lambda e, n: n == 13):
             rpt._handshake_bulk(self._make_dev(), sec_obj)
 
         text = " ".join(sec_obj.lines)
@@ -881,8 +908,7 @@ class TestHandshakeBulk:
         sec_obj = MagicMock()
         sec_obj.lines = []
         rpt = DebugReport()
-        with patch("trcc.adapters.device.factory._has_usb_errno",
-                   side_effect=lambda e, n: n == 16):
+        with patch("trcc.adapters.device.factory._has_usb_errno", side_effect=lambda e, n: n == 16):
             with patch.object(rpt, "_ebusy_fallback") as mock_fallback:
                 rpt._handshake_bulk(self._make_dev(), sec_obj)
                 mock_fallback.assert_called_once_with(sec_obj)
@@ -897,8 +923,7 @@ class TestHandshakeBulk:
         sec_obj = MagicMock()
         sec_obj.lines = []
         rpt = DebugReport()
-        with patch("trcc.adapters.device.factory._has_usb_errno",
-                   return_value=False):
+        with patch("trcc.adapters.device.factory._has_usb_errno", return_value=False):
             rpt._handshake_bulk(self._make_dev(), sec_obj)
 
         text = " ".join(sec_obj.lines)
@@ -922,6 +947,7 @@ class TestHandshakeBulk:
 # _handshake_ly
 # ---------------------------------------------------------------------------
 
+
 class TestHandshakeLy:
     """_handshake_ly result paths."""
 
@@ -931,8 +957,9 @@ class TestHandshakeLy:
         dev.pid = 0x5408
         return dev
 
-    def _make_result(self, model_id=64, resolution=(1280, 480),
-                     serial="", raw=bytes(64), pm_byte=68, sub_byte=0):
+    def _make_result(
+        self, model_id=64, resolution=(1280, 480), serial="", raw=bytes(64), pm_byte=68, sub_byte=0
+    ):
         r = MagicMock()
         r.model_id = model_id
         r.resolution = resolution
@@ -970,8 +997,7 @@ class TestHandshakeLy:
         sec_obj = MagicMock()
         sec_obj.lines = []
         rpt = DebugReport()
-        with patch("trcc.adapters.device.factory._has_usb_errno",
-                   side_effect=lambda e, n: n == 13):
+        with patch("trcc.adapters.device.factory._has_usb_errno", side_effect=lambda e, n: n == 13):
             rpt._handshake_ly(self._make_dev(), sec_obj)
 
         text = " ".join(sec_obj.lines)
@@ -987,8 +1013,7 @@ class TestHandshakeLy:
         sec_obj = MagicMock()
         sec_obj.lines = []
         rpt = DebugReport()
-        with patch("trcc.adapters.device.factory._has_usb_errno",
-                   side_effect=lambda e, n: n == 16):
+        with patch("trcc.adapters.device.factory._has_usb_errno", side_effect=lambda e, n: n == 16):
             with patch.object(rpt, "_ebusy_fallback") as mock_fallback:
                 rpt._handshake_ly(self._make_dev(), sec_obj)
                 mock_fallback.assert_called_once_with(sec_obj)
@@ -1003,8 +1028,7 @@ class TestHandshakeLy:
         sec_obj = MagicMock()
         sec_obj.lines = []
         rpt = DebugReport()
-        with patch("trcc.adapters.device.factory._has_usb_errno",
-                   return_value=False):
+        with patch("trcc.adapters.device.factory._has_usb_errno", return_value=False):
             rpt._handshake_ly(self._make_dev(), sec_obj)
 
         text = " ".join(sec_obj.lines)
@@ -1041,6 +1065,7 @@ class TestHandshakeLy:
 # ---------------------------------------------------------------------------
 # _ebusy_fallback
 # ---------------------------------------------------------------------------
+
 
 class TestEbusyFallback:
     """_ebusy_fallback cached handshake data paths."""
@@ -1089,8 +1114,7 @@ class TestEbusyFallback:
         assert "device in use by trcc gui" in text
         assert "from cache" not in text
 
-    @patch("trcc.conf.load_last_handshake",
-           return_value={"model_id": 50})  # no "resolution" key
+    @patch("trcc.conf.load_last_handshake", return_value={"model_id": 50})  # no "resolution" key
     def test_cache_without_resolution_key(self, _):
         sec_obj = MagicMock()
         sec_obj.lines = []
@@ -1104,6 +1128,7 @@ class TestEbusyFallback:
 # ---------------------------------------------------------------------------
 # _last_cpu_baseline
 # ---------------------------------------------------------------------------
+
 
 class TestProcessUsageExtra:
     """_last_cpu_baseline edge cases."""
@@ -1158,14 +1183,18 @@ class TestProcessUsageExtra:
 # _config — extra edge cases
 # ---------------------------------------------------------------------------
 
+
 class TestConfigExtra:
     """_config section extra cases."""
 
-    @patch("trcc.conf.load_config", return_value={
-        "resolution": [320, 240],
-        "temp_unit": 1,
-        "format_prefs": {"time_format": 1},
-    })
+    @patch(
+        "trcc.conf.load_config",
+        return_value={
+            "resolution": [320, 240],
+            "temp_unit": 1,
+            "format_prefs": {"time_format": 1},
+        },
+    )
     def test_shows_all_present_keys(self, _):
         rpt = DebugReport()
         rpt._app_config()
@@ -1192,6 +1221,7 @@ class TestConfigExtra:
 # ---------------------------------------------------------------------------
 # __str__ and sections property
 # ---------------------------------------------------------------------------
+
 
 class TestStrAndSections:
     """__str__ formatting and sections property."""
@@ -1231,8 +1261,9 @@ class TestStrAndSections:
         rpt._version()
 
         with (
-            patch("trcc.adapters.infra.diagnostics.subprocess.run",
-                  return_value=MagicMock(stdout="")),
+            patch(
+                "trcc.adapters.infra.diagnostics.subprocess.run", return_value=MagicMock(stdout="")
+            ),
             patch("builtins.open", side_effect=FileNotFoundError),
         ):
             rpt._lsusb()
@@ -1249,8 +1280,7 @@ class TestRecentLog:
 
     def test_no_log_file(self, tmp_path):
         rpt = DebugReport()
-        with patch("trcc.adapters.infra.diagnostics.Path.home",
-                    return_value=tmp_path):
+        with patch("trcc.adapters.infra.diagnostics.Path.home", return_value=tmp_path):
             rpt._recent_log()
         body = rpt.sections[-1][1]
         assert "(no log file)" in body
@@ -1260,8 +1290,7 @@ class TestRecentLog:
         log_dir.mkdir()
         (log_dir / "trcc.log").write_text("")
         rpt = DebugReport()
-        with patch("trcc.adapters.infra.diagnostics.Path.home",
-                    return_value=tmp_path):
+        with patch("trcc.adapters.infra.diagnostics.Path.home", return_value=tmp_path):
             rpt._recent_log()
         body = rpt.sections[-1][1]
         assert "(empty log)" in body
@@ -1272,8 +1301,7 @@ class TestRecentLog:
         lines = [f"line {i}" for i in range(100)]
         (log_dir / "trcc.log").write_text("\n".join(lines))
         rpt = DebugReport()
-        with patch("trcc.adapters.infra.diagnostics.Path.home",
-                    return_value=tmp_path):
+        with patch("trcc.adapters.infra.diagnostics.Path.home", return_value=tmp_path):
             rpt._recent_log()
         body = rpt.sections[-1][1]
         assert "line 50" in body
@@ -1285,16 +1313,14 @@ class TestRecentLog:
         log_dir.mkdir()
         (log_dir / "trcc.log").write_text("only line\n")
         rpt = DebugReport()
-        with patch("trcc.adapters.infra.diagnostics.Path.home",
-                    return_value=tmp_path):
+        with patch("trcc.adapters.infra.diagnostics.Path.home", return_value=tmp_path):
             rpt._recent_log()
         body = rpt.sections[-1][1]
         assert "only line" in body
 
     def test_read_error(self, tmp_path):
         rpt = DebugReport()
-        with patch("trcc.adapters.infra.diagnostics.Path.home",
-                    return_value=tmp_path):
+        with patch("trcc.adapters.infra.diagnostics.Path.home", return_value=tmp_path):
             log_dir = tmp_path / ".trcc"
             log_dir.mkdir()
             log_file = log_dir / "trcc.log"

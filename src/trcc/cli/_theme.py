@@ -1,4 +1,5 @@
 """Theme discovery and loading commands."""
+
 from __future__ import annotations
 
 from trcc.cli import _cli_handler, _device
@@ -35,7 +36,7 @@ def list_themes(cloud=False, category=None):
         print(f"Local themes ({w}x{h}): {len(themes)}")
         for t in themes:
             kind = "video" if t.is_animated else "static"
-            user = " [user]" if t.name.startswith(('Custom_', 'User')) else ""
+            user = " [user]" if t.name.startswith(("Custom_", "User")) else ""
             print(f"  {t.name} ({kind}){user}")
 
     return 0
@@ -75,6 +76,7 @@ def load_theme(builder, name, *, device=None, preview=False):
 
     # Build LCD with full service stack (DisplayService, OverlayService, etc.)
     from trcc.core.app import TrccApp
+
     lcd = builder.lcd_from_service(svc)
     lcd.restore_device_settings()
 
@@ -85,9 +87,9 @@ def load_theme(builder, name, *, device=None, preview=False):
 
     # Save as last-used theme
     key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
-    Settings.save_device_setting(key, 'theme_path', str(match.path))
+    Settings.save_device_setting(key, "theme_path", str(match.path))
 
-    if result.get('is_animated') and lcd._display_svc.media.has_frames:
+    if result.get("is_animated") and lcd._display_svc.media.has_frames:
         print(f"Playing '{match.name}' → {dev.path}")
         print("Press Ctrl+C to stop.")
 
@@ -96,6 +98,7 @@ def load_theme(builder, name, *, device=None, preview=False):
         if lcd._display_svc.overlay.enabled:
             from trcc.cli import _ensure_system
             from trcc.services.system import get_all_metrics
+
             _ensure_system(builder)
             metrics_fn = get_all_metrics
 
@@ -105,13 +108,12 @@ def load_theme(builder, name, *, device=None, preview=False):
         loop_result = lcd._display_svc._run_tick_loop(
             metrics_fn=metrics_fn,
             on_frame=lambda img: svc.send_frame(img, w, h),
-            on_progress=lambda p, c, t: print(
-                f"\r  {c} / {t} ({p:.0f}%)", end="", flush=True),
+            on_progress=lambda p, c, t: print(f"\r  {c} / {t} ({p:.0f}%)", end="", flush=True),
         )
         print(f"\n{loop_result['message']}.")
     else:
         # Static theme
-        img = result.get('image')
+        img = result.get("image")
         if img:
             lcd.send(img)
             print(f"Loaded '{match.name}' → {dev.path}")
@@ -125,10 +127,22 @@ def load_theme(builder, name, *, device=None, preview=False):
 
 
 @_cli_handler
-def save_theme(name, *, device=None, video=None, background=None,
-               metrics=None, mask=None, font_size=14, color='ffffff',
-               font='Microsoft YaHei', font_style='regular',
-               temp_unit=0, time_format=0, date_format=0):
+def save_theme(
+    name,
+    *,
+    device=None,
+    video=None,
+    background=None,
+    metrics=None,
+    mask=None,
+    font_size=14,
+    color="ffffff",
+    font="Microsoft YaHei",
+    font_style="regular",
+    temp_unit=0,
+    time_format=0,
+    date_format=0,
+):
     """Save current display state as a custom theme."""
     from pathlib import Path
 
@@ -154,7 +168,7 @@ def save_theme(name, *, device=None, video=None, background=None,
             print(f"Error: File not found: {bg_source}")
             return 1
         suffix = p.suffix.lower()
-        if suffix in ('.mp4', '.gif', '.zt', '.webm', '.avi', '.mkv'):
+        if suffix in (".mp4", ".gif", ".zt", ".webm", ".avi", ".mkv"):
             video_path = p
             # Load first frame as background thumbnail
             bg = ImageService.open_and_resize(p, w, h)
@@ -164,11 +178,13 @@ def save_theme(name, *, device=None, video=None, background=None,
     if not bg:
         # Fall back to current theme's background
         from trcc.conf import Settings
+
         key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
         cfg = Settings.get_device_config(key)
-        theme_path = cfg.get('theme_path')
+        theme_path = cfg.get("theme_path")
         if theme_path:
             from trcc.core.models import ThemeDir as TDir
+
             td = TDir(theme_path)
             if td.bg.exists():
                 bg = ImageService.open_and_resize(td.bg, w, h)
@@ -181,6 +197,7 @@ def save_theme(name, *, device=None, video=None, background=None,
     overlay_config: dict = {}
     if metrics:
         from trcc.core.models import build_overlay_config
+
         try:
             overlay_config = build_overlay_config(
                 metrics,
@@ -201,14 +218,18 @@ def save_theme(name, *, device=None, video=None, background=None,
     mask_source = None
     if mask:
         from trcc.services.overlay import OverlayService
+
         r = ImageService._r()
         mask_img = OverlayService.load_mask_from_path(Path(mask), r, w, h)
         mask_source = Path(mask)
 
     data_dir = _settings.user_data_dir
     ok, msg = ThemeService.save(
-        name, data_dir, (w, h),
-        background=bg, overlay_config=overlay_config,
+        name,
+        data_dir,
+        (w, h),
+        background=bg,
+        overlay_config=overlay_config,
         video_path=video_path,
         mask=mask_img,
         mask_source=mask_source,
@@ -255,6 +276,7 @@ def export_theme(theme_name, output_path):
     from trcc.adapters.infra.dc_config import DcConfig
     from trcc.adapters.infra.dc_parser import load_config_json
     from trcc.adapters.infra.dc_writer import export_theme as _export_fn
+
     theme_svc = ThemeService(
         export_theme_fn=_export_fn,
         load_config_json_fn=load_config_json,
@@ -290,8 +312,7 @@ def import_theme(file_path, *, device=None):
         load_config_json_fn=load_config_json,
         dc_config_cls=DcConfig,
     )
-    ok, result = theme_svc.import_tr(
-        Path(file_path), data_dir, (w, h))
+    ok, result = theme_svc.import_tr(Path(file_path), data_dir, (w, h))
     if ok and not isinstance(result, str):
         print(f"Imported: {result.name}")
     else:

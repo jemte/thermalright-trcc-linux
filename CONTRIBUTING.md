@@ -5,7 +5,7 @@ Thanks for your interest in contributing! This project is a Linux port of the Th
 ## Development Setup
 
 ```bash
-git clone https://github.com/Lexonight1/thermalright-trcc-linux.git
+git clone https://github.com/jemte/thermalright-trcc-linux.git
 cd thermalright-trcc-linux
 pip install -e '.[dev]'
 trcc setup              # interactive wizard — checks deps, udev, desktop entry

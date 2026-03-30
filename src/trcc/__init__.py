@@ -37,6 +37,7 @@ __author__ = "TRCC Linux Contributors"
 def detect_devices():
     """Detect connected TRCC LCD devices (platform-aware)."""
     from trcc.core.builder import ControllerBuilder
+
     return ControllerBuilder.for_current_os().build_detect_fn()()
 
 

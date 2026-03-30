@@ -1,4 +1,5 @@
 """Device detection, selection, and image send endpoints."""
+
 from __future__ import annotations
 
 import logging
@@ -16,6 +17,7 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
 
 # ── Helpers ────────────────────────────────────────────────────────────
+
 
 def _device_to_response(idx: int, dev) -> DeviceResponse:
     return DeviceResponse(
@@ -40,6 +42,7 @@ def _get_device_by_id(device_id: int):
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────
+
 
 @router.get("/devices")
 def list_devices() -> list[DeviceResponse]:
@@ -103,8 +106,9 @@ def select_device(device_id: int) -> dict:
 
         from trcc.core.app import TrccApp
         from trcc.core.commands.initialize import DiscoverDevicesCommand
+
         app = TrccApp.get()
-        app.os_bus.dispatch(DiscoverDevicesCommand(path=getattr(dev, 'path', None)))
+        app.os_bus.dispatch(DiscoverDevicesCommand(path=getattr(dev, "path", None)))
 
         if app.has_led:
             api._led_dispatcher = app.led_device
@@ -125,6 +129,7 @@ def select_device(device_id: int) -> dict:
             # (lcd_bus may not be wired yet in edge-case fallback paths — skip gracefully)
             from trcc.core.app import TrccApp
             from trcc.core.commands.lcd import EnsureDataCommand
+
             try:
                 TrccApp.get().lcd_bus.dispatch(EnsureDataCommand(width=w_res, height=h_res))
             except RuntimeError:
@@ -146,7 +151,6 @@ def select_device(device_id: int) -> dict:
     return {"selected": dev.name, "resolution": dev.resolution}
 
 
-
 @router.get("/devices/{device_id}")
 def get_device(device_id: int) -> DeviceResponse:
     """Get details for a specific device."""
@@ -155,8 +159,9 @@ def get_device(device_id: int) -> DeviceResponse:
 
 
 @router.post("/devices/{device_id}/send")
-async def send_image(device_id: int, image: UploadFile, rotation: int = 0,
-                     brightness: int = 100) -> dict:
+async def send_image(
+    device_id: int, image: UploadFile, rotation: int = 0, brightness: int = 100
+) -> dict:
     """Send an image to the device LCD.
 
     Accepts image file upload. Validates size and format before processing.
@@ -172,6 +177,7 @@ async def send_image(device_id: int, image: UploadFile, rotation: int = 0,
         raise HTTPException(status_code=413, detail="Image exceeds 10 MB limit")
 
     from PySide6.QtGui import QImage
+
     img = QImage.fromData(bytes(data))
     if img.isNull():
         raise HTTPException(status_code=400, detail="Invalid image format")
@@ -186,15 +192,16 @@ async def send_image(device_id: int, image: UploadFile, rotation: int = 0,
     w, h = dev.resolution
     if (w, h) == (0, 0):
         from trcc.adapters.device.factory import DeviceProtocolFactory
+
         protocol = DeviceProtocolFactory.get_protocol(dev)
         result = protocol.handshake()
         if result:
-            res = getattr(result, 'resolution', None)
+            res = getattr(result, "resolution", None)
             if isinstance(res, tuple) and len(res) == 2 and res != (0, 0):
                 dev.resolution = res
                 w, h = res
             # Propagate FBL code for JPEG mode detection
-            fbl = getattr(result, 'fbl', None) or getattr(result, 'model_id', None)
+            fbl = getattr(result, "fbl", None) or getattr(result, "model_id", None)
             if fbl:
                 dev.fbl_code = fbl
         if (w, h) == (0, 0):

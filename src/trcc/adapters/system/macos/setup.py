@@ -1,4 +1,5 @@
 """macOS platform setup — Homebrew deps, libusb."""
+
 from __future__ import annotations
 
 import logging
@@ -28,32 +29,33 @@ class MacOSSetup(PlatformSetup):
         return f"macOS {platform.mac_ver()[0]}"
 
     def get_pkg_manager(self) -> str | None:
-        return 'brew' if shutil.which('brew') else None
+        return "brew" if shutil.which("brew") else None
 
     def check_deps(self) -> list[Any]:
         from trcc.adapters.infra.doctor import check_system_deps
+
         return check_system_deps(self.get_pkg_manager())
 
     def config_dir(self) -> str:
-        return os.path.join(Path.home(), '.trcc')
+        return os.path.join(Path.home(), ".trcc")
 
     def data_dir(self) -> str:
-        return os.path.join(self.config_dir(), 'data')
+        return os.path.join(self.config_dir(), "data")
 
     def user_content_dir(self) -> str:
-        return os.path.join(Path.home(), '.trcc-user')
+        return os.path.join(Path.home(), ".trcc-user")
 
     def theme_dir(self, width: int, height: int) -> str:
-        return os.path.join(self.data_dir(), f'theme{width}{height}')
+        return os.path.join(self.data_dir(), f"theme{width}{height}")
 
     def web_dir(self, width: int, height: int) -> str:
-        return os.path.join(self.data_dir(), 'web', f'{width}{height}')
+        return os.path.join(self.data_dir(), "web", f"{width}{height}")
 
     def web_masks_dir(self, width: int, height: int) -> str:
-        return os.path.join(self.data_dir(), 'web', f'zt{width}{height}')
+        return os.path.join(self.data_dir(), "web", f"zt{width}{height}")
 
     def user_masks_dir(self, width: int, height: int) -> str:
-        return os.path.join(self.user_content_dir(), 'data', 'web', f'zt{width}{height}')
+        return os.path.join(self.user_content_dir(), "data", "web", f"zt{width}{height}")
 
     def ffmpeg_install_help(self) -> str:
         return "ffmpeg not found. Install:\n  brew install ffmpeg"
@@ -63,10 +65,7 @@ class MacOSSetup(PlatformSetup):
         return _copy_assets_to_user_dir(pkg_assets_dir)
 
     def archive_tool_install_help(self) -> str:
-        return (
-            "7z not found. Install via Homebrew:\n"
-            "  brew install p7zip"
-        )
+        return "7z not found. Install via Homebrew:\n  brew install p7zip"
 
     def wire_ipc_raise(self, app: Any, window: Any) -> None:
         """Install SIGUSR1 handler via AF_UNIX socketpair + QSocketNotifier."""
@@ -74,13 +73,14 @@ class MacOSSetup(PlatformSetup):
         import socket
 
         from PySide6.QtCore import QSocketNotifier
+
         rsock, wsock = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
         rsock.setblocking(False)
         wsock.setblocking(False)
 
         def _on_sigusr1(signum: Any, frame: Any) -> None:
             try:
-                wsock.send(b'\x01')
+                wsock.send(b"\x01")
             except OSError:
                 pass
 
@@ -99,10 +99,14 @@ class MacOSSetup(PlatformSetup):
         notifier.activated.connect(_raise_window)
 
     def get_screencast_capture(
-        self, x: int, y: int, w: int, h: int,
+        self,
+        x: int,
+        y: int,
+        w: int,
+        h: int,
     ) -> tuple[str, str, list[str]] | None:
-        region_args = ['-video_size', f'{w}x{h}'] if (w and h) else []
-        return 'avfoundation', '1:none', region_args
+        region_args = ["-video_size", f"{w}x{h}"] if (w and h) else []
+        return "avfoundation", "1:none", region_args
 
     def minimize_on_close(self) -> bool:
         return False
@@ -124,6 +128,7 @@ class MacOSSetup(PlatformSetup):
 
     def get_doctor_config(self):
         from trcc.core.ports import DoctorPlatformConfig
+
         return DoctorPlatformConfig(
             distro_name=self.get_distro_name(),
             pkg_manager=self.get_pkg_manager(),
@@ -140,6 +145,7 @@ class MacOSSetup(PlatformSetup):
 
     def get_report_config(self):
         from trcc.core.ports import ReportPlatformConfig
+
         return ReportPlatformConfig(
             distro_name=self.get_distro_name(),
             collect_lsusb=False,
@@ -190,5 +196,3 @@ class MacOSSetup(PlatformSetup):
 
         _print_summary(actions)
         return 0
-
-

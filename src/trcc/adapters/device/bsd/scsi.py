@@ -8,6 +8,7 @@ This is the FreeBSD equivalent of Linux sg_raw.
 
 Requires: camcontrol (part of base FreeBSD)
 """
+
 from __future__ import annotations
 
 import logging
@@ -78,15 +79,19 @@ class BSDScsiTransport:
             return False
 
         # Format CDB as hex string for camcontrol
-        cdb_hex = ' '.join(f'{b:02x}' for b in cdb)
+        cdb_hex = " ".join(f"{b:02x}" for b in cdb)
         data_len = len(data)
 
         try:
             # camcontrol cmd <device> -c "<cdb>" -o <len> [-d <data>]
             cmd = [
-                'camcontrol', 'cmd', self._device,
-                '-c', cdb_hex,
-                '-o', str(data_len),
+                "camcontrol",
+                "cmd",
+                self._device,
+                "-c",
+                cdb_hex,
+                "-o",
+                str(data_len),
             ]
             result = subprocess.run(
                 cmd,
@@ -98,7 +103,7 @@ class BSDScsiTransport:
                 log.warning(
                     "camcontrol cmd failed (rc=%d): %s",
                     result.returncode,
-                    result.stderr.decode(errors='replace').strip(),
+                    result.stderr.decode(errors="replace").strip(),
                 )
                 return False
             return True
@@ -125,19 +130,21 @@ def bsd_scsi_resolver(vid: int, pid: int) -> str | None:
     """
     try:
         result = subprocess.run(
-            ['camcontrol', 'devlist'],
-            capture_output=True, text=True, timeout=5,
+            ["camcontrol", "devlist"],
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         if result.returncode != 0:
             return None
         for line in result.stdout.splitlines():
-            if 'pass' in line:
-                paren = line.rsplit('(', 1)
+            if "pass" in line:
+                paren = line.rsplit("(", 1)
                 if len(paren) == 2:
-                    for d in paren[1].rstrip(')').split(','):
+                    for d in paren[1].rstrip(")").split(","):
                         d = d.strip()
-                        if d.startswith('pass'):
-                            return f'/dev/{d}'
+                        if d.startswith("pass"):
+                            return f"/dev/{d}"
     except Exception:
         log.debug("camcontrol devlist failed")
     return None

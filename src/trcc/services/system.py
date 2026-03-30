@@ -6,6 +6,7 @@ formatting, and dashboard panel configuration. Pure Python, no Qt dependencies.
 Absorbs system_info.py (SystemInfo) logic. Uses system_sensors.py
 (SensorEnumerator) and system_config.py (SysInfoConfig) as infrastructure.
 """
+
 from __future__ import annotations
 
 import logging
@@ -46,8 +47,8 @@ class SystemService:
     def __init__(self, enumerator: SensorEnumerator | None = None) -> None:
         if enumerator is None:
             raise RuntimeError(
-                "SystemService requires an enumerator. "
-                "Use ControllerBuilder to wire dependencies.")
+                "SystemService requires an enumerator. Use ControllerBuilder to wire dependencies."
+            )
         self._enumerator: SensorEnumerator = enumerator
         self._discovered = False
         self._defaults: Optional[Dict[str, str]] = None
@@ -131,41 +132,41 @@ class SystemService:
     @property
     def cpu_temperature(self) -> Optional[float]:
         """CPU temperature (enumerator hwmon, fallback: lm_sensors)."""
-        return self._read_metric('cpu_temp') or self._fallback_cpu_temp()
+        return self._read_metric("cpu_temp") or self._fallback_cpu_temp()
 
     @property
     def cpu_usage(self) -> Optional[float]:
         """CPU usage percentage."""
-        return self._read_metric('cpu_percent') or self._fallback_cpu_usage()
+        return self._read_metric("cpu_percent") or self._fallback_cpu_usage()
 
     @property
     def cpu_frequency(self) -> Optional[float]:
         """CPU frequency in MHz."""
-        return self._read_metric('cpu_freq') or self._fallback_cpu_freq()
+        return self._read_metric("cpu_freq") or self._fallback_cpu_freq()
 
     @property
     def gpu_temperature(self) -> Optional[float]:
-        return self._read_metric('gpu_temp')
+        return self._read_metric("gpu_temp")
 
     @property
     def gpu_usage(self) -> Optional[float]:
-        return self._read_metric('gpu_usage')
+        return self._read_metric("gpu_usage")
 
     @property
     def gpu_clock(self) -> Optional[float]:
-        return self._read_metric('gpu_clock')
+        return self._read_metric("gpu_clock")
 
     @property
     def memory_usage(self) -> Optional[float]:
-        return self._read_metric('mem_percent')
+        return self._read_metric("mem_percent")
 
     @property
     def memory_available(self) -> Optional[float]:
-        return self._read_metric('mem_available')
+        return self._read_metric("mem_available")
 
     @property
     def memory_temperature(self) -> Optional[float]:
-        return self._read_metric('mem_temp') or self._fallback_mem_temp()
+        return self._read_metric("mem_temp") or self._fallback_mem_temp()
 
     @property
     def memory_clock(self) -> Optional[float]:
@@ -176,9 +177,9 @@ class SystemService:
         readings = self.read_all()
         stats: Dict[str, float] = {}
         for legacy, sensor in [
-            ('disk_read', 'computed:disk_read'),
-            ('disk_write', 'computed:disk_write'),
-            ('disk_activity', 'computed:disk_activity'),
+            ("disk_read", "computed:disk_read"),
+            ("disk_write", "computed:disk_write"),
+            ("disk_activity", "computed:disk_activity"),
         ]:
             if sensor in readings:
                 stats[legacy] = readings[sensor]
@@ -186,17 +187,17 @@ class SystemService:
 
     @property
     def disk_temperature(self) -> Optional[float]:
-        return self._read_metric('disk_temp') or self._fallback_disk_temp()
+        return self._read_metric("disk_temp") or self._fallback_disk_temp()
 
     @property
     def network_stats(self) -> Dict[str, float]:
         readings = self.read_all()
         stats: Dict[str, float] = {}
         for legacy, sensor in [
-            ('net_up', 'computed:net_up'),
-            ('net_down', 'computed:net_down'),
-            ('net_total_up', 'computed:net_total_up'),
-            ('net_total_down', 'computed:net_total_down'),
+            ("net_up", "computed:net_up"),
+            ("net_down", "computed:net_down"),
+            ("net_total_up", "computed:net_total_up"),
+            ("net_total_down", "computed:net_total_down"),
         ]:
             if sensor in readings:
                 stats[legacy] = readings[sensor]
@@ -207,7 +208,7 @@ class SystemService:
         defaults = self._ensure_defaults()
         readings = self.read_all()
         fans: Dict[str, float] = {}
-        for fan_key in ('fan_cpu', 'fan_gpu', 'fan_ssd', 'fan_sys2'):
+        for fan_key in ("fan_cpu", "fan_gpu", "fan_ssd", "fan_sys2"):
             sensor_id = defaults.get(fan_key)
             if sensor_id and sensor_id in readings:
                 fans[fan_key] = readings[sensor_id]
@@ -255,6 +256,7 @@ class SystemService:
 
         # Zero out disk metrics when HDD info is disabled (C# isHDD toggle)
         from ..conf import settings
+
         if not settings.hdd_enabled:
             m.disk_temp = 0.0
             m.disk_activity = 0.0
@@ -271,12 +273,12 @@ class SystemService:
 
         cache: Dict[str, float] = {}
         fallbacks = [
-            ('cpu_temp', self._fallback_cpu_temp),
-            ('cpu_percent', self._fallback_cpu_usage),
-            ('cpu_freq', self._fallback_cpu_freq),
-            ('mem_temp', self._fallback_mem_temp),
-            ('mem_clock', self._fallback_mem_clock),
-            ('disk_temp', self._fallback_disk_temp),
+            ("cpu_temp", self._fallback_cpu_temp),
+            ("cpu_percent", self._fallback_cpu_usage),
+            ("cpu_freq", self._fallback_cpu_freq),
+            ("mem_temp", self._fallback_mem_temp),
+            ("mem_clock", self._fallback_mem_clock),
+            ("disk_temp", self._fallback_disk_temp),
         ]
         for key, fallback in fallbacks:
             if key not in existing_keys:
@@ -294,11 +296,13 @@ class SystemService:
     # ── Formatting ────────────────────────────────────────────────────
 
     @staticmethod
-    def format_metric(metric: str, value: float, time_format: int = 0,
-                      date_format: int = 0, temp_unit: int = 0) -> str:
+    def format_metric(
+        metric: str, value: float, time_format: int = 0, date_format: int = 0, temp_unit: int = 0
+    ) -> str:
         """Format a metric value for display. Delegates to core.models."""
-        return _format_metric(metric, value, time_format=time_format,
-                              date_format=date_format, temp_unit=temp_unit)
+        return _format_metric(
+            metric, value, time_format=time_format, date_format=date_format, temp_unit=temp_unit
+        )
 
     # ── Utilities ─────────────────────────────────────────────────────
 
@@ -321,11 +325,14 @@ class SystemService:
         """CPU temp via lm_sensors subprocess."""
         try:
             result = subprocess.run(
-                ['sensors', '-u'], capture_output=True, text=True, timeout=5,
+                ["sensors", "-u"],
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
-            for line in result.stdout.split('\n'):
-                if 'temp1_input' in line or 'Tctl' in line.lower():
-                    match = re.search(r':\s*([0-9.]+)', line)
+            for line in result.stdout.split("\n"):
+                if "temp1_input" in line or "Tctl" in line.lower():
+                    match = re.search(r":\s*([0-9.]+)", line)
                     if match:
                         return float(match.group(1))
         except FileNotFoundError:
@@ -338,7 +345,7 @@ class SystemService:
     def _fallback_cpu_usage() -> Optional[float]:
         """CPU usage via /proc/loadavg."""
         try:
-            loadavg = _read_sysfs('/proc/loadavg')
+            loadavg = _read_sysfs("/proc/loadavg")
             if loadavg:
                 load = float(loadavg.split()[0])
                 return min(100.0, load * 10)
@@ -350,10 +357,10 @@ class SystemService:
     def _fallback_cpu_freq() -> Optional[float]:
         """CPU frequency via /proc/cpuinfo."""
         try:
-            with open('/proc/cpuinfo', 'r') as f:
+            with open("/proc/cpuinfo", "r") as f:
                 for line in f:
-                    if 'cpu MHz' in line:
-                        match = re.search(r':\s*([0-9.]+)', line)
+                    if "cpu MHz" in line:
+                        match = re.search(r":\s*([0-9.]+)", line)
                         if match:
                             return float(match.group(1))
         except Exception as e:
@@ -364,18 +371,21 @@ class SystemService:
         """Memory temp via lm_sensors subprocess."""
         try:
             result = subprocess.run(
-                ['sensors', '-u'], capture_output=True, text=True, timeout=5,
+                ["sensors", "-u"],
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             if result.returncode == 0:
                 in_memory_section = False
-                for line in result.stdout.split('\n'):
+                for line in result.stdout.split("\n"):
                     line_lower = line.lower()
-                    if any(x in line_lower for x in ['ddr', 'dimm', 'memory']):
+                    if any(x in line_lower for x in ["ddr", "dimm", "memory"]):
                         in_memory_section = True
-                    elif line and not line.startswith(' ') and ':' not in line:
+                    elif line and not line.startswith(" ") and ":" not in line:
                         in_memory_section = False
-                    if in_memory_section and 'temp' in line_lower and '_input' in line_lower:
-                        match = re.search(r':\s*([0-9.]+)', line)
+                    if in_memory_section and "temp" in line_lower and "_input" in line_lower:
+                        match = re.search(r":\s*([0-9.]+)", line)
                         if match:
                             return float(match.group(1))
         except FileNotFoundError:
@@ -399,21 +409,24 @@ class SystemService:
             # Fallback: build command list directly (no sudo wrapper)
             def _default_cmd(cmd: str, args: list[str]) -> list[str]:
                 return [cmd, *args]
+
             privileged_cmd_fn = _default_cmd
         try:
             result = subprocess.run(
-                privileged_cmd_fn('dmidecode', ['-t', 'memory']),
-                capture_output=True, text=True, timeout=5,
+                privileged_cmd_fn("dmidecode", ["-t", "memory"]),
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             if result.returncode == 0:
-                for line in result.stdout.split('\n'):
-                    if 'Configured Memory Speed' in line:
-                        match = re.search(r'(\d+)\s*(?:MT/s|MHz)', line)
+                for line in result.stdout.split("\n"):
+                    if "Configured Memory Speed" in line:
+                        match = re.search(r"(\d+)\s*(?:MT/s|MHz)", line)
                         if match:
                             return float(match.group(1))
-                for line in result.stdout.split('\n'):
-                    if 'Speed:' in line and 'Unknown' not in line:
-                        match = re.search(r'(\d+)\s*(?:MT/s|MHz)', line)
+                for line in result.stdout.split("\n"):
+                    if "Speed:" in line and "Unknown" not in line:
+                        match = re.search(r"(\d+)\s*(?:MT/s|MHz)", line)
                         if match:
                             return float(match.group(1))
         except FileNotFoundError:
@@ -423,11 +436,13 @@ class SystemService:
 
         try:
             result = subprocess.run(
-                ['lshw', '-class', 'memory', '-short'],
-                capture_output=True, text=True, timeout=5,
+                ["lshw", "-class", "memory", "-short"],
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             if result.returncode == 0:
-                match = re.search(r'(\d+)\s*(?:MT/s|MHz)', result.stdout)
+                match = re.search(r"(\d+)\s*(?:MT/s|MHz)", result.stdout)
                 if match:
                     return float(match.group(1))
         except FileNotFoundError:
@@ -441,7 +456,7 @@ class SystemService:
                 for mc in os.listdir(mc_path):
                     content = _read_sysfs(f"{mc_path}/{mc}/dimm_info")
                     if content:
-                        match = re.search(r'(\d+)\s*MHz', content)
+                        match = re.search(r"(\d+)\s*MHz", content)
                         if match:
                             return float(match.group(1))
             except Exception as e:
@@ -454,12 +469,14 @@ class SystemService:
         """Disk temperature via smartctl."""
         try:
             result = subprocess.run(
-                ['smartctl', '-A', '/dev/sda'],
-                capture_output=True, text=True, timeout=5,
+                ["smartctl", "-A", "/dev/sda"],
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             if result.returncode == 0:
-                for line in result.stdout.split('\n'):
-                    if 'Temperature' in line or 'Airflow_Temperature' in line:
+                for line in result.stdout.split("\n"):
+                    if "Temperature" in line or "Airflow_Temperature" in line:
                         parts = line.split()
                         for part in parts:
                             if part.isdigit() and int(part) < 100:
@@ -495,8 +512,8 @@ def get_instance() -> SystemService:
     """
     if _instance is None:
         raise RuntimeError(
-            "SystemService not initialized. "
-            "Call set_instance() from a composition root.")
+            "SystemService not initialized. Call set_instance() from a composition root."
+        )
     return _instance
 
 
@@ -533,4 +550,3 @@ _cached_metrics_time: float = 0.0
 def format_metric(key: str, value: float, **kwargs: Any) -> str:
     """Format a single metric value for display."""
     return _format_metric(key, value, **kwargs)
-

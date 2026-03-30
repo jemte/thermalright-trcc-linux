@@ -4,6 +4,7 @@ Self-contained handler for a single LED device. Owns an LEDDevice,
 manages animation timer, signal wiring, and GUI state sync.
 TRCCApp creates one LEDHandler per connected LED device.
 """
+
 from __future__ import annotations
 
 import logging
@@ -62,7 +63,7 @@ class LEDHandler(BaseHandler):
 
     @property
     def view_name(self) -> str:
-        return 'led'
+        return "led"
 
     @property
     def device_info(self) -> DeviceInfo | None:
@@ -94,8 +95,9 @@ class LEDHandler(BaseHandler):
 
     def show(self, device: DeviceInfo) -> None:
         """Initialize LED device and start animation."""
-        model = device.model or ''
+        model = device.model or ""
         from ..services.led import LEDService
+
         led_style = device.led_style_id or LEDService.resolve_style_id(model)
 
         self._led.initialize(device, led_style)
@@ -104,7 +106,9 @@ class LEDHandler(BaseHandler):
         style_info = LEDService.get_style_info(led_style)
         if style_info:
             self._panel.initialize(
-                led_style, style_info.segment_count, style_info.zone_count,
+                led_style,
+                style_info.segment_count,
+                style_info.zone_count,
                 model=model,
             )
         self._panel.set_memory_ratio(self._led.state.memory_ratio)
@@ -153,7 +157,8 @@ class LEDHandler(BaseHandler):
             self._panel.load_zone_state(0, z.mode.value, z.color, z.brightness, z.on)
         else:
             self._panel.load_zone_state(
-                0, state.mode.value, state.color, state.brightness, state.global_on)
+                0, state.mode.value, state.color, state.brightness, state.global_on
+            )
         log.debug("LED: synced UI from state (zones=%d)", len(state.zones))
 
     def _connect_signals(self) -> None:
@@ -257,7 +262,7 @@ class LEDHandler(BaseHandler):
             return
         try:
             result = self._led.tick_with_result()
-            display_colors = result.get('display_colors')
+            display_colors = result.get("display_colors")
             if display_colors is not None:
                 self._panel.set_led_colors(display_colors)
             self._save_counter += 1

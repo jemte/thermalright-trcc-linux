@@ -9,6 +9,7 @@ References:
     - Windows API: IOCTL_SCSI_PASS_THROUGH_DIRECT (0x4D014)
     - ctypes structs: SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER
 """
+
 from __future__ import annotations
 
 import ctypes
@@ -20,39 +21,41 @@ log = logging.getLogger(__name__)
 
 # Windows IOCTL codes
 IOCTL_SCSI_PASS_THROUGH_DIRECT = 0x4D014  # METHOD_OUT_DIRECT — DMA (writes)
-IOCTL_SCSI_PASS_THROUGH        = 0x4D004  # METHOD_BUFFERED   — copied (reads)
+IOCTL_SCSI_PASS_THROUGH = 0x4D004  # METHOD_BUFFERED   — copied (reads)
 
 # SCSI directions
 SCSI_IOCTL_DATA_OUT = 0  # Host → Device (sending frame data)
-SCSI_IOCTL_DATA_IN = 1   # Device → Host (reading response)
+SCSI_IOCTL_DATA_IN = 1  # Device → Host (reading response)
 
 _SENSE_LENGTH = 32
 
 
 class SCSI_PASS_THROUGH_DIRECT(ctypes.Structure):
     """Windows SCSI_PASS_THROUGH_DIRECT structure."""
+
     _fields_ = [
-        ('Length', ctypes.wintypes.USHORT),
-        ('ScsiStatus', ctypes.c_ubyte),
-        ('PathId', ctypes.c_ubyte),
-        ('TargetId', ctypes.c_ubyte),
-        ('Lun', ctypes.c_ubyte),
-        ('CdbLength', ctypes.c_ubyte),
-        ('SenseInfoLength', ctypes.c_ubyte),
-        ('DataIn', ctypes.c_ubyte),
-        ('DataTransferLength', ctypes.wintypes.ULONG),
-        ('TimeOutValue', ctypes.wintypes.ULONG),
-        ('DataBuffer', ctypes.c_void_p),
-        ('SenseInfoOffset', ctypes.wintypes.ULONG),
-        ('Cdb', ctypes.c_ubyte * 16),
+        ("Length", ctypes.wintypes.USHORT),
+        ("ScsiStatus", ctypes.c_ubyte),
+        ("PathId", ctypes.c_ubyte),
+        ("TargetId", ctypes.c_ubyte),
+        ("Lun", ctypes.c_ubyte),
+        ("CdbLength", ctypes.c_ubyte),
+        ("SenseInfoLength", ctypes.c_ubyte),
+        ("DataIn", ctypes.c_ubyte),
+        ("DataTransferLength", ctypes.wintypes.ULONG),
+        ("TimeOutValue", ctypes.wintypes.ULONG),
+        ("DataBuffer", ctypes.c_void_p),
+        ("SenseInfoOffset", ctypes.wintypes.ULONG),
+        ("Cdb", ctypes.c_ubyte * 16),
     ]
 
 
 class SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER(ctypes.Structure):
     """SCSI_PASS_THROUGH_DIRECT + sense buffer."""
+
     _fields_ = [
-        ('sptd', SCSI_PASS_THROUGH_DIRECT),
-        ('sense', ctypes.c_ubyte * _SENSE_LENGTH),
+        ("sptd", SCSI_PASS_THROUGH_DIRECT),
+        ("sense", ctypes.c_ubyte * _SENSE_LENGTH),
     ]
 
 
@@ -69,20 +72,21 @@ class SCSI_PASS_THROUGH(ctypes.Structure):
     IOCTL_SCSI_PASS_THROUGH_DIRECT produces on reads because ctypes heap
     memory is not in non-paged pool.
     """
+
     _fields_ = [
-        ('Length',             ctypes.c_uint16),
-        ('ScsiStatus',         ctypes.c_uint8),
-        ('PathId',             ctypes.c_uint8),
-        ('TargetId',           ctypes.c_uint8),
-        ('Lun',                ctypes.c_uint8),
-        ('CdbLength',          ctypes.c_uint8),
-        ('SenseInfoLength',    ctypes.c_uint8),
-        ('DataIn',             ctypes.c_uint8),
-        ('DataTransferLength', ctypes.c_uint32),
-        ('TimeOutValue',       ctypes.c_uint32),
-        ('DataBufferOffset',   ctypes.c_size_t),  # ULONG_PTR: 8 bytes on x64
-        ('SenseInfoOffset',    ctypes.c_uint32),
-        ('Cdb',                ctypes.c_uint8 * 16),
+        ("Length", ctypes.c_uint16),
+        ("ScsiStatus", ctypes.c_uint8),
+        ("PathId", ctypes.c_uint8),
+        ("TargetId", ctypes.c_uint8),
+        ("Lun", ctypes.c_uint8),
+        ("CdbLength", ctypes.c_uint8),
+        ("SenseInfoLength", ctypes.c_uint8),
+        ("DataIn", ctypes.c_uint8),
+        ("DataTransferLength", ctypes.c_uint32),
+        ("TimeOutValue", ctypes.c_uint32),
+        ("DataBufferOffset", ctypes.c_size_t),  # ULONG_PTR: 8 bytes on x64
+        ("SenseInfoOffset", ctypes.c_uint32),
+        ("Cdb", ctypes.c_uint8 * 16),
     ]
 
 
@@ -229,7 +233,7 @@ class WindowsScsiTransport:
         """
         if self._handle is None:
             log.error("SCSI device not open")
-            return b''
+            return b""
 
         spt_size = ctypes.sizeof(SCSI_PASS_THROUGH)
         sense_offset = spt_size
@@ -266,14 +270,14 @@ class WindowsScsiTransport:
             if not ok:
                 error = ctypes.GetLastError()  # pyright: ignore[reportAttributeAccessIssue]
                 log.error("DeviceIoControl read failed: error %d", error)
-                return b''
+                return b""
             if spt.ScsiStatus != 0:
                 log.warning("SCSI read status %d", spt.ScsiStatus)
-                return b''
-            return bytes(buf[data_offset:data_offset + length])
+                return b""
+            return bytes(buf[data_offset : data_offset + length])
         except Exception:
             log.exception("SCSI read passthrough failed")
-            return b''
+            return b""
 
     def __enter__(self):
         self.open()

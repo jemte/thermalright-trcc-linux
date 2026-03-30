@@ -47,13 +47,13 @@ log = logging.getLogger(__name__)
 # (prefix, display_name, count)
 # Counts updated to match actual server/preview availability
 CATEGORIES = [
-    ('all', 'All', 0),
-    ('a', 'Gallery', 82),
-    ('b', 'Tech', 25),
-    ('c', 'HUD', 72),
-    ('d', 'Light', 55),
-    ('e', 'Nature', 54),
-    ('y', 'Aesthetic', 10),
+    ("all", "All", 0),
+    ("a", "Gallery", 82),
+    ("b", "Tech", 25),
+    ("c", "HUD", 72),
+    ("d", "Light", 55),
+    ("e", "Nature", 54),
+    ("y", "Aesthetic", 10),
 ]
 
 # Category name lookup
@@ -61,6 +61,7 @@ CATEGORY_NAMES = {cat[0]: cat[1] for cat in CATEGORIES}
 
 SERVERS = CLOUD_SERVERS
 RESOLUTION_URLS = CLOUD_THEME_URL_KEYS
+
 
 class CloudThemeDownloader:
     """Downloads cloud themes from Thermalright servers.
@@ -85,7 +86,7 @@ class CloudThemeDownloader:
     @staticmethod
     def get_themes_by_category(category: str) -> List[str]:
         """Get theme IDs for a specific category prefix ('a'..'y') or 'all'."""
-        if category == 'all':
+        if category == "all":
             return CloudThemeDownloader.get_known_themes()
 
         for prefix, _, count in CATEGORIES[1:]:
@@ -99,10 +100,7 @@ class CloudThemeDownloader:
     # ------------------------------------------------------------------
 
     def __init__(
-        self,
-        resolution: str = "",
-        cache_dir: Optional[str] = None,
-        server: str = 'international'
+        self, resolution: str = "", cache_dir: Optional[str] = None, server: str = "international"
     ):
         """
         Initialize cloud theme downloader.
@@ -119,7 +117,7 @@ class CloudThemeDownloader:
         if cache_dir:
             self.cache_dir = Path(cache_dir)
         else:
-            res_dir = resolution.replace('x', '')
+            res_dir = resolution.replace("x", "")
             self.cache_dir = Path.home() / ".trcc" / "cloud_themes" / res_dir
 
         self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -133,16 +131,16 @@ class CloudThemeDownloader:
 
     def _update_base_url(self):
         """Update base URL based on resolution and server."""
-        base = SERVERS.get(self.server, SERVERS['international'])
-        res_dir = self.resolution.replace('x', '')  # "320x320" -> "320320"
-        self.base_url = base.replace('{resolution}', res_dir)
+        base = SERVERS.get(self.server, SERVERS["international"])
+        res_dir = self.resolution.replace("x", "")  # "320x320" -> "320320"
+        self.base_url = base.replace("{resolution}", res_dir)
 
     def set_resolution(self, resolution: str):
         """Change the target resolution and cache directory."""
         self.resolution = resolution
         self._update_base_url()
         # Switch to resolution-specific cache directory
-        res_dir = resolution.replace('x', '')
+        res_dir = resolution.replace("x", "")
         self.cache_dir = Path.home() / ".trcc" / "cloud_themes" / res_dir
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -161,7 +159,7 @@ class CloudThemeDownloader:
             Full URL to download the theme
         """
         # Ensure we have just the ID without extension
-        if theme_id.endswith('.mp4'):
+        if theme_id.endswith(".mp4"):
             theme_id = theme_id[:-4]
         return f"{self.base_url}{theme_id}.mp4"
 
@@ -188,7 +186,7 @@ class CloudThemeDownloader:
         Returns:
             Path to cached file, or None if not cached
         """
-        if theme_id.endswith('.mp4'):
+        if theme_id.endswith(".mp4"):
             theme_id = theme_id[:-4]
 
         mp4_path = self.cache_dir / f"{theme_id}.mp4"
@@ -211,7 +209,7 @@ class CloudThemeDownloader:
         Returns:
             Path to downloaded PNG, or None if not available
         """
-        if theme_id.endswith('.png'):
+        if theme_id.endswith(".png"):
             theme_id = theme_id[:-4]
 
         dest = self.cache_dir / f"{theme_id}.png"
@@ -225,7 +223,7 @@ class CloudThemeDownloader:
         self,
         theme_id: str,
         on_progress: Optional[Callable[[int, int, int], None]] = None,
-        force: bool = False
+        force: bool = False,
     ) -> Optional[str]:
         """
         Download a cloud theme.
@@ -238,7 +236,7 @@ class CloudThemeDownloader:
         Returns:
             Path to downloaded file, or None on failure
         """
-        if theme_id.endswith('.mp4'):
+        if theme_id.endswith(".mp4"):
             theme_id = theme_id[:-4]
 
         dest_path = self.cache_dir / f"{theme_id}.mp4"
@@ -256,9 +254,7 @@ class CloudThemeDownloader:
             return None
 
     def download_preview(
-        self,
-        theme_id: str,
-        on_progress: Optional[Callable[[int, int, int], None]] = None
+        self, theme_id: str, on_progress: Optional[Callable[[int, int, int], None]] = None
     ) -> Optional[str]:
         """
         Download theme preview.
@@ -281,7 +277,7 @@ class CloudThemeDownloader:
         category: str,
         max_themes: int = 0,
         on_progress: Optional[Callable[[int, int, str], None]] = None,
-        force: bool = False
+        force: bool = False,
     ) -> Dict[str, Optional[str]]:
         """
         Download all themes in a category.
@@ -317,12 +313,10 @@ class CloudThemeDownloader:
         return results
 
     def download_all(
-        self,
-        on_progress: Optional[Callable[[int, int, str], None]] = None,
-        force: bool = False
+        self, on_progress: Optional[Callable[[int, int, str], None]] = None, force: bool = False
     ) -> Dict[str, Optional[str]]:
         """Download all known cloud themes."""
-        return self.download_category('all', on_progress=on_progress, force=force)
+        return self.download_category("all", on_progress=on_progress, force=force)
 
     def cancel(self):
         """Cancel ongoing downloads."""
@@ -330,10 +324,7 @@ class CloudThemeDownloader:
             self._cancelled = True
 
     def _download_file(
-        self,
-        url: str,
-        dest: Path,
-        on_progress: Optional[Callable[[int, int, int], None]] = None
+        self, url: str, dest: Path, on_progress: Optional[Callable[[int, int, int], None]] = None
     ) -> Optional[str]:
         """
         Download a file with progress tracking.
@@ -350,16 +341,16 @@ class CloudThemeDownloader:
             req = Request(url, headers={"User-Agent": "TRCC-Linux/1.0"})
 
             with urlopen(req, timeout=30) as response:
-                total_size = int(response.headers.get('content-length', 0))
+                total_size = int(response.headers.get("content-length", 0))
 
                 # Create parent directory
                 dest.parent.mkdir(parents=True, exist_ok=True)
 
                 # Download to temp file first
-                temp_path = dest.with_suffix('.tmp')
+                temp_path = dest.with_suffix(".tmp")
 
                 try:
-                    with open(temp_path, 'wb') as f:
+                    with open(temp_path, "wb") as f:
                         downloaded = 0
                         block_size = 8192
 

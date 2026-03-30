@@ -26,7 +26,9 @@ def _check_ffmpeg() -> bool:
     """Check if ffmpeg is available in PATH."""
     try:
         result = subprocess.run(
-            ['ffmpeg', '-version'], capture_output=True, timeout=5,
+            ["ffmpeg", "-version"],
+            capture_output=True,
+            timeout=5,
             creationflags=_NO_WINDOW,
         )
         return result.returncode == 0
@@ -40,10 +42,12 @@ FFMPEG_AVAILABLE = _check_ffmpeg()
 class VideoDecoder:
     """Decode video frames via FFmpeg pipe. No playback state."""
 
-    def __init__(self, video_path: str, target_size: tuple[int, int] = (320, 320),
-                 fit_mode: str = 'fill') -> None:
+    def __init__(
+        self, video_path: str, target_size: tuple[int, int] = (320, 320), fit_mode: str = "fill"
+    ) -> None:
         if not FFMPEG_AVAILABLE:
             from trcc.core.builder import ControllerBuilder
+
             raise RuntimeError(
                 ControllerBuilder.for_current_os().build_setup().ffmpeg_install_help()
             )
@@ -52,8 +56,9 @@ class VideoDecoder:
 
         self._decode(video_path, target_size, fit_mode)
 
-    def _decode(self, video_path: str, target_size: tuple[int, int],
-                fit_mode: str = 'fill') -> None:
+    def _decode(
+        self, video_path: str, target_size: tuple[int, int], fit_mode: str = "fill"
+    ) -> None:
         """Decode all frames through FFmpeg pipe.
 
         fit_mode:
@@ -63,11 +68,11 @@ class VideoDecoder:
         """
         w, h = target_size
 
-        if fit_mode in ('width', 'height'):
+        if fit_mode in ("width", "height"):
             video_dims = self._probe_dimensions(video_path)
             if video_dims:
                 vw, vh = video_dims
-                if fit_mode == 'width':
+                if fit_mode == "width":
                     scale_w, scale_h = w, max(2, int(vh * w / vw) & ~1)
                 else:
                     scale_w, scale_h = max(2, int(vw * h / vh) & ~1), h
@@ -76,23 +81,37 @@ class VideoDecoder:
         else:
             scale_w, scale_h = w, h
 
-        result = subprocess.run([
-            'ffmpeg', '-i', video_path,
-            '-r', str(self.fps),
-            '-vf', f'scale={scale_w}:{scale_h}',
-            '-f', 'rawvideo', '-pix_fmt', 'rgb24',
-            '-loglevel', 'error', 'pipe:1',
-        ], capture_output=True, timeout=300, creationflags=_NO_WINDOW)
+        result = subprocess.run(
+            [
+                "ffmpeg",
+                "-i",
+                video_path,
+                "-r",
+                str(self.fps),
+                "-vf",
+                f"scale={scale_w}:{scale_h}",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-loglevel",
+                "error",
+                "pipe:1",
+            ],
+            capture_output=True,
+            timeout=300,
+            creationflags=_NO_WINDOW,
+        )
 
         if result.returncode != 0:
             raise RuntimeError(f"FFmpeg failed: {result.stderr.decode()[:200]}")
 
         raw = result.stdout
         frame_size = scale_w * scale_h * 3
-        need_composite = fit_mode in ('width', 'height') and (scale_w != w or scale_h != h)
+        need_composite = fit_mode in ("width", "height") and (scale_w != w or scale_h != h)
 
         for i in range(0, len(raw), frame_size):
-            chunk = raw[i:i + frame_size]
+            chunk = raw[i : i + frame_size]
             if len(chunk) < frame_size:
                 break
 
@@ -113,13 +132,17 @@ class VideoDecoder:
                     for row in range(copy_h):
                         src_off = ((src_y + row) * scale_w + src_x) * 3
                         dst_off = ((dst_y + row) * w + dst_x) * 3
-                        canvas[dst_off:dst_off + copy_w * 3] = chunk[src_off:src_off + copy_w * 3]
+                        canvas[dst_off : dst_off + copy_w * 3] = chunk[
+                            src_off : src_off + copy_w * 3
+                        ]
                 else:
                     # Letterbox: frame fits inside canvas
                     for row in range(scale_h):
                         src_off = row * scale_w * 3
                         dst_off = ((py + row) * w + px) * 3
-                        canvas[dst_off:dst_off + scale_w * 3] = chunk[src_off:src_off + scale_w * 3]
+                        canvas[dst_off : dst_off + scale_w * 3] = chunk[
+                            src_off : src_off + scale_w * 3
+                        ]
 
                 self.frames.append(RawFrame(bytes(canvas), w, h))
             else:
@@ -129,15 +152,26 @@ class VideoDecoder:
     def _probe_dimensions(video_path: str) -> tuple[int, int] | None:
         """Get original video dimensions via ffprobe."""
         try:
-            result = subprocess.run([
-                'ffprobe', '-v', 'error',
-                '-select_streams', 'v:0',
-                '-show_entries', 'stream=width,height',
-                '-of', 'csv=p=0',
-                video_path,
-            ], capture_output=True, timeout=10, text=True, creationflags=_NO_WINDOW)
+            result = subprocess.run(
+                [
+                    "ffprobe",
+                    "-v",
+                    "error",
+                    "-select_streams",
+                    "v:0",
+                    "-show_entries",
+                    "stream=width,height",
+                    "-of",
+                    "csv=p=0",
+                    video_path,
+                ],
+                capture_output=True,
+                timeout=10,
+                text=True,
+                creationflags=_NO_WINDOW,
+            )
             if result.returncode == 0 and result.stdout.strip():
-                parts = result.stdout.strip().split(',')
+                parts = result.stdout.strip().split(",")
                 if len(parts) >= 2:
                     return int(parts[0]), int(parts[1])
         except Exception:
@@ -167,16 +201,19 @@ class VideoDecoder:
         w, h = target_size
 
         cmd = [
-            'ffmpeg', '-i', video_path, '-y',
-            '-vf', f'scale={w}:{h}',
+            "ffmpeg",
+            "-i",
+            video_path,
+            "-y",
+            "-vf",
+            f"scale={w}:{h}",
         ]
         if max_frames:
-            cmd.extend(['-vframes', str(max_frames)])
-        cmd.extend(['-f', 'image2', os.path.join(output_dir, 'frame_%04d.png')])
+            cmd.extend(["-vframes", str(max_frames)])
+        cmd.extend(["-f", "image2", os.path.join(output_dir, "frame_%04d.png")])
 
         try:
-            result = subprocess.run(cmd, capture_output=True, timeout=600,
-                                    creationflags=_NO_WINDOW)
+            result = subprocess.run(cmd, capture_output=True, timeout=600, creationflags=_NO_WINDOW)
             if result.returncode != 0:
                 log.error("FFmpeg error: %s", result.stderr.decode()[:200])
                 return 0
@@ -187,10 +224,9 @@ class VideoDecoder:
             log.exception("FFmpeg failed")
             return 0
 
-        extracted = len([
-            f for f in os.listdir(output_dir)
-            if f.startswith('frame_') and f.endswith('.png')
-        ])
+        extracted = len(
+            [f for f in os.listdir(output_dir) if f.startswith("frame_") and f.endswith(".png")]
+        )
         log.info("Extracted %d frames to %s", extracted, output_dir)
         return extracted
 
@@ -210,18 +246,18 @@ class ThemeZtDecoder:
         self.timestamps: list[int] = []
         self.delays: list[int] = []
 
-        with open(zt_path, 'rb') as f:
-            magic = struct.unpack('B', f.read(1))[0]
+        with open(zt_path, "rb") as f:
+            magic = struct.unpack("B", f.read(1))[0]
             if magic != 0xDC:
                 raise ValueError(f"Invalid Theme.zt magic: 0x{magic:02X}, expected 0xDC")
 
-            frame_count = struct.unpack('<i', f.read(4))[0]
+            frame_count = struct.unpack("<i", f.read(4))[0]
 
             for _ in range(frame_count):
-                self.timestamps.append(struct.unpack('<i', f.read(4))[0])
+                self.timestamps.append(struct.unpack("<i", f.read(4))[0])
 
             for _ in range(frame_count):
-                size = struct.unpack('<i', f.read(4))[0]
+                size = struct.unpack("<i", f.read(4))[0]
                 jpeg_bytes = f.read(size)
                 frame = self._decode_jpeg(jpeg_bytes, target_size)
                 self.frames.append(frame)
@@ -235,22 +271,34 @@ class ThemeZtDecoder:
             self.delays.append(max(1, delay))
 
     @staticmethod
-    def _decode_jpeg(jpeg_bytes: bytes,
-                     target_size: tuple[int, int] | None) -> RawFrame:
+    def _decode_jpeg(jpeg_bytes: bytes, target_size: tuple[int, int] | None) -> RawFrame:
         """Decode JPEG bytes → RawFrame via ffmpeg pipe."""
         vf_args: list[str] = []
         if target_size:
             tw, th = target_size
-            vf_args = ['-vf', f'scale={tw}:{th}']
+            vf_args = ["-vf", f"scale={tw}:{th}"]
         cmd = [
-            'ffmpeg', '-f', 'jpeg_pipe', '-i', 'pipe:0',
+            "ffmpeg",
+            "-f",
+            "jpeg_pipe",
+            "-i",
+            "pipe:0",
             *vf_args,
-            '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-v', 'error', 'pipe:1',
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+            "-v",
+            "error",
+            "pipe:1",
         ]
         try:
             result = subprocess.run(
-                cmd, input=jpeg_bytes, capture_output=True,
-                timeout=10, creationflags=_NO_WINDOW,
+                cmd,
+                input=jpeg_bytes,
+                capture_output=True,
+                timeout=10,
+                creationflags=_NO_WINDOW,
             )
             if result.returncode != 0 or not result.stdout:
                 raise ValueError(f"ffmpeg decode failed: {result.stderr[:100]!r}")
@@ -260,7 +308,7 @@ class ThemeZtDecoder:
             return RawFrame(bytes(w * h * 3), w, h)
 
         w, h = target_size if target_size else (320, 320)
-        return RawFrame(result.stdout[:w * h * 3], w, h)
+        return RawFrame(result.stdout[: w * h * 3], w, h)
 
     @property
     def frame_count(self) -> int:
@@ -281,13 +329,24 @@ class ThemeZtDecoder:
 def is_animated_gif(path: str | os.PathLike) -> bool:
     """Return True if the GIF at *path* has more than one frame (ffprobe)."""
     try:
-        result = subprocess.run([
-            'ffprobe', '-v', 'error',
-            '-select_streams', 'v:0',
-            '-show_entries', 'stream=nb_frames',
-            '-of', 'default=noprint_wrappers=1:nokey=1',
-            str(path),
-        ], capture_output=True, timeout=5, text=True, creationflags=_NO_WINDOW)
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-select_streams",
+                "v:0",
+                "-show_entries",
+                "stream=nb_frames",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(path),
+            ],
+            capture_output=True,
+            timeout=5,
+            text=True,
+            creationflags=_NO_WINDOW,
+        )
         if result.returncode == 0 and result.stdout.strip().isdigit():
             return int(result.stdout.strip()) > 1
     except Exception:

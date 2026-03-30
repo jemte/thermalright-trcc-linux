@@ -1,4 +1,5 @@
 """Tests for core/handlers/lcd.py — LCDCommandHandler + bus factories."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -38,6 +39,7 @@ def _mock_lcd() -> MagicMock:
 
 
 # ── Handler dispatch ──────────────────────────────────────────────────────────
+
 
 class TestLCDCommandHandlerDispatch:
     def test_set_brightness(self):
@@ -105,6 +107,7 @@ class TestLCDCommandHandlerDispatch:
 
 # ── Metrics validation ────────────────────────────────────────────────────────
 
+
 class TestLCDMetricsValidation:
     def test_valid_metrics_dispatched(self):
         lcd = _mock_lcd()
@@ -129,6 +132,7 @@ class TestLCDMetricsValidation:
 
 # ── EnsureDataCommand ─────────────────────────────────────────────────────────
 
+
 class TestEnsureDataCommand:
     def test_ensure_starts_background_thread(self):
         lcd = _mock_lcd()
@@ -141,6 +145,7 @@ class TestEnsureDataCommand:
 
 
 # ── bus factories ─────────────────────────────────────────────────────────────
+
 
 class TestBuildLcdBus:
     def test_returns_command_bus(self):
@@ -178,6 +183,7 @@ class TestBuildLcdGuiBus:
 
 
 # ── __repr__ ──────────────────────────────────────────────────────────────────
+
 
 class TestLCDHandlerRepr:
     def test_repr_includes_class_name(self):

@@ -5,6 +5,7 @@ enumeration. Falls back to system_profiler JSON for additional metadata.
 
 Requires: brew install libusb
 """
+
 from __future__ import annotations
 
 import json
@@ -50,11 +51,11 @@ class MacOSDeviceDetector:
         )
 
         all_registries = [
-            (KNOWN_DEVICES, 'scsi', 2),
-            (_HID_LCD_DEVICES, 'hid', None),
-            (_BULK_DEVICES, 'bulk', 4),
-            (_LY_DEVICES, 'ly', 10),
-            (_LED_DEVICES, 'hid', 0),
+            (KNOWN_DEVICES, "scsi", 2),
+            (_HID_LCD_DEVICES, "hid", None),
+            (_BULK_DEVICES, "bulk", 4),
+            (_LY_DEVICES, "ly", 10),
+            (_LED_DEVICES, "hid", 0),
         ]
 
         for registry, protocol, device_type in all_registries:
@@ -65,26 +66,30 @@ class MacOSDeviceDetector:
 
                 impl = entry.implementation
                 if registry is _LED_DEVICES:
-                    impl = 'hid_led'
+                    impl = "hid_led"
 
                 dt = device_type
                 if dt is None:
-                    dt = getattr(entry, 'device_type', 2)
+                    dt = getattr(entry, "device_type", 2)
 
                 # macOS: no /dev/sgN — SCSI uses pyusb bulk transfers
-                usb_path = f'usb:{usb_dev.bus}:{usb_dev.address}'
+                usb_path = f"usb:{usb_dev.bus}:{usb_dev.address}"
 
-                devices.append(DetectedDevice(
-                    vid=vid, pid=pid,
-                    vendor_name=entry.vendor, product_name=entry.product,
-                    usb_path=usb_path,
-                    scsi_device=None,  # macOS: no sg device, pyusb direct
-                    implementation=impl,
-                    model=getattr(entry, 'model', ''),
-                    button_image=getattr(entry, 'button_image', ''),
-                    protocol=protocol,
-                    device_type=dt,
-                ))
+                devices.append(
+                    DetectedDevice(
+                        vid=vid,
+                        pid=pid,
+                        vendor_name=entry.vendor,
+                        product_name=entry.product,
+                        usb_path=usb_path,
+                        scsi_device=None,  # macOS: no sg device, pyusb direct
+                        implementation=impl,
+                        model=getattr(entry, "model", ""),
+                        button_image=getattr(entry, "button_image", ""),
+                        protocol=protocol,
+                        device_type=dt,
+                    )
+                )
 
         log.info("macOS detector found %d device(s)", len(devices))
         return devices
@@ -97,12 +102,14 @@ def get_usb_tree() -> list[dict]:
     """
     try:
         result = subprocess.run(
-            ['system_profiler', 'SPUSBDataType', '-json'],
-            capture_output=True, text=True, timeout=10,
+            ["system_profiler", "SPUSBDataType", "-json"],
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if result.returncode == 0:
             data = json.loads(result.stdout)
-            return data.get('SPUSBDataType', [])
+            return data.get("SPUSBDataType", [])
     except Exception:
         log.debug("system_profiler USB query failed")
     return []

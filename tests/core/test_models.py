@@ -23,6 +23,7 @@ from trcc.core.models import (
 # ThemeInfo
 # =============================================================================
 
+
 class TestThemeInfoFromDirectory(unittest.TestCase):
     """ThemeInfo.from_directory() filesystem scanning."""
 
@@ -31,48 +32,49 @@ class TestThemeInfoFromDirectory(unittest.TestCase):
 
     def tearDown(self):
         import shutil
+
         shutil.rmtree(self.tmpdir)
 
-    def _make_theme(self, name, files=('00.png',)):
+    def _make_theme(self, name, files=("00.png",)):
         d = Path(self.tmpdir) / name
         d.mkdir()
         for f in files:
-            (d / f).write_bytes(b'\x89PNG')
+            (d / f).write_bytes(b"\x89PNG")
         return d
 
     def test_basic_theme(self):
-        d = self._make_theme('001a', ['00.png'])
+        d = self._make_theme("001a", ["00.png"])
         info = ThemeInfo.from_directory(d)
-        self.assertEqual(info.name, '001a')
+        self.assertEqual(info.name, "001a")
         self.assertEqual(info.theme_type, ThemeType.LOCAL)
         self.assertIsNotNone(info.background_path)
 
     def test_animated_theme(self):
-        d = self._make_theme('002a', ['00.png', 'Theme.zt'])
+        d = self._make_theme("002a", ["00.png", "Theme.zt"])
         info = ThemeInfo.from_directory(d)
         self.assertTrue(info.is_animated)
         self.assertIsNotNone(info.animation_path)
 
     def test_mask_only_theme(self):
-        d = self._make_theme('mask', ['01.png'])
+        d = self._make_theme("mask", ["01.png"])
         info = ThemeInfo.from_directory(d)
         self.assertTrue(info.is_mask_only)
         self.assertIsNone(info.background_path)
 
     def test_resolution_passed_through(self):
-        d = self._make_theme('003a', ['00.png'])
+        d = self._make_theme("003a", ["00.png"])
         info = ThemeInfo.from_directory(d, resolution=(480, 480))
         self.assertEqual(info.resolution, (480, 480))
 
     def test_thumbnail_fallback_to_background(self):
         """When Theme.png missing, thumbnail falls back to 00.png."""
-        d = self._make_theme('004a', ['00.png'])
+        d = self._make_theme("004a", ["00.png"])
         info = ThemeInfo.from_directory(d)
         self.assertIsNotNone(info.thumbnail_path)
-        self.assertEqual(info.thumbnail_path.name, '00.png')
+        self.assertEqual(info.thumbnail_path.name, "00.png")
 
     def test_with_config_dc(self):
-        d = self._make_theme('005a', ['00.png', 'config1.dc'])
+        d = self._make_theme("005a", ["00.png", "config1.dc"])
         info = ThemeInfo.from_directory(d)
         self.assertIsNotNone(info.config_path)
 
@@ -81,28 +83,28 @@ class TestThemeInfoFromVideo(unittest.TestCase):
     """ThemeInfo.from_video() cloud theme creation."""
 
     def test_basic(self):
-        info = ThemeInfo.from_video(Path('/tmp/a_test.mp4'))
-        self.assertEqual(info.name, 'a_test')
+        info = ThemeInfo.from_video(Path("/tmp/a_test.mp4"))
+        self.assertEqual(info.name, "a_test")
         self.assertEqual(info.theme_type, ThemeType.CLOUD)
         self.assertTrue(info.is_animated)
 
     def test_category_from_name(self):
-        info = ThemeInfo.from_video(Path('/tmp/b_galaxy.mp4'))
-        self.assertEqual(info.category, 'b')
+        info = ThemeInfo.from_video(Path("/tmp/b_galaxy.mp4"))
+        self.assertEqual(info.category, "b")
 
 
 # =============================================================================
 # DeviceInfo
 # =============================================================================
 
-class TestDeviceInfo(unittest.TestCase):
 
+class TestDeviceInfo(unittest.TestCase):
     def test_resolution_str(self):
-        d = DeviceInfo(name='LCD', path='/dev/sg0', resolution=(480, 480))
-        self.assertEqual(d.resolution_str, '480x480')
+        d = DeviceInfo(name="LCD", path="/dev/sg0", resolution=(480, 480))
+        self.assertEqual(d.resolution_str, "480x480")
 
     def test_defaults(self):
-        d = DeviceInfo(name='LCD', path='/dev/sg0')
+        d = DeviceInfo(name="LCD", path="/dev/sg0")
         self.assertEqual(d.brightness, 65)
         self.assertEqual(d.rotation, 0)
         self.assertTrue(d.connected)
@@ -111,6 +113,7 @@ class TestDeviceInfo(unittest.TestCase):
 # =============================================================================
 # Resolution Pipeline (pm_to_fbl, fbl_to_resolution)
 # =============================================================================
+
 
 class TestPmToFbl(unittest.TestCase):
     """PM byte → FBL byte mapping (C# FormCZTVInit)."""
@@ -131,14 +134,14 @@ class TestPmToFbl(unittest.TestCase):
 
     def test_new_v212_overrides(self):
         """New PM→FBL entries from v2.1.2 audit."""
-        self.assertEqual(pm_to_fbl(13), 224)   # 960x320
-        self.assertEqual(pm_to_fbl(14), 64)    # 640x480
-        self.assertEqual(pm_to_fbl(15), 224)   # 640x172
-        self.assertEqual(pm_to_fbl(16), 224)   # 960x540
-        self.assertEqual(pm_to_fbl(17), 224)   # 960x320
-        self.assertEqual(pm_to_fbl(66), 192)   # 1920x462
-        self.assertEqual(pm_to_fbl(68), 192)   # 1280x480
-        self.assertEqual(pm_to_fbl(69), 192)   # 1920x440
+        self.assertEqual(pm_to_fbl(13), 224)  # 960x320
+        self.assertEqual(pm_to_fbl(14), 64)  # 640x480
+        self.assertEqual(pm_to_fbl(15), 224)  # 640x172
+        self.assertEqual(pm_to_fbl(16), 224)  # 960x540
+        self.assertEqual(pm_to_fbl(17), 224)  # 960x320
+        self.assertEqual(pm_to_fbl(66), 192)  # 1920x462
+        self.assertEqual(pm_to_fbl(68), 192)  # 1280x480
+        self.assertEqual(pm_to_fbl(69), 192)  # 1920x440
 
     def test_pm_sub_compound_keys(self):
         """PM+SUB compound keys for special device configurations."""
@@ -154,15 +157,15 @@ class TestFblToResolution(unittest.TestCase):
     def test_every_fbl_resolution(self):
         """Every FBL in FBL_PROFILES resolves to the correct resolution."""
         expected = {
-            36:  (240, 240),
-            37:  (240, 240),
-            50:  (320, 240),
-            51:  (320, 240),
-            53:  (320, 240),
-            54:  (360, 360),
-            58:  (320, 240),
-            64:  (640, 480),
-            72:  (480, 480),
+            36: (240, 240),
+            37: (240, 240),
+            50: (320, 240),
+            51: (320, 240),
+            53: (320, 240),
+            54: (360, 360),
+            58: (320, 240),
+            64: (640, 480),
+            72: (480, 480),
             100: (320, 320),
             101: (320, 320),
             102: (320, 320),
@@ -185,7 +188,7 @@ class TestFblToResolution(unittest.TestCase):
 
     def test_fbl_224_disambiguation(self):
         """FBL 224 with PM byte → correct resolution."""
-        self.assertEqual(fbl_to_resolution(224, pm=9), (854, 480))   # default
+        self.assertEqual(fbl_to_resolution(224, pm=9), (854, 480))  # default
         self.assertEqual(fbl_to_resolution(224, pm=10), (960, 540))
         self.assertEqual(fbl_to_resolution(224, pm=11), (854, 480))  # default
         self.assertEqual(fbl_to_resolution(224, pm=12), (800, 480))
@@ -280,8 +283,7 @@ class TestDeviceProfileCompleteness(unittest.TestCase):
 
     def test_all_fbls_accounted_for(self):
         """FBL_PROFILES contains exactly the expected 17 device entries."""
-        expected_fbls = {36, 37, 50, 51, 53, 54, 58, 64, 72,
-                         100, 101, 102, 114, 128, 129, 192, 224}
+        expected_fbls = {36, 37, 50, 51, 53, 54, 58, 64, 72, 100, 101, 102, 114, 128, 129, 192, 224}
         self.assertEqual(set(FBL_PROFILES.keys()), expected_fbls)
 
     def test_jpeg_fbls(self):
@@ -303,7 +305,7 @@ class TestDeviceProfileCompleteness(unittest.TestCase):
         """byte_order returns '>' for big-endian, '<' for little-endian."""
         for fbl, profile in FBL_PROFILES.items():
             with self.subTest(fbl=fbl):
-                expected = '>' if profile.big_endian else '<'
+                expected = ">" if profile.big_endian else "<"
                 self.assertEqual(profile.byte_order, expected)
 
     def test_resolution_property(self):
@@ -450,8 +452,8 @@ class TestDeviceProfilePerFbl(unittest.TestCase):
 # VideoState
 # =============================================================================
 
-class TestVideoState(unittest.TestCase):
 
+class TestVideoState(unittest.TestCase):
     def test_progress_zero_frames(self):
         s = VideoState(total_frames=0)
         self.assertEqual(s.progress, 0.0)
@@ -462,8 +464,8 @@ class TestVideoState(unittest.TestCase):
 
     def test_time_str(self):
         s = VideoState(current_frame=960, total_frames=1920, fps=16.0)
-        self.assertEqual(s.current_time_str, '01:00')
-        self.assertEqual(s.total_time_str, '02:00')
+        self.assertEqual(s.current_time_str, "01:00")
+        self.assertEqual(s.total_time_str, "02:00")
 
     def test_frame_interval(self):
         s = VideoState(fps=16.0)
@@ -475,11 +477,10 @@ class TestVideoState(unittest.TestCase):
 
     def test_time_str_zero_fps(self):
         s = VideoState(fps=0)
-        self.assertEqual(s.current_time_str, '00:00')
+        self.assertEqual(s.current_time_str, "00:00")
 
 
 class TestVideoStateTotalTimeStr(unittest.TestCase):
-
     def test_zero_fps(self):
         vs = VideoState()
         vs.fps = 0
@@ -490,26 +491,39 @@ class TestVideoStateTotalTimeStr(unittest.TestCase):
 # parse_hex_color
 # =============================================================================
 
+
 class TestParseHexColor:
     """parse_hex_color() — shared hex color parser."""
 
-    @pytest.mark.parametrize("input_hex,expected", [
-        ("ff0000", (255, 0, 0)),
-        ("#ff0000", (255, 0, 0)),
-        ("00ff00", (0, 255, 0)),
-        ("#00FF00", (0, 255, 0)),
-        ("0000ff", (0, 0, 255)),
-        ("000000", (0, 0, 0)),
-        ("ffffff", (255, 255, 255)),
-        ("#abcdef", (171, 205, 239)),
-    ])
+    @pytest.mark.parametrize(
+        "input_hex,expected",
+        [
+            ("ff0000", (255, 0, 0)),
+            ("#ff0000", (255, 0, 0)),
+            ("00ff00", (0, 255, 0)),
+            ("#00FF00", (0, 255, 0)),
+            ("0000ff", (0, 0, 255)),
+            ("000000", (0, 0, 0)),
+            ("ffffff", (255, 255, 255)),
+            ("#abcdef", (171, 205, 239)),
+        ],
+    )
     def test_valid_colors(self, input_hex, expected):
         assert parse_hex_color(input_hex) == expected
 
-    @pytest.mark.parametrize("invalid", [
-        "", "fff", "fffffff", "gggggg", "#xyz", "12345",
-        "#12345g", "not-a-color",
-    ])
+    @pytest.mark.parametrize(
+        "invalid",
+        [
+            "",
+            "fff",
+            "fffffff",
+            "gggggg",
+            "#xyz",
+            "12345",
+            "#12345g",
+            "not-a-color",
+        ],
+    )
     def test_invalid_returns_none(self, invalid):
         assert parse_hex_color(invalid) is None
 
@@ -525,14 +539,16 @@ class TestProtocolTraits:
     def test_all_protocols_have_traits(self):
         """Every known protocol has an entry in PROTOCOL_TRAITS."""
         from trcc.core.models import PROTOCOL_TRAITS
-        for proto in ('scsi', 'hid', 'bulk', 'ly', 'led'):
+
+        for proto in ("scsi", "hid", "bulk", "ly", "led"):
             assert proto in PROTOCOL_TRAITS, f"Missing traits for {proto}"
 
     def test_scsi_traits(self):
         from trcc.core.models import PROTOCOL_TRAITS
-        t = PROTOCOL_TRAITS['scsi']
-        assert t.udev_subsystems == ('scsi_generic',)
-        assert t.backend_key == 'sg_raw'
+
+        t = PROTOCOL_TRAITS["scsi"]
+        assert t.udev_subsystems == ("scsi_generic",)
+        assert t.backend_key == "sg_raw"
         assert t.fallback_backend is None
         assert t.requires_reboot is True
         assert t.supports_jpeg is False
@@ -540,34 +556,39 @@ class TestProtocolTraits:
 
     def test_hid_traits(self):
         from trcc.core.models import PROTOCOL_TRAITS
-        t = PROTOCOL_TRAITS['hid']
-        assert t.udev_subsystems == ('hidraw', 'usb')
-        assert t.backend_key == 'pyusb'
-        assert t.fallback_backend == 'hidapi'
+
+        t = PROTOCOL_TRAITS["hid"]
+        assert t.udev_subsystems == ("hidraw", "usb")
+        assert t.backend_key == "pyusb"
+        assert t.fallback_backend == "hidapi"
         assert t.requires_reboot is False
 
     def test_bulk_ly_support_jpeg(self):
         from trcc.core.models import PROTOCOL_TRAITS
-        assert PROTOCOL_TRAITS['bulk'].supports_jpeg is True
-        assert PROTOCOL_TRAITS['ly'].supports_jpeg is True
+
+        assert PROTOCOL_TRAITS["bulk"].supports_jpeg is True
+        assert PROTOCOL_TRAITS["ly"].supports_jpeg is True
 
     def test_led_is_led(self):
         from trcc.core.models import PROTOCOL_TRAITS
-        t = PROTOCOL_TRAITS['led']
+
+        t = PROTOCOL_TRAITS["led"]
         assert t.is_led is True
         assert t.supports_jpeg is False
 
     def test_only_scsi_requires_reboot(self):
         from trcc.core.models import PROTOCOL_TRAITS
+
         for name, t in PROTOCOL_TRAITS.items():
-            if name == 'scsi':
+            if name == "scsi":
                 assert t.requires_reboot is True
             else:
                 assert t.requires_reboot is False, f"{name} should not require reboot"
 
     def test_traits_are_frozen(self):
         from trcc.core.models import PROTOCOL_TRAITS
-        t = PROTOCOL_TRAITS['scsi']
+
+        t = PROTOCOL_TRAITS["scsi"]
         with pytest.raises(AttributeError):
             t.requires_reboot = False  # type: ignore[misc]
 
@@ -578,24 +599,29 @@ class TestGetButtonImage:
     def test_stream_vision_pm7_sub1(self):
         """PM=7, SUB=1 → Stream Vision (not Frozen Warframe Pro)."""
         from trcc.core.models import get_button_image
-        assert get_button_image(7, 1) == 'A1Stream Vision'
+
+        assert get_button_image(7, 1) == "A1Stream Vision"
 
     def test_fbl64_sub0_is_frozen_warframe_pro(self):
         """FBL=64 with sub=0 → Frozen Warframe Pro (the old buggy lookup)."""
         from trcc.core.models import get_button_image
-        assert get_button_image(64, 0) == 'A1FROZEN WARFRAME PRO'
+
+        assert get_button_image(64, 0) == "A1FROZEN WARFRAME PRO"
 
     def test_pm7_sub1_differs_from_fbl64(self):
         """PM=7/SUB=1 and FBL=64/SUB=0 must resolve differently (#69)."""
         from trcc.core.models import get_button_image
+
         assert get_button_image(7, 1) != get_button_image(64, 0)
 
     def test_pm32_sub1_frozen_warframe_pro(self):
         from trcc.core.models import get_button_image
-        assert get_button_image(32, 1) == 'A1FROZEN WARFRAME PRO'
+
+        assert get_button_image(32, 1) == "A1FROZEN WARFRAME PRO"
 
     def test_unknown_pm_returns_none(self):
         from trcc.core.models import get_button_image
+
         assert get_button_image(255) is None
 
 
@@ -609,106 +635,125 @@ class TestParseMetricSpec:
 
     def test_basic_spec(self):
         from trcc.core.models import parse_metric_spec
-        key, elem = parse_metric_spec('gpu_temp:10,20', 0)
-        assert key == 'cli_elem_0'
-        assert elem['x'] == 10
-        assert elem['y'] == 20
-        assert elem['metric'] == 'gpu_temp'
-        assert elem['enabled'] is True
-        assert elem['color'] == '#ffffff'
-        assert elem['font']['size'] == 14
+
+        key, elem = parse_metric_spec("gpu_temp:10,20", 0)
+        assert key == "cli_elem_0"
+        assert elem["x"] == 10
+        assert elem["y"] == 20
+        assert elem["metric"] == "gpu_temp"
+        assert elem["enabled"] is True
+        assert elem["color"] == "#ffffff"
+        assert elem["font"]["size"] == 14
 
     def test_with_color_override(self):
         from trcc.core.models import parse_metric_spec
-        _, elem = parse_metric_spec('cpu_percent:50,100:ff0000', 1)
-        assert elem['color'] == '#ff0000'
-        assert elem['font']['size'] == 14
+
+        _, elem = parse_metric_spec("cpu_percent:50,100:ff0000", 1)
+        assert elem["color"] == "#ff0000"
+        assert elem["font"]["size"] == 14
 
     def test_with_color_and_size_override(self):
         from trcc.core.models import parse_metric_spec
-        _, elem = parse_metric_spec('time:150,10:ffffff:24', 2)
-        assert elem['color'] == '#ffffff'
-        assert elem['font']['size'] == 24
-        assert elem['metric'] == 'time'
+
+        _, elem = parse_metric_spec("time:150,10:ffffff:24", 2)
+        assert elem["color"] == "#ffffff"
+        assert elem["font"]["size"] == 24
+        assert elem["metric"] == "time"
 
     def test_custom_defaults(self):
         from trcc.core.models import parse_metric_spec
+
         _, elem = parse_metric_spec(
-            'gpu_usage:5,5', 0,
-            default_color='00ff00', default_size=20,
-            default_font='Arial', default_style='bold')
-        assert elem['color'] == '#00ff00'
-        assert elem['font']['size'] == 20
-        assert elem['font']['name'] == 'Arial'
-        assert elem['font']['style'] == 'bold'
+            "gpu_usage:5,5",
+            0,
+            default_color="00ff00",
+            default_size=20,
+            default_font="Arial",
+            default_style="bold",
+        )
+        assert elem["color"] == "#00ff00"
+        assert elem["font"]["size"] == 20
+        assert elem["font"]["name"] == "Arial"
+        assert elem["font"]["style"] == "bold"
 
     def test_time_format_field(self):
         from trcc.core.models import parse_metric_spec
-        _, elem = parse_metric_spec('time:10,10', 0)
-        assert 'time_format' in elem
+
+        _, elem = parse_metric_spec("time:10,10", 0)
+        assert "time_format" in elem
 
     def test_date_format_field(self):
         from trcc.core.models import parse_metric_spec
-        _, elem = parse_metric_spec('date:10,10', 0)
-        assert 'date_format' in elem
+
+        _, elem = parse_metric_spec("date:10,10", 0)
+        assert "date_format" in elem
 
     def test_temp_metric_has_temp_unit(self):
         from trcc.core.models import parse_metric_spec
-        _, elem = parse_metric_spec('cpu_temp:10,10', 0)
-        assert 'temp_unit' in elem
+
+        _, elem = parse_metric_spec("cpu_temp:10,10", 0)
+        assert "temp_unit" in elem
 
     def test_invalid_key_raises(self):
         from trcc.core.models import parse_metric_spec
+
         with pytest.raises(ValueError, match="Unknown metric key"):
-            parse_metric_spec('not_a_metric:10,10', 0)
+            parse_metric_spec("not_a_metric:10,10", 0)
 
     def test_missing_coords_raises(self):
         from trcc.core.models import parse_metric_spec
+
         with pytest.raises(ValueError, match="Invalid"):
-            parse_metric_spec('gpu_temp', 0)
+            parse_metric_spec("gpu_temp", 0)
 
     def test_bad_coords_raises(self):
         from trcc.core.models import parse_metric_spec
+
         with pytest.raises(ValueError, match="Invalid coordinates"):
-            parse_metric_spec('gpu_temp:abc,def', 0)
+            parse_metric_spec("gpu_temp:abc,def", 0)
 
     def test_bad_size_raises(self):
         from trcc.core.models import parse_metric_spec
+
         with pytest.raises(ValueError, match="Invalid size"):
-            parse_metric_spec('gpu_temp:10,20:ff0000:notanint', 0)
+            parse_metric_spec("gpu_temp:10,20:ff0000:notanint", 0)
 
     def test_color_with_hash_stripped(self):
         from trcc.core.models import parse_metric_spec
-        _, elem = parse_metric_spec('gpu_temp:10,20:#aabbcc', 0)
-        assert elem['color'] == '#aabbcc'
+
+        _, elem = parse_metric_spec("gpu_temp:10,20:#aabbcc", 0)
+        assert elem["color"] == "#aabbcc"
 
     def test_empty_color_uses_default(self):
         from trcc.core.models import parse_metric_spec
-        _, elem = parse_metric_spec('gpu_temp:10,20::18', 0)
-        assert elem['color'] == '#ffffff'
-        assert elem['font']['size'] == 18
+
+        _, elem = parse_metric_spec("gpu_temp:10,20::18", 0)
+        assert elem["color"] == "#ffffff"
+        assert elem["font"]["size"] == 18
 
     def test_per_metric_font_override(self):
         from trcc.core.models import parse_metric_spec
-        _, elem = parse_metric_spec('gpu_temp:10,20:ff0000:18:Arial:bold', 0)
-        assert elem['font']['name'] == 'Arial'
-        assert elem['font']['style'] == 'bold'
-        assert elem['font']['size'] == 18
-        assert elem['color'] == '#ff0000'
+
+        _, elem = parse_metric_spec("gpu_temp:10,20:ff0000:18:Arial:bold", 0)
+        assert elem["font"]["name"] == "Arial"
+        assert elem["font"]["style"] == "bold"
+        assert elem["font"]["size"] == 18
+        assert elem["color"] == "#ff0000"
 
     def test_per_metric_font_without_style(self):
         from trcc.core.models import parse_metric_spec
-        _, elem = parse_metric_spec('cpu_temp:10,20::16:Courier', 0)
-        assert elem['font']['name'] == 'Courier'
-        assert elem['font']['style'] == 'regular'
-        assert elem['font']['size'] == 16
+
+        _, elem = parse_metric_spec("cpu_temp:10,20::16:Courier", 0)
+        assert elem["font"]["name"] == "Courier"
+        assert elem["font"]["style"] == "regular"
+        assert elem["font"]["size"] == 16
 
     def test_per_metric_font_uses_global_when_empty(self):
         from trcc.core.models import parse_metric_spec
-        _, elem = parse_metric_spec('gpu_temp:10,20', 0,
-                                     default_font='Mono', default_style='bold')
-        assert elem['font']['name'] == 'Mono'
-        assert elem['font']['style'] == 'bold'
+
+        _, elem = parse_metric_spec("gpu_temp:10,20", 0, default_font="Mono", default_style="bold")
+        assert elem["font"]["name"] == "Mono"
+        assert elem["font"]["style"] == "bold"
 
 
 class TestBuildOverlayConfig:
@@ -716,51 +761,61 @@ class TestBuildOverlayConfig:
 
     def test_single_metric(self):
         from trcc.core.models import build_overlay_config
-        config = build_overlay_config(['gpu_temp:10,20'])
+
+        config = build_overlay_config(["gpu_temp:10,20"])
         assert len(config) == 1
-        assert 'cli_elem_0' in config
+        assert "cli_elem_0" in config
 
     def test_multiple_metrics(self):
         from trcc.core.models import build_overlay_config
-        config = build_overlay_config([
-            'gpu_temp:10,20',
-            'cpu_percent:10,50',
-            'time:150,10',
-        ])
+
+        config = build_overlay_config(
+            [
+                "gpu_temp:10,20",
+                "cpu_percent:10,50",
+                "time:150,10",
+            ]
+        )
         assert len(config) == 3
 
     def test_global_defaults_applied(self):
         from trcc.core.models import build_overlay_config
+
         config = build_overlay_config(
-            ['gpu_temp:10,20'],
-            default_color='00ff00',
+            ["gpu_temp:10,20"],
+            default_color="00ff00",
             default_font_size=20,
-            default_font='Arial',
-            default_style='bold',
+            default_font="Arial",
+            default_style="bold",
         )
-        elem = config['cli_elem_0']
-        assert elem['color'] == '#00ff00'
-        assert elem['font']['size'] == 20
-        assert elem['font']['name'] == 'Arial'
-        assert elem['font']['style'] == 'bold'
+        elem = config["cli_elem_0"]
+        assert elem["color"] == "#00ff00"
+        assert elem["font"]["size"] == 20
+        assert elem["font"]["name"] == "Arial"
+        assert elem["font"]["style"] == "bold"
 
     def test_format_overrides(self):
         from trcc.core.models import build_overlay_config
+
         config = build_overlay_config(
-            ['time:10,10', 'date:10,30', 'cpu_temp:10,50'],
-            time_format=1, date_format=2, temp_unit=1,
+            ["time:10,10", "date:10,30", "cpu_temp:10,50"],
+            time_format=1,
+            date_format=2,
+            temp_unit=1,
         )
-        assert config['cli_elem_0']['time_format'] == 1
-        assert config['cli_elem_1']['date_format'] == 2
-        assert config['cli_elem_2']['temp_unit'] == 1
+        assert config["cli_elem_0"]["time_format"] == 1
+        assert config["cli_elem_1"]["date_format"] == 2
+        assert config["cli_elem_2"]["temp_unit"] == 1
 
     def test_invalid_metric_raises(self):
         from trcc.core.models import build_overlay_config
+
         with pytest.raises(ValueError, match="Unknown metric key"):
-            build_overlay_config(['bogus:10,10'])
+            build_overlay_config(["bogus:10,10"])
 
     def test_empty_list(self):
         from trcc.core.models import build_overlay_config
+
         config = build_overlay_config([])
         assert config == {}
 
@@ -770,19 +825,22 @@ class TestValidOverlayKeys:
 
     def test_contains_hardware_metrics(self):
         from trcc.core.models import HARDWARE_METRICS, VALID_OVERLAY_KEYS
+
         for metric_name in HARDWARE_METRICS.values():
             assert metric_name in VALID_OVERLAY_KEYS
 
     def test_contains_time_date_weekday(self):
         from trcc.core.models import VALID_OVERLAY_KEYS
-        assert 'time' in VALID_OVERLAY_KEYS
-        assert 'date' in VALID_OVERLAY_KEYS
-        assert 'weekday' in VALID_OVERLAY_KEYS
+
+        assert "time" in VALID_OVERLAY_KEYS
+        assert "date" in VALID_OVERLAY_KEYS
+        assert "weekday" in VALID_OVERLAY_KEYS
 
     def test_is_frozenset(self):
         from trcc.core.models import VALID_OVERLAY_KEYS
+
         assert isinstance(VALID_OVERLAY_KEYS, frozenset)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

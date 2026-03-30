@@ -1,4 +1,5 @@
 """System setup and administration commands."""
+
 from __future__ import annotations
 
 import os
@@ -15,6 +16,7 @@ def _require_linux(command: str) -> int | None:
     if not LINUX:
         print(f"'{command}' is for Linux only.")
         from trcc.core.builder import ControllerBuilder
+
         hint = ControllerBuilder.for_current_os().build_setup().linux_command_hint()
         if hint:
             print(hint)
@@ -25,6 +27,7 @@ def _require_linux(command: str) -> int | None:
 def _real_user_home():
     """Lazy proxy — only available on Linux."""
     from trcc.adapters.system.linux.setup import _real_user_home as _fn
+
     return _fn()
 
 
@@ -35,6 +38,7 @@ def setup_udev(dry_run: bool = False) -> int:
         return err
     from trcc.core.app import TrccApp
     from trcc.core.commands.initialize import SetupUdevCommand
+
     result = TrccApp.get().os_bus.dispatch(SetupUdevCommand(dry_run=dry_run))
     return 0 if result.success else 1
 
@@ -46,6 +50,7 @@ def setup_selinux() -> int:
         return err
     from trcc.core.app import TrccApp
     from trcc.core.commands.initialize import SetupSelinuxCommand
+
     result = TrccApp.get().os_bus.dispatch(SetupSelinuxCommand())
     return 0 if result.success else 1
 
@@ -57,6 +62,7 @@ def setup_polkit() -> int:
         return err
     from trcc.core.app import TrccApp
     from trcc.core.commands.initialize import SetupPolkitCommand
+
     result = TrccApp.get().os_bus.dispatch(SetupPolkitCommand())
     return 0 if result.success else 1
 
@@ -68,6 +74,7 @@ def install_desktop() -> int:
         return err
     from trcc.core.app import TrccApp
     from trcc.core.commands.initialize import InstallDesktopCommand
+
     result = TrccApp.get().os_bus.dispatch(InstallDesktopCommand())
     return 0 if result.success else 1
 
@@ -96,6 +103,7 @@ def show_info(builder=None, *, preview: bool = False, metric: str | None = None)
 
         if preview:
             from trcc.services import ImageService
+
             print(ImageService.metrics_to_ansi(metrics, group=metric))
             return 0
 
@@ -104,21 +112,27 @@ def show_info(builder=None, *, preview: bool = False, metric: str | None = None)
         print("=" * 40)
 
         groups = [
-            ("CPU", ['cpu_temp', 'cpu_percent', 'cpu_freq', 'cpu_power']),
-            ("GPU", ['gpu_temp', 'gpu_usage', 'gpu_clock', 'gpu_power']),
-            ("Memory", ['mem_temp', 'mem_percent', 'mem_clock', 'mem_available']),
-            ("Disk", ['disk_temp', 'disk_activity', 'disk_read', 'disk_write']),
-            ("Network", ['net_up', 'net_down', 'net_total_up', 'net_total_down']),
-            ("Fan", ['fan_cpu', 'fan_gpu', 'fan_ssd', 'fan_sys2']),
-            ("Date/Time", ['date', 'time', 'weekday']),
+            ("CPU", ["cpu_temp", "cpu_percent", "cpu_freq", "cpu_power"]),
+            ("GPU", ["gpu_temp", "gpu_usage", "gpu_clock", "gpu_power"]),
+            ("Memory", ["mem_temp", "mem_percent", "mem_clock", "mem_available"]),
+            ("Disk", ["disk_temp", "disk_activity", "disk_read", "disk_write"]),
+            ("Network", ["net_up", "net_down", "net_total_up", "net_total_down"]),
+            ("Fan", ["fan_cpu", "fan_gpu", "fan_ssd", "fan_sys2"]),
+            ("Date/Time", ["date", "time", "weekday"]),
         ]
 
         # Filter if metric specified
         if metric:
             key = metric.lower()
-            alias = {'mem': 'Memory', 'cpu': 'CPU', 'gpu': 'GPU',
-                     'disk': 'Disk', 'net': 'Network', 'fan': 'Fan',
-                     'time': 'Date/Time'}
+            alias = {
+                "mem": "Memory",
+                "cpu": "CPU",
+                "gpu": "GPU",
+                "disk": "Disk",
+                "net": "Network",
+                "fan": "Fan",
+                "time": "Date/Time",
+            }
             target = alias.get(key)
             if target:
                 groups = [(lb, ks) for lb, ks in groups if lb == target]
@@ -127,7 +141,7 @@ def show_info(builder=None, *, preview: bool = False, metric: str | None = None)
             print(f"\n{label}:")
             for key in keys:
                 val = getattr(metrics, key, None)
-                if val is not None and (val != 0.0 or key in ('date', 'time', 'weekday')):
+                if val is not None and (val != 0.0 or key in ("date", "time", "weekday")):
                     print(f"  {key}: {format_metric(key, val)}")
 
         return 0
@@ -150,12 +164,14 @@ def setup_winusb() -> int:
     HID, Bulk, and LY devices need WinUSB — installed via Zadig.
     """
     from trcc.core.builder import ControllerBuilder
+
     if not ControllerBuilder.for_current_os().build_setup().supports_winusb():
         print("This command is for Windows only.")
         print("On Linux, use: trcc setup-udev")
         return 1
     from trcc.core.app import TrccApp
     from trcc.core.commands.initialize import SetupWinUsbCommand
+
     result = TrccApp.get().os_bus.dispatch(SetupWinUsbCommand())
     return 0 if result.success else 1
 
@@ -184,11 +200,12 @@ def uninstall(*, yes: bool = False):
 
     # Files that require root to remove (platform-specific)
     from trcc.core.builder import ControllerBuilder
+
     root_files = ControllerBuilder.for_current_os().build_setup().get_system_files()
 
     # User files/dirs to remove
     user_items = [
-        home / ".trcc",                                      # all trcc data + config
+        home / ".trcc",  # all trcc data + config
     ]
     # Glob for any trcc desktop files in applications dir (keeps app menu clean)
     applications = home / ".local" / "share" / "applications"
@@ -214,6 +231,7 @@ def uninstall(*, yes: bool = False):
     # Disable autostart before shutting down logging — autostart only touches
     # ~/.config/autostart/, not ~/.trcc/, so order is safe here.
     from trcc.core.builder import ControllerBuilder
+
     autostart = ControllerBuilder.for_current_os().build_autostart()
     if autostart.is_enabled():
         autostart.disable()
@@ -222,6 +240,7 @@ def uninstall(*, yes: bool = False):
     # Shut down logging before deleting ~/.trcc — on Windows the log file
     # handle stays open and blocks rmtree with WinError 32.
     import logging as _logging
+
     _logging.shutdown()
 
     # Handle user files/dirs
@@ -247,18 +266,18 @@ def uninstall(*, yes: bool = False):
 
     # Detect install method and uninstall the package accordingly
     install_info = Settings.get_install_info()
-    method = install_info.get('method', _detect_install_method())
+    method = install_info.get("method", _detect_install_method())
 
-    if method in ('pacman', 'dnf', 'apt'):
+    if method in ("pacman", "dnf", "apt"):
         # System package — tell user to remove via their package manager
         pkg_cmds = {
-            'pacman': 'sudo pacman -R trcc-linux',
-            'dnf': 'sudo dnf remove trcc-linux',
-            'apt': 'sudo apt remove trcc-linux',
+            "pacman": "sudo pacman -R trcc-linux",
+            "dnf": "sudo dnf remove trcc-linux",
+            "apt": "sudo apt remove trcc-linux",
         }
         print(f"\nInstalled via {method} — remove with:")
         print(f"  {pkg_cmds[method]}")
-    elif method == 'pipx':
+    elif method == "pipx":
         print("\nUninstalling trcc-linux via pipx...")
         subprocess.run(["pipx", "uninstall", "trcc-linux"], check=False)
     else:
@@ -290,7 +309,7 @@ def report(detect_fn=None):
     print(rpt)
     run_doctor()
     print("Copy everything above and paste it into your GitHub issue:")
-    print("  https://github.com/Lexonight1/thermalright-trcc-linux/issues/new")
+    print("  https://github.com/jemte/thermalright-trcc-linux/issues/new")
     return 0
 
 
@@ -299,23 +318,28 @@ def download_themes(pack=None, show_list=False, force=False, show_info=False):
     try:
         if show_info and pack:
             from trcc.adapters.infra.theme_downloader import show_info as pack_info
+
             pack_info(pack)
             return 0
 
         if force:
             from trcc.conf import Settings
+
             Settings.clear_installed_resolutions()
 
         from trcc.core.app import TrccApp
         from trcc.core.commands.initialize import DownloadThemesCommand
+
         dispatch_pack = "" if show_list else (pack or "")
         result = TrccApp.get().os_bus.dispatch(
-            DownloadThemesCommand(pack=dispatch_pack, force=force))
+            DownloadThemesCommand(pack=dispatch_pack, force=force)
+        )
         return 0 if result.success else 1
 
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 
@@ -327,7 +351,7 @@ def _confirm(prompt: str, auto_yes: bool) -> bool:
         return True
     try:
         answer = input(f"  {prompt} [Y/n]: ").strip().lower()
-        return answer in ('', 'y', 'yes')
+        return answer in ("", "y", "yes")
     except (EOFError, KeyboardInterrupt):
         print()
         return False
@@ -337,5 +361,6 @@ def run_setup(auto_yes: bool = False) -> int:
     """Interactive setup wizard — dispatches to platform-specific adapter."""
     from trcc.core.app import TrccApp
     from trcc.core.commands.initialize import SetupPlatformCommand
+
     result = TrccApp.get().os_bus.dispatch(SetupPlatformCommand(auto_yes=auto_yes))
     return 0 if result.success else 1

@@ -9,6 +9,7 @@ Covers:
 - SystemInfoPanel: construction, update_values formatting, set_temp_unit, signals
 - UCSystemInfo: construction, page navigation, add/delete panels, timer management
 """
+
 from __future__ import annotations
 
 import os
@@ -508,9 +509,7 @@ class TestUCSystemInfo:
         """Adding enough panels to need a second page, then navigating."""
         # Add 7 more panels to get 13 total (need 2 pages)
         for i in range(7):
-            sysinfo._config.panels.append(
-                _make_custom_panel_config(name=f"Extra{i}")
-            )
+            sysinfo._config.panels.append(_make_custom_panel_config(name=f"Extra{i}"))
         sysinfo._rebuild_grid()
         assert sysinfo._page == 0
         # Now navigate forward
@@ -519,9 +518,7 @@ class TestUCSystemInfo:
 
     def test_change_page_backward(self, sysinfo):
         for i in range(7):
-            sysinfo._config.panels.append(
-                _make_custom_panel_config(name=f"Extra{i}")
-            )
+            sysinfo._config.panels.append(_make_custom_panel_config(name=f"Extra{i}"))
         sysinfo._rebuild_grid()
         sysinfo._change_page(1)
         assert sysinfo._page == 1
@@ -803,9 +800,7 @@ class TestLEDHandler:
 
     def test_sync_ui_with_zones(self, handler):
         """Loads zone 0 state into panel when zones exist."""
-        zone = LEDZoneState(
-            mode=LEDMode.BREATHING, color=(0, 255, 0), brightness=80, on=True
-        )
+        zone = LEDZoneState(mode=LEDMode.BREATHING, color=(0, 255, 0), brightness=80, on=True)
         self._wire_led(handler, zones=[zone])
         handler._sync_ui_from_state()
         handler._panel.load_zone_state.assert_called_once_with(
@@ -815,8 +810,11 @@ class TestLEDHandler:
     def test_sync_ui_without_zones(self, handler):
         """Loads global state into panel when no zones."""
         self._wire_led(
-            handler, mode=LEDMode.RAINBOW, color=(100, 200, 50),
-            brightness=90, global_on=True,
+            handler,
+            mode=LEDMode.RAINBOW,
+            color=(100, 200, 50),
+            brightness=90,
+            global_on=True,
         )
         handler._sync_ui_from_state()
         handler._panel.load_zone_state.assert_called_once_with(
@@ -825,8 +823,7 @@ class TestLEDHandler:
 
     # ── show() ───────────────────────────────────────────────────
 
-    def _show_with_mock_led(self, handler, device, mock_led, style_info,
-                            style_id=1):
+    def _show_with_mock_led(self, handler, device, mock_led, style_info, style_id=1):
         """Helper: wire LED into handler then call show()."""
         handler._led = mock_led
         with (
@@ -838,8 +835,9 @@ class TestLEDHandler:
             mock_settings.temp_unit = 0
             handler.show(device)
 
-    def _make_device_and_style(self, model="AX120_DIGITAL", style_id=1,
-                               zone_count=1, segment_count=10):
+    def _make_device_and_style(
+        self, model="AX120_DIGITAL", style_id=1, zone_count=1, segment_count=10
+    ):
         """Create device mock + style info for show() tests."""
         device = MagicMock()
         device.model = model
@@ -878,9 +876,9 @@ class TestLEDHandler:
 
     def test_show_initializes_led_device(self, handler):
         device, mock_led, style_info = self._make_device_and_style(
-            model="PA120_DIGITAL", style_id=2, zone_count=4)
-        self._show_with_mock_led(handler, device, mock_led, style_info,
-                                 style_id=2)
+            model="PA120_DIGITAL", style_id=2, zone_count=4
+        )
+        self._show_with_mock_led(handler, device, mock_led, style_info, style_id=2)
         mock_led.initialize.assert_called_once_with(device, 2)
         handler.stop()
 
@@ -898,7 +896,7 @@ class TestLEDHandler:
     def test_tick_calls_led_tick_and_updates_panel(self, handler):
         mock_led = self._wire_led(handler)
         display_colors = [(255, 0, 0), (0, 255, 0)]
-        mock_led.tick_with_result.return_value = {'display_colors': display_colors}
+        mock_led.tick_with_result.return_value = {"display_colors": display_colors}
         handler._active = True
         handler._on_tick()
         mock_led.tick_with_result.assert_called_once()
@@ -907,7 +905,7 @@ class TestLEDHandler:
     def test_tick_saves_config_at_interval(self, handler):
         """Config is saved every _SAVE_INTERVAL ticks."""
         mock_led = self._wire_led(handler)
-        mock_led.tick_with_result.return_value = {'display_colors': [(255, 0, 0)]}
+        mock_led.tick_with_result.return_value = {"display_colors": [(255, 0, 0)]}
         handler._active = True
         handler._save_counter = handler._SAVE_INTERVAL - 1
         handler._on_tick()
@@ -916,7 +914,7 @@ class TestLEDHandler:
     def test_tick_no_save_before_interval(self, handler):
         """Config is NOT saved before _SAVE_INTERVAL ticks."""
         mock_led = self._wire_led(handler)
-        mock_led.tick_with_result.return_value = {'display_colors': [(255, 0, 0)]}
+        mock_led.tick_with_result.return_value = {"display_colors": [(255, 0, 0)]}
         handler._active = True
         handler._save_counter = 0
         handler._on_tick()
@@ -925,7 +923,7 @@ class TestLEDHandler:
     def test_tick_resets_counter_after_save(self, handler):
         """Save counter resets to 0 after config save."""
         mock_led = self._wire_led(handler)
-        mock_led.tick.return_value = {'display_colors': [(255, 0, 0)]}
+        mock_led.tick.return_value = {"display_colors": [(255, 0, 0)]}
         handler._active = True
         handler._save_counter = handler._SAVE_INTERVAL - 1
         handler._on_tick()
@@ -945,6 +943,7 @@ class TestLEDHandler:
 
     def test_on_mode_changed_dispatches_command(self, handler):
         from trcc.core.commands.led import SetLEDModeCommand
+
         self._wire_led(handler)
         handler._on_mode_changed(2)
         handler._bus.dispatch.assert_called_once_with(SetLEDModeCommand(mode=2))
@@ -976,6 +975,7 @@ class TestLEDHandler:
 
     def test_on_color_changed_dispatches_command(self, handler):
         from trcc.core.commands.led import SetLEDColorCommand
+
         self._wire_led(handler)
         handler._on_color_changed(0, 128, 255)
         handler._bus.dispatch.assert_called_once_with(SetLEDColorCommand(r=0, g=128, b=255))
@@ -988,6 +988,7 @@ class TestLEDHandler:
 
     def test_on_color_changed_forwards_to_zone(self, handler):
         from trcc.core.commands.led import SetLEDColorCommand
+
         zones = [LEDZoneState(), LEDZoneState()]
         mock_led = self._wire_led(handler, zones=zones)
         handler._panel.selected_zone = 1
@@ -1007,6 +1008,7 @@ class TestLEDHandler:
 
     def test_on_brightness_changed_dispatches_command(self, handler):
         from trcc.core.commands.led import SetLEDBrightnessCommand
+
         self._wire_led(handler)
         handler._on_brightness_changed(80)
         handler._bus.dispatch.assert_called_once_with(SetLEDBrightnessCommand(level=80))
@@ -1069,10 +1071,8 @@ class TestLEDHandler:
         handler._on_zone_selected(0)  # Should not raise
 
     def test_on_zone_selected_loads_zone_state(self, handler):
-        z0 = LEDZoneState(mode=LEDMode.COLORFUL, color=(10, 20, 30),
-                          brightness=50, on=False)
-        z1 = LEDZoneState(mode=LEDMode.RAINBOW, color=(40, 50, 60),
-                          brightness=70, on=True)
+        z0 = LEDZoneState(mode=LEDMode.COLORFUL, color=(10, 20, 30), brightness=50, on=False)
+        z1 = LEDZoneState(mode=LEDMode.RAINBOW, color=(40, 50, 60), brightness=70, on=True)
         mock_led = self._wire_led(handler, zones=[z0, z1])
         handler._on_zone_selected(1)
         mock_led.update_selected_zone.assert_called_once_with(1)
@@ -1397,20 +1397,20 @@ class TestDevicePollLEDAutoSelect:
         from trcc.qt_components.trcc_app import TRCCApp
 
         mock_info = MagicMock()
-        mock_info.path = 'led_path'
+        mock_info.path = "led_path"
 
         mock_handler = MagicMock(spec=LEDHandler)
         mock_handler.active = False
         mock_handler.device_info = mock_info
-        mock_handler.view_name = 'led'
+        mock_handler.view_name = "led"
 
-        with patch.object(TRCCApp, '__init__', lambda self, *a, **kw: None):
+        with patch.object(TRCCApp, "__init__", lambda self, *a, **kw: None):
             app = TRCCApp.__new__(TRCCApp)
-            app._handlers = {'led_path': mock_handler}
-            app._active_path = ''
+            app._handlers = {"led_path": mock_handler}
+            app._active_path = ""
             app._show_view = MagicMock()
 
-            app._activate_device('led_path')
+            app._activate_device("led_path")
 
         mock_handler.show.assert_called_once_with(mock_info)
 
@@ -1432,8 +1432,9 @@ class TestViewSwitchLEDKeepsRunning:
     @pytest.fixture()
     def app(self, qapp):
         from trcc.qt_components.trcc_app import TRCCApp
+
         TRCCApp._instance = None
-        with patch.object(TRCCApp, '__init__', lambda self, *a, **kw: None):
+        with patch.object(TRCCApp, "__init__", lambda self, *a, **kw: None):
             inst = TRCCApp.__new__(TRCCApp)
             inst._led = MagicMock()
             inst._led.active = True
@@ -1449,15 +1450,15 @@ class TestViewSwitchLEDKeepsRunning:
 
     def test_show_view_form_does_not_stop_led(self, app):
         """Switching to 'form' view must not stop active LED."""
-        app._show_view('form')
+        app._show_view("form")
         app._led.stop.assert_not_called()
 
     def test_show_view_about_does_not_stop_led(self, app):
         """Switching to 'about' view must not stop active LED."""
-        app._show_view('about')
+        app._show_view("about")
         app._led.stop.assert_not_called()
 
     def test_show_view_sysinfo_does_not_stop_led(self, app):
         """Switching to 'sysinfo' view must not stop active LED."""
-        app._show_view('sysinfo')
+        app._show_view("sysinfo")
         app._led.stop.assert_not_called()
