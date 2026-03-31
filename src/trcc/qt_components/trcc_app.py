@@ -638,10 +638,15 @@ class TRCCApp(QMainWindow):
         if pix:
             self._pixmap_refs.append(pix)
 
-        # Preview
-        self.uc_preview = UCPreview(
-            _conf.settings.width, _conf.settings.height, self.form_container
-        )
+        # Preview — seed with first registered device's resolution so the correct
+        # frame border is shown immediately on launch (devices known from config).
+        # Falls back to (0, 0) on fresh install; set_resolution() corrects it when
+        # apply_device_config() fires after the first handshake.
+        _initial_devices = _conf.settings.get_all_devices()
+        _first_dev = next(iter(_initial_devices.values()), None)
+        _preview_w = _first_dev.width if _first_dev else 0
+        _preview_h = _first_dev.height if _first_dev else 0
+        self.uc_preview = UCPreview(width=_preview_w, height=_preview_h, parent=self.form_container)
         self.uc_preview.setGeometry(*Layout.PREVIEW)
 
         # Info module
@@ -864,18 +869,32 @@ class TRCCApp(QMainWindow):
             self._set_panel_bg(panel, bg_name)
 
     def _init_theme_directories(self) -> None:
-        w, h = _conf.settings.width, _conf.settings.height
-        td = _conf.settings.theme_dir
-        if td:
-            self.uc_theme_local.set_theme_directory(td.path)
-            if td.exists():
-                self._load_carousel_config(td.path)
-        if _conf.settings.web_dir:
-            self.uc_theme_web.set_web_directory(_conf.settings.web_dir)
-        self.uc_theme_web.set_resolution(f"{w}x{h}")
-        if _conf.settings.masks_dir:
-            self.uc_theme_mask.set_mask_directory(_conf.settings.masks_dir)
-        self.uc_theme_mask.set_resolution(f"{w}x{h}")
+        """Initialize theme directories from all registered devices in config."""
+        # Load devices from config (populated on Settings init via _load_devices_from_config)
+        devices = _conf.settings.get_all_devices()
+
+        if not devices:
+            # No devices in config yet (fresh install) - use defaults
+            return
+
+        # Iterate all registered devices and populate panels
+        for device_key, dev_settings in devices.items():
+            w, h = dev_settings.width, dev_settings.height
+
+            # Local theme directory
+            if dev_settings.theme_dir:
+                self.uc_theme_local.set_theme_directory(dev_settings.theme_dir.path)
+                if dev_settings.theme_dir.exists():
+                    self._load_carousel_config(dev_settings.theme_dir.path)
+
+            # Web (cloud) theme directory
+            if dev_settings.web_dir:
+                self.uc_theme_web.set_web_directory(dev_settings.web_dir)
+                self.uc_theme_web.set_resolution(f"{w}x{h}")
+
+            # Masks directory (pass device_key for multi-device support)
+            if dev_settings.masks_dir:
+                self.uc_theme_mask.set_mask_directory(dev_settings.masks_dir, device_key)
 
     # ── i18n overlays ───────────────────────────────────────────────
 
@@ -1427,6 +1446,7 @@ class TRCCApp(QMainWindow):
     # ── File Dialogs ────────────────────────────────────────────────
 
     def _on_load_video_clicked(self) -> None:
+        # Use singleton web_dir for file dialog (no specific device context)
         web_dir = str(_conf.settings.web_dir) if _conf.settings.web_dir else ""
         path, _ = QFileDialog.getOpenFileName(
             self, "Open Video", web_dir, "Video Files (*.mp4 *.avi *.mov *.gif);;All Files (*)"
@@ -1439,6 +1459,7 @@ class TRCCApp(QMainWindow):
             self._show_cutter("video")
 
     def _on_media_player_load_clicked(self) -> None:
+        # Use singleton web_dir for file dialog (no specific device context)
         web_dir = str(_conf.settings.web_dir) if _conf.settings.web_dir else ""
         path, _ = QFileDialog.getOpenFileName(
             self,

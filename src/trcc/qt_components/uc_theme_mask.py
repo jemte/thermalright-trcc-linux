@@ -56,8 +56,9 @@ class UCThemeMask(DownloadableThemeBrowser):
 
     def __init__(self, parent=None):
         self.mask_directory = None
-        _w, _h = _conf.settings.width, _conf.settings.height
-        self._resolution = f"{_w}x{_h}" if (_w and _h) else ""
+        self._device_key: str | None = None  # Track active device for multi-display
+        # Resolution is set later via set_resolution() when a device is activated
+        self._resolution = ""
         self._local_masks = set()
         self._category = "all"
         super().__init__(parent)
@@ -114,8 +115,14 @@ class UCThemeMask(DownloadableThemeBrowser):
     def _no_items_message(self) -> str:
         return "No masks found\n\nMasks can be downloaded by clicking on cloud mask thumbnails"
 
-    def set_mask_directory(self, path):
-        """Set the mask directory and load masks."""
+    def set_mask_directory(self, path, device_key: str | None = None):
+        """Set the mask directory and load masks.
+
+        Args:
+            path: Directory path for cloud/custom masks
+            device_key: Optional device key for multi-display support
+        """
+        self._device_key = device_key
         self.mask_directory = Path(path) if path else None
         if self.mask_directory:
             self.mask_directory.mkdir(parents=True, exist_ok=True)
@@ -130,9 +137,26 @@ class UCThemeMask(DownloadableThemeBrowser):
         parts = self._resolution.split("x")
         return (int(parts[0]), int(parts[1]))
 
-    def _user_masks_dir(self) -> Path:
-        """Get the user custom masks directory for current resolution."""
-        w, h = self._parse_resolution()
+    def _user_masks_dir(self) -> Path | None:
+        """Get the user custom masks directory for current resolution.
+
+        Uses device_key if available (multi-display), otherwise falls back to
+        resolution parsed from _resolution string. Returns None when neither
+        is available yet (before any device is activated).
+        """
+        if self._device_key:
+            try:
+                dev_settings = _conf.settings.get_device(self._device_key)
+                w, h = dev_settings.width, dev_settings.height
+                return Path(_conf.settings._path_resolver.user_masks_dir(w, h))
+            except KeyError:
+                pass
+        if not self._resolution:
+            return None
+        try:
+            w, h = self._parse_resolution()
+        except (ValueError, IndexError):
+            return None
         return Path(_conf.settings._path_resolver.user_masks_dir(w, h))
 
     def _scan_mask_dir(self, directory: Path, is_custom: bool = False) -> list[MaskItem]:
@@ -170,7 +194,8 @@ class UCThemeMask(DownloadableThemeBrowser):
 
         # Load user custom masks first (shown at top)
         user_dir = self._user_masks_dir()
-        masks.extend(self._scan_mask_dir(user_dir, is_custom=True))
+        if user_dir is not None:
+            masks.extend(self._scan_mask_dir(user_dir, is_custom=True))
 
         # Load cloud masks (downloaded cache)
         if self.mask_directory and self.mask_directory.exists():

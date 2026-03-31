@@ -7,37 +7,60 @@ from trcc.cli import _cli_handler, _device
 
 @_cli_handler
 def list_themes(cloud=False, category=None):
-    """List available themes for the current device resolution."""
+    """List available themes for all configured device resolutions."""
     from trcc.conf import settings
     from trcc.services import ThemeService
 
-    w, h = settings.width, settings.height
-    if not w or not h:
-        w, h = 320, 320
-
-    settings._resolve_paths()
+    # Get all registered devices from config, fallback to singleton if empty
+    devices = settings.get_all_devices()
+    if not devices:
+        # Fallback: use singleton resolution
+        w, h = settings.width, settings.height
+        if not w or not h:
+            w, h = 320, 320
+        devices = {"default": settings.resolve_device("default", w, h)}
 
     if cloud:
-        web_dir = settings.web_dir
-        if not web_dir or not web_dir.exists():
-            print(f"No cloud themes for {w}x{h}.")
+        # List cloud themes for all resolutions
+        all_themes_by_res: dict[tuple[int, int], list] = {}
+        for device_key, dev_settings in devices.items():
+            w, h = dev_settings.width, dev_settings.height
+            if (w, h) not in all_themes_by_res:
+                web_dir = dev_settings.web_dir
+                if web_dir and web_dir.exists():
+                    themes = ThemeService.discover_cloud(web_dir, category)
+                    all_themes_by_res[(w, h)] = themes
+
+        if not all_themes_by_res:
+            print("No cloud themes found for any configured resolution.")
             return 0
-        themes = ThemeService.discover_cloud(web_dir, category)
-        print(f"Cloud themes ({w}x{h}): {len(themes)}")
-        for t in themes:
-            cat = f" [{t.category}]" if t.category else ""
-            print(f"  {t.name}{cat}")
+
+        for (w, h), themes in sorted(all_themes_by_res.items()):
+            print(f"Cloud themes ({w}x{h}): {len(themes)}")
+            for t in themes:
+                cat = f" [{t.category}]" if t.category else ""
+                print(f"  {t.name}{cat}")
     else:
-        td = settings.theme_dir
-        if not td or not td.exists():
-            print(f"No local themes for {w}x{h}.")
+        # List local themes for all resolutions
+        all_themes_by_res: dict[tuple[int, int], list] = {}
+        for device_key, dev_settings in devices.items():
+            w, h = dev_settings.width, dev_settings.height
+            if (w, h) not in all_themes_by_res:
+                td = dev_settings.theme_dir
+                if td and td.exists():
+                    themes = ThemeService.discover_local(td.path, (w, h))
+                    all_themes_by_res[(w, h)] = themes
+
+        if not all_themes_by_res:
+            print("No local themes found for any configured resolution.")
             return 0
-        themes = ThemeService.discover_local(td.path, (w, h))
-        print(f"Local themes ({w}x{h}): {len(themes)}")
-        for t in themes:
-            kind = "video" if t.is_animated else "static"
-            user = " [user]" if t.name.startswith(("Custom_", "User")) else ""
-            print(f"  {t.name} ({kind}){user}")
+
+        for (w, h), themes in sorted(all_themes_by_res.items()):
+            print(f"Local themes ({w}x{h}): {len(themes)}")
+            for t in themes:
+                kind = "video" if t.is_animated else "static"
+                user = " [user]" if t.name.startswith(("Custom_", "User")) else ""
+                print(f"  {t.name} ({kind}){user}")
 
     return 0
 
@@ -57,9 +80,11 @@ def load_theme(builder, name, *, device=None, preview=False):
     dev = svc.selected
     w, h = dev.resolution
 
-    settings._resolve_paths()
+    # Register device with settings and get its device settings
+    device_key = Settings.device_config_key(dev.device_index, dev.vid, dev.pid)
+    dev_settings = settings.resolve_device(device_key, w, h)
 
-    td = settings.theme_dir
+    td = dev_settings.theme_dir
     if not td or not td.exists():
         print(f"No themes for {w}x{h}.")
         return 1
@@ -250,25 +275,35 @@ def export_theme(theme_name, output_path):
     from trcc.conf import settings
     from trcc.services import ThemeService
 
-    w, h = settings.width, settings.height
-    if not w or not h:
-        w, h = 320, 320
+    # Search for theme in all registered device resolutions
+    devices = settings.get_all_devices()
+    if not devices:
+        # Fallback: use singleton resolution
+        w, h = settings.width, settings.height
+        if not w or not h:
+            w, h = 320, 320
+        devices = {"default": settings.resolve_device("default", w, h)}
 
-    settings._resolve_paths()
+    match = None
+    for device_key, dev_settings in devices.items():
+        w, h = dev_settings.width, dev_settings.height
+        td = dev_settings.theme_dir
+        if not td or not td.exists():
+            continue
 
-    td = settings.theme_dir
-    if not td or not td.exists():
-        print(f"No themes for {w}x{h}.")
-        return 1
-
-    # Find theme by name
-    themes = ThemeService.discover_local(td.path, (w, h))
-    match = next((t for t in themes if t.name == theme_name), None)
-    if not match:
+        themes = ThemeService.discover_local(td.path, (w, h))
+        # Try exact match first
+        match = next((t for t in themes if t.name == theme_name), None)
+        if match:
+            break
+        # Try partial match
         match = next(
             (t for t in themes if theme_name.lower() in t.name.lower()),
             None,
         )
+        if match:
+            break
+
     if not match or not match.path:
         print(f"Theme not found: {theme_name}")
         return 1

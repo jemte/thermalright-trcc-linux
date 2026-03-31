@@ -274,6 +274,9 @@ class UCPreview(BasePanel):
         left, top, w, h, frame_name = self._offset_info
         self.preview_label.setFixedSize(w, h)
         self.preview_label.move(left, top)
+        # Keep ImageLabel's internal dimensions in sync so set_image scales correctly.
+        self.preview_label._width = w
+        self.preview_label._height = h
         self.set_frame_image(frame_name)
 
     def get_lcd_size(self):

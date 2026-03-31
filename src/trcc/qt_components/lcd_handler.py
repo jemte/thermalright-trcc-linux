@@ -736,7 +736,8 @@ class LCDHandler(BaseHandler):
             self._w["theme_web"].set_web_directory(web_dir)
         self._w["theme_web"].set_resolution(f"{w}x{h}")
         if masks_dir.exists():
-            self._w["theme_mask"].set_mask_directory(masks_dir)
+            # Pass device_key for multi-display support in mask directory resolution
+            self._w["theme_mask"].set_mask_directory(masks_dir, self._device_key)
         self._w["theme_mask"].set_resolution(f"{w}x{h}")
 
         # First install only: themes just extracted — load first one onto LCD + preview.
@@ -771,7 +772,8 @@ class LCDHandler(BaseHandler):
             self._w["theme_web"].set_web_directory(web_dir)
         self._w["theme_web"].set_resolution(f"{w}x{h}")
         if masks_dir.exists():
-            self._w["theme_mask"].set_mask_directory(masks_dir)
+            # Pass device_key for multi-display support in mask directory resolution
+            self._w["theme_mask"].set_mask_directory(masks_dir, self._device_key)
         self._w["theme_mask"].set_resolution(f"{w}x{h}")
 
     @property

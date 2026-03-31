@@ -99,37 +99,47 @@ class DisplayService:
 
     @property
     def lcd_width(self) -> int:
-        return self._width if self._width else _conf.settings.width
+        """Return LCD width. Must be initialized via initialize() or set_resolution()."""
+        return self._width
 
     @property
     def lcd_height(self) -> int:
-        return self._height if self._height else _conf.settings.height
+        """Return LCD height. Must be initialized via initialize() or set_resolution()."""
+        return self._height
 
     @property
     def lcd_size(self) -> tuple[int, int]:
-        if self._width and self._height:
-            return (self._width, self._height)
-        return (_conf.settings.width, _conf.settings.height)
+        """Return LCD (width, height). Both must be non-zero after initialization."""
+        return (self._width, self._height)
 
     # -- Initialization ----------------------------------------------------
 
     def initialize(self, data_dir: Path, width: int = 0, height: int = 0) -> None:
-        """Initialize service with data directory and optional resolution.
+        """Initialize service with data directory and device resolution.
 
-        Pass width/height when the device resolution is already known from the
-        handshake so this instance is seeded with the correct dimensions before
-        any call to lcd_width/lcd_height.  Falls back to the settings singleton
-        when not provided (single-device / legacy path).
+        Args:
+            data_dir: Data directory for theme/overlay content
+            width: Device LCD width (required for proper operation)
+            height: Device LCD height (required for proper operation)
+
+        Width/height must be provided from device handshake. This instance owns
+        its resolution independent of the settings singleton (multi-device support).
         """
         log.debug("DisplayService: init data_dir=%s w=%d h=%d", data_dir, width, height)
         self._data_dir = data_dir
 
+        # Require explicit resolution - no fallback to singleton
         if width and height:
             self._width = width
             self._height = height
-        elif not self._width:
-            self._width = _conf.settings.width
-            self._height = _conf.settings.height
+        else:
+            # If called without resolution, log warning but don't crash
+            # This can happen in test scenarios
+            log.warning(
+                "DisplayService.initialize called without resolution; "
+                "device resolution not available yet"
+            )
+            return
 
         self.media.set_target_size(self.lcd_width, self.lcd_height)
         self.overlay.set_resolution(self.lcd_width, self.lcd_height)

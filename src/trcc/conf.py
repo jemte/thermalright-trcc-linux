@@ -30,6 +30,7 @@ import json
 import locale
 import logging
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
@@ -223,6 +224,25 @@ def _detect_language() -> str:
 def _migrate_legacy_lang(code: str) -> str:
     """Convert legacy C# language suffix to ISO 639-1 code."""
     return LEGACY_TO_ISO.get(code, code)
+
+
+# =========================================================================
+# Device-specific settings (per-display)
+# =========================================================================
+
+
+@dataclass
+class DeviceSettings:
+    """Per-device display settings identified by device_key.
+
+    Stores resolution-dependent paths and properties for a single connected display.
+    """
+
+    width: int
+    height: int
+    theme_dir: ThemeDir | None
+    web_dir: Path | None
+    masks_dir: Path | None
 
 
 # =========================================================================
@@ -434,10 +454,14 @@ class Settings:
         self._width = w
         self._height = h
 
+        # Device registry: maps device_key -> DeviceSettings
+        self._devices: dict[str, DeviceSettings] = {}
+
         # Derived paths (resolved for current resolution)
-        self.theme_dir: Optional[ThemeDir] = None
-        self.web_dir: Optional[Path] = None
-        self.masks_dir: Optional[Path] = None
+        # Deprecated: kept for backward compatibility with single-device code
+        self._theme_dir: Optional[ThemeDir] = None
+        self._web_dir: Optional[Path] = None
+        self._masks_dir: Optional[Path] = None
 
         # User preferences
         self.temp_unit: int = Settings._get_saved_temp_unit()
@@ -449,21 +473,78 @@ class Settings:
         self.user_data_dir = Path(path_resolver.data_dir())
         self.user_content_dir = Path(path_resolver.user_content_dir())
 
+        # Load all devices from config
+        self._load_devices_from_config()
+
         # Resolve for initial resolution
         if w and h:
             self._resolve_paths()
 
     @property
     def width(self) -> int:
+        """Deprecated: Use get_device(device_key).width instead."""
+        log.warning(
+            "settings.width is deprecated; use settings.get_device(device_key).width instead"
+        )
         return self._width
 
     @property
     def height(self) -> int:
+        """Deprecated: Use get_device(device_key).height instead."""
+        log.warning(
+            "settings.height is deprecated; use settings.get_device(device_key).height instead"
+        )
         return self._height
 
     @property
     def resolution(self) -> tuple[int, int]:
         return (self._width, self._height)
+
+    @property
+    def theme_dir(self) -> Optional[ThemeDir]:
+        """Deprecated: Use get_device(device_key).theme_dir instead."""
+        log.warning(
+            "settings.theme_dir is deprecated; use settings.get_device(device_key).theme_dir instead"
+        )
+        return self._theme_dir
+
+    @theme_dir.setter
+    def theme_dir(self, value: Optional[ThemeDir]) -> None:
+        """Deprecated: Use resolve_device() instead."""
+        log.warning(
+            "settings.theme_dir setter is deprecated; use settings.resolve_device() instead"
+        )
+        self._theme_dir = value
+
+    @property
+    def web_dir(self) -> Optional[Path]:
+        """Deprecated: Use get_device(device_key).web_dir instead."""
+        log.warning(
+            "settings.web_dir is deprecated; use settings.get_device(device_key).web_dir instead"
+        )
+        return self._web_dir
+
+    @web_dir.setter
+    def web_dir(self, value: Optional[Path]) -> None:
+        """Deprecated: Use resolve_device() instead."""
+        log.warning("settings.web_dir setter is deprecated; use settings.resolve_device() instead")
+        self._web_dir = value
+
+    @property
+    def masks_dir(self) -> Optional[Path]:
+        """Deprecated: Use get_device(device_key).masks_dir instead."""
+        log.warning(
+            "settings.masks_dir is deprecated; use settings.get_device(device_key).masks_dir instead"
+        )
+        return self._masks_dir
+
+    @masks_dir.setter
+    def masks_dir(self, value: Optional[Path]) -> None:
+        """Deprecated: Use resolve_device() instead."""
+        log.warning(
+            "settings.masks_dir setter is deprecated; use settings.resolve_device() instead"
+        )
+        self._masks_dir = value
 
     def set_resolution(self, width: int, height: int, persist: bool = True) -> None:
         """Update resolution and re-resolve all derived paths."""
@@ -520,9 +601,9 @@ class Settings:
     def _resolve_paths(self) -> None:
         """Resolve theme/web/mask directories for current resolution."""
         w, h = self._width, self._height
-        self.theme_dir = ThemeDir.for_resolution(w, h)
-        self.web_dir = Path(self._path_resolver.web_dir(w, h))
-        self.masks_dir = Path(self._path_resolver.web_masks_dir(w, h))
+        self._theme_dir = ThemeDir.for_resolution(w, h)
+        self._web_dir = Path(self._path_resolver.web_dir(w, h))
+        self._masks_dir = Path(self._path_resolver.web_masks_dir(w, h))
 
     def resolve_cloud_dirs(self, rotation: int = 0) -> None:
         """Re-resolve cloud background/mask dirs for rotation.
@@ -534,8 +615,97 @@ class Settings:
         w, h = self._width, self._height
         if w != h and rotation in (90, 270):
             w, h = h, w
-        self.web_dir = Path(self._path_resolver.web_dir(w, h))
-        self.masks_dir = Path(self._path_resolver.web_masks_dir(w, h))
+        self._web_dir = Path(self._path_resolver.web_dir(w, h))
+        self._masks_dir = Path(self._path_resolver.web_masks_dir(w, h))
+
+    def _load_devices_from_config(self) -> None:
+        """Load all devices from config file and register them.
+
+        Reads the "devices" section of config.json and creates DeviceSettings
+        for each configured device using their saved w/h dimensions.
+        """
+        config = load_config()
+        devices_cfg = config.get("devices", {})
+
+        for device_key, device_cfg in devices_cfg.items():
+            if not isinstance(device_cfg, dict):
+                continue
+            width = device_cfg.get("w")
+            height = device_cfg.get("h")
+            if width and height:
+                # Register device with dimensions from config
+                self.resolve_device(device_key, int(width), int(height))
+
+    # --- Device enumeration (multi-display support) ---
+
+    def get_all_devices(self) -> dict[str, DeviceSettings]:
+        """Return all registered devices from the registry.
+
+        Returns a dict mapping device_key -> DeviceSettings.
+        """
+        return self._devices.copy()
+
+    def get_device_resolutions(self) -> list[tuple[int, int]]:
+        """Get list of all unique resolutions from registered devices.
+
+        Useful for operations that need to work with all saved resolutions.
+        """
+        resolutions = set()
+        for dev_settings in self._devices.values():
+            resolutions.add((dev_settings.width, dev_settings.height))
+        return sorted(list(resolutions))
+
+    # --- Device registry (multi-display support) ---
+
+    def resolve_device(self, device_key: str, width: int, height: int) -> DeviceSettings:
+        """Create or update DeviceSettings for a device.
+
+        Called when a device is detected/connected with its resolution.
+        Returns the DeviceSettings for this device.
+        """
+        ds = DeviceSettings(
+            width=width,
+            height=height,
+            theme_dir=ThemeDir.for_resolution(width, height),
+            web_dir=Path(self._path_resolver.web_dir(width, height)),
+            masks_dir=Path(self._path_resolver.web_masks_dir(width, height)),
+        )
+        self._devices[device_key] = ds
+        return ds
+
+    def get_device(self, device_key: str) -> DeviceSettings:
+        """Get DeviceSettings for a device by key.
+
+        Raises KeyError if device_key not found.
+        """
+        return self._devices[device_key]
+
+    def get_device_or_default(self, device_key: str) -> DeviceSettings:
+        """Get DeviceSettings for a device, falling back to current singleton state.
+
+        Used for backward compatibility during transition: returns the device
+        if registered, otherwise returns a temporary DeviceSettings for the
+        current singleton resolution.
+
+        Warning: When falling back to singleton state, a deprecation message is logged.
+        New code should call resolve_device() at device detection time instead.
+        """
+        if device_key in self._devices:
+            return self._devices[device_key]
+        # Fallback: create from current singleton state (deprecated path)
+        log.warning(
+            "get_device_or_default: device_key '%s' not in registry; "
+            "falling back to singleton state. Consider using resolve_device() "
+            "at device connection time.",
+            device_key,
+        )
+        return DeviceSettings(
+            width=self._width,
+            height=self._height,
+            theme_dir=self._theme_dir,
+            web_dir=self._web_dir,
+            masks_dir=self._masks_dir,
+        )
 
 
 # Module-level singleton — initialized by composition roots via init_settings()
