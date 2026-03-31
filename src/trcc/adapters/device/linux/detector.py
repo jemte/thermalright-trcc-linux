@@ -91,28 +91,18 @@ def find_lcd_devices(detect_fn=None) -> List[Dict]:
         protocol = getattr(dev, "protocol", "scsi")
         device_type = getattr(dev, "device_type", 1)
 
-        # Load previously resolved device identity from config (C# SetButtonImage).
-        # First launch: no saved data, uses registry defaults. Handshake resolves
-        # the real product and saves to config. Subsequent launches: correct button
-        # image shown immediately. Re-verified on each handshake (detects cooler swaps).
-        dev_idx = len(devices)
-        saved_btn, saved_product = _load_saved_identity(dev_idx, dev.vid, dev.pid)
-
         if protocol == "scsi":
             if not dev.scsi_device:
                 continue
-            product = saved_product or dev.product_name
             devices.append(
                 {
-                    "name": f"Thermalright {product}"
-                    if saved_product
-                    else f"{dev.vendor_name} {dev.product_name}",
+                    "name": f"{dev.vendor_name} {dev.product_name}",
                     "path": dev.scsi_device,
                     "resolution": (0, 0),
                     "vendor": dev.vendor_name,
-                    "product": product,
+                    "product": dev.product_name,
                     "model": dev.model,
-                    "button_image": saved_btn or dev.button_image,
+                    "button_image": dev.button_image,
                     "vid": dev.vid,
                     "pid": dev.pid,
                     "protocol": "scsi",
@@ -123,7 +113,7 @@ def find_lcd_devices(detect_fn=None) -> List[Dict]:
         elif protocol == "hid":
             hid_path = f"hid:{dev.vid:04x}:{dev.pid:04x}"
             model = dev.model
-            button_image = saved_btn or dev.button_image
+            button_image = dev.button_image
             led_style_id = None
 
             if dev.implementation == "hid_led":
@@ -140,16 +130,13 @@ def find_lcd_devices(detect_fn=None) -> List[Dict]:
                 except Exception:
                     pass
 
-            product = saved_product or dev.product_name
             devices.append(
                 {
-                    "name": f"Thermalright {product}"
-                    if saved_product
-                    else f"{dev.vendor_name} {dev.product_name}",
+                    "name": f"{dev.vendor_name} {dev.product_name}",
                     "path": hid_path,
                     "resolution": (0, 0),
                     "vendor": dev.vendor_name,
-                    "product": product,
+                    "product": dev.product_name,
                     "model": model,
                     "led_style_id": led_style_id,
                     "button_image": button_image,
@@ -162,18 +149,15 @@ def find_lcd_devices(detect_fn=None) -> List[Dict]:
             )
         elif protocol in ("bulk", "ly"):
             dev_path = f"{protocol}:{dev.vid:04x}:{dev.pid:04x}"
-            product = saved_product or dev.product_name
             devices.append(
                 {
-                    "name": f"Thermalright {product}"
-                    if saved_product
-                    else f"{dev.vendor_name} {dev.product_name}",
+                    "name": f"{dev.vendor_name} {dev.product_name}",
                     "path": dev_path,
                     "resolution": (0, 0),
                     "vendor": dev.vendor_name,
-                    "product": product,
+                    "product": dev.product_name,
                     "model": dev.model,
-                    "button_image": saved_btn or dev.button_image,
+                    "button_image": dev.button_image,
                     "vid": dev.vid,
                     "pid": dev.pid,
                     "protocol": protocol,
@@ -182,9 +166,28 @@ def find_lcd_devices(detect_fn=None) -> List[Dict]:
                 }
             )
 
+    # Sort and assign stable indices before loading saved identity so the
+    # config key (index-based) always matches what was written at handshake time.
+    # Previously _load_saved_identity was called during iteration using
+    # len(devices) as the index — before the sort — causing SCSI and HID devices
+    # to load each other's saved identity when detection order differed from
+    # sorted order (SCSI iterates first, HID sorts first).
     devices.sort(key=lambda d: d["path"])
     for i, d in enumerate(devices):
         d["device_index"] = i
+
+    # Second pass: enrich with saved identity now that indices are stable.
+    # Load previously resolved device identity from config (C# SetButtonImage).
+    # First launch: no saved data, uses registry defaults. Handshake resolves
+    # the real product and saves to config. Subsequent launches: correct button
+    # image shown immediately. Re-verified on each handshake (detects cooler swaps).
+    for d in devices:
+        saved_btn, saved_product = _load_saved_identity(d["device_index"], d["vid"], d["pid"])
+        if saved_product:
+            d["product"] = saved_product
+            d["name"] = f"Thermalright {saved_product}"
+        if saved_btn:
+            d["button_image"] = saved_btn
 
     return devices
 

@@ -175,6 +175,67 @@ class LCDHandler(BaseHandler):
             if overlay_enabled:
                 self._render_and_send()
 
+    def apply_device_config_background(self, device: DeviceInfo, w: int, h: int) -> None:
+        """Initialize device hardware without writing to shared GUI widgets.
+
+        Called for devices that are connected but not currently displayed in
+        the panel stack (i.e. not the active tab at startup).  Sends the last
+        used theme, brightness, and rotation to the USB device so the physical
+        screen shows the correct content — without corrupting the preview,
+        theme-setting panel, or rotation combo that belong to the active device.
+
+        Deliberately omits:
+          - preview.set_resolution / set_image
+          - theme_setting.set_resolution / load_from_overlay_config
+          - image_cut / video_cut resolution updates
+          - rotation_combo widget update
+          - _restore_carousel (touches theme_local widget)
+        """
+        self._device_key = Settings.device_config_key(device.device_index, device.vid, device.pid)
+
+        Settings.save_device_setting(self._device_key, "w", w)
+        Settings.save_device_setting(self._device_key, "h", h)
+
+        self._bus.dispatch(SetResolutionCommand(width=w, height=h))
+
+        if self._lcd._display_svc:
+            self._lcd._display_svc.on_data_ready = self._data_notifier.ready.emit
+
+        cfg = Settings.get_device_config(self._device_key)
+
+        # Hardware-only restores — do not touch any shared widgets
+        self._brightness_level = cfg.get("brightness_level", DEFAULT_BRIGHTNESS_LEVEL)
+        self._lcd.set_brightness(self._brightness_level)
+
+        rotation = (cfg.get("rotation", 0) // 90) * 90
+        self._lcd.set_rotation(rotation)
+
+        self._split_mode = cfg.get("split_mode", 2)
+        self._ldd_is_split = (w, h) in SPLIT_MODE_RESOLUTIONS
+        if self._ldd_is_split:
+            if not self._split_mode:
+                self._split_mode = 2
+            self._lcd.set_split_mode(self._split_mode)
+        else:
+            self._lcd.set_split_mode(0)
+
+        # Restore last theme and send to USB device only (no preview widget write)
+        result = self._bus.dispatch(RestoreLastThemeCommand())
+        if result.success:
+            payload = result.payload
+            image = payload.get("image")
+            if image and self._lcd.connected:
+                is_animated = payload.get("is_animated", False)
+                if is_animated:
+                    # Start video timer so the animation sends frames in background
+                    interval = payload.get("interval", 33)
+                    self._animation_timer.start(interval)
+                else:
+                    self._lcd.frame.send(image)
+            overlay_enabled = payload.get("overlay_enabled", False)
+            if overlay_enabled:
+                self._lcd.overlay.render()
+
     def _restore_brightness(self, cfg: dict) -> None:
         self._brightness_level = cfg.get("brightness_level", DEFAULT_BRIGHTNESS_LEVEL)
         log.info("Restoring brightness: level=%d", self._brightness_level)

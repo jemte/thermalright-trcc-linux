@@ -256,6 +256,7 @@ class TRCCApp(QMainWindow):
         self._metrics_tick_count = 0  # drives period-multiplied callbacks (keepalive)
 
         self._handshake_pending = False
+        self._handshake_queue: list = []  # DeviceInfo items waiting for sequential handshake
         self._cut_mode = "background"
         self._mask_upload_filename = ""
         self._pixmap_refs: list = []
@@ -359,6 +360,32 @@ class TRCCApp(QMainWindow):
         )
         if first:
             self._activate_device(first)
+
+        # Initialize all remaining LCD devices in the background so every
+        # physical screen shows its last-used theme at startup without the
+        # user needing to click each device tab manually.
+        self._handshake_queue.clear()
+        for path, handler in self._handlers.items():
+            if path == first or not isinstance(handler, LCDHandler):
+                continue
+            if not handler.display.connected:
+                continue
+            info = handler.display.device_info
+            if info is None:
+                continue
+            w, h = info.resolution
+            if (w, h) != (0, 0):
+                # Resolution already resolved by scan() — initialize hardware
+                # directly without a second handshake or any UI widget writes.
+                handler.apply_device_config_background(info, w, h)
+                # Resolve sidebar identity from the cached handshake result so
+                # the device button shows the correct product name immediately.
+                self._resolve_identity_from_cache(info)
+            else:
+                # Resolution still unknown — queue a handshake; the result
+                # handler (_on_handshake_done) will call apply_device_config.
+                self._handshake_queue.append(info)
+        self._drain_handshake_queue()
 
     def _add_handler(self, device: Any) -> None:
         """Create handler for one new device."""
@@ -1258,14 +1285,53 @@ class TRCCApp(QMainWindow):
 
         threading.Thread(target=worker, daemon=True).start()
 
+    def _resolve_identity_from_cache(self, device: DeviceInfo) -> None:
+        """Resolve device sidebar identity from a cached handshake result.
+
+        Called for background devices whose resolution was already discovered
+        by scan() — avoids a second USB handshake purely to get PM/sub bytes
+        for the button image lookup.  Reads the cached HandshakeResult that
+        _discover_resolution already stored in the protocol instance.
+
+        No-op for bulk/ly devices (fixed identity) and if no cached result.
+        """
+        if device.protocol in ("bulk", "ly"):
+            return
+        try:
+            from ..adapters.device.factory import DeviceProtocolFactory
+
+            protocol = DeviceProtocolFactory.get_protocol(device)
+            result = protocol.handshake_info
+            if result is None:
+                return
+            pm = getattr(result, "pm_byte", 0)
+            sub = getattr(result, "sub_byte", 0)
+            fbl = getattr(result, "fbl", None) or getattr(result, "model_id", None)
+            self._resolve_device_identity(device, pm or fbl or 0, sub)
+        except Exception as e:
+            log.debug("_resolve_identity_from_cache failed for %s: %s", device.path, e)
+
+    def _drain_handshake_queue(self) -> None:
+        """Start the next queued background handshake if none is in flight.
+
+        Called after _rebuild_all_handlers populates _handshake_queue and
+        after each _on_handshake_done so queued devices chain sequentially.
+        """
+        if self._handshake_pending or not self._handshake_queue:
+            return
+        next_device = self._handshake_queue.pop(0)
+        self._start_handshake(next_device)
+
     def _on_handshake_done(self, device: DeviceInfo, data: tuple | None) -> None:
         self._handshake_pending = False
         if not data:
             self.uc_preview.set_status("Handshake failed — replug device")
+            self._drain_handshake_queue()
             return
         resolution, fbl, pm, sub = data
         if not resolution or resolution == (0, 0):
             self.uc_preview.set_status("Handshake failed — no resolution")
+            self._drain_handshake_queue()
             return
         log.info("Handshake OK: %s -> %s (FBL=%s)", device.path, resolution, fbl)
         device.resolution = resolution
@@ -1280,6 +1346,8 @@ class TRCCApp(QMainWindow):
             self._update_ldd_icon()
             if Settings.show_info_module():
                 self.uc_info_module.setVisible(True)
+
+        self._drain_handshake_queue()
 
     def _resolve_device_identity(self, device: DeviceInfo, pm: int, sub: int = 0) -> None:
         # Bulk/LY devices have a fixed identity set by VID:PID in the registry.
