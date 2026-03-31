@@ -43,12 +43,27 @@ def mock_media() -> MagicMock:
 
 
 @pytest.fixture()
-def display_svc(renderer: Any, mock_media: MagicMock) -> DisplayService:
-    """Real DisplayService with real OverlayService, mocked device/media."""
+def display_svc(renderer: Any, mock_media: MagicMock, tmp_path: Path) -> DisplayService:
+    """Real DisplayService with real OverlayService, mocked device/media.
+
+    Properly initialized with 320x320 dimensions to support tests that verify
+    the noop behavior when set_resolution is called with the same dimensions.
+    """
     devices = MagicMock()
     devices.selected.encoding_params = ("scsi", (320, 320), None, False)
     overlay = OverlayService(320, 320, renderer=renderer)
     svc = DisplayService(devices, overlay, mock_media)
+    # Initialize with 320x320 to set _width and _height for test expectations
+    with patch("trcc.conf.settings") as mock_settings:
+        mock_settings.width = 320
+        mock_settings.height = 320
+        mock_settings._resolve_paths = MagicMock()
+        mock_settings.theme_dir = None
+        mock_settings.web_dir = None
+        mock_settings.masks_dir = None
+        svc.initialize(tmp_path, width=320, height=320)
+    # Reset mock call history since initialize() called media.set_target_size()
+    mock_media.set_target_size.reset_mock()
     return svc
 
 
@@ -673,7 +688,7 @@ class TestDisplayServiceContracts:
         mock_settings.masks_dir = None
 
         with _patch("trcc.conf.settings", mock_settings):
-            display_svc.initialize(data_dir)
+            display_svc.initialize(data_dir, width=320, height=320)
 
         display_svc.media.set_target_size.assert_called_once_with(320, 320)
 
@@ -807,8 +822,14 @@ class TestDisplayServiceContracts:
         """is_widescreen_split is True when resolution is 1600x720."""
         mock_settings.width = 1600
         mock_settings.height = 720
+        mock_settings.set_resolution = MagicMock()
+        mock_settings._resolve_paths = MagicMock()
+        mock_settings.theme_dir = None
+        mock_settings.web_dir = None
+        mock_settings.masks_dir = None
         with patch("trcc.conf.settings", mock_settings):
-            assert display_svc.is_widescreen_split is True
+            display_svc.set_resolution(1600, 720)
+        assert display_svc.is_widescreen_split is True
 
     def test_is_widescreen_split_false_for_320x320(
         self,
@@ -816,8 +837,8 @@ class TestDisplayServiceContracts:
         mock_settings: Any,
     ) -> None:
         """is_widescreen_split is False for standard 320x320 resolution."""
-        with patch("trcc.conf.settings", mock_settings):
-            assert display_svc.is_widescreen_split is False
+        # display_svc is already initialized at 320x320 by fixture
+        assert display_svc.is_widescreen_split is False
 
     def test_convert_media_frames_passes_through_native(
         self,

@@ -135,7 +135,8 @@ class TestScanSingleLcd:
     def test_lcd_device_stored(self, lcd_app):
         app, lcd_dev = lcd_app
         app.scan()
-        assert app._lcd_device is lcd_dev
+        assert lcd_dev.device_path in app._lcd_devices
+        assert app._lcd_devices[lcd_dev.device_path] is lcd_dev
 
     def test_connect_called(self, lcd_app):
         app, lcd_dev = lcd_app

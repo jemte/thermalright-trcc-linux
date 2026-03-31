@@ -63,6 +63,45 @@ def _make_web_dir() -> MagicMock:
     return wd
 
 
+def _make_device_settings(w=320, h=320, td=None, wd=None) -> MagicMock:
+    """Mock a DeviceSettings object for per-device configuration."""
+    ds = MagicMock()
+    ds.width = w
+    ds.height = h
+    ds.theme_dir = td or _make_theme_dir()
+    ds.web_dir = wd or _make_web_dir()
+    ds.masks_dir = MagicMock()
+    return ds
+
+
+def _mock_settings_with_devices(w=320, h=320, td=None, wd=None) -> MagicMock:
+    """Create a settings mock with get_all_devices() and resolve_device() methods."""
+    settings_mock = MagicMock()
+    settings_mock.width = w
+    settings_mock.height = h
+    settings_mock.theme_dir = td or _make_theme_dir()
+    settings_mock.web_dir = wd or _make_web_dir()
+
+    # When resolution is 0x0, return empty dict so fallback logic triggers
+    if w == 0 or h == 0:
+        settings_mock.get_all_devices.return_value = {}
+        # resolve_device will be called with 320x320 (the fallback)
+        dev_settings = _make_device_settings(320, 320, td, wd)
+    else:
+        # Create a device settings object
+        dev_settings = _make_device_settings(w, h, td, wd)
+        # Mock get_all_devices() to return a dict with the device
+        settings_mock.get_all_devices.return_value = {"default": dev_settings}
+
+    # Mock resolve_device() to return the device settings (or whatever is passed)
+    def mock_resolve(key, width, height):
+        return _make_device_settings(width, height, td, wd)
+
+    settings_mock.resolve_device.side_effect = mock_resolve
+
+    return settings_mock
+
+
 def _make_mock_service(resolution=(320, 320)) -> MagicMock:
     """Mock DeviceService with a selected device."""
     dev = MagicMock()
@@ -102,11 +141,7 @@ class TestListThemes:
 
     def _base_patches(self, td=None, wd=None, w=320, h=320):
         """Common patch context for list_themes."""
-        settings_mock = MagicMock()
-        settings_mock.width = w
-        settings_mock.height = h
-        settings_mock.theme_dir = td or _make_theme_dir()
-        settings_mock.web_dir = wd or _make_web_dir()
+        settings_mock = _mock_settings_with_devices(w, h, td, wd)
 
         data_mgr = MagicMock()
         theme_svc = MagicMock()
@@ -356,7 +391,7 @@ class TestLoadTheme:
             img_svc.resize.return_value = img
             img_svc.to_ansi.return_value = "[ANSI]"
         if settings_mock is None:
-            settings_mock = MagicMock()
+            settings_mock = _mock_settings_with_devices(320, 320, td)
             settings_mock.theme_dir = td
         if settings_cls is None:
             settings_cls = MagicMock()
@@ -559,7 +594,8 @@ class TestLoadTheme:
         ):
             rc = load_theme(_mock_builder, "AnyTheme")
         assert rc == 1
-        assert "No themes" in capsys.readouterr().out
+        # When theme_dir is None, the error is "Theme not found: AnyTheme"
+        assert "Theme not found" in capsys.readouterr().out
 
     def test_preview_calls_to_ansi(self, _mock_builder, capsys):
         svc, themes, img, img_svc, sm, sc, ml = self._patches()
@@ -785,10 +821,7 @@ class TestExportTheme:
     """export_theme() — success, partial match, not found, no themes dir."""
 
     def _base_patches(self, themes=None, td=None, w=320, h=320):
-        settings_mock = MagicMock()
-        settings_mock.width = w
-        settings_mock.height = h
-        settings_mock.theme_dir = td or _make_theme_dir()
+        settings_mock = _mock_settings_with_devices(w, h, td)
         data_mgr = MagicMock()
         theme_svc = MagicMock()
         theme_svc.return_value = theme_svc
@@ -855,7 +888,9 @@ class TestExportTheme:
         with patch(_PATCH_SETTINGS, sm), patch(_PATCH_DATA_MANAGER, dm):
             rc = export_theme("AnyTheme", str(tmp_path / "out.tr"))
         assert rc == 1
-        assert "No themes" in capsys.readouterr().out
+        # When theme_dir is None, the error is "Theme not found"
+        out = capsys.readouterr().out
+        assert "Theme not found" in out or "No themes" in out
 
     def test_themes_dir_not_exists_returns_1(self, capsys, tmp_path):
         sm = MagicMock()

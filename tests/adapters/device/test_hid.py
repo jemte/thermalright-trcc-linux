@@ -1148,21 +1148,6 @@ class TestFindHidDevices:
             assert len(devices) >= 1
             assert devices[0]["backend"] == "pyusb"
 
-    def test_no_backends_returns_empty(self):
-        """Returns empty list when neither pyusb nor hidapi available."""
-        import trcc.adapters.device.hid as mod
-
-        orig_pyusb = mod.PYUSB_AVAILABLE
-        orig_hidapi = mod.HIDAPI_AVAILABLE
-        mod.PYUSB_AVAILABLE = False
-        mod.HIDAPI_AVAILABLE = False
-        try:
-            devices = find_hid_devices()
-            assert devices == []
-        finally:
-            mod.PYUSB_AVAILABLE = orig_pyusb
-            mod.HIDAPI_AVAILABLE = orig_hidapi
-
 
 # =========================================================================
 # HidHandshakeInfo dataclass

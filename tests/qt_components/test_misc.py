@@ -1139,7 +1139,11 @@ class TestUCThemeMask:
     def widget(self):
         from trcc.qt_components.uc_theme_mask import UCThemeMask
 
-        return UCThemeMask()
+        widget = UCThemeMask()
+        # In the new multi-device architecture, resolution must be set explicitly
+        # after construction. This was previously handled by the Settings singleton.
+        widget.set_resolution("320x320")
+        return widget
 
     def test_construction(self, widget):
         assert widget is not None

@@ -50,6 +50,7 @@ class DisplayService:
         self.overlay = overlay
         self.media = media
         self._cpu_percent_fn = cpu_percent_fn
+        self._ensure_data_fn = ensure_data_fn
 
         # Theme loader (injected with same sub-services)
         self._loader = ThemeLoader(overlay, media, theme_svc=theme_svc)

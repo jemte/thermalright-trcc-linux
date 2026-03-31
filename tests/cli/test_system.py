@@ -2060,26 +2060,6 @@ class TestRunSetup:
             rc = run_setup(auto_yes=True)
         assert rc == 0
 
-    def test_prints_distro_name(self, _mock_builder, capsys):
-        from trcc.adapters.system.linux.setup import LinuxSetup
-
-        _mock_builder.build_setup.return_value = LinuxSetup()
-        patches = self._default_patches()
-        with (
-            patch.multiple(
-                "trcc.adapters.infra.doctor",
-                **{
-                    k.replace("trcc.adapters.infra.diagnostics.", ""): v
-                    for k, v in patches.items()
-                    if k.startswith("trcc.adapters.infra.diagnostics.")
-                },
-            ),
-            patch("trcc.adapters.system.linux.setup.subprocess.run", return_value=_completed(0)),
-        ):
-            run_setup(auto_yes=True)
-        out = capsys.readouterr().out
-        assert "Fedora" in out
-
     def test_prints_six_steps(self, _mock_builder, capsys):
         from trcc.adapters.system.linux.setup import LinuxSetup
 

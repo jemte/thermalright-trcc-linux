@@ -69,8 +69,12 @@ def mask_dir(tmp_path: Path, renderer: Any) -> Path:
 
 
 @pytest.fixture()
-def display_svc(renderer: Any) -> DisplayService:
-    """DisplayService with real OverlayService, mocked device/media."""
+def display_svc(renderer: Any, tmp_path: Path) -> DisplayService:
+    """DisplayService with real OverlayService, mocked device/media.
+
+    Properly initialized with 320x320 dimensions to support tests that verify
+    theme save functionality.
+    """
     devices = MagicMock()
     overlay = OverlayService(320, 320, renderer=renderer)
     media = MagicMock()
@@ -81,6 +85,15 @@ def display_svc(renderer: Any) -> DisplayService:
     media.get_frame.return_value = None
 
     svc = DisplayService(devices, overlay, media)
+    # Initialize with 320x320 to set _width and _height
+    with patch("trcc.conf.settings") as mock_settings:
+        mock_settings.width = 320
+        mock_settings.height = 320
+        mock_settings._resolve_paths = MagicMock()
+        mock_settings.theme_dir = None
+        mock_settings.web_dir = None
+        mock_settings.masks_dir = None
+        svc.initialize(tmp_path, width=320, height=320)
     svc.current_image = renderer.create_surface(320, 320, (0, 0, 255))
     svc._clean_background = svc.current_image
     return svc
