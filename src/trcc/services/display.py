@@ -66,7 +66,7 @@ class DisplayService:
         self.auto_send = True
         self.rotation = 0  # directionB: 0, 90, 180, 270
         self.brightness = 100  # percent (0-100), config restores actual value
-        self.split_mode = 0  # myLddVal: 0=off, 1-3=Dynamic Island style
+        self.split_mode = 0  # 0-3=Dynamic Island style
         self._split_overlay_cache: dict[tuple[int, int], Any] = {}  # (style,rot)->surface
 
         # Pre-baked video frame cache (None when inactive)

@@ -210,13 +210,15 @@ class LCDHandler(BaseHandler):
         rotation = (cfg.get("rotation", 0) // 90) * 90
         self._lcd.set_rotation(rotation)
 
-        self._split_mode = cfg.get("split_mode", 2)
         self._ldd_is_split = (w, h) in SPLIT_MODE_RESOLUTIONS
         if self._ldd_is_split:
-            if not self._split_mode:
+            if "split_mode" in cfg:
+                self._split_mode = cfg.get("split_mode", 0)
+            else:
                 self._split_mode = 2
             self._lcd.set_split_mode(self._split_mode)
         else:
+            self._split_mode = 0
             self._lcd.set_split_mode(0)
 
         # Restore last theme and send to USB device only (no preview widget write)
@@ -251,13 +253,15 @@ class LCDHandler(BaseHandler):
         self._resolve_cloud_dirs(rotation)
 
     def _restore_split_mode(self, cfg: dict, w: int, h: int) -> None:
-        self._split_mode = cfg.get("split_mode", 2)
         self._ldd_is_split = (w, h) in SPLIT_MODE_RESOLUTIONS
         if self._ldd_is_split:
-            if not self._split_mode:
+            if "split_mode" in cfg:
+                self._split_mode = cfg.get("split_mode", 0)
+            else:
                 self._split_mode = 2
             self._lcd.set_split_mode(self._split_mode)
         else:
+            self._split_mode = 0
             self._lcd.set_split_mode(0)
 
     def _restore_carousel(self, cfg: dict) -> None:

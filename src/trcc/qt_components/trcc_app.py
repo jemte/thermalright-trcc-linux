@@ -491,6 +491,7 @@ class TRCCApp(QMainWindow):
                     else:
                         handler.apply_device_config(info, w, h)
                         self._update_ldd_icon()
+                        self._update_split_mode_icon()
         elif isinstance(handler, LEDHandler):
             info = handler.device_info
             if info and not handler.active:
@@ -812,17 +813,24 @@ class TRCCApp(QMainWindow):
         self.rotation_combo.setToolTip("LCD rotation")
         self.rotation_combo.currentIndexChanged.connect(self._on_rotation_change)
 
-        self._ldd_pixmaps: dict = {}
+        self._split_mode_pixmaps: dict = {}
         for level in range(4):
             pix = Assets.load_pixmap(f"PL{level}.png")
             if not pix.isNull():
-                self._ldd_pixmaps[level] = pix
+                self._split_mode_pixmaps[level] = pix
 
         self.ldd_btn = QPushButton(self.form_container)
         self.ldd_btn.setGeometry(*Layout.BRIGHTNESS_BTN)
         self.ldd_btn.setToolTip("Cycle brightness (Low / Medium / High)")
-        self.ldd_btn.clicked.connect(self._on_ldd_click)
+        self.ldd_btn.clicked.connect(self._on_brightness_click)
         self._update_ldd_icon()
+
+        self.split_mode_btn = QPushButton(self.form_container)
+        self.split_mode_btn.setGeometry(*Layout.SPLIT_MODE_BTN)
+        self.split_mode_btn.setToolTip("Cycle split mode overlay")
+        self.split_mode_btn.clicked.connect(self._on_split_mode_click)
+        self.split_mode_btn.hide()
+        self._update_split_mode_icon()
 
         self.theme_name_input = QLineEdit(self.form_container)
         self.theme_name_input.setGeometry(*Layout.THEME_NAME_INPUT)
@@ -1808,37 +1816,67 @@ class TRCCApp(QMainWindow):
             h.set_rotation(index * 90)
             self.uc_preview.set_status(f"Rotation: {index * 90}°")
 
-    def _on_ldd_click(self) -> None:
+    def _on_brightness_click(self) -> None:
         h = self._active_lcd()
         if not h:
             return
-        if h.ldd_is_split:
-            mode = (h.split_mode % 3) + 1
-            h.set_split_mode(mode)
-            self._update_ldd_icon()
-            self.uc_preview.set_status(f"Split mode: {mode}")
-        else:
-            level = (h.brightness_level % 3) + 1
-            h.set_brightness(level)
-            self._update_ldd_icon()
-            from ..core.models import BRIGHTNESS_LEVELS
+        level = (h.brightness_level + 1) % 4
+        h.set_brightness(level)
+        self._update_ldd_icon()
+        from ..core.models import BRIGHTNESS_LEVELS
 
-            self.uc_preview.set_status(f"Brightness: L{level} ({BRIGHTNESS_LEVELS[level]}%)")
+        self.uc_preview.set_status(f"Brightness: L{level} ({BRIGHTNESS_LEVELS[level]}%)")
+
+    def _on_split_mode_click(self) -> None:
+        h = self._active_lcd()
+        if not h:
+            return
+        mode = (h.split_mode + 1) % 4
+        h.set_split_mode(mode)
+        self._update_split_mode_icon()
+        mode_display = f"style {mode}"
+        self.uc_preview.set_status(f"Split mode: {mode_display}")
 
     def _update_ldd_icon(self) -> None:
         h = self._active_lcd()
         if not h:
             return
-        level = h.split_mode if h.ldd_is_split else h.brightness_level
-        pix = self._ldd_pixmaps.get(level)
+        level = h.brightness_level
+
+        match level:
+            case 0:
+                label = "Off"
+
+            case 1:
+                label = "Low"
+
+            case 2:
+                label = "Medium"
+
+            case 3:
+                label = "High"
+
+        self.ldd_btn.setText(label)
+        self.ldd_btn.setStyleSheet(Styles.TEXT_BUTTON)
+
+    def _update_split_mode_icon(self) -> None:
+        h = self._active_lcd()
+        if not h:
+            return
+        if not h.ldd_is_split:
+            self.split_mode_btn.hide()
+            return
+        self.split_mode_btn.show()
+        level = h.split_mode
+        pix = self._split_mode_pixmaps.get(level)
         if pix and not pix.isNull():
-            self.ldd_btn.setIcon(QIcon(pix))
-            self.ldd_btn.setIconSize(QSize(52, 24))
-            self.ldd_btn.setStyleSheet(Styles.ICON_BUTTON_HOVER)
+            self.split_mode_btn.setIcon(QIcon(pix))
+            self.split_mode_btn.setIconSize(QSize(52, 24))
+            self.split_mode_btn.setStyleSheet(Styles.ICON_BUTTON_HOVER)
         else:
-            label = f"S{level}" if h.ldd_is_split else f"L{level}"
-            self.ldd_btn.setText(label)
-            self.ldd_btn.setStyleSheet(Styles.TEXT_BUTTON)
+            label = "off" if level == 0 else f"S{level}"
+            self.split_mode_btn.setText(label)
+            self.split_mode_btn.setStyleSheet(Styles.TEXT_BUTTON)
 
     # ── Global Settings ─────────────────────────────────────────────
 

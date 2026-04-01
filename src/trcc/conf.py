@@ -554,8 +554,6 @@ class Settings:
         self._width = width
         self._height = height
         self._resolve_paths()
-        if persist:
-            Settings._save_resolution(width, height)
 
     def set_temp_unit(self, unit: int) -> None:
         """Set temperature unit (0=Celsius, 1=Fahrenheit) and persist."""

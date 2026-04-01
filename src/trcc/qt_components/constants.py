@@ -199,6 +199,7 @@ class Layout:
     # Bottom control buttons (within form_container)
     ROTATION_COMBO = (39, 680, 108, 24)
     BRIGHTNESS_BTN = (157, 680, 52, 24)
+    SPLIT_MODE_BTN = (212, 680, 52, 24)
     THEME_NAME_INPUT = (278, 684, 102, 16)
     SAVE_BTN = (383, 680, 24, 24)
     EXPORT_BTN = (412, 680, 40, 24)
