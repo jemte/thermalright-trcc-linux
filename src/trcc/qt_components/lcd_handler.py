@@ -788,39 +788,47 @@ class LCDHandler(BaseHandler):
 
         Also auto-loads the first local theme if nothing is currently showing
         (first install: data just finished extracting).
+
+        When handler is not active (background secondary device init), skips GUI
+        widget writes to prevent overriding the primary device's panel state.
         """
         from ..core.models import ThemeDir
 
         w, h = self._lcd.lcd_size
         td = ThemeDir.for_resolution(w, h)
-        if td and td.exists():
-            self._w["theme_local"].set_theme_directory(td.path)
-        web_dir = Path(_conf.settings._path_resolver.web_dir(w, h))
-        masks_dir = Path(_conf.settings._path_resolver.web_masks_dir(w, h))
-        if web_dir.exists():
-            self._w["theme_web"].set_web_directory(web_dir)
-        self._w["theme_web"].set_resolution(f"{w}x{h}")
-        if masks_dir.exists():
-            # Pass device_key for multi-display support in mask directory resolution
-            self._w["theme_mask"].set_mask_directory(masks_dir, self._device_key)
-        self._w["theme_mask"].set_resolution(f"{w}x{h}")
 
-        # First install only: themes just extracted — load first one onto LCD + preview.
-        # Skip when a saved theme_path exists in config — RestoreLastThemeCommand owns
-        # session restore and will load the correct theme. Auto-loading here would
-        # persist Theme1 over the saved path before RestoreLastThemeCommand runs.
-        if self._lcd.current_image is None and td and td.exists():
-            saved_path = (
-                Settings.get_device_config(self._device_key).get("theme_path")
-                if self._device_key
-                else None
-            )
-            if not saved_path:
-                for item in sorted(td.path.iterdir()):
-                    if item.is_dir() and (item / "00.png").exists():
-                        log.info("Data ready: auto-loading first theme: %s", item)
-                        self._select_theme_from_path(item, persist=True, overlay_config=True)
-                        break
+        # Only update GUI widgets when this handler is active (foreground device).
+        # Background secondary device init still resolves directories for theme
+        # restoration but does not update the shared GUI panels.
+        if self._is_active:
+            if td and td.exists():
+                self._w["theme_local"].set_theme_directory(td.path)
+            web_dir = Path(_conf.settings._path_resolver.web_dir(w, h))
+            masks_dir = Path(_conf.settings._path_resolver.web_masks_dir(w, h))
+            if web_dir.exists():
+                self._w["theme_web"].set_web_directory(web_dir)
+            self._w["theme_web"].set_resolution(f"{w}x{h}")
+            if masks_dir.exists():
+                # Pass device_key for multi-display support in mask directory resolution
+                self._w["theme_mask"].set_mask_directory(masks_dir, self._device_key)
+            self._w["theme_mask"].set_resolution(f"{w}x{h}")
+
+            # First install only: themes just extracted — load first one onto LCD + preview.
+            # Skip when a saved theme_path exists in config — RestoreLastThemeCommand owns
+            # session restore and will load the correct theme. Auto-loading here would
+            # persist Theme1 over the saved path before RestoreLastThemeCommand runs.
+            if self._lcd.current_image is None and td and td.exists():
+                saved_path = (
+                    Settings.get_device_config(self._device_key).get("theme_path")
+                    if self._device_key
+                    else None
+                )
+                if not saved_path:
+                    for item in sorted(td.path.iterdir()):
+                        if item.is_dir() and (item / "00.png").exists():
+                            log.info("Data ready: auto-loading first theme: %s", item)
+                            self._select_theme_from_path(item, persist=True, overlay_config=True)
+                            break
 
     def _resolve_cloud_dirs(self, rotation: int) -> None:
         """Re-resolve cloud dirs for portrait rotation (C# GetWebBackgroundImageDirectory).
