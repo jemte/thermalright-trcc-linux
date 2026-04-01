@@ -93,7 +93,12 @@ class ImageService:
 
     @staticmethod
     def encode_for_device(
-        img: Any, protocol: str, resolution: tuple[int, int], fbl: int | None, use_jpeg: bool
+        img: Any,
+        protocol: str,
+        resolution: tuple[int, int],
+        fbl: int | None,
+        use_jpeg: bool,
+        device_info: Any = None,
     ) -> bytes:
         """Encode surface for LCD device — JPEG or RGB565.
 
@@ -102,6 +107,15 @@ class ImageService:
         dims — resize back before encoding. C# does the same: composes
         at swapped dims, rotates back, sends native. Preview shows
         portrait; device always gets landscape.
+
+        Args:
+            img: Image surface to encode
+            protocol: Device protocol (scsi, hid, bulk, ly)
+            resolution: Device native resolution (width, height)
+            fbl: FBL code for device profile lookup
+            use_jpeg: Force JPEG encoding
+            device_info: Optional DeviceInfo for device-specific quirks
+                (e.g., hardware defect workarounds)
         """
         from ..core.models import get_profile
 
@@ -115,6 +129,12 @@ class ImageService:
             img_w, img_h = rnd.surface_size(img)
             if (img_w, img_h) != (native_w, native_h):
                 img = rnd.resize(img, native_w, native_h)
+
+        # Hardware defect workaround: Bulk device 87ad:70db receives upside-down
+        # image from firmware (boot logo displays correctly but rendered frames appear
+        # rotated 180°). Apply 180° rotation before encoding.
+        if device_info and device_info.vid == 0x87AD and device_info.pid == 0x70DB:
+            img = rnd.apply_rotation(img, 180)
 
         if use_jpeg or (profile and profile.jpeg):
             return ImageService.to_jpeg(img)

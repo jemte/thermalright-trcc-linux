@@ -599,6 +599,7 @@ class DisplayService:
             resolution=resolution,
             fbl=fbl,
             use_jpeg=use_jpeg,
+            device_info=device,
         )
         self._cache = cache
         if self._cpu_percent_fn is not None:
@@ -775,7 +776,9 @@ class DisplayService:
         if not device:
             raise RuntimeError("Cannot encode for device — no device selected")
         protocol, resolution, fbl, use_jpeg = device.encoding_params
-        return ImageService.encode_for_device(img, protocol, resolution, fbl, use_jpeg)
+        return ImageService.encode_for_device(
+            img, protocol, resolution, fbl, use_jpeg, device_info=device
+        )
 
     # -- Theme save (delegates to ThemePersistence) ------------------------
 

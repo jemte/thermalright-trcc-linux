@@ -56,6 +56,7 @@ class VideoFrameCache:
         self._resolution: tuple[int, int] = (320, 320)
         self._fbl: int | None = None
         self._use_jpeg: bool = False
+        self._device_info: Any | None = None
 
         # L3: per-frame encoded bytes + preview.
         # None = not yet encoded for this frame index.
@@ -93,6 +94,7 @@ class VideoFrameCache:
         resolution: tuple[int, int],
         fbl: int | None,
         use_jpeg: bool,
+        device_info: Any | None = None,
     ) -> None:
         """Build L2 cache. Called at video load time."""
         if not frames:
@@ -120,6 +122,7 @@ class VideoFrameCache:
         self._resolution = resolution
         self._fbl = fbl
         self._use_jpeg = use_jpeg
+        self._device_info = device_info
 
         self._build_layer2(frames, mask, mask_position)
         self._render_text(overlay_svc, metrics)
@@ -236,7 +239,12 @@ class VideoFrameCache:
 
         self._l3_preview[index] = frame
         self._l3_encoded[index] = ImageService.encode_for_device(
-            frame, self._protocol, self._resolution, self._fbl, self._use_jpeg
+            frame,
+            self._protocol,
+            self._resolution,
+            self._fbl,
+            self._use_jpeg,
+            device_info=self._device_info,
         )
 
     def _pre_render_l3(
@@ -271,7 +279,12 @@ class VideoFrameCache:
 
             preview[i] = frame
             encoded[i] = ImageService.encode_for_device(
-                frame, self._protocol, self._resolution, self._fbl, self._use_jpeg
+                frame,
+                self._protocol,
+                self._resolution,
+                self._fbl,
+                self._use_jpeg,
+                device_info=self._device_info,
             )
 
         if cancel.is_set():

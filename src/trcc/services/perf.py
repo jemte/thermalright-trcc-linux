@@ -391,7 +391,9 @@ def _run_device_benchmarks_inner(
 
         # Encode-only timing
         t0 = time.perf_counter()
-        data = ImageService.encode_for_device(img, ep[0], resolution, fbl, use_jpeg)
+        data = ImageService.encode_for_device(
+            img, ep[0], resolution, fbl, use_jpeg, device_info=lcd_dev
+        )
         encode_s = time.perf_counter() - t0
         report.record_device(f"LCD encode {w}x{h}", encode_s, 0.010)
 
@@ -405,7 +407,9 @@ def _run_device_benchmarks_inner(
         # Full pipeline: encode + send
         img2 = r.create_surface(w, h, (0, 255, 0))
         t0 = time.perf_counter()
-        data2 = ImageService.encode_for_device(img2, ep[0], resolution, fbl, use_jpeg)
+        data2 = ImageService.encode_for_device(
+            img2, ep[0], resolution, fbl, use_jpeg, device_info=lcd_dev
+        )
         protocol.send_image(data2, w, h)
         pipeline_s = time.perf_counter() - t0
         report.record_device("LCD encode+send pipeline", pipeline_s, 0.200)
@@ -416,7 +420,9 @@ def _run_device_benchmarks_inner(
         for color in colors:
             frame_img = r.create_surface(w, h, color)
             frames_data.append(
-                ImageService.encode_for_device(frame_img, ep[0], resolution, fbl, use_jpeg)
+                ImageService.encode_for_device(
+                    frame_img, ep[0], resolution, fbl, use_jpeg, device_info=lcd_dev
+                )
             )
 
         frame_count = 0
