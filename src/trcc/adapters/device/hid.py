@@ -633,6 +633,18 @@ class HidDeviceManager:
             log.error("HID send failed: %s", e)
             cls._initialized_transports.discard(transport_id)
             cls._device_handlers.pop(transport_id, None)
+            # ENODEV (errno 19) means the USB device re-enumerated (e.g. resume
+            # from suspend).  Re-raise so the caller (HidProtocol) can close the
+            # stale transport handle and allow _ensure_transport() to re-open it.
+            _enodev = getattr(e, "errno", None) == 19
+            if not _enodev:
+                # Walk the cause chain for wrapped USBErrors
+                _cur = getattr(e, "__cause__", None)
+                while _cur is not None and not _enodev:
+                    _enodev = getattr(_cur, "errno", None) == 19
+                    _cur = getattr(_cur, "__cause__", None)
+            if _enodev:
+                raise
             return False
 
 

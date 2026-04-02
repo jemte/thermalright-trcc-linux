@@ -35,6 +35,7 @@ log = logging.getLogger(__name__)
 # USB errno constants.
 _ERRNO_EACCES = 13  # Permission denied — udev rules missing.
 _ERRNO_EBUSY = 16  # Device claimed by another process (e.g. GUI).
+_ERRNO_ENODEV = 19  # No such device — disconnected or re-enumerated after suspend.
 
 
 def _has_usb_errno(exc: Exception, errno_val: int) -> bool:
@@ -256,8 +257,14 @@ class UsbProtocol(DeviceProtocol):
         """Lazily open USB transport on first use."""
         if self._transport is None:
             log.debug("Opening %s transport: %04X:%04X", self.protocol_name, self._vid, self._pid)
-            self._transport = DeviceProtocolFactory.create_usb_transport(self._vid, self._pid)
-            self._transport.open()
+            transport = DeviceProtocolFactory.create_usb_transport(self._vid, self._pid)
+            try:
+                transport.open()
+            except Exception:
+                # Open failed (e.g. device not yet re-enumerated after suspend).
+                # Leave self._transport as None so the next tick retries from scratch.
+                raise
+            self._transport = transport
             self._notify_state_changed("transport_open", True)
 
     def _close_transport(self) -> None:
@@ -397,7 +404,20 @@ class HidProtocol(UsbProtocol):
 
             self._ensure_transport()
             assert self._transport is not None
-            return HidDeviceManager.send_image(self._transport, image_data, self._device_type)
+            try:
+                return HidDeviceManager.send_image(self._transport, image_data, self._device_type)
+            except Exception as e:
+                if _has_usb_errno(e, _ERRNO_ENODEV):
+                    # Device re-enumerated (e.g. resume from suspend).  Drop the
+                    # stale transport handle so _ensure_transport() re-opens it on
+                    # the next tick and the handshake is retried automatically.
+                    log.debug(
+                        "HID %04X:%04X transport lost (ENODEV) — closing for reconnect",
+                        self._vid,
+                        self._pid,
+                    )
+                    self._close_transport()
+                raise
 
         return self._guarded_send("HID", _do_send)
 
