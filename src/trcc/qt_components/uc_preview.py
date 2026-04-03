@@ -9,7 +9,15 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QFrame, QLabel, QPushButton, QSlider, QVBoxLayout
+from PySide6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QSlider,
+    QVBoxLayout,
+    QWidget,
+)
 
 from .assets import Assets
 from .base import BasePanel, ImageLabel, set_background_pixmap
@@ -76,6 +84,7 @@ class UCPreview(BasePanel):
     element_drag_move = Signal(int, int)  # LCD-scaled (x, y)
     element_drag_end = Signal()
     element_nudge = Signal(int, int)  # LCD-scaled (dx, dy)
+    brightness_changed = Signal(int)  # percent 0-100, emitted on slider release
 
     def __init__(self, width=320, height=320, parent=None):
         super().__init__(parent, width=Sizes.PREVIEW_FRAME, height=Sizes.PREVIEW_PANEL_H)
@@ -122,6 +131,29 @@ class UCPreview(BasePanel):
         self.status_label.setStyleSheet(f"color: {Colors.STATUS_TEXT}; font-size: 11px;")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.status_label)
+
+        # Brightness slider row
+        brightness_row = QWidget()
+        brightness_layout = QHBoxLayout(brightness_row)
+        brightness_layout.setContentsMargins(10, 4, 10, 4)
+        brightness_layout.setSpacing(8)
+
+        self.brightness_slider = QSlider(Qt.Orientation.Horizontal)
+        self.brightness_slider.setRange(0, 100)
+        self.brightness_slider.setValue(100)
+        self.brightness_slider.setFixedWidth(200)
+        self.brightness_slider.setStyleSheet(Styles.SLIDER)
+        self.brightness_slider.sliderReleased.connect(
+            lambda: self.brightness_changed.emit(self.brightness_slider.value())
+        )
+
+        brightness_label = QLabel("Brightness")
+        brightness_label.setStyleSheet(f"color: {Colors.STATUS_TEXT}; font-size: 11px;")
+
+        brightness_layout.addWidget(brightness_label)
+        brightness_layout.addWidget(self.brightness_slider)
+
+        layout.addWidget(brightness_row, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # Video progress bar container (hidden by default)
         self.progress_container = QFrame()
@@ -240,6 +272,12 @@ class UCPreview(BasePanel):
 
     def set_status(self, text):
         self.status_label.setText(text)
+
+    def set_brightness_slider(self, value: int) -> None:
+        """Update the brightness slider position without emitting brightness_changed."""
+        self.brightness_slider.blockSignals(True)
+        self.brightness_slider.setValue(max(0, min(100, value)))
+        self.brightness_slider.blockSignals(False)
 
     def show_video_controls(self, show=True):
         self.progress_container.setVisible(show)

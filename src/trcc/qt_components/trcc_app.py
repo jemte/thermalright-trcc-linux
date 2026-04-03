@@ -490,8 +490,9 @@ class TRCCApp(QMainWindow):
                         self._start_handshake(info)
                     else:
                         handler.apply_device_config(info, w, h)
-                        self._update_ldd_icon()
+                        self._sync_brightness_slider()
                         self._update_split_mode_icon()
+                        self.uc_preview.set_status("Ready")
         elif isinstance(handler, LEDHandler):
             info = handler.device_info
             if info and not handler.active:
@@ -819,14 +820,8 @@ class TRCCApp(QMainWindow):
             if not pix.isNull():
                 self._split_mode_pixmaps[level] = pix
 
-        self.ldd_btn = QPushButton(self.form_container)
-        self.ldd_btn.setGeometry(*Layout.BRIGHTNESS_BTN)
-        self.ldd_btn.setToolTip("Cycle brightness (Low / Medium / High)")
-        self.ldd_btn.clicked.connect(self._on_brightness_click)
-        self._update_ldd_icon()
-
         self.split_mode_btn = QPushButton(self.form_container)
-        self.split_mode_btn.setGeometry(*Layout.SPLIT_MODE_BTN)
+        self.split_mode_btn.setGeometry(*Layout.BRIGHTNESS_BTN)
         self.split_mode_btn.setToolTip("Cycle split mode overlay")
         self.split_mode_btn.clicked.connect(self._on_split_mode_click)
         self.split_mode_btn.hide()
@@ -1210,6 +1205,7 @@ class TRCCApp(QMainWindow):
         self.uc_preview.element_drag_move.connect(self._on_drag_move)
         self.uc_preview.element_drag_end.connect(lambda: None)
         self.uc_preview.element_nudge.connect(self._on_nudge)
+        self.uc_preview.brightness_changed.connect(self._on_brightness_slider_changed)
         self._drag_origin_x = 0
         self._drag_origin_y = 0
         self._drag_elem_x = 0
@@ -1351,7 +1347,8 @@ class TRCCApp(QMainWindow):
         if isinstance(handler, LCDHandler):
             w, h = resolution
             handler.apply_device_config(device, w, h)
-            self._update_ldd_icon()
+            self._sync_brightness_slider()
+            self.uc_preview.set_status("Ready")
             if Settings.show_info_module():
                 self.uc_info_module.setVisible(True)
 
@@ -1816,16 +1813,12 @@ class TRCCApp(QMainWindow):
             h.set_rotation(index * 90)
             self.uc_preview.set_status(f"Rotation: {index * 90}°")
 
-    def _on_brightness_click(self) -> None:
+    def _on_brightness_slider_changed(self, value: int) -> None:
         h = self._active_lcd()
         if not h:
             return
-        level = (h.brightness_level + 1) % 4
-        h.set_brightness(level)
-        self._update_ldd_icon()
-        from ..core.models import BRIGHTNESS_LEVELS
-
-        self.uc_preview.set_status(f"Brightness: L{level} ({BRIGHTNESS_LEVELS[level]}%)")
+        h.set_brightness(value)
+        self.uc_preview.set_status(f"Brightness: {value}%")
 
     def _on_split_mode_click(self) -> None:
         h = self._active_lcd()
@@ -1837,27 +1830,17 @@ class TRCCApp(QMainWindow):
         mode_display = f"style {mode}"
         self.uc_preview.set_status(f"Split mode: {mode_display}")
 
-    def _update_ldd_icon(self) -> None:
+    def _sync_brightness_slider(self) -> None:
+        """Sync the brightness slider to the active device's current level."""
+        from ..core.models import BRIGHTNESS_LEVELS
+
         h = self._active_lcd()
         if not h:
             return
-        level = h.brightness_level
-
-        match level:
-            case 0:
-                label = "Off"
-
-            case 1:
-                label = "Low"
-
-            case 2:
-                label = "Medium"
-
-            case 3:
-                label = "High"
-
-        self.ldd_btn.setText(label)
-        self.ldd_btn.setStyleSheet(Styles.TEXT_BUTTON)
+        raw = h.brightness_level
+        # Legacy level index (0-3) → percent; raw percent passes through unchanged
+        pct = BRIGHTNESS_LEVELS.get(raw, raw) if raw <= 3 else raw
+        self.uc_preview.set_brightness_slider(pct)
 
     def _update_split_mode_icon(self) -> None:
         h = self._active_lcd()
