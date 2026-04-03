@@ -287,6 +287,13 @@ class VideoFrameCache:
                 device_info=self._device_info,
             )
 
+            if cancel.is_set():
+                return
+
+        # Final cancel check — shutdown() may have fired during the last
+        # frame's encoding, after the in-loop check above passed.  Without
+        # this guard the thread would overwrite the lists that shutdown()
+        # already cleared, re-populating them with stale frame data.
         if cancel.is_set():
             return
 
@@ -299,6 +306,23 @@ class VideoFrameCache:
         self._l3_encoded = encoded
         self._l3_preview = preview
         log.debug("VideoFrameCache: background L3 rebuild complete (%d frames)", n)
+
+    def shutdown(self) -> None:
+        """Cancel background thread and release all cached frame data.
+
+        Call this before discarding a VideoFrameCache instance to ensure
+        the background L3 rebuild thread stops promptly and all large
+        frame buffers (L2 composited surfaces, L3 encoded bytes, preview
+        surfaces) are freed immediately rather than waiting for GC.
+        """
+        self._cancel_event.set()
+        self._active = False
+        self._masked_frames = []
+        self._l3_encoded = []
+        self._l3_preview = []
+        self._text_overlay = None
+        self._rebuild_thread = None
+        log.debug("VideoFrameCache: shutdown — all frame buffers released")
 
     def _reset_l3(self) -> None:
         """Clear all L3 slots. They refill lazily during the next playback loop."""

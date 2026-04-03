@@ -262,7 +262,9 @@ class DisplayService:
 
     def load_local_theme(self, theme) -> dict:
         """Load a local theme with DC config, mask, and overlay."""
-        self._cache = None  # Invalidate previous video cache
+        if self._cache is not None:  # Invalidate previous video cache
+            self._cache.shutdown()
+        self._cache = None
         result = self._loader.load_local_theme(theme, self.lcd_size, self.working_dir)
 
         # Convert decoded frames to native renderer surfaces (if animated)
@@ -299,7 +301,9 @@ class DisplayService:
 
     def load_cloud_theme(self, theme) -> dict:
         """Load a cloud video theme as background."""
-        self._cache = None  # Invalidate previous video cache
+        if self._cache is not None:  # Invalidate previous video cache
+            self._cache.shutdown()
+        self._cache = None
         result = self._loader.load_cloud_theme(theme, self.working_dir)
         log.debug("load_cloud_theme: loader result keys=%s", list(result.keys()))
 
@@ -349,6 +353,8 @@ class DisplayService:
         log.debug("apply_mask: _mask_source_dir=%s", self._mask_source_dir)
 
         # Mask change invalidates both video cache and render cache
+        if self._cache is not None:
+            self._cache.shutdown()
         self._cache = None
         self.invalidate_render_cache()
         if self.media.has_frames:

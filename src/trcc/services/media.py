@@ -131,6 +131,9 @@ class MediaService:
     def stop(self) -> None:
         self._state.state = PlaybackState.STOPPED
         self._state.current_frame = 0
+        self._frames.clear()
+        self._delays.clear()
+        self._decoder = None
 
     def toggle(self) -> None:
         if self.is_playing:
